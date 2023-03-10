@@ -90,12 +90,12 @@ class CC3DTrackMemory:
             data.track_ids == -1, as_tuple=False
         ).squeeze(1)
 
-        ious = bbox_iou(
-            data.boxes[backdrop_tracks],
-            data.boxes,
-            data.camera_ids[backdrop_tracks],
-            data.camera_ids,
-        )
+        valid_ious = torch.eq(
+            data.camera_ids[backdrop_tracks].unsqueeze(1),
+            data.camera_ids.unsqueeze(0),
+        ).int()
+        ious = bbox_iou(data.boxes[backdrop_tracks], data.boxes)
+        ious *= valid_ious
 
         for i, ind in enumerate(backdrop_tracks):
             if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():

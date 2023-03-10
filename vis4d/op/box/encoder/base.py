@@ -21,15 +21,15 @@ class BoxEncoder2D:
 class BoxEncoder3D:
     """Base class for 3D box coders."""
 
-    # @abc.abstractmethod
-    # def encode(
-    #     self,
-    #     boxes_3d: Tensor,
-    #     targets: Tensor,
-    #     intrinsics: Tensor,
-    # ) -> Tensor:
-    #     """Encode deltas between 3D boxes and targets given intrinsics."""
-    #     raise NotImplementedError
+    @abc.abstractmethod
+    def encode(
+        self,
+        boxes_3d: Tensor,
+        targets: Tensor,
+        intrinsics: Tensor,
+    ) -> Tensor:
+        """Encode deltas between 3D boxes and targets given intrinsics."""
+        raise NotImplementedError
 
     @abc.abstractmethod
     def decode(

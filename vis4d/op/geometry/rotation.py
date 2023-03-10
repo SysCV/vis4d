@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from vis4d.data.const import AxisMode
+
 
 def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
     """Normalize content of input_angles to range [-pi, pi].
@@ -20,7 +22,8 @@ def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
 
 
 def acute_angle(theta_1: torch.Tensor, theta_2: torch.Tensor) -> torch.Tensor:
-    """Make the angle of two theta is acute."""
+    """Update theta_1 to mkae the agnle between two thetas is acute."""
+    # Make sure the angle between two thetas is acute
     if np.pi / 2.0 < abs(theta_2 - theta_1) < np.pi * 3 / 2.0:
         theta_1 += np.pi
         if theta_1 > np.pi:
@@ -28,7 +31,7 @@ def acute_angle(theta_1: torch.Tensor, theta_2: torch.Tensor) -> torch.Tensor:
         if theta_1 < -np.pi:
             theta_1 += np.pi * 2
 
-    # Now the angle is acute: < 90 or > 270, convert the case of > 270 to < 90
+    # Convert the case of > 270 to < 90
     if abs(theta_2 - theta_1) >= np.pi * 3 / 2.0:
         if theta_2 > 0:
             theta_1 += np.pi * 2
@@ -501,17 +504,15 @@ def quaternion_apply(
 def rotate_orientation(
     orientation: torch.Tensor,
     extrinsics: torch.Tensor,
-    in_image_frame: bool = False,
+    axis_mode: AxisMode = AxisMode.ROS,
 ) -> torch.Tensor:
     """Rotate the orientation of the object in different coordinate."""
     rot = extrinsics[:3, :3] @ euler_angles_to_matrix(orientation)
 
     new_orientation = rot.new_zeros(orientation.shape[0], 3)
-    if in_image_frame:
-        # Yaw in camera coordinate
+    if axis_mode == AxisMode.OPENCV:
         new_orientation[:, 1] = matrix_to_euler_angles(rot, "YZX")[:, 0]
     else:
-        # Yaw in lidar or world coordinate
         new_orientation[:, 2] = matrix_to_euler_angles(rot, "ZYX")[:, 0]
     return new_orientation
 

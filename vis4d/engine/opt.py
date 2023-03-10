@@ -130,6 +130,10 @@ class Optimizer:
             "Optimizer was not correctly setup. Make sure to call setup()"
             "before step()."
         )
+        # TODO: Refactor this, we want to have freedom to use warmup in step
+        # even in epoch based.
+        if self.epoch_based:
+            _ = self._warmup_step(step)
         if not self.epoch_based:
             self._lr_step(step)
         self.optimizer.step(closure=closure)

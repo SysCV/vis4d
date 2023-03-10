@@ -68,8 +68,9 @@ def get_config() -> ConfigDict:
     config = ConfigDict()
     config.n_gpus = 8
     config.work_dir = "vis4d-workspace"
-    config.experiment_name = "faster_rcnn_coco_example"
+    config.experiment_name = "faster_rcnn_r50_fpn_coco"
     config = set_output_dir(config)
+    config.benchmark = True
 
     config.dataset_root = "data/coco"
     config.train_split = "train2017"
@@ -77,8 +78,8 @@ def get_config() -> ConfigDict:
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.samples_per_gpu = 1
-    params.lr = 0.01
+    params.samples_per_gpu = 4
+    params.lr = 0.02
     params.num_epochs = 12
     params.augment_proba = 0.5
     params.num_classes = 80
@@ -99,6 +100,7 @@ def get_config() -> ConfigDict:
         keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
+        data_backend=HDF5Backend(),
     )
     train_preprocess_cfg = det_preprocessing(800, 1333, params.augment_proba)
     data.train_dataloader = default_image_dataloader(
@@ -189,13 +191,16 @@ def get_config() -> ConfigDict:
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
+            optimizer=class_config(
+                optim.SGD, lr=params.lr, weight_decay=0.0001
+            ),
             lr_scheduler=class_config(
                 MultiStepLR, milestones=[8, 11], gamma=0.1
             ),
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
             ),
+            epoch_based=True,
         )
     ]
 
@@ -216,7 +221,7 @@ def get_config() -> ConfigDict:
             loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
             callbacks={
                 "coco_eval_test": CONN_COCO_BBOX_EVAL,
-                "bbox_vis_test": CONN_BBOX_2D_VIS,
+                # "bbox_vis_test": CONN_BBOX_2D_VIS,
             },
         ),
     )
@@ -251,15 +256,16 @@ def get_config() -> ConfigDict:
     # between the visualizer and the data connector in the data connector
     # section. And use the same name here.
 
-    vis_callbacks = {
-        "bbox_vis": class_config(
-            VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer),
-            save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        )
-    }
+    # vis_callbacks = {
+    #     "bbox_vis": class_config(
+    #         VisualizerCallback,
+    #         visualizer=class_config(BoundingBoxVisualizer),
+    #         save_prefix=config.output_dir,
+    #         run_every_nth_epoch=1,
+    #         num_epochs=params.num_epochs,
+    #     )
+    # }
+
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
@@ -287,13 +293,14 @@ def get_config() -> ConfigDict:
         **ckpt_callback,
     }
     config.test_callbacks = {
-        **vis_callbacks,
+        # **vis_callbacks,
     }
 
     ######################################################
     ##                  PL CALLBACKS                    ##
     ######################################################
     pl_trainer = ConfigDict()
+    pl_trainer.wandb = True
 
     pl_callbacks: list[pl.callbacks.Callback] = []
 

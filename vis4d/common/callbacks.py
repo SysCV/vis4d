@@ -8,7 +8,7 @@ import torch
 from torch import nn
 
 from vis4d.common import DictStrAny
-from vis4d.common.distributed import all_gather_object_cpu, get_rank
+from vis4d.common.distributed import all_gather_object_cpu, broadcast, get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
@@ -32,6 +32,9 @@ class Callback:
         """
         self.run_every_nth_epoch = run_every_nth_epoch
         self.num_epochs = num_epochs
+
+    def setup(self) -> None:
+        """Setup callback."""
 
     def run_on_epoch(self, epoch: int | None) -> bool:
         """Returns whether to run callback for current epoch (default True)."""
@@ -133,6 +136,11 @@ class EvaluatorCallback(Callback):
         self.output_dir = save_prefix
         self.evaluator = evaluator
 
+    def setup(self) -> None:  # pragma: no cover
+        """Setup callback."""
+        self.output_dir = broadcast(self.output_dir)
+        self.evaluator.reset()
+
     def on_test_epoch_end(
         self, model: nn.Module, epoch: None | int = None
     ) -> None:
@@ -201,6 +209,11 @@ class VisualizerCallback(Callback):
 
         if self.save_prefix is not None:
             self.output_dir = f"{self.save_prefix}/vis"
+
+    def setup(self) -> None:  # pragma: no cover
+        """Setup callback."""
+        if self.save_prefix is not None:
+            self.output_dir = broadcast(self.output_dir)
             os.makedirs(self.output_dir, exist_ok=True)
 
     def on_test_epoch_end(
@@ -298,8 +311,11 @@ class CheckpointCallback(Callback):
                 whether to visualize at the final epoch. Defaults to -1.
         """
         super().__init__(run_every_nth_epoch, num_epochs)
-
         self.output_dir = f"{save_prefix}/checkpoints"
+
+    def setup(self) -> None:  # pragma: no cover
+        """Setup callback."""
+        self.output_dir = broadcast(self.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
 
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:

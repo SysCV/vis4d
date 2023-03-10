@@ -14,10 +14,15 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
-from vis4d.common.distributed import get_local_rank, get_rank, get_world_size
+from vis4d.common.distributed import (
+    broadcast,
+    get_local_rank,
+    get_rank,
+    get_world_size,
+)
 from vis4d.common.logging import _info, rank_zero_info, setup_logger
 from vis4d.common.slurm import init_dist_slurm
-from vis4d.common.util import set_tf32
+from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.test import Tester
@@ -90,11 +95,9 @@ def main(  # type:ignore # pylint: disable=unused-argument
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
-
-    Or to run a parameter sweep:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
+    # Get config
     config = _CONFIG.value
     config.n_gpus = _GPUS.value
 
@@ -104,6 +107,11 @@ def main(  # type:ignore # pylint: disable=unused-argument
     setup_logger(logger_vis4d, log_dir)
 
     rank_zero_info("Environment info: %s", get_pretty_env_info())
+
+    # PyTorch Setting
+    set_tf32(False)
+    if "benchmark" in config:
+        torch.backends.cudnn.benchmark = config.benchmark
 
     if _SHOW_CONFIG.value:
         rank_zero_info("*" * 80)
@@ -137,17 +145,25 @@ def main(  # type:ignore # pylint: disable=unused-argument
     else:
         test_callbacks = shared_callbacks
 
-    set_tf32(False)
+    # Setup DDP & seed
+    seed = config.get("seed", init_random_seed())
     if config.n_gpus > 1:
         ddp_setup(slurm=_SLURM.value)
 
+        # broadcast seed to all processes
+        seed = broadcast(seed)
+
+    # Setup Dataloaders & seed
     if _MODE.value == "train":
+        set_random_seed(seed)
+        _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
 
     test_dataloader = instantiate_classes(
         config.data.test_dataloader
     ).values()[0]
 
+    # Setup Model
     if config.n_gpus == 0:
         device = torch.device("cpu")
     else:
@@ -160,6 +176,13 @@ def main(  # type:ignore # pylint: disable=unused-argument
         model = DDP(  # pylint: disable=redefined-variable-type
             model, device_ids=[rank]
         )
+
+    # Setup Callbacks
+    for _, cb in train_callbacks.items():
+        cb.setup()
+
+    for _, cb in test_callbacks.items():
+        cb.setup()
 
     tester = Tester(
         dataloaders=test_dataloader,

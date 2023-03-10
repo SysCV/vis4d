@@ -10,13 +10,14 @@ import os.path as osp
 
 from absl import app, flags
 from ml_collections import ConfigDict
-from pytorch_lightning import Callback
+from pytorch_lightning import Callback, seed_everything
 from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
     MisconfigurationException,
 )
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common.logging import rank_zero_info, setup_logger
+from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.pl.callbacks.callback_wrapper import CallbackWrapper
@@ -40,11 +41,9 @@ def main(  # type:ignore # pylint: disable=unused-argument
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
-
-    Or to run a parameter sweep:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/faster_rcnn_coco.py
+    >>> python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
+    # Get config
     config = _CONFIG.value
     config.n_gpus = _GPUS.value
 
@@ -57,20 +56,27 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
+    # PyTorch Setting
+    set_tf32(False)
+
     if _SHOW_CONFIG.value:
         rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
         rank_zero_info("*" * 80)
 
-    # Load Trainer kwargs from config
+    # Setup Trainer kwargs
+    # TODO: Support more pl.trainer kwargs
     trainer_args_cfg = ConfigDict()
     pl_trainer = instantiate_classes(config.pl_trainer)
     for key, value in pl_trainer.items():
         trainer_args_cfg[key] = value
+
+    if "benchmark" in config:
+        trainer_args_cfg.benchmark = config.benchmark
     trainer_args_cfg.max_epochs = config.params.num_epochs
     trainer_args_cfg.num_sanity_val_steps = 0
 
-    # Update GPU mode
+    # Setup GPU
     if config.n_gpus > 0:
         trainer_args_cfg.devices = config.n_gpus
         trainer_args_cfg.accelerator = "gpu"
@@ -82,6 +88,11 @@ def main(  # type:ignore # pylint: disable=unused-argument
     trainer_args_cfg.version = config.version
 
     trainer_args = instantiate_classes(trainer_args_cfg)
+
+    # Seed
+    seed = config.get("seed", None)
+    if _MODE.value == "train":
+        seed_everything(seed, workers=True)
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)

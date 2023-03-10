@@ -32,6 +32,12 @@ class CallbackWrapper(pl.Callback):
         self.data_connector = data_connector
         self.callback_key = callback_key
 
+    def setup(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str
+    ) -> None:
+        """Setup callback."""
+        self.callback.setup()
+
     def on_test_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:

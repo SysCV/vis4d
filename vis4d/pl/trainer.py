@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os.path as osp
-from typing import List, Optional
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
@@ -14,7 +13,6 @@ from pytorch_lightning.strategies.strategy import Strategy
 from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
-from vis4d.common.util import set_tf32
 
 
 class DefaultTrainer(pl.Trainer):
@@ -48,18 +46,14 @@ class DefaultTrainer(pl.Trainer):
         checkpoint_period: int = 1,
         resume: bool = False,
         wandb: bool = False,
-        use_tf32: bool = False,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
 
-        1. Setup env.
-        2. Setup logger.
+        1. Setup logger.
         2. Setup callbacks.
         3. Init distributed plugin
         """
-        set_tf32(use_tf32)
-
         self.resume = resume
         self.work_dir = work_dir
         self.exp_name = exp_name
@@ -93,7 +87,7 @@ class DefaultTrainer(pl.Trainer):
                 )
             kwargs["logger"] = exp_logger
 
-        callbacks: List[pl.callbacks.Callback] = []
+        callbacks: list[pl.callbacks.Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
         if TENSORBOARD_AVAILABLE or wandb:
@@ -124,9 +118,3 @@ class DefaultTrainer(pl.Trainer):
             kwargs["strategy"] = ddp_plugin
 
         super().__init__(*args, **kwargs)
-
-    @property
-    def log_dir(self) -> Optional[str]:
-        """Get current logging directory."""
-        dirpath = self.strategy.broadcast(self.output_dir)
-        return dirpath

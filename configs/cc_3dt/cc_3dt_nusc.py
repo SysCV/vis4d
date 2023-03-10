@@ -69,7 +69,7 @@ def get_config() -> ConfigDict:
     config.experiment_name = "cc_3dt_r50_kf3d"
     config = set_output_dir(config)
 
-    ckpt_path = "vis4d-workspace/checkpoints/cc_3dt_R_50_FPN_nuscenes_12_accumulate_gradient_2.ckpt"
+    ckpt_path = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
 
     # Hyper Parameters
     params = ConfigDict()
@@ -244,7 +244,6 @@ def get_config() -> ConfigDict:
     ##                  PL CALLBACKS                    ##
     ######################################################
     pl_trainer = ConfigDict()
-    # pl_trainer.wandb = True
 
     pl_callbacks: list[pl.callbacks.Callback] = []
 

@@ -15,26 +15,12 @@ from vis4d.op.track.matching import calc_bisoftmax_affinity
 
 # @torch.jit.script TODO
 class CC3DTrackAssociation:
-    """Data association relying on quasi-dense instance similarity.
+    """Data association relying on quasi-dense instance similarity and 3D clue.
 
     This class assigns detection candidates to a given memory of existing
     tracks and backdrops.
     Backdrops are low-score detections kept in case they have high
     similarity with a high-score detection in succeeding frames.
-
-    Attributes:
-        init_score_thr: Confidence threshold for initializing a new track
-        obj_score_thr: Confidence treshold s.t. a detection is considered in
-        the track / det matching process.
-        match_score_thr: Similarity score threshold for matching a detection to
-        an existing track.
-        memo_backdrop_frames: Number of timesteps to keep backdrops.
-        memo_momentum: Momentum of embedding memory for smoothing embeddings.
-        nms_backdrop_iou_thr: Maximum IoU of a backdrop with another detection.
-        nms_class_iou_thr: Maximum IoU of a high score detection with another
-        of a different class.
-        with_cats: If to consider category information for tracking (i.e. all
-        detections within a track must have consistent category labels).
     """
 
     def __init__(
@@ -48,7 +34,26 @@ class CC3DTrackAssociation:
         with_cats: bool = True,
         bbox_affinity_weight: float = 0.5,
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            init_score_thr (float): Confidence threshold for initializing a new
+                track.
+            obj_score_thr (float): Confidence treshold s.t. a detection is
+                considered in the track / det matching process.
+            match_score_thr (float): Similarity score threshold for matching a
+                detection to an existing track.
+            nms_backdrop_iou_thr (float): Maximum IoU of a backdrop with
+                another detection.
+            nms_class_iou_thr (float): Maximum IoU of a high score detection
+                with another of a different class.
+            with_cats (bool): If to consider category information for
+                tracking (i.e. all detections within a track must have
+                consistent category labels).
+            nms_conf_thr (float): Confidence threshold for NMS.
+            bbox_affinity_weight (float): Weight of bbox affinity in the
+                overall affinity score.
+        """
         super().__init__()
         self.init_score_thr = init_score_thr
         self.obj_score_thr = obj_score_thr
@@ -102,7 +107,13 @@ class CC3DTrackAssociation:
             scores_3d[inds],
         )
         valids = embeddings.new_ones((len(detections),), dtype=torch.bool)
-        ious = bbox_iou(detections, detections, camera_ids, camera_ids)
+
+        ious = bbox_iou(detections, detections)
+        valid_ious = torch.eq(
+            camera_ids.unsqueeze(1), camera_ids.unsqueeze(0)
+        ).int()
+        ious *= valid_ious
+
         for i in range(1, len(detections)):
             if scores[i] < self.obj_score_thr:
                 thr = self.nms_backdrop_iou_thr
