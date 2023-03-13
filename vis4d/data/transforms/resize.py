@@ -2,19 +2,20 @@
 from __future__ import annotations
 
 import random
-from typing import NamedTuple
+from typing import TypedDict
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
 from vis4d.data.const import CommonKeys as CK
+from vis4d.data.typing import DictData
 from vis4d.op.box.box2d import transform_bbox
 
-from .base import Transform
+from .base import Transform, compose
 
 
-class ResizeParam(NamedTuple):
+class ResizeParam(TypedDict):
     """Parameters for Resize."""
 
     target_shape: tuple[int, int]
@@ -22,13 +23,9 @@ class ResizeParam(NamedTuple):
     interpolation: str
 
 
-class Resize(Transform):
-    """Resize Transformation.
-
-    This transformation is used to resize image-based data and the
-    corresponding data fields, e.g. annotations like 2D bounding boxes, and
-    more.
-    """
+@Transform(CK.images, "transforms.resize")
+class GenerateResizeParameters:
+    """Generate the parameters for a resize operation."""
 
     def __init__(
         self,
@@ -38,9 +35,6 @@ class Resize(Transform):
         scale_range: tuple[float, float] = (1.0, 1.0),
         align_long_edge: bool = False,
         interpolation: str = "bilinear",
-        sensors: None | list[str] | str = None,
-        remap_in_keys: None | list[tuple[str, str]] | tuple[str, str] = None,
-        remap_out_keys: None | list[tuple[str, str]] | tuple[str, str] = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -63,19 +57,7 @@ class Resize(Transform):
                 Defaults to False.
             interpolation (str, optional): Interpolation method. One of
                 ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
-            sensors (None | list[str] | str, optional): Specifies the sensors
-                this transformation should be applied to. If None, it will be
-                applied to all available sensors. Defaults to None.
-            remap_in_keys (None | list[tuple[str, str]] | tuple[str, str],
-                optional): Specifies one or multiple (if any) input keys of the
-                data dictionary which should be remapeed to another key.
-                Defaults to None.
-            remap_out_keys (None | list[tuple[str, str]] | tuple[str, str],
-                optional): Specifies one or multiple (if any) input keys of the
-                data dictionary which should be remapeed to another key.
-                Defaults to None.
         """
-        super().__init__(sensors, remap_in_keys, remap_out_keys)
         self.shape = shape
         self.keep_ratio = keep_ratio
         self.multiscale_mode = multiscale_mode
@@ -83,10 +65,8 @@ class Resize(Transform):
         self.align_long_edge = align_long_edge
         self.interpolation = interpolation
 
-    def parameter_in_keys(self) -> str | list[str]:
-        return CK.images
-
-    def generate_parameters(self, image: Tensor) -> ResizeParam:
+    def __call__(self, image: Tensor) -> ResizeParam:
+        """Compute the parameters and put them in the data dict."""
         im_shape = (image.size(2), image.size(3))
         target_shape = _get_target_shape(
             im_shape,
@@ -100,70 +80,74 @@ class Resize(Transform):
             target_shape[1] / im_shape[1],
             target_shape[0] / im_shape[0],
         )
-        return ResizeParam(target_shape, scale_factor, self.interpolation)
-
-
-@Resize.register(CK.boxes2d, CK.boxes2d, ResizeParam.scale_factor)
-def resize_boxes2d(boxes: Tensor, scale_factor: tuple[float, float]) -> Tensor:
-    """Resize 2D bounding boxes.
-
-    Args:
-        boxes (Tensor): The bounding boxes to be resized.
-        scale_factor (tuple[float, float]): scaling factor.
-
-    Returns:
-        Tensor: Resized bounding boxes according to parameters in resize.
-    """
-    transform = torch.eye(3)
-    transform[0, 0] = scale_factor[0]
-    transform[1, 1] = scale_factor[1]
-    return transform_bbox(transform, boxes)
-
-
-@Resize.register(
-    CK.images, CK.images, [ResizeParam.target_shape, ResizeParam.interpolation]
-)
-def resize_image(
-    image: Tensor,
-    target_shape: tuple[int, int],
-    interpolation: str = "bilinear",
-) -> Tensor:
-    """Resize an image of dimensions [N, C, H, W]
-
-    Args:
-        image (Tensor): The image.
-        target_shape (tuple[int, int]): The target shape after resizing.
-        interpolation (str): One of nearest, bilinear, bicubic. Defaults to
-            bilinear.
-
-    Returns:
-        Tensor: Resized image according to parameters in resize.
-    """
-    return _resize_tensor(image, target_shape, interpolation=interpolation)
-
-
-@Resize.register(CK.intrinsics, CK.intrinsics, ResizeParam.scale_factor)
-def resize_intrinsics(
-    intrinsics: Tensor, scale_factor: tuple[float, float]
-) -> Tensor:
-    """Scale camera intrinsics when resizing."""
-    return intrinsics[:2] * scale_factor
-
-
-@Resize.register(CK.masks, CK.masks, ResizeParam.target_shape)
-def resize_masks(masks: Tensor, target_shape: tuple[int, int]) -> Tensor:
-    """Resize masks."""
-    if len(masks) == 0:  # handle empty masks
-        return masks
-    return (
-        _resize_tensor(
-            masks.float().unsqueeze(0),
-            target_shape,
-            interpolation="nearest",
+        return ResizeParam(
+            target_shape=target_shape,
+            scale_factor=scale_factor,
+            interpolation=self.interpolation,
         )
-        .type(masks.dtype)
-        .squeeze(0)
-    )
+
+
+def test_resize():
+    data = dict(images=torch.zeros((1, 3, 128, 128)))
+    tr1 = GenerateResizeParameters(shape=(800, 1333))
+    data = tr1.apply_to_data(data)
+    tr2 = ResizeImage()
+    data = tr2.apply_to_data(data)
+
+    data = dict(images=torch.zeros((1, 3, 128, 128)))
+    print(data)
+    tr = compose([tr1, tr2])
+    data = tr(data)
+    print(data)
+
+
+@Transform([CK.boxes2d, "transforms.resize.scale_factor"], CK.boxes2d)
+class ResizeBoxes2D:
+    def __call__(
+        self, boxes: Tensor, scale_factor: tuple[float, float]
+    ) -> Tensor:
+        """Resize 2D bounding boxes.
+
+        Args:
+            boxes (Tensor): The bounding boxes to be resized.
+            scale_factor (tuple[float, float]): scaling factor.
+
+        Returns:
+            Tensor: Resized bounding boxes according to parameters in resize.
+        """
+        scale_matrix = torch.eye(3)
+        scale_matrix[0, 0] = scale_factor[0]
+        scale_matrix[1, 1] = scale_factor[1]
+        return transform_bbox(scale_matrix, boxes)
+
+
+@Transform(
+    [
+        CK.images,
+        "transforms.resize.target_shape",
+        "transforms.resize.interpolation",
+    ],
+    CK.images,
+)
+class ResizeImage:
+    def __call__(
+        self,
+        image: Tensor,
+        target_shape: tuple[int, int],
+        interpolation: str = "bilinear",
+    ) -> Tensor:
+        """Resize an image of dimensions [N, C, H, W]
+
+        Args:
+            image (Tensor): The image.
+            target_shape (tuple[int, int]): The target shape after resizing.
+            interpolation (str): One of nearest, bilinear, bicubic. Defaults to
+                bilinear.
+
+        Returns:
+            Tensor: Resized image according to parameters in resize.
+        """
+        return _resize_tensor(image, target_shape, interpolation=interpolation)
 
 
 def _resize_tensor(
@@ -244,3 +228,29 @@ def _get_target_shape(
 
     shape = _get_resize_shape(input_shape, shape, keep_ratio, align_long_edge)
     return shape
+
+
+######## TODO refactor
+
+# @Resize.register(CK.intrinsics, CK.intrinsics, ResizeParam.scale_factor)
+# def resize_intrinsics(
+#     intrinsics: Tensor, scale_factor: tuple[float, float]
+# ) -> Tensor:
+#     """Scale camera intrinsics when resizing."""
+#     return intrinsics[:2] * scale_factor
+
+
+# @Resize.register(CK.masks, CK.masks, ResizeParam.target_shape)
+# def resize_masks(masks: Tensor, target_shape: tuple[int, int]) -> Tensor:
+#     """Resize masks."""
+#     if len(masks) == 0:  # handle empty masks
+#         return masks
+#     return (
+#         _resize_tensor(
+#             masks.float().unsqueeze(0),
+#             target_shape,
+#             interpolation="nearest",
+#         )
+#         .type(masks.dtype)
+#         .squeeze(0)
+#     )
