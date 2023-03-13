@@ -64,6 +64,14 @@ class Evaluator:
         """
         raise NotImplementedError
 
+    def save(self, metric: str, output_dir: str) -> None:
+        """Save predictions to file.
+
+        Args:
+            metric (str): Metric to evaluate.
+            output_dir (str): Directory to save predictions to.
+        """
+
 
 class SaveDataMixin:
     """Provides utility for saving predictions to file during eval."""

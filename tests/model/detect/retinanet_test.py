@@ -20,7 +20,7 @@ class RetinaNetTest(unittest.TestCase):
         """Test inference of RetinaNet.
 
         Run::
-            >>> pytest vis4d/model/detect/retinanet_test.py::RetinaNetTest::test_inference
+            >>> pytest tests/model/detect/retinanet_test.py::RetinaNetTest::test_inference
         """
         dataset = COCO(
             get_test_data("coco_test"),

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
@@ -11,46 +12,30 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
     CONN_COCO_BBOX_EVAL,
-    CONN_MASK_HEAD_LOSS_2D,
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
 )
-from vis4d.config.default.loss.faster_rcnn_loss import (
-    get_default_faster_rcnn_loss,
+from vis4d.config.default.data_connectors.detection import (
+    CONN_BOX_LOSS_2D,
+    CONN_IMAGES_TEST,
+    CONN_IMAGES_TRAIN,
 )
-from vis4d.config.default.loss.mask_rcnn_loss import get_default_mask_rcnn_loss
 from vis4d.config.default.optimizer.default import optimizer_cfg
-from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.coco import COCO
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
-    remap_pred_keys,
-)
+from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.model.detect.faster_rcnn import FasterRCNN
-from vis4d.model.detect.mask_rcnn import MaskRCNN
-from vis4d.op.detect.faster_rcnn import (
+from vis4d.model.detect.retinanet import RetinaNet
+from vis4d.op.detect.retinanet import (
+    RetinaNetHeadLoss,
     get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
+    get_default_box_encoder,
 )
 from vis4d.vis.image import BoundingBoxVisualizer
-
-# This is just for demo purposes. Uses the relative path to the vis4d root.
-VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
-COCO_DATA_ROOT = os.path.join(VIS4D_ROOT, "tests/vis4d-test-data/coco_test")
-TRAIN_SPLIT = "train"
-TEST_SPLIT = "train"  # "val"
 
 
 def get_config() -> ConfigDict:
@@ -76,14 +61,14 @@ def get_config() -> ConfigDict:
     # and the high level hyper parameters.
 
     config = ConfigDict()
-    config.experiment_name = "mask_rcnn_coco"
+    config.experiment_name = "retinanet_coco"
     config.save_prefix = "vis4d-workspace/test/" + config.get_ref(
         "experiment_name"
     )
 
-    config.dataset_root = COCO_DATA_ROOT
-    config.train_split = TRAIN_SPLIT
-    config.test_split = TEST_SPLIT
+    config.dataset_root = "data/coco"
+    config.train_split = "train2017"
+    config.test_split = "val2017"
     config.n_gpus = 1
     config.num_epochs = 10
 
@@ -106,12 +91,12 @@ def get_config() -> ConfigDict:
     # Training Datasets
     dataset_cfg_train = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes, CK.masks),
+        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
     )
-    preproc = det_preprocessing(800, 1333, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
+    preproc = det_preprocessing(512, 512, params.augment_proba)
+    dataloader_train_cfg = default_image_dataloader(
         preproc, dataset_cfg_train, params.batch_size, shuffle=True
     )
     config.train_dl = dataloader_train_cfg
@@ -119,15 +104,15 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes, CK.masks),
+        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
     )
-    preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    dataloader_cfg_test = default_image_dl(
+    preprocess_test_cfg = det_preprocessing(512, 512, augment_probability=0)
+    dataloader_cfg_test = default_image_dataloader(
         preprocess_test_cfg,
         dataset_test_cfg,
-        batch_size=1,
+        num_samples_per_gpu=1,
         num_workers_per_gpu=1,
         shuffle=False,
     )
@@ -141,16 +126,11 @@ def get_config() -> ConfigDict:
     # provided by vis4d.
     config.gen = ConfigDict()
     config.gen.anchor_generator = class_config(get_default_anchor_generator)
-    config.gen.rcnn_box_encoder = class_config(get_default_rcnn_box_encoder)
-    config.gen.rpn_box_encoder = class_config(get_default_rpn_box_encoder)
 
-    config.model = class_config(
-        MaskRCNN,
-        num_classes=params.num_classes,
-        rpn_box_encoder=config.gen.rpn_box_encoder,
-        rcnn_box_encoder=config.gen.rcnn_box_encoder,
-        anchor_generator=config.gen.anchor_generator,
-    )
+    config.gen.box_encoder = class_config(get_default_box_encoder)
+    config.gen.anchor_generator = class_config(get_default_anchor_generator)
+
+    config.model = class_config(RetinaNet, num_classes=params.num_classes)
 
     ######################################################
     ##                        LOSS                      ##
@@ -162,9 +142,8 @@ def get_config() -> ConfigDict:
     # are averaged using a weighted sum.
 
     config.loss = class_config(
-        get_default_mask_rcnn_loss,
-        rpn_box_encoder=config.gen.rpn_box_encoder,
-        rcnn_box_encoder=config.gen.rcnn_box_encoder,
+        RetinaNetHeadLoss,
+        box_encoder=config.gen.box_encoder,
         anchor_generator=config.gen.anchor_generator,
     )
 
@@ -216,18 +195,14 @@ def get_config() -> ConfigDict:
     config.data_connector = class_config(
         StaticDataConnector,
         connections=DataConnectionInfo(
-            train=CONN_BBOX_2D_TRAIN,
-            test=CONN_BBOX_2D_TEST,
+            train=CONN_IMAGES_TRAIN,
+            test=CONN_IMAGES_TEST,
             loss={
-                **remap_pred_keys(CONN_RPN_LOSS_2D, "boxes"),
-                **remap_pred_keys(CONN_ROI_LOSS_2D, "boxes"),
-                **CONN_MASK_HEAD_LOSS_2D,
+                **CONN_BOX_LOSS_2D,
             },
             callbacks={
-                "coco_eval_test": remap_pred_keys(
-                    CONN_COCO_BBOX_EVAL, "boxes"
-                ),
-                "bbox_vis_test": remap_pred_keys(CONN_BBOX_2D_VIS, "boxes"),
+                "coco_eval_test": CONN_COCO_BBOX_EVAL,
+                "bbox_vis_test": CONN_BBOX_2D_VIS,
             },
         ),
     )
@@ -271,6 +246,17 @@ def get_config() -> ConfigDict:
             num_epochs=config.num_epochs,
         )
     }
+
+    ######################################################
+    ##                  PL CALLBACKS                    ##
+    ######################################################
+    pl_trainer = ConfigDict()
+
+    pl_callbacks: list[pl.callbacks.Callback] = []
+
+    config.pl_trainer = pl_trainer
+    config.pl_callbacks = pl_callbacks
+
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
@@ -289,14 +275,3 @@ def get_config() -> ConfigDict:
     # Assign the defined callbacks to the config
     config.test_callbacks = {**eval_callbacks, **vis_callbacks}
     return config.value_mode()
-
-
-def get_sweep() -> ConfigDict:
-    """Returns the config dict for a grid search over learning rate.
-
-    Returns:
-        ConfigDict: The configuration that can be used to run a grid search.
-            It can be passed to replicate_config to create a list of configs
-            that can be used to run a grid search.
-    """
-    return linear_grid_search("params.lr", 0.001, 0.01, 3)

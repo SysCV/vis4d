@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import importlib
 import re
-from collections.abc import Callable, Iterable, Sequence
-from typing import Any, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 from ml_collections import ConfigDict as _ConfigDict
 from ml_collections import FieldReference, FrozenConfigDict
@@ -12,7 +12,7 @@ from ml_collections import FieldReference, FrozenConfigDict
 
 # Most of these functions need to deal with unknown parameters and are
 # therefore not strictly typed
-class ConfigDict(_ConfigDict):  # type: ignore
+class ConfigDict(_ConfigDict):  # type: ignore # pylint: disable=too-many-instance-attributes, line-too-long
     """A configuration dict which allows to access fields via dot notation.
 
     This class is a subclass of ml_collections._ConfigDict and overwrites the
@@ -53,11 +53,12 @@ class ConfigDict(_ConfigDict):  # type: ignore
             to a _ConfigDict version of the initial dictionary for the
             FrozenConfigDict (reversing any mutability changes FrozenConfigDict
             made).
+
           type_safe: If set to True, once an attribute value is assigned, its
-            type cannot be overridden without .ignore_type() context manager
-              (default: True).
+            type cannot be overridden without .ignore_type() context manager.
+
           convert_dict: If set to True, all dict used as value in the
-            _ConfigDict will automatically be converted to _ConfigDict (default: True).
+            _ConfigDict will automatically be converted to _ConfigDict.
         """
         super().__init__(initial_dictionary, type_safe, convert_dict)
         object.__setattr__(self, "_return_refs", True)

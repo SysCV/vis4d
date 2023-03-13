@@ -56,7 +56,8 @@ class Optimizer:
         optimizer_cb: OptimizerBuilder,
         lr_scheduler_cb: LRSchedulerBuilder | None = None,
         lr_warmup: BaseLRWarmup | None = None,
-        epoch_based: bool = False,
+        epoch_based_lr: bool = False,
+        epoch_based_warmup: bool = False,
     ) -> None:
         """Creates an instance of the class.
 
@@ -67,17 +68,24 @@ class Optimizer:
                 creates the learning rate scheduler. Defaults to None.
             lr_warmup (BaseLRWarmup, optional): The learning rate
                 warmup. Defaults to None.
-            epoch_based: Whether the warmup and the learning rate scheduler
-                should be based on epochs or batches. If True, the warmup and
-                the learning rate scheduler will be conducted per epoch. If
-                False, the warmup and the learning rate scheduler will be
+            epoch_based_lr (bool): Whether the learning rate scheduler
+                should be based on epochs or batches. If True, the learning
+                rate scheduler will be conducted per epoch. If
+                False, the learning rate scheduler will be
                 conducted per batch. Defaults to False.
+            epoch_based_warmup (bool): Whether the warmup should be based on
+                epochs or batches. If True, the warmup will be conducted per
+                epoch. If False, the warmup will be conducted per batch.
+                Defaults to False.
         """
         self._warmup = lr_warmup
         self._optimizer_cb = optimizer_cb
         self._lr_scheduler_cb = lr_scheduler_cb
-        self.epoch_based = epoch_based
+        self.epoch_based_lr = epoch_based_lr
+        self.epoch_based_warmup = epoch_based_warmup
 
+        # TODO: Maybe can refactor it, becasue we can get the model first now.
+        # In that case, we don't need delayed instantiator.
         # These need to be set in setup() since they might depend on the model
         self.lr_scheduler: optim.lr_scheduler._LRScheduler | None = None
         self.optimizer: None | optim.Optimizer = None
@@ -100,6 +108,10 @@ class Optimizer:
             else None
         )
 
+        # Setup learning rate warmup
+        if self._warmup is not None:
+            _ = self._warmup_step(0)
+
     def zero_grad(self) -> None:
         """Zero gradients in optimizer."""
         assert self.optimizer is not None, (
@@ -115,7 +127,8 @@ class Optimizer:
 
         This function will first step the learning rate scheduler or the warmup
         on batch end, then call the optimizer step. Note that this function
-        should be called after zero_grad() of previous batch.
+        should be called after zero_grad() of previous batch. Note that the
+        learning rate scheduler will only be stepped if the warmup is finished.
 
         Args:
             step: The current step of the training loop.
@@ -129,15 +142,22 @@ class Optimizer:
             "Optimizer was not correctly setup. Make sure to call setup()"
             "before step()."
         )
-        if not self.epoch_based:
-            self._lr_step(step)
         self.optimizer.step(closure=closure)
 
+        # Adjust learning rate for next step
+        if self.epoch_based_warmup:
+            warmed_up = True
+        else:
+            warmed_up = self._warmup_step(step + 1)
+        if not self.epoch_based_lr and warmed_up:
+            self._lr_step()
+
     def step_on_epoch(self, epoch: int) -> None:
-        """Step optimizer on epoch beginning.
+        """Step optimizer on epoch end.
 
         This function is used to step the learning rate scheduler or the warmup
-        on epoch beginning.
+        on epoch end. Note that the learning rate scheduler will only
+        be stepped if the warmup is finished.
 
         Args:
             epoch: The current epoch of the training loop.
@@ -149,18 +169,15 @@ class Optimizer:
             "Optimizer was not correctly setup. Make sure to call setup()"
             "before step()."
         )
-        if self.epoch_based:
-            self._lr_step(epoch)
+        if self.epoch_based_warmup:
+            warmed_up = self._warmup_step(epoch + 1)
+        else:
+            warmed_up = True
+        if self.epoch_based_lr and warmed_up:
+            self._lr_step()
 
-    def _lr_step(self, step: int) -> None:
-        """Step learning rate scheduler or warmup.
-
-        This function will first step the warmup or the learning rate
-        scheduler. Note that the learning rate scheduler will only be stepped
-        if the warmup is finished.
-
-        Args:
-            step: The current step or epoch of the training loop.
+    def _lr_step(self) -> None:
+        """Step learning rate scheduler.
 
         Raises:
             ValueError: If the base learning rate could not be determined.
@@ -169,9 +186,7 @@ class Optimizer:
             "Optimizer was not correctly setup. Make sure to call setup()"
             "before step()."
         )
-        # Warmup step or scheduler step
-        warmed_up = self._warmup_step(step)
-        if self.lr_scheduler is not None and warmed_up and step > 0:
+        if self.lr_scheduler is not None:
             self.lr_scheduler.step()
 
     def _warmup_step(self, step: int) -> bool:

@@ -1,11 +1,12 @@
 """LightningModule that wraps around the vis4d models, losses and optims."""
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import pytorch_lightning as pl
 from torch import nn, optim
+from torchmetrics import MeanMetric
 
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
@@ -23,8 +24,8 @@ class TorchOptimizer(optim.Optimizer):
             model: The model to optimize.
         """
         self.optim = optimizer
-        assert self.optim.optimizer is not None
         self.optim.setup(model)
+        assert self.optim.optimizer is not None
         self._step = 0
         # For some reason, mypy complains about the defuaults argument,
         # but it is fine.
@@ -41,6 +42,14 @@ class TorchOptimizer(optim.Optimizer):
         """
         self.optim.step_on_batch(self._step, closure)
         self._step += 1
+
+    def step_on_epoch(self, epoch: int) -> None:
+        """Performs a single optimization step.
+
+        Args:
+           epoch (int): The current epoch of the training loop.
+        """
+        self.optim.step_on_epoch(epoch)
 
     def zero_grad(self, set_to_none: bool = False) -> None:
         """Clears the gradients of all optimized parameters."""
@@ -73,7 +82,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         super().__init__()
         self.model = model
         self.optims = optimizers
-        self.loss = loss
+        self.loss_fn = loss
         self.data_connector = data_connector
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
@@ -87,8 +96,46 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
     ) -> Any:
         """Perform a single training step."""
         out = self.model(**self.data_connector.get_train_input(batch))
-        l = self.loss(**self.data_connector.get_loss_input(out, batch))
-        return {"loss": sum(l.values()), "predictions": out}
+        losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
+        losses["loss"] = sum(list(losses.values()))
+
+        log_dict = {}
+        metric_attributes = []
+        for k, v in losses.items():
+            if not hasattr(self, k):
+                metric = MeanMetric()
+                metric.to(self.device)  # type: ignore
+                setattr(self, k, metric)
+
+            metric = getattr(self, k)
+            metric(v.detach())
+            log_dict["train/" + k] = metric
+            metric_attributes += [k]
+
+        for (k, v), k_name in zip(log_dict.items(), metric_attributes):
+            self.log(
+                k,
+                v,
+                logger=True,
+                prog_bar=True,
+                on_step=True,
+                on_epoch=False,
+                metric_attribute=k_name,
+            )
+        return {
+            "loss": losses["loss"],
+            "metrics": losses,
+            "predictions": out,
+        }
+
+    def training_epoch_end(self, outputs: Any) -> None:  # type: ignore
+        """End of training epoch."""
+        optimizers = self.optimizers()
+        if not isinstance(optimizers, Iterable):
+            optimizers = [optimizers]
+
+        for optimizer in optimizers:
+            optimizer.step_on_epoch(self.current_epoch)  # type: ignore
 
     def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0

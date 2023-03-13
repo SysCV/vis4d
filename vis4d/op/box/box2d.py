@@ -27,19 +27,23 @@ def bbox_scale(
 
 
 def bbox_clip(
-    boxes: torch.Tensor, image_hw: tuple[float, float]
+    boxes: torch.Tensor,
+    image_hw: tuple[float, float],
+    epsilon: int = 0,
 ) -> torch.Tensor:
     """Clip bounding boxes to image dims.
 
     Args:
         boxes (torch.Tensor): Bounding boxes with shape [N, 4]
         image_hw (tuple[float, float]): Image dimensions.
+        epsilon (int): Epsilon for clipping.
+            Defaults to 0.
 
     Returns:
         torch.Tensor: Clipped bounding boxes.
     """
-    boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - 1)
-    boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - 1)
+    boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - epsilon)
+    boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - epsilon)
     return boxes
 
 
@@ -88,7 +92,8 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
 
 @torch.jit.script  # type: ignore
 def bbox_intersection(
-    boxes1: torch.Tensor, boxes2: torch.Tensor
+    boxes1: Tensor,
+    boxes2: Tensor,
 ) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
