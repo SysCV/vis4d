@@ -109,12 +109,11 @@ class DefaultTrainer(pl.Trainer):
         kwargs["callbacks"] += callbacks
 
         # add distributed strategy
-        if (
-            kwargs["accelerator"] == "gpu" and kwargs["devices"] > 1
-        ):  # pragma: no cover
-            ddp_plugin: Strategy = DDPStrategy(
-                find_unused_parameters=find_unused_parameters
-            )
-            kwargs["strategy"] = ddp_plugin
+        if kwargs["devices"] > 1:
+            if kwargs["accelerator"] == "gpu":  # pragma: no cover
+                ddp_plugin: Strategy = DDPStrategy(
+                    find_unused_parameters=find_unused_parameters
+                )
+                kwargs["strategy"] = ddp_plugin
 
         super().__init__(*args, **kwargs)

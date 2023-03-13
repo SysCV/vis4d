@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 
-from vis4d.op.box.encoder import BoxEncoder3D, QD3DTBox3DEncoder
+from vis4d.op.box.encoder import QD3DTBox3DDecoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
 from vis4d.op.box.samplers import CombinedSampler, Sampler
@@ -48,9 +48,9 @@ def get_default_box_matcher() -> MaxIoUMatcher:
     )
 
 
-def get_default_box_encoder() -> QD3DTBox3DEncoder:
-    """Get the default bounding box encoder of QD-3DT bounding box 3D head."""
-    return QD3DTBox3DEncoder()
+def get_default_box_decoder() -> QD3DTBox3DDecoder:
+    """Get the default bounding box decoder of QD-3DT bounding box 3D head."""
+    return QD3DTBox3DDecoder()
 
 
 class QD3DTBBox3DHead(nn.Module):
@@ -62,7 +62,7 @@ class QD3DTBBox3DHead(nn.Module):
         proposal_pooler: None | RoIPooler = None,
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
-        box_encoder: None | BoxEncoder3D = None,
+        box_decoder: None | QD3DTBox3DDecoder = None,
         proposal_append_gt: bool = True,
         num_shared_convs: int = 2,
         num_shared_fcs: int = 0,
@@ -101,10 +101,10 @@ class QD3DTBBox3DHead(nn.Module):
             if box_sampler is not None
             else get_default_box_sampler()
         )
-        self.box_encoder = (
-            box_encoder
-            if box_encoder is not None
-            else get_default_box_encoder()
+        self.box_decoder = (
+            box_decoder
+            if box_decoder is not None
+            else get_default_box_decoder()
         )
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
@@ -487,7 +487,7 @@ class QD3DTBBox3DHead(nn.Module):
                 _boxes_deltas[:, -1].clamp(min=0.0, max=1.0)
             )
             boxes_3d.append(
-                self.box_encoder.decode(_boxes_2d, _boxes_deltas, _intrinsics)
+                self.box_decoder(_boxes_2d, _boxes_deltas, _intrinsics)
             )
 
         return QD3DTBBox3DHeadOutput(

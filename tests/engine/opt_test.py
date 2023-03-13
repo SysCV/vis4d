@@ -54,17 +54,17 @@ class TestOptimizer(unittest.TestCase):
 
         step = 0
         for epoch in range(20):
-            optimizer.step_on_epoch(epoch)
             for _ in range(2):
+                if epoch in self.learning_rates:
+                    self.assertAlmostEqual(
+                        optimizer.optimizer.param_groups[0]["lr"],
+                        self.learning_rates[epoch],
+                        places=5,
+                    )
                 optimizer.step_on_batch(step)
                 step += 1
 
-            if epoch in self.learning_rates:
-                self.assertAlmostEqual(
-                    optimizer.optimizer.param_groups[0]["lr"],
-                    self.learning_rates[epoch],
-                    places=5,
-                )
+            optimizer.step_on_epoch(epoch)
 
     def test_optimizer_epoch_based_no_warmup(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
@@ -83,17 +83,17 @@ class TestOptimizer(unittest.TestCase):
 
         step = 0
         for epoch in range(20):
-            optimizer.step_on_epoch(epoch)
             for _ in range(2):
+                if epoch in self.learning_rates_no_warmup:
+                    self.assertAlmostEqual(
+                        optimizer.optimizer.param_groups[0]["lr"],
+                        self.learning_rates_no_warmup[epoch],
+                        places=5,
+                    )
                 optimizer.step_on_batch(step)
                 step += 1
 
-            if epoch in self.learning_rates_no_warmup:
-                self.assertAlmostEqual(
-                    optimizer.optimizer.param_groups[0]["lr"],
-                    self.learning_rates_no_warmup[epoch],
-                    places=5,
-                )
+            optimizer.step_on_epoch(epoch)
 
     def test_optimizer_batch_based(self) -> None:
         """Test the optimizer with batch-based LR scheduling."""
@@ -115,13 +115,14 @@ class TestOptimizer(unittest.TestCase):
 
         step = 0
         for epoch in range(10):
-            optimizer.step_on_epoch(epoch)
             for _ in range(2):
-                optimizer.step_on_batch(step)
                 if step in self.learning_rates:
                     self.assertAlmostEqual(
                         optimizer.optimizer.param_groups[0]["lr"],
                         self.learning_rates[step],
                         places=5,
                     )
+                optimizer.step_on_batch(step)
                 step += 1
+
+            optimizer.step_on_epoch(epoch)

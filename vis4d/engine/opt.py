@@ -108,6 +108,10 @@ class Optimizer:
             else None
         )
 
+        # Setup learning rate warmup
+        if self._warmup is not None:
+            _ = self._warmup_step(0)
+
     def zero_grad(self) -> None:
         """Zero gradients in optimizer."""
         assert self.optimizer is not None, (
@@ -138,19 +142,21 @@ class Optimizer:
             "Optimizer was not correctly setup. Make sure to call setup()"
             "before step()."
         )
-        if not self.epoch_based_warmup:
-            warmed_up = self._warmup_step(step)
-        else:
-            warmed_up = True
-        if not self.epoch_based_lr and warmed_up:
-            self._lr_step(step)
         self.optimizer.step(closure=closure)
 
+        # Adjust learning rate for next step
+        if self.epoch_based_warmup:
+            warmed_up = True
+        else:
+            warmed_up = self._warmup_step(step + 1)
+        if not self.epoch_based_lr and warmed_up:
+            self._lr_step()
+
     def step_on_epoch(self, epoch: int) -> None:
-        """Step optimizer on epoch beginning.
+        """Step optimizer on epoch end.
 
         This function is used to step the learning rate scheduler or the warmup
-        on epoch beginning. Note that the learning rate scheduler will only
+        on epoch end. Note that the learning rate scheduler will only
         be stepped if the warmup is finished.
 
         Args:
@@ -164,17 +170,14 @@ class Optimizer:
             "before step()."
         )
         if self.epoch_based_warmup:
-            warmed_up = self._warmup_step(epoch)
+            warmed_up = self._warmup_step(epoch + 1)
         else:
             warmed_up = True
         if self.epoch_based_lr and warmed_up:
-            self._lr_step(epoch)
+            self._lr_step()
 
-    def _lr_step(self, step: int) -> None:
+    def _lr_step(self) -> None:
         """Step learning rate scheduler.
-
-        Args:
-            step: The current step or epoch of the training loop.
 
         Raises:
             ValueError: If the base learning rate could not be determined.
@@ -183,7 +186,7 @@ class Optimizer:
             "Optimizer was not correctly setup. Make sure to call setup()"
             "before step()."
         )
-        if self.lr_scheduler is not None and step > 0:
+        if self.lr_scheduler is not None:
             self.lr_scheduler.step()
 
     def _warmup_step(self, step: int) -> bool:

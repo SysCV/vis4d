@@ -1,7 +1,7 @@
 """LightningModule that wraps around the vis4d models, losses and optims."""
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import pytorch_lightning as pl
@@ -42,6 +42,14 @@ class TorchOptimizer(optim.Optimizer):
         """
         self.optim.step_on_batch(self._step, closure)
         self._step += 1
+
+    def step_on_epoch(self, epoch: int) -> None:
+        """Performs a single optimization step.
+
+        Args:
+           epoch (int): The current epoch of the training loop.
+        """
+        self.optim.step_on_epoch(epoch)
 
     def zero_grad(self, set_to_none: bool = False) -> None:
         """Clears the gradients of all optimized parameters."""
@@ -119,6 +127,15 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
             "metrics": losses,
             "predictions": out,
         }
+
+    def training_epoch_end(self, outputs: Any) -> None:  # type: ignore
+        """End of training epoch."""
+        optimizers = self.optimizers()
+        if not isinstance(optimizers, Iterable):
+            optimizers = [optimizers]
+
+        for optimizer in optimizers:
+            optimizer.step_on_epoch(self.current_epoch)  # type: ignore
 
     def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0

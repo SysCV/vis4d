@@ -71,21 +71,23 @@ def main(  # type:ignore # pylint: disable=unused-argument
     for key, value in pl_trainer.items():
         trainer_args_cfg[key] = value
 
+    trainer_args_cfg.work_dir = config.work_dir
+    trainer_args_cfg.exp_name = config.experiment_name
+    trainer_args_cfg.version = config.version
+
     if "benchmark" in config:
         trainer_args_cfg.benchmark = config.benchmark
     trainer_args_cfg.max_epochs = config.params.num_epochs
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
+    trainer_args_cfg.devices = config.n_gpus
     if config.n_gpus > 0:
-        trainer_args_cfg.devices = config.n_gpus
         trainer_args_cfg.accelerator = "gpu"
 
-    # Disable progress bar for logger
+    # Setup logger
     trainer_args_cfg.enable_progress_bar = False
-    trainer_args_cfg.work_dir = config.work_dir
-    trainer_args_cfg.exp_name = config.experiment_name
-    trainer_args_cfg.version = config.version
+    trainer_args_cfg.log_every_n_steps = 50
 
     trainer_args = instantiate_classes(trainer_args_cfg)
 

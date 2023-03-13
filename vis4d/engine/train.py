@@ -105,10 +105,6 @@ class Trainer:
             # Set model to train mode
             model.train()
 
-            # Update learning rate on epoch
-            for opt in optimizers:
-                opt.step_on_epoch(epoch)
-
             # Set epoch for distributed sampler
             if hasattr(self.train_dataloader, "sampler") and isinstance(
                 self.train_dataloader.sampler, DistributedSampler
@@ -173,6 +169,10 @@ class Trainer:
                         )
 
                 step += 1
+
+            # Update learning rate on epoch
+            for opt in optimizers:
+                opt.step_on_epoch(epoch)
 
             # Run callbacks for epoch end
             for _, callback in self.train_callbacks.items():

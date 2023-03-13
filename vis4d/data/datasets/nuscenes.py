@@ -158,7 +158,9 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         else:
             valid_splits = {"train", "val"}
 
-        assert split in valid_splits, f"Invalid split for NuScenes {version}!"
+        assert (
+            split in valid_splits
+        ), f"Invalid split {split} for NuScenes {version}!"
         self.split = split
 
     def __repr__(self) -> str:

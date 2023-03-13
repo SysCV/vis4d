@@ -17,18 +17,18 @@ python3 -m pip install .
 - To train a model, e.g. Faster-RCNN on COCO
 ```bash
 # vis4d.engine
-python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
+python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl.cli --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 - To test a model
 ```bash
 # vis4d.engine
-python -m vis4d.engine.cli --mode test --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
+python -m vis4d.engine.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl.cli --mode test --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 ## DDP
