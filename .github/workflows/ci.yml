@@ -87,7 +87,7 @@ jobs:
         run: python3 -m coverage run --source=vis4d -m pytest --pyargs tests
 
       - name: test coverage
-        run: python3 -m coverage report --fail-under=74 -m
+        run: python3 -m coverage report --fail-under=75 -m
 
       - name: build
         run: python3 setup.py sdist bdist_wheel

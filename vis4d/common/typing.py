@@ -45,3 +45,5 @@ ArrayLikeFloat = Union[ArrayIterableFloat, NDArrayF32, NDArrayF64, FloatTensor]
 ArrayLikeBool = Union[ArrayIterableBool, NDArrayBool, BoolTensor]
 ArrayLikeInt = Union[ArrayIterableInt, NDArrayInt, IntTensor]
 ArrayLike = Union[ArrayLikeBool, ArrayLikeFloat, ArrayLikeInt]
+
+ListAny = list[Any]  # type: ignore

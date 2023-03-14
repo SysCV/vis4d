@@ -304,7 +304,7 @@ def build_inference_dataloaders(
         dset_sampler: DistributedSampler[list[int]] | None
         if get_world_size() > 1:
             if isinstance(dataset, VideoMixin) and video_based_inference:
-                dset_sampler = VideoInferenceSampler(dataset)
+                dset_sampler = VideoInferenceSampler(dataset)  # type: ignore
             else:
                 dset_sampler = DistributedSampler(dataset)
         else:
