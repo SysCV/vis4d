@@ -1,10 +1,51 @@
 """S3DIS dataset testing class."""
 import unittest
 
-from tests.util import get_test_data
+import torch
+
+from tests.util import get_test_data, isclose_on_all_indices
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.shift import SHIFT
 from vis4d.data.io import HDF5Backend, ZipBackend
+
+IMAGE_INDICES = torch.tensor([0, 419, 581117, 1023997])
+IMAGE_VALUES = torch.tensor(
+    [
+        [0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0],
+        [15.0, 14.0, 12.0],
+        [4.0, 12.0, 0.0],
+    ]
+)
+
+INSTANCE_MASK_INDICES = torch.tensor([0, 419, 521576, 1557200])
+INSTANCE_MASK_VALUES = torch.tensor([0, 0, 1, 1]).byte()
+
+SEMANTIC_MASK_INDICES = torch.tensor([0, 419, 581117, 1023997])
+SEMANTIC_MASK_VALUES = torch.tensor([13, 5, 14, 22]).long()
+
+DEPTH_MAP_INDICES = torch.tensor([0, 419, 581117, 1023997])
+DEPTH_MAP_VALUES = torch.tensor([16777.2109, 134.4130, 320.8880, 42.8810])
+
+OPTICAL_FLOW_INDICES = torch.tensor([0, 419, 581117, 1023997])
+OPTICAL_FLOW_VALUES = torch.tensor(
+    [
+        [-0.0010, -0.0010],
+        [-0.0010, -0.0010],
+        [-0.0010, -0.0010],
+        [-0.0010, -0.0010],
+    ]
+)
+
+POINTS3D_INDICES = torch.tensor([0, 100, 5000, 51110])
+POINTS3D_VALUES = torch.tensor(
+    [
+        [-116.9319, -14.1797, 20.7693, 0.6198],
+        [26.7530, -19.5690, 5.8446, 0.8740],
+        [8.3980, -8.7958, 1.6308, 0.9521],
+        [-0.3214, 0.0103, -0.0567, 0.9987],
+    ]
+)
 
 
 class SHIFTTest(unittest.TestCase):
@@ -100,6 +141,33 @@ class SHIFTTest(unittest.TestCase):
                 (1, 2, 800, 1280),
             )
 
+        item = self.dataset_multiview[0]["front"]
+        assert isclose_on_all_indices(
+            item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
+            IMAGE_INDICES,
+            IMAGE_VALUES,
+        )
+        assert isclose_on_all_indices(
+            item[K.instance_masks].reshape(-1),
+            INSTANCE_MASK_INDICES,
+            INSTANCE_MASK_VALUES,
+        )
+        assert isclose_on_all_indices(
+            item[K.segmentation_masks].reshape(-1),
+            SEMANTIC_MASK_INDICES,
+            SEMANTIC_MASK_VALUES,
+        )
+        assert isclose_on_all_indices(
+            item[K.depth_maps].reshape(-1),
+            DEPTH_MAP_INDICES,
+            DEPTH_MAP_VALUES,
+        )
+        assert isclose_on_all_indices(
+            item[K.optical_flows].permute(0, 2, 3, 1).reshape(-1, 2),
+            OPTICAL_FLOW_INDICES,
+            OPTICAL_FLOW_VALUES,
+        )
+
         for view in ("center",):
             self.assertEqual(
                 tuple(self.dataset_multiview[0][view].keys()),
@@ -108,7 +176,10 @@ class SHIFTTest(unittest.TestCase):
                     K.points3d,
                 ),
             )
-            self.assertEqual(
-                self.dataset_multiview[0]["center"][K.points3d].shape,
-                (51111, 4),
+            item = self.dataset_multiview[0][view][K.points3d]
+            self.assertEqual(item.shape, (51111, 4))
+            assert isclose_on_all_indices(
+                item,
+                POINTS3D_INDICES,
+                POINTS3D_VALUES,
             )

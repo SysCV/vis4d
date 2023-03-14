@@ -4,9 +4,21 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data
+from tests.util import get_test_data, isclose_on_all_indices
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
+
+IMAGE_INDICES = torch.tensor([0, 1, 460800, 921599])
+IMAGE_VALUES = torch.tensor(
+    [
+        [167.0, 192.0, 197.0],
+        [167.0, 192.0, 197.0],
+        [12.0, 14.0, 11.0],
+        [20.0, 21.0, 23.0],
+    ]
+)
+INSTANCE_MASK_INDICES = torch.tensor([0, 1, 406208, 1382400, 3173655])
+INSTANCE_MASK_VALUES = torch.tensor([0, 0, 1, 0, 1]).byte()
 
 
 class BDD100KDetTest(unittest.TestCase):
@@ -20,17 +32,12 @@ class BDD100KDetTest(unittest.TestCase):
     dataset = BDD100K(
         data_root,
         annotations,
-<<<<<<< HEAD
         keys_to_load=(
             K.images,
             K.boxes2d,
             K.boxes2d_classes,
             K.boxes2d_track_ids,
         ),
-=======
-        inputs_to_load=(K.images,),
-        targets_to_load=(K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids),
->>>>>>> main
         config_path=config_path,
     )
 
@@ -62,6 +69,22 @@ class BDD100KDetTest(unittest.TestCase):
         self.assertEqual(len(item[K.boxes2d_classes]), 10)
         self.assertEqual(len(item[K.boxes2d_track_ids]), 10)
 
+        self.assertEqual(item["original_hw"], (720, 1280))
+        self.assertEqual(item["input_hw"], (720, 1280))
+        self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
+        self.assertEqual(item["videoName"], None)
+
+        assert isclose_on_all_indices(
+            item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
+            IMAGE_INDICES,
+            IMAGE_VALUES,
+        )
+        assert torch.isclose(
+            item[K.boxes2d][0],
+            torch.tensor(
+                [624.2538, 290.0232, 636.5168, 303.4125], dtype=torch.float32
+            ),
+        ).all()
         assert torch.isclose(
             item[K.boxes2d_classes],
             torch.tensor([8, 8, 8, 8, 8, 9, 2, 2, 2, 2], dtype=torch.long),
@@ -70,7 +93,6 @@ class BDD100KDetTest(unittest.TestCase):
             item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
-<<<<<<< HEAD
 
 
 class BDD100KInsSegTest(unittest.TestCase):
@@ -123,6 +145,27 @@ class BDD100KInsSegTest(unittest.TestCase):
         self.assertEqual(len(item[K.boxes2d_track_ids]), 10)
         self.assertEqual(item[K.instance_masks].shape, (4, 720, 1280))
 
+        self.assertEqual(item["original_hw"], (720, 1280))
+        self.assertEqual(item["input_hw"], (720, 1280))
+        self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
+        self.assertEqual(item["videoName"], None)
+
+        assert isclose_on_all_indices(
+            item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
+            IMAGE_INDICES,
+            IMAGE_VALUES,
+        )
+        assert isclose_on_all_indices(
+            item[K.instance_masks].reshape(-1),
+            INSTANCE_MASK_INDICES,
+            INSTANCE_MASK_VALUES,
+        )
+        assert torch.isclose(
+            item[K.boxes2d][0],
+            torch.tensor(
+                [624.2538, 290.0232, 636.5168, 303.4125], dtype=torch.float32
+            ),
+        ).all()
         assert torch.isclose(
             item[K.boxes2d_classes],
             torch.tensor([8, 8, 8, 8, 8, 9, 2, 2, 2, 2], dtype=torch.long),
@@ -131,5 +174,3 @@ class BDD100KInsSegTest(unittest.TestCase):
             item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
-=======
->>>>>>> main
