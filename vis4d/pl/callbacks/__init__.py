@@ -1,5 +1,5 @@
 """Callbacks handling data related stuff (evaluation, visualization, etc)."""
 from .callback_wrapper import CallbackWrapper
-from .optimizer import OptimizerCallback
+from .optimizer import OptimEpochCallback
 
-__all__ = ["CallbackWrapper", "OptimizerCallback"]
+__all__ = ["CallbackWrapper", "OptimEpochCallback"]

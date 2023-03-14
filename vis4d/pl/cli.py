@@ -20,7 +20,7 @@ from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
-from vis4d.pl.callbacks import CallbackWrapper, OptimizerCallback
+from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
@@ -138,7 +138,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
         callbacks.append(cb)
 
     # Add needed callbacks
-    callbacks.append(OptimizerCallback())
+    callbacks.append(OptimEpochCallback())
 
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
     data_module = DataModule(config.data)

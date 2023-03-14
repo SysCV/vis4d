@@ -6,7 +6,7 @@ from collections.abc import Iterable
 import pytorch_lightning as pl
 
 
-class OptimizerCallback(pl.Callback):
+class OptimEpochCallback(pl.Callback):
     """Callback to step optimizer at the end of each epoch."""
 
     def on_train_epoch_end(
