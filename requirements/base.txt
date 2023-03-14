@@ -14,8 +14,8 @@ pytorch-lightning>=1.9.0
 setuptools
 termcolor
 terminaltables
-torch>=1.10, <2.0 # Prevent using PyTorch 2.0
-torchvision>=0.11, <0.15 # Prevent using PyTorch 2.0
+torch>=1.10
+torchvision>=0.11
 tqdm
 utm
 wheel
