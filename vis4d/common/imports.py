@@ -23,6 +23,7 @@ MMCV_AVAILABLE = package_available("mmcv") or package_available("mmcv-full")
 MMDET_AVAILABLE = package_available("mmdet")
 MMSEG_AVAILABLE = package_available("mmseg")
 DETECTRON2_AVAILABLE = package_available("detectron2")
+TIMM_AVAILABLE = package_available("timm")
 
 # datasets
 WAYMO_AVAILABLE = package_available("waymo")
