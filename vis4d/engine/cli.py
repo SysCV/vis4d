@@ -47,69 +47,9 @@ _SLURM = flags.DEFINE_bool(
 )
 
 
-<<<<<<< HEAD
-def _test(config: ConfigDict, rank: None | int = None) -> None:
-    """Test the model."""
-    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.
-    rank_zero_info("[CLI] Testing model")
-    if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
-        rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
-
-    cfg: ConfigDict = instantiate_classes(config)
-    tester = Tester(
-        dataloaders=cfg.test_dl,
-        data_connector=cfg.data_connector,
-        test_callbacks=cfg.get("test_callbacks", None),
-    )
-
-    if rank is not None:
-        device = torch.device(f"cuda:{rank}")
-    else:
-        device = torch.device("cpu")
-
-    cfg.model.to(device)
-    tester.test(cfg.model)
-
-
-def _train(config: ConfigDict, rank: None | int = None) -> None:
-    """Train the model."""
-    cfg: ConfigDict = instantiate_classes(config)
-
-    trainer = Trainer(
-        num_epochs=cfg.num_epochs,
-        log_step=1,
-        dataloaders=cfg.train_dl,
-        data_connector=cfg.data_connector,
-        train_callbacks=cfg.get("train_callbacks", None),
-        grad_norm_clip=cfg.params.get("grad_norm_clip", None),
-    )
-    tester = Tester(
-        dataloaders=cfg.test_dl,
-        data_connector=cfg.data_connector,
-        test_callbacks=cfg.get("test_callbacks", None),
-    )
-
-    if rank is not None:
-        device = torch.device(f"cuda:{rank}")
-    else:
-        device = torch.device("cpu")
-    cfg.model.to(device)
-    if get_world_size() > 1:
-        assert rank is not None, "Requires rank for multi-processing"
-        cfg.model = DDP(cfg.model, device_ids=[rank])
-
-    # run training
-    trainer.train(cfg.model, cfg.optimizers, cfg.loss, tester)
-
-
-def ddp_setup(rank: int, world_size: int) -> None:
-=======
 def ddp_setup(
     torch_distributed_backend: str = "nccl", slurm: bool = False
 ) -> None:
->>>>>>> main
     """Setup DDP environment and init processes.
 
     Args:
@@ -145,35 +85,7 @@ def ddp_setup(
     devices = os.getenv("CUDA_VISIBLE_DEVICES", all_gpu_ids)
 
     torch.cuda.set_device(local_rank)
-
-<<<<<<< HEAD
-    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.)
-    if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
-        rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
-    else:
-        rank_zero_info("")
-        rank_zero_info("[config.params]")
-        rank_zero_info(pprints_config(config.params))
-        rank_zero_info("[config.model]")
-        rank_zero_info(pprints_config(config.model))
-
-    if torch.cuda.is_available():
-        rank_zero_info(
-            "\n[CLI] Using %d/%d GPUs",
-            config.n_gpus,
-            torch.cuda.device_count(),
-        )
-    else:
-        rank_zero_info("\n[CLI] Not using GPU.")
-    if config.n_gpus > 1:
-        spawn(_dist_train, args=(config.n_gpus, config), nprocs=config.n_gpus)
-    else:
-        _train(config, 0 if config.n_gpus == 1 else None)
-=======
     _info(f"LOCAL_RANK: {local_rank} - CUDA_VISIBLE_DEVICES: [{devices}]")
->>>>>>> main
 
 
 def main(  # type:ignore # pylint: disable=unused-argument

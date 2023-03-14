@@ -9,8 +9,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.init import constant_, normal_, uniform_, xavier_uniform_
 
-from vis4d.op.util import clone
 from vis4d.op.loss.common import inverse_sigmoid
+from vis4d.op.util import clone
 
 
 class DTEncoderOut(NamedTuple):

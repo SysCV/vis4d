@@ -177,16 +177,8 @@ class Optimizer:
         if self.epoch_based_lr and warmed_up:
             self._lr_step()
 
-<<<<<<< HEAD
-    def _lr_step(self, step: int) -> None:
-        """Step learning rate scheduler or warmup.
-
-        Args:
-            step: The current step or epoch of the training loop.
-=======
     def _lr_step(self) -> None:
         """Step learning rate scheduler.
->>>>>>> main
 
         Raises:
             ValueError: If the base learning rate could not be determined.
