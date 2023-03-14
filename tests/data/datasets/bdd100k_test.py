@@ -116,3 +116,12 @@ class BDD100KInsSegTest(unittest.TestCase):
         self.assertEqual(len(item[K.boxes2d_classes]), 10)
         self.assertEqual(len(item[K.boxes2d_track_ids]), 10)
         self.assertEqual(item[K.instance_masks].shape, (4, 720, 1280))
+
+        assert torch.isclose(
+            item[K.boxes2d_classes],
+            torch.tensor([8, 8, 8, 8, 8, 9, 2, 2, 2, 2], dtype=torch.long),
+        ).all()
+        assert torch.isclose(
+            item[K.boxes2d_track_ids],
+            torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
+        ).all()
