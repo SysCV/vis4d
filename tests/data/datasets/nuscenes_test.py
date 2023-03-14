@@ -30,6 +30,8 @@ class NuScenesTest(unittest.TestCase):
             "CAM_BACK_RIGHT",
         )
 
+        print(tuple(self.nusc[1]["CAM_FRONT"].keys()))
+
         assert tuple(self.nusc[1]["CAM_FRONT"].keys()) == (
             "token",
             "images",

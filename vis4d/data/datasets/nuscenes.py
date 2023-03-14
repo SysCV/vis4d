@@ -468,6 +468,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     boxes3d, intrinsics, image_hw
                 )
                 data_dict[cam] = {
+                    "token": sample["token"],
                     K.images: image,
                     K.original_hw: image_hw,
                     K.input_hw: image_hw,
