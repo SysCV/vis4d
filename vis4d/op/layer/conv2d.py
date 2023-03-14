@@ -110,7 +110,7 @@ def add_conv_branch(
     conv_out_dim: int,
     conv_has_bias: bool,
     norm_cfg: str | None,
-    num_groups: int,
+    num_groups: int | None,
 ) -> tuple[nn.ModuleList, int]:
     """Init conv branch for head."""
     convs = nn.ModuleList()
@@ -120,6 +120,7 @@ def add_conv_branch(
         norm = None
 
     if norm == nn.GroupNorm:
+        assert num_groups is not None, "num_groups must be specified"
         norm = lambda x: nn.GroupNorm(  # pylint: disable=unnecessary-lambda-assignment
             num_groups, x
         )

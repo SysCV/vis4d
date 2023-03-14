@@ -20,6 +20,7 @@ def trainer_builder(
     return DefaultTrainer(
         work_dir="./unittests/",
         exp_name=exp_name,
+        version="test",
         callbacks=callbacks,
         max_steps=10,
     )

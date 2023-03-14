@@ -14,17 +14,62 @@ python3 -m pip install .
 
 
 ## Basic CLI usage
-
-To {fit,validate,test,predict,tune} a model, e.g. Faster-RCNN, run:
-
+- To train a model, e.g. Faster-RCNN on COCO
 ```bash
-python -m vis4d.pl.model.faster_rcnn {fit,validate,test,predict,tune} --data.experiment coco --trainer.gpus 1
+# vis4d.engine
+python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+
+# vis4d.pl
+python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+```
+- To test a model
+```bash
+# vis4d.engine
+python -m vis4d.engine.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+
+# vis4d.pl
+python -m vis4d.pl.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
-To check the command line arguments, run:
-
+## DDP
+### Training
+- Local machine / SLURM interactivate job (``job-name=bash``)
 ```bash
-python -m vis4d.pl.model.faster_rcnn fit -h
+# vis4d.engine
+./scripts/dist_train.sh <config-file> <num-gpus>
+
+# vis4d.pl
+python -m vis4d.pl.cli --config <config-file> --gpus <num-gpus>
+```
+
+- SLURM batch job. Need to config the submission file.
+```bash
+# vis4d.engine
+sbatch scripts/slurm_train.sh
+
+# vis4d.pl
+srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli \
+    --config <config-file> --gpus <num-gpus>
+```
+
+### Testing
+- Local machine / SLURM interactivate job (``job-name=bash``)
+```bash
+# vis4d.engine
+./scripts/dist_test.sh <config-file> <num-gpus>
+
+# vis4d.pl
+python -m vis4d.pl.cli --mode test --config <config-file> --gpus <num-gpus>
+```
+
+- SLURM batch job. Need to config the submission file.
+```bash
+# vis4d.engine
+sbatch scripts/slurm_test.sh
+
+# vis4d.pl
+srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli --mode test \
+    --config <config-file> --gpus <num-gpus>
 ```
 
 ## Contribute

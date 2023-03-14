@@ -41,10 +41,10 @@ def log_memory_usage(decimal_places=2):
                 visited_pids.add(pid)
                 visited_pids.update(process.children(recursive=True))
                 total_mem += process.memory_info().rss
-        except:
-            pass
+        except Exception as e:
+            rank_zero_info(f"Error while checking memory usage: {e}")
     mem_str = human_readable_size(total_mem)
-    rank_zero_info(f"[Memory] System memory usage: {mem_str}.")
+    rank_zero_info(f"System memory usage: {mem_str}.")
 
 
 class Trainer:
@@ -140,10 +140,6 @@ class Trainer:
             # Set model to train mode
             model.train()
 
-            # Update learning rate on epoch
-            for opt in optimizers:
-                opt.step_on_epoch(epoch)
-
             # Set epoch for distributed sampler
             if hasattr(self.train_dataloader, "sampler") and isinstance(
                 self.train_dataloader.sampler, DistributedSampler
@@ -157,8 +153,8 @@ class Trainer:
                     opt.zero_grad()
 
                 # Input data
-                data_moved: DictData = move_data_to_device(data, device)
-                train_input = self.data_connector.get_train_input(data_moved)
+                data = move_data_to_device(data, device)
+                train_input = self.data_connector.get_train_input(data)
 
                 # Forward + backward + optimize
                 output = model(**train_input)
@@ -196,26 +192,34 @@ class Trainer:
                     try:
                         current_lr = opt.optimizer.param_groups[0]["lr"]
                         metrics[f"opt{j}_lr"] = current_lr
-                    except:
+                    except KeyError:
                         pass
 
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
+                        shared_clbk_kwargs = {
+                            "metrics": metrics,
+                            "epoch": epoch,
+                            "num_epochs": self.num_epochs,
+                            "cur_iter": cur_iter,
+                            "total_iters": total_iters,
+                        }
                         clbk_kwargs = self.data_connector.get_callback_input(
-                            k, output, data_moved, "train"
+                            k, output, data, "train"
                         )
+
                         callback.on_train_batch_end(
                             model,
+                            shared_clbk_kwargs,
                             clbk_kwargs,
-                            metrics,
-                            epoch,
-                            self.num_epochs,
-                            cur_iter,
-                            total_iters,
                         )
                 if step % 1000 == 0:
                     log_memory_usage()
                 step += 1
+
+            # Update learning rate on epoch
+            for opt in optimizers:
+                opt.step_on_epoch(epoch)
 
             # Run callbacks for epoch end
             for _, callback in self.train_callbacks.items():
@@ -231,9 +235,9 @@ class Trainer:
             if tester is not None and self._run_test_on_epoch(epoch):
                 tester.test(model, epoch)
 
-            rank_zero_info("[Memory] Clearning memory...")
+            rank_zero_info("Clearing memory...")
             gc.collect()
             torch.cuda.empty_cache()
             log_memory_usage()
 
-        rank_zero_info("[Trainer] Training done.")
+        rank_zero_info("Training done.")

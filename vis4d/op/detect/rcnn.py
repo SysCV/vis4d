@@ -4,6 +4,7 @@ from __future__ import annotations
 from math import prod
 from typing import NamedTuple, Protocol
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -12,6 +13,7 @@ from torchvision.ops import roi_align
 from vis4d.op.box.box2d import apply_mask, bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
+from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image
@@ -39,32 +41,53 @@ class RCNNHead(nn.Module):
 
     def __init__(
         self,
-        num_classes: int = 80,
-        roi_size: tuple[int, int] = (7, 7),
+        num_shared_convs: int = 0,
+        num_shared_fcs: int = 2,
+        conv_out_channels: int = 256,
         in_channels: int = 256,
         fc_out_channels: int = 1024,
+        num_classes: int = 80,
+        roi_size: tuple[int, int] = (7, 7),
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            num_classes (int, optional): number of categories. Defaults to 80.
-            roi_size (tuple[int, int], optional): size of pooled RoIs. Defaults
-                to (7, 7).
+            num_shared_convs (int, optional): number of shared conv layers.
+                Defaults to 0.
+            num_shared_fcs (int, optional): number of shared fc layers.
+                Defaults to 2.
+            conv_out_channels (int, optional): number of output channels for
+                shared conv layers. Defaults to 256.
             in_channels (int, optional): Number of channels in input feature
                 maps. Defaults to 256.
             fc_out_channels (int, optional): Output channels of shared linear
                 layers. Defaults to 1024.
+            num_classes (int, optional): number of categories. Defaults to 80.
+            roi_size (tuple[int, int], optional): size of pooled RoIs. Defaults
+                to (7, 7).
         """
         super().__init__()
-        in_channels *= prod(roi_size)
-        self.shared_fcs = nn.Sequential(
-            nn.Linear(in_channels, fc_out_channels),
-            nn.Linear(fc_out_channels, fc_out_channels),
-        )
-
         self.roi_pooler = MultiScaleRoIAlign(
             sampling_ratio=0, resolution=roi_size, strides=[4, 8, 16, 32]
         )
+
+        self.num_shared_convs = num_shared_convs
+        self.num_shared_fcs = num_shared_fcs
+        self.conv_out_channels = conv_out_channels
+        self.fc_out_channels = fc_out_channels
+
+        # add shared convs and fcs
+        (
+            self.shared_convs,
+            self.shared_fcs,
+            last_layer_dim,
+        ) = self._add_conv_fc_branch(
+            self.num_shared_convs, self.num_shared_fcs, in_channels, True
+        )
+        self.shared_out_channels = last_layer_dim
+
+        in_channels *= prod(roi_size)
+
         self.fc_cls = nn.Linear(
             in_features=fc_out_channels, out_features=num_classes + 1
         )
@@ -75,6 +98,34 @@ class RCNNHead(nn.Module):
 
         self._init_weights(self.fc_cls)
         self._init_weights(self.fc_reg, std=0.001)
+
+    def _add_conv_fc_branch(
+        self,
+        num_branch_convs: int = 0,
+        num_branch_fcs: int = 0,
+        in_channels: int = 0,
+        is_shared: bool = False,
+    ) -> tuple[nn.ModuleList, nn.ModuleList, int]:
+        """Add shared or separable branch."""
+        last_layer_dim = in_channels
+        # add branch specific conv layers
+        convs, last_layer_dim = add_conv_branch(
+            num_branch_convs,
+            in_channels,
+            self.conv_out_channels,
+            True,
+            None,
+            None,
+        )
+
+        fcs = nn.ModuleList()
+        if num_branch_fcs > 0:
+            if is_shared or num_branch_fcs == 0:
+                last_layer_dim *= int(np.prod(self.roi_pooler.resolution))
+            for i in range(num_branch_fcs):
+                fc_in_dim = last_layer_dim if i == 0 else self.fc_out_channels
+                fcs.append(nn.Linear(fc_in_dim, self.fc_out_channels))
+        return convs, fcs, last_layer_dim
 
     @staticmethod
     def _init_weights(module: nn.Module, std: float = 0.01) -> None:
@@ -89,7 +140,13 @@ class RCNNHead(nn.Module):
     ) -> RCNNOut:
         """Forward pass during training stage."""
         # Take stride 4, 8, 16, 32 features
-        bbox_feats = self.roi_pooler(features[2:6], boxes).flatten(start_dim=1)
+        bbox_feats = self.roi_pooler(features[2:6], boxes)
+        if self.num_shared_convs > 0:
+            for conv in self.shared_convs:
+                bbox_feats = self.relu(conv(bbox_feats))
+
+        bbox_feats = bbox_feats.flatten(start_dim=1)
+
         for fc in self.shared_fcs:
             bbox_feats = self.relu(fc(bbox_feats))
         cls_score = self.fc_cls(bbox_feats)
@@ -103,7 +160,7 @@ class RCNNHead(nn.Module):
         return self._call_impl(features, boxes)
 
 
-class DetOut(NamedTuple):
+class DetOut(NamedTuple):  # TODO: decide where to put the class
     """Output of the final detections from RCNN."""
 
     boxes: list[torch.Tensor]  # N, 4

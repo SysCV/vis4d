@@ -1,4 +1,6 @@
 """Track assignment functions."""
+from __future__ import annotations
+
 import torch
 
 
@@ -8,6 +10,7 @@ def greedy_assign(
     affinity_scores: torch.Tensor,
     match_score_thr: float = 0.5,
     obj_score_thr: float = 0.3,
+    nms_conf_thr: None | float = None,
 ) -> torch.Tensor:
     """Greedy assignment of detections to tracks given affinities."""
     ids = torch.full(
@@ -20,10 +23,14 @@ def greedy_assign(
     for i, score in enumerate(detection_scores):
         conf, memo_ind = torch.max(affinity_scores[i, :], dim=0)
         cur_id = tracklet_ids[memo_ind]
-        if cur_id != -1 and conf > match_score_thr and score > obj_score_thr:
-            ids[i] = cur_id
-            affinity_scores[:i, memo_ind] = 0
-            affinity_scores[(i + 1) :, memo_ind] = 0
+        if conf > match_score_thr:
+            if cur_id > -1:
+                if score > obj_score_thr:
+                    ids[i] = cur_id
+                    affinity_scores[:i, memo_ind] = 0
+                    affinity_scores[(i + 1) :, memo_ind] = 0
+                elif nms_conf_thr is not None and conf > nms_conf_thr:
+                    ids[i] = -2
     return ids
 
 

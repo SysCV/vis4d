@@ -1,7 +1,7 @@
 """Default data loading config for 3D segmentation."""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict

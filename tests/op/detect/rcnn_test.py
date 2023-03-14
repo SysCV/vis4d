@@ -53,7 +53,7 @@ def test_roi2det():
         assert boxes[j].shape[1] == 4
         box_min = torch.logical_and(boxes[j][:, 0] >= 0, boxes[j][:, 1] >= 0)
         box_max = torch.logical_and(
-            boxes[j][:, 2] < max_w, boxes[j][:, 3] < max_h
+            boxes[j][:, 2] <= max_w, boxes[j][:, 3] <= max_h
         )
         assert torch.logical_and(box_min, box_max).all()
 

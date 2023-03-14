@@ -35,7 +35,7 @@ def default_detection_connector(
     Example:
     >>> # Set up coco evaluator mapping
     >>> evaluator_cfg =
-    >>>   coco_eval = dict()
+    >>>   coco_eval = {}
     >>> coco_eval["coco_image_id"] = SourceKeyDescription(
     >>>     key="coco_image_id", source="data"
     >>> )
@@ -48,20 +48,20 @@ def default_detection_connector(
     >>> # get default detector
     >>> cfg = default_detection_connector(dict(coco = evaluator_cfg))
     """
-    train = dict()
+    train = {}
     train[CommonKeys.images] = CommonKeys.images
     train[CommonKeys.input_hw] = CommonKeys.input_hw
     train[CommonKeys.boxes2d] = CommonKeys.boxes2d
     train[CommonKeys.boxes2d_classes] = CommonKeys.boxes2d_classes
 
-    test = dict()
+    test = {}
     test[CommonKeys.images] = CommonKeys.images
     test[CommonKeys.input_hw] = CommonKeys.input_hw
     test[CommonKeys.boxes2d] = CommonKeys.boxes2d
     test[CommonKeys.boxes2d_classes] = CommonKeys.boxes2d_classes
     test["original_hw"] = "original_hw"
 
-    loss = dict()
+    loss = {}
 
     # TODO, remove hardcoded loss connections
     # RPN Loss connections
