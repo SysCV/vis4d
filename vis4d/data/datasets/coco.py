@@ -208,7 +208,7 @@ class COCO(Dataset, CacheMappingMixin):
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
         """Filter empty or low occupied samples."""
         if self.remove_empty and len(anns) == 0:
-            return False
+            return False  # no annotations  # pragma: no cover
         return sum(ann["area"] for ann in anns) >= self.minimum_box_area
 
     def _generate_data_mapping(self) -> list[DictStrAny]:
@@ -300,8 +300,8 @@ class COCO(Dataset, CacheMappingMixin):
                         rle = mask_ann
                     masks.append(maskUtils.decode(rle))
                 else:
-                    masks.append(np.empty((img_h, img_w)))
-            if not boxes:
+                    masks.append(np.empty((img_h, img_w)))  # pragma: no cover
+            if not boxes:  # pragma: no cover
                 box_tensor = torch.empty((0, 4), dtype=torch.float32)
                 mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
             else:

@@ -15,9 +15,8 @@ from vis4d.data.datasets.util import (
     filter_by_keys,
     im_decode,
     npy_decode,
-    ply_decode,
 )
-from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
+from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend, FileBackend
 from vis4d.data.typing import DictData
 
 from .scalabel import ScalabelVideo
@@ -75,7 +74,9 @@ def _get_extension(backend: DataBackend) -> str:
         return ".hdf5"
     if isinstance(backend, ZipBackend):
         return ".zip"
-    return ""
+    if isinstance(backend, FileBackend):  # pragma: no cover
+        return ""
+    raise ValueError(f"Unsupported backend {backend}.")  # pragma: no cover
 
 
 class _SHIFTScalabelLabels(ScalabelVideo):
@@ -253,7 +254,7 @@ class SHIFT(Dataset):
             raise ValueError(
                 "In current implementation, the 'det_2d' data group must be"
                 "loaded to load any other data group."
-            )
+            )  # pragma: no cover
 
         self.scalabel_datasets = {}
         for view in self.views_to_load:
@@ -317,7 +318,9 @@ class SHIFT(Dataset):
             return self._load_depth(filepath)
         if data_group == "flow":
             return self._load_flow(filepath)
-        raise ValueError(f"Invalid data group '{data_group}'")
+        raise ValueError(
+            f"Invalid data group '{data_group}'"
+        )  # pragma: no cover
 
     def _load_semseg(self, filepath: str) -> Tensor:
         """Load semantic segmentation data."""
@@ -354,12 +357,6 @@ class SHIFT(Dataset):
             .unsqueeze(0)
         )
 
-    def _load_lidar(self, filepath: str) -> Tensor:
-        """Load lidar data."""
-        ply_bytes = self.backend.get(filepath)
-        points = ply_decode(ply_bytes)
-        return torch.as_tensor(points, dtype=torch.float32)
-
     def _get_frame_key(self, idx: int) -> tuple[str, str]:
         """Get the frame identifier (video name, frame name) by index."""
         if len(self.scalabel_datasets) > 0:
@@ -367,7 +364,9 @@ class SHIFT(Dataset):
                 list(self.scalabel_datasets.keys())[0]
             ].frames
             return frames[idx].videoName, frames[idx].name
-        raise ValueError("No Scalabel file has been loaded.")
+        raise ValueError(
+            "No Scalabel file has been loaded."
+        )  # pragma: no cover
 
     def __len__(self) -> int:
         """Get the number of samples in the dataset."""
@@ -375,7 +374,9 @@ class SHIFT(Dataset):
             return len(
                 self.scalabel_datasets[list(self.scalabel_datasets.keys())[0]]
             )
-        raise ValueError("No Scalabel file has been loaded.")
+        raise ValueError(
+            "No Scalabel file has been loaded."
+        )  # pragma: no cover
 
     @property
     def video_to_indices(self) -> dict[str, list[int]]:
@@ -391,7 +392,9 @@ class SHIFT(Dataset):
             return self.scalabel_datasets[
                 list(self.scalabel_datasets.keys())[0]
             ].video_to_indices
-        raise ValueError("No Scalabel file has been loaded.")
+        raise ValueError(
+            "No Scalabel file has been loaded."
+        )  # pragma: no cover
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.

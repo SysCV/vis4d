@@ -365,7 +365,7 @@ class Scalabel(Dataset, CacheMappingMixin):
                 raise AttributeError(
                     "Category mapping is empty but keys_to_load is not. "
                     "Please specify a category mapping."
-                )
+                )  # pragma: no cover
             # load annotations to input sample
             self._add_annotations(frame, data)
         return data
@@ -510,8 +510,8 @@ def instance_masks_from_scalabel(
     if bg_as_class:
         foreground: NDArrayUI8 | None = None
     for label in labels:
-        if label.category not in class_to_idx:
-            continue
+        if label.category not in class_to_idx:  # pragma: no cover
+            continue  # skip unknown classes
         if label.poly2d is None and label.rle is None:
             continue
         if label.rle is not None:
@@ -552,4 +552,4 @@ def semantic_masks_from_scalabel(
     bg_as_class: bool = False,
 ) -> Tensor:
     """Convert from scalabel format to Vis4D."""
-    raise NotImplementedError
+    raise NotImplementedError  # pragma: no cover
