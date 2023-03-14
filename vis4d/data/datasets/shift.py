@@ -11,12 +11,8 @@ from torch import Tensor
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.base import Dataset
-from vis4d.data.datasets.util import (
-    filter_by_keys,
-    im_decode,
-    npy_decode,
-)
-from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend, FileBackend
+from vis4d.data.datasets.util import filter_by_keys, im_decode, npy_decode
+from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
 from .scalabel import ScalabelVideo
