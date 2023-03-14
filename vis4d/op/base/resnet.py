@@ -36,8 +36,9 @@ class ResNet(BaseModel):
             ValueError: trainable_layers should be between 0 and 5
         """
         super().__init__()
+        weights = "IMAGENET1K_V1" if pretrained else None
         resnet = _resnet.__dict__[resnet_name](
-            pretrained=pretrained,
+            weights=weights,
             norm_layer=misc_nn_ops.FrozenBatchNorm2d if norm_freezed else None,
             replace_stride_with_dilation=replace_stride_with_dilation,
         )

@@ -67,6 +67,11 @@ def get_default_box_sampler() -> RandomSampler:
     return RandomSampler(batch_size=512, positive_fraction=0.25)
 
 
+def get_default_roi_head(num_classes: int) -> RCNNHead:
+    """Get default ROI head."""
+    return RCNNHead(num_classes=num_classes)
+
+
 class FasterRCNNHead(nn.Module):
     """This class composes RPN and RCNN head components.
 
@@ -85,6 +90,7 @@ class FasterRCNNHead(nn.Module):
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
         proposal_append_gt: bool = True,
+        roi_head: None | nn.Module = None,
     ):
         """Creates an instance of the class.
 
@@ -103,6 +109,8 @@ class FasterRCNNHead(nn.Module):
                 for RCNN stage. Defaults to None.
             proposal_append_gt (bool): If to append the ground truth boxes for
                 proposal sampling during training. Defaults to True.
+            roi_head (Optional[nn.Module], optional): Custom ROI head. Defaults
+                to None.
         """
         super().__init__()
         self.anchor_generator = (
@@ -133,7 +141,11 @@ class FasterRCNNHead(nn.Module):
         self.proposal_append_gt = proposal_append_gt
         self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
         self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
-        self.roi_head = RCNNHead(num_classes=num_classes)
+        self.roi_head = (
+            roi_head
+            if roi_head is not None
+            else get_default_roi_head(num_classes)
+        )
 
     @torch.no_grad()
     def _sample_proposals(

@@ -11,7 +11,7 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
@@ -21,9 +21,6 @@ from vis4d.config.default.data_connectors import (
     CONN_MASK_HEAD_LOSS_2D,
     CONN_ROI_LOSS_2D,
     CONN_RPN_LOSS_2D,
-)
-from vis4d.config.default.loss.faster_rcnn_loss import (
-    get_default_faster_rcnn_loss,
 )
 from vis4d.config.default.loss.mask_rcnn_loss import get_default_mask_rcnn_loss
 from vis4d.config.default.optimizer.default import optimizer_cfg
@@ -37,7 +34,6 @@ from vis4d.engine.connectors import (
     remap_pred_keys,
 )
 from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.model.detect.mask_rcnn import MaskRCNN
 from vis4d.op.detect.faster_rcnn import (
     get_default_anchor_generator,
@@ -45,12 +41,6 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.vis.image import BoundingBoxVisualizer
-
-# This is just for demo purposes. Uses the relative path to the vis4d root.
-VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
-COCO_DATA_ROOT = os.path.join(VIS4D_ROOT, "tests/vis4d-test-data/coco_test")
-TRAIN_SPLIT = "train"
-TEST_SPLIT = "train"  # "val"
 
 
 def get_config() -> ConfigDict:
@@ -81,9 +71,9 @@ def get_config() -> ConfigDict:
         "experiment_name"
     )
 
-    config.dataset_root = COCO_DATA_ROOT
-    config.train_split = TRAIN_SPLIT
-    config.test_split = TEST_SPLIT
+    config.dataset_root = "data/coco"
+    config.train_split = "train2017"
+    config.test_split = "val2017"
     config.n_gpus = 1
     config.num_epochs = 10
 
@@ -116,7 +106,7 @@ def get_config() -> ConfigDict:
         split=config.train_split,
     )
     preproc = det_preprocessing(800, 1333, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
+    dataloader_train_cfg = default_image_dataloader(
         preproc, dataset_cfg_train, params.batch_size, shuffle=True
     )
     config.train_dl = dataloader_train_cfg
@@ -134,10 +124,10 @@ def get_config() -> ConfigDict:
         split=config.test_split,
     )
     preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    dataloader_cfg_test = default_image_dl(
+    dataloader_cfg_test = default_image_dataloader(
         preprocess_test_cfg,
         dataset_test_cfg,
-        batch_size=1,
+        num_samples_per_gpu=1,
         num_workers_per_gpu=1,
         shuffle=False,
     )

@@ -1,15 +1,17 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
 
+import pytorch_lightning as pl
 from torch import optim
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.common.callbacks import (
     CheckpointCallback,
     EvaluatorCallback,
+    LoggingCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
@@ -23,6 +25,7 @@ from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
+from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
@@ -35,7 +38,9 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
+from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.data.io.hdf5 import HDF5Backend
 
 
 def get_config() -> ConfigDict:
@@ -61,19 +66,21 @@ def get_config() -> ConfigDict:
     # and the high level hyper parameters.
 
     config = ConfigDict()
-    config.experiment_name = "frcnn_coco"
-    config.save_prefix = "vis4d-workspace/" + config.get_ref("experiment_name")
+    config.n_gpus = 8
+    config.work_dir = "vis4d-workspace"
+    config.experiment_name = "faster_rcnn_r50_fpn_coco"
+    config = set_output_dir(config)
+    config.benchmark = True
 
-    config.dataset_root = "./data/COCO"
+    config.dataset_root = "data/coco"
     config.train_split = "train2017"
     config.test_split = "val2017"
-    config.n_gpus = 1
-    config.num_epochs = 10
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.batch_size = 16
-    params.lr = 0.01
+    params.samples_per_gpu = 4
+    params.lr = 0.02
+    params.num_epochs = 12
     params.augment_proba = 0.5
     params.num_classes = 80
     config.params = params
@@ -85,36 +92,42 @@ def get_config() -> ConfigDict:
     # Here we define the training and test datasets.
     # We use the COCO dataset and the default data augmentation
     # provided by vis4d.
+    data = ConfigDict()
 
-    # Training Datasets
-    dataset_cfg_train = class_config(
+    # Train
+    train_dataset_cfg = class_config(
         COCO,
         keys=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
+        data_backend=HDF5Backend(),
     )
-    preproc = det_preprocessing(800, 1333, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
-        preproc, dataset_cfg_train, params.batch_size, shuffle=True
+    train_preprocess_cfg = det_preprocessing(800, 1333, params.augment_proba)
+    data.train_dataloader = default_image_dataloader(
+        preprocess_cfg=train_preprocess_cfg,
+        dataset_cfg=train_dataset_cfg,
+        num_samples_per_gpu=params.samples_per_gpu,
+        shuffle=True,
     )
-    config.train_dl = dataloader_train_cfg
 
     # Test
-    dataset_test_cfg = class_config(
+    test_dataset_cfg = class_config(
         COCO,
         keys=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
+        data_backend=HDF5Backend(),
     )
-    preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    dataloader_cfg_test = default_image_dl(
-        preprocess_test_cfg,
-        dataset_test_cfg,
-        batch_size=1,
-        num_workers_per_gpu=1,
-        shuffle=False,
+    test_preprocess_cfg = det_preprocessing(800, 1333, augment_probability=0)
+    test_dataloader_test = default_image_dataloader(
+        preprocess_cfg=test_preprocess_cfg,
+        dataset_cfg=test_dataset_cfg,
+        num_samples_per_gpu=1,
+        train=False,
     )
-    config.test_dl = {"coco_eval": dataloader_cfg_test}
+    data.test_dataloader = {"coco_eval": test_dataloader_test}
+
+    config.data = data
 
     ######################################################
     ##                        MODEL                     ##
@@ -178,9 +191,17 @@ def get_config() -> ConfigDict:
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
-            lr_scheduler=class_config(StepLR, step_size=3, gamma=0.1),
-            lr_warmup=None,
+            optimizer=class_config(
+                optim.SGD, lr=params.lr, weight_decay=0.0001
+            ),
+            lr_scheduler=class_config(
+                MultiStepLR, milestones=[8, 11], gamma=0.1
+            ),
+            lr_warmup=class_config(
+                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
+            ),
+            epoch_based_lr=True,
+            epoch_based_warmup=False,
         )
     ]
 
@@ -201,7 +222,7 @@ def get_config() -> ConfigDict:
             loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
             callbacks={
                 "coco_eval_test": CONN_COCO_BBOX_EVAL,
-                "bbox_vis_test": CONN_BBOX_2D_VIS,
+                # "bbox_vis_test": CONN_BBOX_2D_VIS,
             },
         ),
     )
@@ -224,7 +245,7 @@ def get_config() -> ConfigDict:
                 split=config.test_split,
             ),
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
+            num_epochs=params.num_epochs,
         )
     }
 
@@ -236,32 +257,57 @@ def get_config() -> ConfigDict:
     # between the visualizer and the data connector in the data connector
     # section. And use the same name here.
 
-    vis_callbacks = {
-        "bbox_vis": class_config(
-            VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer),
-            output_dir=config.save_prefix + "/vis",
-            run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
-        )
-    }
+    # vis_callbacks = {
+    #     "bbox_vis": class_config(
+    #         VisualizerCallback,
+    #         visualizer=class_config(BoundingBoxVisualizer),
+    #         save_prefix=config.output_dir,
+    #         run_every_nth_epoch=1,
+    #         num_epochs=params.num_epochs,
+    #     )
+    # }
+
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
     # Here we define general, all purpose callbacks. Note, that these callbacks
     # do not need to be registered with the data connector.
-
-    config.train_callbacks = {
+    logger_callback = {
+        "logger": class_config(LoggingCallback, refresh_rate=50)
+    }
+    ckpt_callback = {
         "ckpt": class_config(
             CheckpointCallback,
-            save_prefix=config.save_prefix,
+            save_prefix=config.output_dir,
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
+            num_epochs=params.num_epochs,
         )
     }
 
     # Assign the defined callbacks to the config
-    config.test_callbacks = {**eval_callbacks, **vis_callbacks}
+    config.shared_callbacks = {
+        **logger_callback,
+        **eval_callbacks,
+    }
+
+    config.train_callbacks = {
+        **ckpt_callback,
+    }
+    config.test_callbacks = {
+        # **vis_callbacks,
+    }
+
+    ######################################################
+    ##                  PL CALLBACKS                    ##
+    ######################################################
+    pl_trainer = ConfigDict()
+    pl_trainer.wandb = True
+
+    pl_callbacks: list[pl.callbacks.Callback] = []
+
+    config.pl_trainer = pl_trainer
+    config.pl_callbacks = pl_callbacks
+
     return config.value_mode()
 
 

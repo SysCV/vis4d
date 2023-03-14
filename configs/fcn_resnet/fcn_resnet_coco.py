@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from torch import nn, optim
 
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.segment import segment_preprocessing
 from vis4d.config.default.data_connectors.segment import (
     CONN_FCN_LOSS,
@@ -79,7 +79,7 @@ def get_config() -> ConfigDict:
         minimum_box_area=10,
     )
     preproc = segment_preprocessing(520, 520, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
+    dataloader_train_cfg = default_image_dataloader(
         preproc,
         dataset_cfg_train,
         params.batch_size,
@@ -98,7 +98,7 @@ def get_config() -> ConfigDict:
     preprocess_test_cfg = segment_preprocessing(
         520, 520, augment_probability=0
     )
-    dataloader_cfg_test = default_image_dl(
+    dataloader_cfg_test = default_image_dataloader(
         preprocess_test_cfg,
         dataset_test_cfg,
         batch_size=1,

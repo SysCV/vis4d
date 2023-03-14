@@ -42,6 +42,8 @@ nuscenes_track_map = {
     "barrier": 9,
 }
 
+nuscenes_class_range_map = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
+
 
 def _get_extrinsics(
     ego_pose: DictStrAny, car_from_sensor: DictStrAny
@@ -108,12 +110,21 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         "CAM_BACK_RIGHT",
     ]
 
+    _METADATA = {
+        "use_camera": False,
+        "use_lidar": False,
+        "use_radar": False,
+        "use_map": False,
+        "use_external": False,
+    }
+
     def __init__(
         self,
         data_root: str,
         version: str = "v1.0-trainval",
         split: str = "train",
         include_non_key: bool = False,
+        metadata: None | list[str] = None,
         data_backend: DataBackend | None = None,
     ) -> None:
         """Creates an instance of the class.
@@ -128,6 +139,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             include_non_key (bool, optional): Whether to include non-key
                 samples. Note that Non-key samples do not have annotations.
                 Defaults to False.
+            metadata (list[str], optional): Which metadata to use for the
+                submission. Defaults to None.
             data_backend (Optional[DataBackend], optional): Which data backend
                 to use to load the NuScenes data. Defaults to None.
         """
@@ -136,37 +149,44 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             FileBackend() if data_backend is None else data_backend
         )
         self.data_root = data_root
-        assert version in {"v1.0-trainval", "v1.0-test", "v1.0-mini"}
-        self.version = version
-        if "mini" in version:
-            assert split in {
-                "mini_train",
-                "mini_val",
-            }, f"Invalid split for NuScenes {version}!"
-        elif "test" in version:
-            split = "test"
-        else:
-            assert split in {
-                "train",
-                "val",
-            }, f"Invalid split for NuScenes {version}!"
-            # TODO improve error msg for mini version
-
-        self.split = split
+        self._check_version_and_split(version, split)
         self.include_non_key = include_non_key
+
+        if metadata is not None:
+            for m in metadata:
+                assert m in self._METADATA, f"Invalid metadata {m}!"
+                self._METADATA[m] = True
 
         self.data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
         )
-        self.samples = self._load_mapping(
-            self._generate_data_mapping,
-            os.path.join(
-                self.data_root,
-                self.version,
-                self.split + ".pkl",
-            ),
-        )
+        self.samples = self._load_mapping(self._generate_data_mapping)
         self.instance_tokens = []
+
+    def _check_version_and_split(self, version: str, split: str) -> None:
+        """Check that the version and split are valid."""
+        assert version in {
+            "v1.0-trainval",
+            "v1.0-test",
+            "v1.0-mini",
+        }, f"Invalid version {version} for NuScenes!"
+        self.version = version
+
+        if "mini" in version:
+            valid_splits = {"mini_train", "mini_val"}
+        elif "test" in version:
+            valid_splits = {"test"}
+        else:
+            valid_splits = {"train", "val"}
+
+        assert (
+            split in valid_splits
+        ), f"Invalid split {split} for NuScenes {version}!"
+        self.split = split
+
+    def __repr__(self) -> str:
+        """Concise representation of the dataset."""
+        return f"NuScenesDataset {self.version} {self.split}"
 
     @property
     def video_to_indices(self) -> dict[str, list[int]]:
@@ -236,20 +256,20 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         extrinsics = _get_extrinsics(ego_pose, calibration_lidar)
         return points, extrinsics, timestamp
 
+    # TODO: add unit tests for all coordinate transforms
     def _load_cam_data(
-        self, cam_token: str, ego_pose: DictStrAny
+        self, cam_data: DictStrAny, ego_pose_cam: DictStrAny
     ) -> tuple[Tensor, Tensor, Tensor, str]:
         """Load camera data.
 
         Args:
-            cam_token (str): Token of camera.
-            ego_pose (dict): Ego vehicle pose in NuScenes format.
+            cam_data (DictStrAny): NuScenes format camera data.
+            ego_pose_cam (dict): Ego vehicle pose in NuScenes format.
 
         Returns:
             tuple[Tensor, Tensor, Tensor, str]: Image, intrinscs, extrinsics,
                 timestamp.
         """
-        cam_data = self.data.get("sample_data", cam_token)
         timestamp = cam_data["timestamp"]
         cam_filepath = cam_data["filename"]
         calibration_cam = self.data.get(
@@ -264,7 +284,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             .permute(2, 0, 1)
             .unsqueeze(0)
         )
-        extrinsics = _get_extrinsics(ego_pose, calibration_cam)
+        extrinsics = _get_extrinsics(ego_pose_cam, calibration_cam)
         intrinsics = torch.tensor(
             calibration_cam["camera_intrinsic"], dtype=torch.float32
         )
@@ -405,7 +425,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
         # load LiDAR frame
         data_dict: DictData = {}
-        if "LIDAR_TOP" in self._SENSORS:
+        if self._METADATA["use_lidar"]:
             points, extrinsics, timestamp = self._load_lidar_data(
                 lidar_data, ego_pose
             )
@@ -423,18 +443,26 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             }
 
         # load camera frames
-        for cam in NuScenes._CAMERAS:
-            if cam in self._SENSORS:
-                cam_token = sample["data"][cam]
-                image, intrinsics, extrinsics, timestamp = self._load_cam_data(
-                    cam_token, ego_pose
-                )
-                image_hw = image.size(2), image.size(3)
-                (
-                    boxes3d,
-                    boxes3d_classes,
-                    boxes3d_track_ids,
-                ) = self._load_boxes3d(boxes, extrinsics, AxisMode.OPENCV)
+        if self._METADATA["use_camera"]:
+            for cam in NuScenes._CAMERAS:
+                if cam in self._SENSORS:
+                    cam_token = sample["data"][cam]
+                    cam_data = self.data.get("sample_data", cam_token)
+                    ego_pose_cam = self.data.get(
+                        "ego_pose", cam_data["ego_pose_token"]
+                    )
+                    (
+                        image,
+                        intrinsics,
+                        extrinsics,
+                        timestamp,
+                    ) = self._load_cam_data(cam_data, ego_pose_cam)
+                    image_hw = image.size(2), image.size(3)
+                    (
+                        boxes3d,
+                        boxes3d_classes,
+                        boxes3d_track_ids,
+                    ) = self._load_boxes3d(boxes, extrinsics, AxisMode.OPENCV)
 
                 mask, boxes2d = self._load_boxes2d(
                     boxes3d, intrinsics, image_hw

@@ -20,12 +20,17 @@ class BDD100KDetTest(unittest.TestCase):
     dataset = BDD100K(
         data_root,
         annotations,
+<<<<<<< HEAD
         keys_to_load=(
             K.images,
             K.boxes2d,
             K.boxes2d_classes,
             K.boxes2d_track_ids,
         ),
+=======
+        inputs_to_load=(K.images,),
+        targets_to_load=(K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids),
+>>>>>>> main
         config_path=config_path,
     )
 
@@ -65,6 +70,7 @@ class BDD100KDetTest(unittest.TestCase):
             item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
+<<<<<<< HEAD
 
 
 class BDD100KInsSegTest(unittest.TestCase):
@@ -125,3 +131,5 @@ class BDD100KInsSegTest(unittest.TestCase):
             item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
+=======
+>>>>>>> main

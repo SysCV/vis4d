@@ -16,7 +16,7 @@ from torch.hub import load_state_dict_from_url as load_url
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from vis4d.common import TorchCheckpoint
-from vis4d.common.distributed import get_rank, get_world_size
+from vis4d.common.distributed import get_rank, get_world_size, synchronize
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 
 CheckpointLoadFunc = Callable[
@@ -44,6 +44,7 @@ def load_model_checkpoint(
     weights: str,
     strict: bool = False,
     rev_keys: None | list[tuple[str, str]] = None,
+    map_location: str | torch.device | None = "cpu",
 ) -> None:
     """Load checkpoint from a file or URI.
 
@@ -57,18 +58,26 @@ def load_model_checkpoint(
             modify the state_dict in checkpoint. Each item is a
             (pattern, replacement) pair of the regular expression operations.
             Default: strip the prefix 'module.' by [(r'^module.', '')].
+        map_location (str | torch.device | None): Same as :func:`torch.load`.
+            Default: 'cpu'.
     """
     if rev_keys is None:  # pragma: no cover
         rev_keys = [(r"^module\.", "")]
     if re.compile(r"^mm(det|seg)://").search(weights):
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
-        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+        _load_checkpoint(
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
+        )
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+        _load_checkpoint(
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
+        )
     else:  # pragma: no cover
-        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+        _load_checkpoint(
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
+        )
 
 
 class CheckpointLoader:
@@ -217,7 +226,7 @@ def load_from_http(
     if rank == 0:
         checkpoint = load_url(filename, map_location=map_location)
     if world_size > 1:
-        torch.distributed.barrier()
+        synchronize()
         if rank > 0:
             checkpoint = load_url(filename, map_location=map_location)
     return checkpoint

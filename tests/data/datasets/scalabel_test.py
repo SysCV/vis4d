@@ -15,9 +15,13 @@ def test_3d_data() -> None:
     dataset = Scalabel(
         data_root,
         annotations,
+<<<<<<< HEAD
         keys_to_load=(
             K.images,
             K.original_hw,
+=======
+        targets_to_load=(
+>>>>>>> main
             K.boxes3d,
             K.boxes3d_classes,
             K.boxes3d_track_ids,

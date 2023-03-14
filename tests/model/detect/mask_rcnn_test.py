@@ -33,7 +33,7 @@ class MaskRCNNTest(unittest.TestCase):
         """Test inference of Mask RCNN.
 
         Run::
-            >>> pytest vis4d/model/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
+            >>> pytest tests/model/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
         """
         dataset = COCO(
             get_test_data("coco_test"),

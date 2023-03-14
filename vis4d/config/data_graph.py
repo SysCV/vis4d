@@ -46,7 +46,8 @@ def _get_model_conn_infos(
 ) -> dict[str, DataConnectionInfo]:
     """Returns the connection infos for a pytorch Model.
 
-    Requires "forward_train" and "forward_test" to be defined and properly typed!
+    Requires "forward_train" and "forward_test" to be defined and properly
+    typed!
 
     Args:
         model: Model to extract data from
@@ -76,7 +77,7 @@ def _get_model_conn_infos(
         ],
         name=model.__class__.__name__,
     )
-    return dict(train=train_connection_info, test=test_connection_info)
+    return {"train": train_connection_info, "test": test_connection_info}
 
 
 def _get_loss_connection_infos(loss: nn.Module) -> DataConnectionInfo:
@@ -199,12 +200,12 @@ def _get_static_connector_infos(
         )
         callbacks.append(connection_info)
 
-    return dict(
-        train=[train_connection_info],
-        test=[test_connection_info],
-        loss=[loss_connection_info],
-        callbacks=callbacks,
-    )
+    return {
+        "train": [train_connection_info],
+        "test": [test_connection_info],
+        "loss": [loss_connection_info],
+        "callbacks": callbacks,
+    }
 
 
 def _get_with_color(key: str, warn_unconnected: bool = True) -> str:
@@ -218,13 +219,10 @@ def _get_with_color(key: str, warn_unconnected: bool = True) -> str:
     # comes from prediction and is not connected
     if warn_unconnected:
         return f"\u001b[33m{key}\033[00m"
-    else:
-        return f"\033[00m{key}\033[00m"
+    return f"\033[00m{key}\033[00m"
 
 
 # API Functions
-
-
 def print_box(
     title: str, inputs: list[str], outputs: list[str], use_color: bool = True
 ) -> str:
@@ -327,8 +325,7 @@ def resolve_named_tuple(  # type:ignore
             p = f"{prefix}.{f}" if len(prefix) > 0 else f
             fields += resolve_named_tuple(getattr(clazz, f), prefix=p)
         return fields
-    else:
-        return [prefix]
+    return [prefix]
 
 
 def connect_components(

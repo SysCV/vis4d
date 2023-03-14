@@ -264,3 +264,7 @@ class COCOEvaluator(Evaluator):
             log_str = f"\n{table.table}\n{log_str}"
 
         return score_dict, log_str
+
+    def __repr__(self) -> str:
+        """Returns the string representation of the object."""
+        return f"CocoEvaluator(iou_type={self.iou_type})"

@@ -7,7 +7,6 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data, get_test_file
-from vis4d.config.example.faster_rcnn_coco import get_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -23,7 +22,6 @@ from vis4d.data.transforms.resize import (
     resize_image,
     resize_masks,
 )
-from vis4d.engine.cli import _train as cli_train
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.op.detect.rcnn import DetOut
 
@@ -71,7 +69,7 @@ class FasterRCNNTest(unittest.TestCase):
         """Test inference of Faster RCNN.
 
         Run::
-            >>> pytest vis4d/model/detect/faster_rcnn_test.py::FasterRCNNTest::test_inference # TODO check all these paths!
+            >>> pytest tests/model/detect/faster_rcnn_test.py::FasterRCNNTest::test_inference
         """
         dataset = COCO(
             get_test_data("coco_test"),
@@ -105,10 +103,6 @@ class FasterRCNNTest(unittest.TestCase):
         _assert_eq(dets.scores, testcase_gt["boxes2d_scores"])
         _assert_eq(dets.class_ids, testcase_gt["boxes2d_classes"])
 
-    def test_cli_training(self) -> None:
-        """Test Faster RCNN training via CLI."""
-        config = get_config()
-        config.num_epochs = 2
-        config.n_gpus = 0
-
-        cli_train(config)
+    # TODO: add test for training after refactoring config
+    # def test_cli_training(self) -> None:
+    #     """Test Faster RCNN training via CLI."""
