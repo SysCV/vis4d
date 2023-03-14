@@ -86,7 +86,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Setup logger
     trainer_args_cfg.enable_progress_bar = False
-    trainer_args_cfg.log_every_n_steps = 1
+    trainer_args_cfg.log_every_n_steps = 50
 
     trainer_args = instantiate_classes(trainer_args_cfg)
 
