@@ -7,7 +7,7 @@ from collections import defaultdict
 import torch
 from torch import nn
 
-from vis4d.common import DictStrAny
+from vis4d.common import DictStrAny, MetricLogs
 from vis4d.common.distributed import all_gather_object_cpu, broadcast, get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
@@ -95,7 +95,7 @@ class Callback:
 
     def on_test_epoch_end(
         self, model: nn.Module, epoch: None | int = None
-    ) -> None:
+    ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch.
 
         Args:
@@ -143,12 +143,16 @@ class EvaluatorCallback(Callback):
 
     def on_test_epoch_end(
         self, model: nn.Module, epoch: None | int = None
-    ) -> None:
+    ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)
         if get_rank() == 0:
-            self.evaluate()
+            log_dict = self.evaluate()
+        else:
+            log_dict = None
+        log_dict = broadcast(log_dict)
         self.evaluator.reset()
+        return log_dict
 
     def on_test_batch_end(
         self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
@@ -156,7 +160,7 @@ class EvaluatorCallback(Callback):
         """Hook to run at the end of a testing batch."""
         self.evaluator.process(**inputs)
 
-    def evaluate(self) -> None:
+    def evaluate(self) -> MetricLogs:
         """Evaluate the performance after processing all input/output pairs."""
         rank_zero_info("Running evaluator %s...", str(self.evaluator))
 
@@ -173,6 +177,7 @@ class EvaluatorCallback(Callback):
                 rank_zero_info("%s: %.3f", k, v)
             rank_zero_info("Showing results for %s", metric)
             rank_zero_info(log_str)
+        return log_dict
 
 
 class VisualizerCallback(Callback):

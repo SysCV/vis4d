@@ -70,7 +70,6 @@ def get_config() -> ConfigDict:
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "faster_rcnn_r50_fpn_coco"
     config = set_output_dir(config)
-    config.benchmark = True
 
     config.dataset_root = "data/coco"
     config.train_split = "train2017"
@@ -93,6 +92,7 @@ def get_config() -> ConfigDict:
     # We use the COCO dataset and the default data augmentation
     # provided by vis4d.
     data = ConfigDict()
+    data_backend = HDF5Backend()
 
     # Train
     train_dataset_cfg = class_config(
@@ -100,7 +100,7 @@ def get_config() -> ConfigDict:
         keys=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
-        data_backend=HDF5Backend(),
+        data_backend=data_backend,
     )
     train_preprocess_cfg = det_preprocessing(800, 1333, params.augment_proba)
     data.train_dataloader = default_image_dataloader(
@@ -116,7 +116,7 @@ def get_config() -> ConfigDict:
         keys=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
-        data_backend=HDF5Backend(),
+        data_backend=data_backend,
     )
     test_preprocess_cfg = det_preprocessing(800, 1333, augment_probability=0)
     test_dataloader_test = default_image_dataloader(
@@ -142,7 +142,7 @@ def get_config() -> ConfigDict:
 
     config.model = class_config(
         FasterRCNN,
-        weights="mmdet",
+        # weights="mmdet",
         num_classes=params.num_classes,
         rpn_box_encoder=config.gen.rpn_box_encoder,
         rcnn_box_encoder=config.gen.rcnn_box_encoder,
@@ -298,14 +298,12 @@ def get_config() -> ConfigDict:
     }
 
     ######################################################
-    ##                  PL CALLBACKS                    ##
+    ##                     PL CLI                       ##
     ######################################################
     pl_trainer = ConfigDict()
-    pl_trainer.wandb = True
+    config.pl_trainer = pl_trainer
 
     pl_callbacks: list[pl.callbacks.Callback] = []
-
-    config.pl_trainer = pl_trainer
     config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

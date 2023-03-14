@@ -1,12 +1,11 @@
-"""Testcases for losses."""
-# TODO, move to test
+"""Testcases for quasi-dense losses."""
 import unittest
 
 import torch
 
-from .box3d_uncertainty_loss import Box3DUncertaintyLoss
-from .embedding_distance import EmbeddingDistanceLoss
-from .multi_pos_cross_entropy import MultiPosCrossEntropyLoss
+from vis4d.op.loss.box3d_uncertainty_loss import Box3DUncertaintyLoss
+from vis4d.op.loss.embedding_distance import EmbeddingDistanceLoss
+from vis4d.op.loss.multi_pos_cross_entropy import MultiPosCrossEntropyLoss
 
 
 class TestQDLosses(unittest.TestCase):
@@ -175,10 +174,13 @@ class TestQDLosses(unittest.TestCase):
     def test_multipos_crossentropy(self) -> None:
         """Testcase for multi positive cross-entropy loss."""
         loss = MultiPosCrossEntropyLoss()
-        x = loss(self.pred, self.target, reduction_override="sum")
+        x = loss(
+            self.pred,
+            self.target,
+            weight=torch.ones(10),
+            avg_factor=1.0,
+        )
         self.assertTrue(abs(x - 34.0866) < 1e-4)
-        x = loss(self.pred, self.target, reduction_override="mean")
-        self.assertTrue(abs(x - 3.4087) < 1e-4)
 
 
 class TestLossBox3D(unittest.TestCase):

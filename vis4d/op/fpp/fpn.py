@@ -43,7 +43,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
             start_index (int, optional): Start index of base model feature
                 maps. Defaults to 2.
         """
-        super().__init__(  # type: ignore
+        super().__init__(
             in_channels_list, out_channels, extra_blocks=extra_blocks
         )
         self.start_index = start_index
