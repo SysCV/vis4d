@@ -4,7 +4,7 @@ import torch
 from vis4d.data.transforms.random_erasing import random_erasing
 
 
-def test_random_erasing():
+def test_random_erasing() -> None:
     """Random erasing testcase."""
     transform = random_erasing(
         probability=1.0,

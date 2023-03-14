@@ -22,7 +22,8 @@ def random_erasing(
 ):
     """Randomly erase a rectangular region in an image tensor.
 
-    Recommended to use this transform after normalization.
+    Recommended to use this transform after normalization. The erased region
+    will be filled with the mean value. See `https://arxiv.org/abs/1708.04896`.
 
     Args:
         probability (float, optional): Probability of applying the transform.

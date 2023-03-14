@@ -5,7 +5,7 @@ from vis4d.common.util import set_random_seed
 from vis4d.data.transforms.autoaugment import autoaugment
 
 
-def test_autoaugment():
+def test_autoaugment() -> None:
     """Auto augment testcase."""
     set_random_seed(0, deterministic=True)
 
@@ -21,7 +21,7 @@ def test_autoaugment():
     assert x["images"].max() == 135
 
 
-def test_randaugment():
+def test_randaugment() -> None:
     """Random augment testcase."""
     set_random_seed(0, deterministic=True)
 
@@ -37,7 +37,7 @@ def test_randaugment():
     assert x["images"].max() == 128
 
 
-def test_mixaugment():
+def test_mixaugment() -> None:
     """Random mix augment testcase."""
     set_random_seed(0, deterministic=True)
 
