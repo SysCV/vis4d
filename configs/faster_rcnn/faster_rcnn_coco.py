@@ -28,7 +28,7 @@ from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
@@ -97,7 +97,7 @@ def get_config() -> ConfigDict:
     # Train
     train_dataset_cfg = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        keys=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
         data_backend=HDF5Backend(),
@@ -113,7 +113,7 @@ def get_config() -> ConfigDict:
     # Test
     test_dataset_cfg = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        keys=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
         data_backend=HDF5Backend(),

@@ -5,7 +5,7 @@ import torch
 from torch import optim
 
 from tests.util import get_test_data, get_test_file
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.engine.loss import WeightedMultiLoss
@@ -37,14 +37,14 @@ class MaskRCNNTest(unittest.TestCase):
         """
         dataset = COCO(
             get_test_data("coco_test"),
-            keys=(CommonKeys.images,),
+            keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
             split="train",
         )
         test_loader = get_test_dataloader(dataset, 2, (512, 512))
         batch = next(iter(test_loader))
         inputs, images_hw = (
-            batch[CommonKeys.images],
-            batch[CommonKeys.input_hw],
+            batch[K.images],
+            batch[K.input_hw],
         )
 
         weights = (
@@ -108,11 +108,11 @@ class MaskRCNNTest(unittest.TestCase):
         for epoch in range(2):
             for i, data in enumerate(train_loader):
                 inputs, images_hw, gt_boxes, gt_class_ids, gt_masks = (
-                    data[CommonKeys.images],
-                    data[CommonKeys.input_hw],
-                    data[CommonKeys.boxes2d],
-                    data[CommonKeys.boxes2d_classes],
-                    data[CommonKeys.masks],
+                    data[K.images],
+                    data[K.input_hw],
+                    data[K.boxes2d],
+                    data[K.boxes2d_classes],
+                    data[K.instance_masks],
                 )
 
                 # zero the parameter gradients

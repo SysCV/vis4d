@@ -1,23 +1,23 @@
 """Default data connectors for evaluators."""
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import data_key, pred_key
 
 CONN_IMAGES_TRAIN = {
-    CK.images: CK.images,
-    CK.input_hw: CK.input_hw,
+    K.images: K.images,
+    K.input_hw: K.input_hw,
 }
 
 CONN_IMAGES_TEST = {
-    CK.images: CK.images,
-    CK.input_hw: CK.input_hw,
+    K.images: K.images,
+    K.input_hw: K.input_hw,
     "original_hw": "original_hw",
 }
 
 CONN_BBOX_2D_TRAIN = {
-    CK.images: CK.images,
-    CK.input_hw: CK.input_hw,
-    CK.boxes2d: CK.boxes2d,
-    CK.boxes2d_classes: CK.boxes2d_classes,
+    K.images: K.images,
+    K.input_hw: K.input_hw,
+    K.boxes2d: K.boxes2d,
+    K.boxes2d_classes: K.boxes2d_classes,
 }
 
 CONN_BBOX_2D_TEST = {

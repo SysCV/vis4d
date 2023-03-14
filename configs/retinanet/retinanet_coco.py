@@ -25,7 +25,7 @@ from vis4d.config.default.data_connectors.detection import (
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
@@ -91,7 +91,7 @@ def get_config() -> ConfigDict:
     # Training Datasets
     dataset_cfg_train = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
     )
@@ -104,7 +104,7 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
     )

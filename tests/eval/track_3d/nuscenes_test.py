@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.loader import (
     VideoDataPipe,
@@ -38,11 +38,11 @@ class TestNuScenesEvaluator(unittest.TestCase):
     """NuScenes evaluator testcase class."""
 
     CONN_BBOX_3D_TEST = {
-        CK.images: CK.images,
-        CK.original_hw: "images_hw",
-        CK.intrinsics: CK.intrinsics,
-        CK.extrinsics: CK.extrinsics,
-        CK.frame_ids: CK.frame_ids,
+        K.images: K.images,
+        K.original_hw: "images_hw",
+        K.intrinsics: K.intrinsics,
+        K.extrinsics: K.extrinsics,
+        K.frame_ids: K.frame_ids,
     }
 
     CONN_NUSC_EVAL = {
