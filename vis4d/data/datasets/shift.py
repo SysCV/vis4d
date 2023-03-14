@@ -20,7 +20,7 @@ from vis4d.data.datasets.util import (
 from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
-from .scalabel import Scalabel
+from .scalabel import ScalabelVideo
 
 shift_det_map = {
     "pedestrian": 0,
@@ -78,7 +78,7 @@ def _get_extension(backend: DataBackend) -> str:
     return ""
 
 
-class _SHIFTScalabelLabels(Scalabel):
+class _SHIFTScalabelLabels(ScalabelVideo):
     """Helper class for labels in SHIFT that are stored in Scalabel format."""
 
     VIEWS = [
@@ -375,6 +375,22 @@ class SHIFT(Dataset):
             return len(
                 self.scalabel_datasets[list(self.scalabel_datasets.keys())[0]]
             )
+        raise ValueError("No Scalabel file has been loaded.")
+
+    @property
+    def video_to_indices(self) -> dict[str, list[int]]:
+        """Group all dataset sample indices (int) by their video ID (str).
+
+        Returns:
+            dict[str, list[int]]: Mapping video to index.
+
+        Raises:
+            ValueError: If no Scalabel file has been loaded.
+        """
+        if len(self.scalabel_datasets) > 0:
+            return self.scalabel_datasets[
+                list(self.scalabel_datasets.keys())[0]
+            ].video_to_indices
         raise ValueError("No Scalabel file has been loaded.")
 
     def __getitem__(self, idx: int) -> DictData:

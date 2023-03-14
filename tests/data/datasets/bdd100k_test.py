@@ -114,6 +114,7 @@ class BDD100KInsSegTest(unittest.TestCase):
             K.instance_masks,
         ),
         config_path=config_path,
+        global_instance_ids=True,
     )
 
     def test_len(self) -> None:

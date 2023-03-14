@@ -101,6 +101,10 @@ class SHIFTTest(unittest.TestCase):
         """Test if len of dataset correct."""
         self.assertEqual(len(self.dataset_multiview), 1)
 
+    def test_video_indices(self) -> None:
+        """Test if video indices are correct."""
+        self.assertEqual(self.dataset.video_to_indices, {"007b-4e72": [0]})
+
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         for view in ("front", "left_90"):
