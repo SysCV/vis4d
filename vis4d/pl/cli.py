@@ -65,7 +65,6 @@ def main(  # type:ignore # pylint: disable=unused-argument
         rank_zero_info("*" * 80)
 
     # Setup Trainer kwargs
-    # TODO: Support more pl.trainer kwargs
     trainer_args_cfg = ConfigDict()
     pl_trainer = instantiate_classes(config.pl_trainer)
     for key, value in pl_trainer.items():
@@ -87,7 +86,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Setup logger
     trainer_args_cfg.enable_progress_bar = False
-    trainer_args_cfg.log_every_n_steps = 50
+    trainer_args_cfg.log_every_n_steps = 1
 
     trainer_args = instantiate_classes(trainer_args_cfg)
 
@@ -144,15 +143,26 @@ def main(  # type:ignore # pylint: disable=unused-argument
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
     data_module = DataModule(config.data)
 
+    # Checkpoint path
+    ckpt_path = config.get("pl_ckpt", None)
+
+    # Resume training
+    if config.get("resume", False):
+        if ckpt_path is None:
+            ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
+
     if _MODE.value == "train":
         trainer.fit(
             TrainingModule(model, optimizers, loss, data_connector),
             datamodule=data_module,
+            ckpt_path=ckpt_path,
         )
     elif _MODE.value == "test":
         trainer.test(
             TrainingModule(model, optimizers, loss, data_connector),
             datamodule=data_module,
+            verbose=False,
+            ckpt_path=ckpt_path,
         )
 
 

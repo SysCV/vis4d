@@ -16,25 +16,7 @@ from vis4d.common.logging import rank_zero_info
 
 
 class DefaultTrainer(pl.Trainer):
-    """DefaultTrainer in Vis4D.
-
-    Attributes:
-        work_dir: Specific directory to save checkpoints, logs, etc. Integrates
-        with exp_name and version to work_dir/exp_name/version.
-        Default: ./vis4d-workspace/
-        exp_name: Name of current experiment. Default: unnamed
-        version: Version of current experiment. Default: <timestamp>
-        find_unused_parameters: Activates PyTorch checking for unused
-        parameters in DDP setting. Default: False, for better performance.
-        checkpoint_period: After N epochs, save out checkpoints. Default: 1
-        resume: Whether to resume from weights (if specified), or last ckpt in
-        work_dir/exp_name/version.
-        wandb: Use weights and biases logging instead of tensorboard (default).
-        not_strict: Whether to enforce keys in weights to be consistent with
-        model's.
-        tqdm: Activate tqdm based terminal logging behavior.
-        tuner_params: which parameters to tune.
-    """
+    """DefaultTrainer for PyTorch-Lightning."""
 
     def __init__(
         self,
@@ -44,17 +26,23 @@ class DefaultTrainer(pl.Trainer):
         version: str,
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
-        resume: bool = False,
         wandb: bool = False,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
 
-        1. Setup logger.
-        2. Setup callbacks.
-        3. Init distributed plugin
+        Args:
+            work_dir: Specific directory to save checkpoints, logs, etc.
+                Integrates with exp_name and version to get output_dir.
+            exp_name: Name of current experiment.
+            version: Version of current experiment.
+            find_unused_parameters: Activates PyTorch checking for unused
+                parameters in DDP setting. Default: False, for better
+                performance.
+            checkpoint_period: After N epochs, save out checkpoints. Default: 1
+            wandb: Use weights and biases logging instead of tensorboard.
+                Default: False
         """
-        self.resume = resume
         self.work_dir = work_dir
         self.exp_name = exp_name
         self.version = version

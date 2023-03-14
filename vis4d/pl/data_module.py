@@ -33,12 +33,6 @@ class DataModule(pl.LightningDataModule):  # pylint: disable=too-many-ancestors
         """Return dataloaders for testing."""
         return instantiate_classes(self.data_cfg.test_dataloader).values()[0]
 
-    def predict_dataloader(
-        self,
-    ) -> list[data.DataLoader[DictData]]:
-        """Return dataloaders for prediction."""
-        return self.test_dataloader()
-
     def val_dataloader(self) -> list[data.DataLoader[DictData]]:
         """Return dataloaders for validation."""
         return self.test_dataloader()
