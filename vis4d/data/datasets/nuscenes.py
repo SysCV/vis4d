@@ -161,7 +161,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             version=self.version, dataroot=self.data_root, verbose=False
         )
         self.samples = self._load_mapping(self._generate_data_mapping)
-        self.instance_tokens = []
+        self.instance_tokens: list[DictStrAny] = []
 
     def _check_version_and_split(self, version: str, split: str) -> None:
         """Check that the version and split are valid."""
@@ -199,7 +199,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             Dict[str, List[int]]: video to indices.
         """
         video_mapping = defaultdict(list)
-        for i, sample in enumerate(self.samples):
+        for i, sample in enumerate(self.samples):  # type: ignore
             video_mapping[sample["scene_token"]].append(i)
         return video_mapping
 
@@ -229,7 +229,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
     def __len__(self) -> int:
         """Length."""
-        return len(self.samples)
+        return len(self.samples)  # type: ignore
 
     def _load_lidar_data(
         self, lidar_data: DictStrAny, ego_pose: DictStrAny

@@ -195,7 +195,7 @@ def generate_masks(
 
 
 def isclose_on_all_indices(
-    input_tensor: torch.Tensor,
+    tensor: torch.Tensor,
     indices: torch.Tensor,
     expected: torch.Tensor,
     atol: float = 1e-4,
@@ -204,23 +204,23 @@ def isclose_on_all_indices(
     """Check if values from two tensors are close enough on indices.
 
     Args:
-        input_tensor (torch.Tensor): Input tensor.
-        expected (torch.Tensor): Expected tensor.
+        tensor (torch.Tensor): Input tensor.
         indices (torch.Tensor): Indices of values in tensors to compare.
+        expected (torch.Tensor): Expected tensor.
         atol (float, optional): Absolute tolerance. Defaults to 1e-4.
         rtol (float, optional): Relative tolerance. Defaults to 1e-6.
 
     Returns:
         bool: True if values are close enough, False otherwise.
     """
-    if not torch.all(torch.isfinite(input_tensor)):
+    if not torch.all(torch.isfinite(tensor)):
         return False
     if not torch.all(torch.isfinite(expected)):
         return False
-    if input_tensor[indices].shape != expected.shape:
+    if tensor[indices].shape != expected.shape:
         return False
     return torch.allclose(
-        input_tensor[indices],
+        tensor[indices],
         expected,
         atol=atol,
         rtol=rtol,
