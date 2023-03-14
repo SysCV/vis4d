@@ -52,9 +52,13 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_end(
+            log_dict = self.callback.on_test_epoch_end(
                 get_model(pl_module), pl_module.current_epoch
             )
+
+            if log_dict is not None:
+                for k, v in log_dict.items():
+                    pl_module.log(k, v, rank_zero_only=True, sync_dist=True)
 
     def on_test_batch_end(  # type: ignore
         self,
@@ -94,9 +98,13 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_end(
+            log_dict = self.callback.on_test_epoch_end(
                 get_model(pl_module), pl_module.current_epoch
             )
+
+            if log_dict is not None:
+                for k, v in log_dict.items():
+                    pl_module.log(k, v, rank_zero_only=True, sync_dist=True)
 
     def on_validation_batch_end(  # type: ignore
         self,

@@ -1,7 +1,7 @@
 """LightningModule that wraps around the vis4d models, losses and optims."""
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from typing import Any
 
 import pytorch_lightning as pl
@@ -127,15 +127,6 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
             "metrics": losses,
             "predictions": out,
         }
-
-    def training_epoch_end(self, outputs: Any) -> None:  # type: ignore
-        """End of training epoch."""
-        optimizers = self.optimizers()
-        if not isinstance(optimizers, Iterable):
-            optimizers = [optimizers]
-
-        for optimizer in optimizers:
-            optimizer.step_on_epoch(self.current_epoch)  # type: ignore
 
     def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
