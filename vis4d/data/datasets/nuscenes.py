@@ -12,7 +12,7 @@ from torch import Tensor
 from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.typing import DictStrAny
 from vis4d.data.const import AxisMode
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import Dataset, VideoMixin
 from vis4d.data.datasets.util import CacheMappingMixin, im_decode
 from vis4d.data.io import DataBackend, FileBackend
@@ -69,6 +69,27 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
     This dataset loads both LiDAR and camera inputs from the NuScenes dataset
     into the Vis4D expected format for multi-sensor, video datasets.
     """
+
+    DESCRIPTION = "NuScenes multi-sensor driving video dataset."
+    HOMEPAGE = "https://www.nuscenes.org/"
+    PAPER = "https://arxiv.org/abs/1903.11027"
+    LICENSE = "https://www.nuscenes.org/license"
+
+    KEYS = [
+        K.images,
+        K.original_hw,
+        K.input_hw,
+        K.intrinsics,
+        K.extrinsics,
+        K.timestamp,
+        K.axis_mode,
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
+    ]
 
     _SENSORS = [
         "LIDAR_TOP",
@@ -140,7 +161,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             version=self.version, dataroot=self.data_root, verbose=False
         )
         self.samples = self._load_mapping(self._generate_data_mapping)
-        self.instance_tokens = []
+        self.instance_tokens: list[DictStrAny] = []
 
     def _check_version_and_split(self, version: str, split: str) -> None:
         """Check that the version and split are valid."""
@@ -178,7 +199,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             Dict[str, List[int]]: video to indices.
         """
         video_mapping = defaultdict(list)
-        for i, sample in enumerate(self.samples):
+        for i, sample in enumerate(self.samples):  # type: ignore
             video_mapping[sample["scene_token"]].append(i)
         return video_mapping
 
@@ -208,7 +229,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
     def __len__(self) -> int:
         """Length."""
-        return len(self.samples)
+        return len(self.samples)  # type: ignore
 
     def _load_lidar_data(
         self, lidar_data: DictStrAny, ego_pose: DictStrAny
@@ -412,13 +433,13 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 boxes, extrinsics
             )
             data_dict["LIDAR_TOP"] = {
-                CK.points3d: points,
-                CK.extrinsics: extrinsics,
-                CK.timestamp: timestamp,
-                CK.axis_mode: AxisMode.ROS,
-                CK.boxes3d: boxes3d,
-                CK.boxes3d_classes: boxes3d_classes,
-                CK.boxes3d_track_ids: boxes3d_track_ids,
+                K.points3d: points,
+                K.extrinsics: extrinsics,
+                K.timestamp: timestamp,
+                K.axis_mode: AxisMode.ROS,
+                K.boxes3d: boxes3d,
+                K.boxes3d_classes: boxes3d_classes,
+                K.boxes3d_track_ids: boxes3d_track_ids,
             }
 
         # load camera frames
@@ -443,26 +464,26 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                         boxes3d_track_ids,
                     ) = self._load_boxes3d(boxes, extrinsics, AxisMode.OPENCV)
 
-                    mask, boxes2d = self._load_boxes2d(
-                        boxes3d, intrinsics, image_hw
-                    )
-                    data_dict[cam] = {
-                        "token": sample["token"],
-                        CK.images: image,
-                        CK.original_hw: image_hw,
-                        CK.input_hw: image_hw,
-                        CK.frame_ids: sample["frame_index"],
-                        CK.intrinsics: intrinsics,
-                        CK.extrinsics: extrinsics,
-                        CK.timestamp: timestamp,
-                        CK.axis_mode: AxisMode.OPENCV,
-                        CK.boxes2d: boxes2d,
-                        CK.boxes2d_classes: boxes3d_classes[mask],
-                        CK.boxes2d_track_ids: boxes3d_track_ids[mask],
-                        CK.boxes3d: boxes3d[mask],
-                        CK.boxes3d_classes: boxes3d_classes[mask],
-                        CK.boxes3d_track_ids: boxes3d_track_ids[mask],
-                    }
+                mask, boxes2d = self._load_boxes2d(
+                    boxes3d, intrinsics, image_hw
+                )
+                data_dict[cam] = {
+                    "token": sample["token"],
+                    K.images: image,
+                    K.original_hw: image_hw,
+                    K.input_hw: image_hw,
+                    K.frame_ids: sample["frame_index"],
+                    K.intrinsics: intrinsics,
+                    K.extrinsics: extrinsics,
+                    K.timestamp: timestamp,
+                    K.axis_mode: AxisMode.OPENCV,
+                    K.boxes2d: boxes2d,
+                    K.boxes2d_classes: boxes3d_classes[mask],
+                    K.boxes2d_track_ids: boxes3d_track_ids[mask],
+                    K.boxes3d: boxes3d[mask],
+                    K.boxes3d_classes: boxes3d_classes[mask],
+                    K.boxes3d_track_ids: boxes3d_track_ids[mask],
+                }
 
         # TODO add RADAR, Map data
         return data_dict

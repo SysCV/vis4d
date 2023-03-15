@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 
 from vis4d.common.typing import DictStrAny
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
@@ -24,12 +24,20 @@ from .util import CacheMappingMixin
 class S3DIS(Dataset, CacheMappingMixin):
     """S3DIS dataset class."""
 
-    _DESCRIPTION = """S3DIS is a large-scale indoor pointcloud dataset."""
-    _TASKS = ["3DSegment"]
-    _URL = (
+    DESCRIPTION = """S3DIS is a large-scale indoor pointcloud dataset."""
+    HOMEPAGE = "https://buildingparser.stanford.edu/dataset.html"
+    PAPER = (
         "https://openaccess.thecvf.com/content_cvpr_2016/papers/"
         "Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf"
     )
+    LICENSE = "CC BY-NC-SA 4.0"
+
+    KEYS = [
+        K.points3d,
+        K.colors3d,
+        K.semantics3d,
+        K.instances3d,
+    ]
 
     CLASS_NAME_TO_IDX = {
         "ceiling": 0,
@@ -66,10 +74,10 @@ class S3DIS(Dataset, CacheMappingMixin):
     )
 
     AVAILABLE_KEYS: Sequence[str] = (
-        CommonKeys.points3d,
-        CommonKeys.colors3d,
-        CommonKeys.semantics3d,
-        CommonKeys.instances3d,
+        K.points3d,
+        K.colors3d,
+        K.semantics3d,
+        K.instances3d,
     )
 
     COLOR_MAPPING = torch.tensor(
@@ -96,7 +104,12 @@ class S3DIS(Dataset, CacheMappingMixin):
         data_root: str,
         split: str = "trainNoArea5",
         data_backend: DataBackend | None = None,
-        keys_to_load: Sequence[str] = AVAILABLE_KEYS,
+        keys_to_load: Sequence[str] = (
+            K.points3d,
+            K.colors3d,
+            K.semantics3d,
+            K.instances3d,
+        ),
         cache_points: bool = True,
     ) -> None:
         """Creates a new S3DIS dataset.
@@ -184,7 +197,7 @@ class S3DIS(Dataset, CacheMappingMixin):
 
     def __len__(self) -> int:
         """Length of the datset."""
-        return len(self.data)
+        return len(self.data)  # type: ignore
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform s3dis sample to vis4d input format.
@@ -219,11 +232,11 @@ class S3DIS(Dataset, CacheMappingMixin):
                 delimiter=" ",
             ).values.astype(np.float32)
 
-            if CommonKeys.points3d in self.keys_to_load:
+            if K.points3d in self.keys_to_load:
                 coords = np.vstack([coords, np_data[:, :3]])
-            if CommonKeys.colors3d in self.keys_to_load:
+            if K.colors3d in self.keys_to_load:
                 color = np.vstack([color, np_data[:, 3:]])
-            if CommonKeys.semantics3d in self.keys_to_load:
+            if K.semantics3d in self.keys_to_load:
                 semantic_ids = np.vstack(
                     [
                         semantic_ids,
@@ -231,7 +244,7 @@ class S3DIS(Dataset, CacheMappingMixin):
                         * values["class_label"],
                     ]
                 )
-            if CommonKeys.instances3d in self.keys_to_load:
+            if K.instances3d in self.keys_to_load:
                 instance_ids = np.vstack(
                     [
                         instance_ids,
@@ -242,13 +255,13 @@ class S3DIS(Dataset, CacheMappingMixin):
 
         data = {}
         for key in self.keys_to_load:
-            if key == CommonKeys.points3d:
+            if key == K.points3d:
                 data[key] = torch.from_numpy(coords)
-            elif key == CommonKeys.colors3d:
+            elif key == K.colors3d:
                 data[key] = torch.from_numpy(color / 255)
-            elif key == CommonKeys.semantics3d:
+            elif key == K.semantics3d:
                 data[key] = torch.from_numpy(semantic_ids).squeeze(-1)
-            elif key == CommonKeys.instances3d:
+            elif key == K.instances3d:
                 data[key] = torch.from_numpy(instance_ids).squeeze(-1)
             else:
                 raise ValueError(f"Can not load data for key: {key}")

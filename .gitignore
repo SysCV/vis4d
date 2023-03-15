@@ -19,7 +19,7 @@ app/dist/
 /data
 
 #python
-.pyc
+*.pyc
 __pycache__/
 
 # pytype
@@ -65,7 +65,7 @@ dist/
 scalabel.egg-info
 
 # coverage
-.coverage
+.coverage*
 
 # package default workspace
 vis4d-workspace

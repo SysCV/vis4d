@@ -6,6 +6,8 @@ additional functionality.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from torch.utils.data import Dataset as TorchDataset
 
 from vis4d.data.typing import DictData
@@ -14,6 +16,15 @@ from vis4d.data.typing import DictData
 class Dataset(TorchDataset[DictData]):
     """Basic pytorch dataset with defined return type."""
 
+    # Dataset metadata.
+    DESCRIPTION = ""
+    HOMEPAGE = ""
+    PAPER = ""
+    LICENSE = ""
+
+    # List of all keys supported by this dataset.
+    KEYS: Sequence[str] = []
+
     def __len__(self) -> int:
         """Return length of dataset."""
         raise NotImplementedError
@@ -21,6 +32,19 @@ class Dataset(TorchDataset[DictData]):
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""
         raise NotImplementedError
+
+    def validate_keys(self, keys_to_load: Sequence[str]) -> None:
+        """Validate that all keys to load are supported.
+
+        Args:
+            keys_to_load (list[str]): List of keys to load.
+
+        Raises:
+            ValueError: Raise if any key is not defined in AVAILABLE_KEYS.
+        """
+        for k in keys_to_load:
+            if k not in self.KEYS:
+                raise ValueError(f"Key '{k}' is not supported!")
 
 
 class VideoMixin:
@@ -46,25 +70,6 @@ class VideoMixin:
             if idx in indices:
                 return indices
         raise ValueError(f"Dataset index {idx} not found in video_to_indices!")
-
-
-class MultitaskMixin:
-    """Multitask dataset interface."""
-
-    _KEYS: list[str] = []
-
-    def validate_keys(self, keys: tuple[str, ...]) -> None:
-        """Validation the keys are defined in _KEYS.
-
-        Args:
-            keys (list[str]): User input of keys to load.
-
-        Raises:
-            ValueError: Raise if any key is not defined in _KEYS.
-        """
-        for k in keys:
-            if k not in self._KEYS:
-                raise ValueError(f"Key '{k}' is not supported!")
 
 
 class CategoryMapMixin:

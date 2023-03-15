@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+from collections.abc import Sequence
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -11,12 +12,12 @@ import torch
 from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.common import DictStrAny
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
-from .base import Dataset, MultitaskMixin
+from .base import Dataset
 from .util import CacheMappingMixin, im_decode
 
 # COCO detection
@@ -129,28 +130,31 @@ coco_seg_map = {
 }
 
 
-class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
+class COCO(Dataset, CacheMappingMixin):
     """COCO dataset class."""
 
-    _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
+    DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
     captioning dataset."""
-    _KEYS = [
-        "images",
-        "boxes2d",
-        "boxes2d_classes",
-        "masks",
-        "segmentation_masks",
+    HOMEPAGE = "http://cocodataset.org"
+    PAPER = "http://arxiv.org/abs/1405.0312"
+    LICENSE = "BY-NC-SA 2.0"
+
+    KEYS = [
+        K.images,
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.instance_masks,
+        K.segmentation_masks,
     ]
-    _URL = "http://cocodataset.org/#home"
 
     def __init__(
         self,
         data_root: str,
-        keys: tuple[str, ...] = (
-            CommonKeys.images,
-            CommonKeys.boxes2d,
-            CommonKeys.boxes2d_classes,
-            CommonKeys.masks,
+        keys_to_load: Sequence[str] = (
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.instance_masks,
         ),
         split: str = "train2017",
         remove_empty: bool = False,
@@ -158,11 +162,23 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         use_pascal_voc_cats: bool = False,
         data_backend: None | DataBackend = None,
     ) -> None:
-        """Creates an instance of the class."""
+        """Initialize the COCO dataset.
+
+        Args:
+            data_root (str): Path to the root directory of the dataset.
+            keys_to_load (tuple[str, ...]): Keys to load from the dataset.
+            split (split): Which split to load. Default: "train2017".
+            remove_empty (bool): Whether to remove images with no annotations.
+            minimum_box_area (float): Minimum area of the bounding boxes.
+                Default: 0.
+            use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
+            data_backend (None | DataBackend): Data backend to use.
+                Default: None.
+        """
         super().__init__()
 
         self.data_root = data_root
-        self.keys = keys
+        self.keys_to_load = keys_to_load
         self.split = split
         self.remove_empty = remove_empty
         self.minimum_box_area = minimum_box_area
@@ -172,13 +188,13 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         )
 
         # handling keys to load
-        self.validate_keys(keys)
-        self.with_images = CommonKeys.images in keys
-        self.with_boxes = (CommonKeys.boxes2d in keys) or (
-            CommonKeys.boxes2d_classes in keys
+        self.validate_keys(keys_to_load)
+        self.with_images = K.images in keys_to_load
+        self.with_boxes = (K.boxes2d in keys_to_load) or (
+            K.boxes2d_classes in keys_to_load
         )
-        self.with_masks = CommonKeys.masks in keys
-        self.with_sem_masks = CommonKeys.segmentation_masks in keys
+        self.with_masks = K.instance_masks in keys_to_load
+        self.with_sem_masks = K.segmentation_masks in keys_to_load
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -192,7 +208,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
         """Filter empty or low occupied samples."""
         if self.remove_empty and len(anns) == 0:
-            return False
+            return False  # no annotations  # pragma: no cover
         return sum(ann["area"] for ann in anns) >= self.minimum_box_area
 
     def _generate_data_mapping(self) -> list[DictStrAny]:
@@ -230,7 +246,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        return len(self.data)
+        return len(self.data)  # type: ignore
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform coco sample to vis4d input format.
@@ -241,8 +257,8 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
         dict_data = {
-            CommonKeys.original_hw: [img_h, img_w],
-            CommonKeys.input_hw: [img_h, img_w],
+            K.original_hw: [img_h, img_w],
+            K.input_hw: [img_h, img_w],
             "coco_image_id": data["img"]["id"],
         }
 
@@ -259,7 +275,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             assert (img_h, img_w) == img_tensor.shape[
                 2:
             ], "Image's shape doesn't match annotation."
-            dict_data[CommonKeys.images] = img_tensor
+            dict_data[K.images] = img_tensor
 
         if self.with_boxes or self.with_masks or self.with_sem_masks:
             boxes = []
@@ -284,8 +300,8 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                         rle = mask_ann
                     masks.append(maskUtils.decode(rle))
                 else:
-                    masks.append(np.empty((img_h, img_w)))
-            if not boxes:
+                    masks.append(np.empty((img_h, img_w)))  # pragma: no cover
+            if not boxes:  # pragma: no cover
                 box_tensor = torch.empty((0, 4), dtype=torch.float32)
                 mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
             else:
@@ -294,20 +310,20 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                     np.ascontiguousarray(masks), dtype=torch.uint8
                 )
 
-            if CommonKeys.boxes2d in self.keys:
-                dict_data[CommonKeys.boxes2d] = box_tensor
-            if CommonKeys.boxes2d_classes in self.keys:
-                dict_data[CommonKeys.boxes2d_classes] = torch.tensor(
+            if K.boxes2d in self.keys_to_load:
+                dict_data[K.boxes2d] = box_tensor
+            if K.boxes2d_classes in self.keys_to_load:
+                dict_data[K.boxes2d_classes] = torch.tensor(
                     classes, dtype=torch.long
                 )
             if self.with_masks:
-                dict_data[CommonKeys.masks] = mask_tensor
-            if CommonKeys.segmentation_masks in self.keys:
-                mask_with_class = (
-                    torch.tensor(classes).reshape(-1, 1, 1) * mask_tensor
-                ).long()
-                dict_data[CommonKeys.segmentation_masks] = mask_with_class.max(
-                    dim=0
-                )[0].unsqueeze(0)
+                dict_data[K.instance_masks] = mask_tensor
+            if self.with_sem_masks:
+                seg_masks, _ = (
+                    mask_tensor * torch.tensor(classes)[:, None, None]
+                ).max(dim=0)
+                seg_masks = seg_masks.long()
+                seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
+                dict_data[K.segmentation_masks] = seg_masks.unsqueeze(0)
 
         return dict_data

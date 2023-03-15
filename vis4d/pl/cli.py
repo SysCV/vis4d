@@ -20,7 +20,7 @@ from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
-from vis4d.pl.callbacks.callback_wrapper import CallbackWrapper
+from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
@@ -65,7 +65,6 @@ def main(  # type:ignore # pylint: disable=unused-argument
         rank_zero_info("*" * 80)
 
     # Setup Trainer kwargs
-    # TODO: Support more pl.trainer kwargs
     trainer_args_cfg = ConfigDict()
     pl_trainer = instantiate_classes(config.pl_trainer)
     for key, value in pl_trainer.items():
@@ -138,18 +137,32 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
         callbacks.append(cb)
 
+    # Add needed callbacks
+    callbacks.append(OptimEpochCallback())
+
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
     data_module = DataModule(config.data)
+
+    # Checkpoint path
+    ckpt_path = config.get("pl_ckpt", None)
+
+    # Resume training
+    if config.get("resume", False):
+        if ckpt_path is None:
+            ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
 
     if _MODE.value == "train":
         trainer.fit(
             TrainingModule(model, optimizers, loss, data_connector),
             datamodule=data_module,
+            ckpt_path=ckpt_path,
         )
     elif _MODE.value == "test":
         trainer.test(
             TrainingModule(model, optimizers, loss, data_connector),
             datamodule=data_module,
+            verbose=False,
+            ckpt_path=ckpt_path,
         )
 
 

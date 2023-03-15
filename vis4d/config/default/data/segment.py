@@ -7,7 +7,7 @@ from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 
 
 def segment_augmentations() -> Iterable[ConfigDict]:
@@ -22,13 +22,13 @@ def segment_augmentations() -> Iterable[ConfigDict]:
     return (
         class_config(
             "vis4d.data.transforms.flip.flip_image",
-            in_keys=(CK.images,),
-            out_keys=(CK.images,),
+            in_keys=(K.images,),
+            out_keys=(K.images,),
         ),
         class_config(
             "vis4d.data.transforms.flip.flip_image",
-            in_keys=(CK.segmentation_masks,),
-            out_keys=(CK.segmentation_masks,),
+            in_keys=(K.segmentation_masks,),
+            out_keys=(K.segmentation_masks,),
         ),
     )
 
@@ -79,8 +79,8 @@ def segment_preprocessing(
         ),
         class_config(
             "vis4d.data.transforms.resize.resize_masks",
-            in_keys=(CK.segmentation_masks, CK.input_hw),
-            out_keys=(CK.segmentation_masks,),
+            in_keys=(K.segmentation_masks, K.input_hw),
+            out_keys=(K.segmentation_masks,),
         ),
         class_config(
             "vis4d.data.transforms.base.random_apply",

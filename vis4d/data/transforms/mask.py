@@ -9,7 +9,7 @@ from .base import Transform
 
 
 @Transform(
-    in_keys=(CommonKeys.boxes2d_classes, CommonKeys.masks),
+    in_keys=(CommonKeys.boxes2d_classes, CommonKeys.instance_masks),
     out_keys=(CommonKeys.segmentation_masks,),
 )
 def convert_to_seg_masks():
