@@ -1,10 +1,11 @@
 """ViT ImageNet training example."""
 from __future__ import annotations
 
+import pytorch_lightning as pl
 from torch import nn, optim
 
 import vis4d
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.classification import (
     classification_preprocessing,
 )
@@ -16,12 +17,16 @@ from vis4d.common.callbacks import (
 )
 
 from vis4d.config.default.optimizer.default import optimizer_cfg
+from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.imagenet import ImageNet
+from vis4d.data.transforms.autoaugment import randaug
+from vis4d.data.transforms.flip import flip_image
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.model.classification.vit import ClassificationViT
-from vis4d.eval import ClassificationEvaluator
+from vis4d.eval.classify import ClassificationEvaluator
 from vis4d.optim import PolyLR, LinearLRWarmup
 
 
@@ -41,19 +46,21 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config = ConfigDict()
+    config.n_gpus = 1
     config.experiment_name = "vit_imagenet"
-    config.save_prefix = "vis4d-workspace/" + config.get_ref("experiment_name")
+    config.work_dir = "vis4d-workspace"
+    config.experiment_name = "vit_t_16_imagenet1k"
+    config = set_output_dir(config)
 
-    config.dataset_root = "./data/ImageNet"
+    config.dataset_root = "./data/imagenet1k"
     config.train_split = "train"
     config.test_split = "val"
-    config.n_gpus = 1
-    config.num_epochs = 50
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.batch_size = 40 
-    params.lr = 0.0005
+    params.num_epochs = 60
+    params.batch_size = 40
+    params.lr = 1e-3
     params.augment_proba = 0.5
     params.num_classes = 1000
     params.grad_norm_clip = 1.0
@@ -70,8 +77,26 @@ def get_config() -> ConfigDict:
         split=config.train_split,
         num_classes=params.num_classes,
     )
-    preproc = classification_preprocessing(224, 224, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
+    preproc_aug = (
+        class_config(
+            flip_image,
+            in_keys=(K.images,),
+            out_keys=(K.images,),
+        ),
+        class_config(
+            randaug,
+            magnitude=9,
+            in_keys=(K.images,),
+            out_keys=(K.images,),
+        ),
+    )
+    preproc = classification_preprocessing(
+        224,
+        224,
+        augment_probability=params.augment_proba,
+        augmentation_transforms=preproc_aug,
+    )
+    dataloader_train_cfg = default_image_dataloader(
         preproc,
         dataset_cfg_train,
         params.batch_size,
@@ -87,11 +112,13 @@ def get_config() -> ConfigDict:
         split=config.train_split,
         num_classes=params.num_classes,
     )
-    preproc_test = classification_preprocessing(224, 224, 0)
-    dataloader_cfg_test = default_image_dl(
+    preproc_test = classification_preprocessing(
+        224, 224, augment_probability=0
+    )
+    dataloader_cfg_test = default_image_dataloader(
         preproc_test,
         dataset_cfg_test,
-        batch_size=params.batch_size,
+        num_samples_per_gpu=params.batch_size,
         num_workers_per_gpu=3,
         shuffle=False,
     )
@@ -103,7 +130,8 @@ def get_config() -> ConfigDict:
 
     config.model = class_config(
         ClassificationViT,
-        vit_name="vit_b_16",
+        style="torchvision",
+        vit_name="vit_t_16",
         num_classes=params.num_classes,
         image_size=224,
     )
@@ -121,15 +149,16 @@ def get_config() -> ConfigDict:
     config.optimizers = [
         optimizer_cfg(
             optimizer=class_config(
-                optim.AdamW, lr=params.lr, weight_decay=0.3
+                optim.AdamW, lr=params.lr, weight_decay=0.05
             ),
             lr_scheduler=class_config(
-                PolyLR, max_steps=config.num_epochs, power=0.9
+                PolyLR, max_steps=params.num_epochs, power=0.9
             ),
             lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.01, warmup_steps=5
+                LinearLRWarmup, warmup_ratio=0.01, warmup_steps=6
             ),
-            epoch_based=True,
+            epoch_based_lr=True,
+            epoch_based_warmup=True,
         )
     ]
 
@@ -150,7 +179,7 @@ def get_config() -> ConfigDict:
                 num_classes=params.num_classes,
             ),
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
+            num_epochs=params.num_epochs,
         )
     }
 
@@ -180,15 +209,27 @@ def get_config() -> ConfigDict:
     ##                GENERIC CALLBACKS                 ##
     ######################################################
 
+    config.shared_callbacks = {
+        "logging": class_config(LoggingCallback, refresh_rate=50)
+    }
     config.train_callbacks = {
-        "logging": class_config(LoggingCallback, refresh_rate=50),
         "ckpt": class_config(
             CheckpointCallback,
-            save_prefix=config.save_prefix,
+            save_prefix=config.output_dir,
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
-        ),
+            num_epochs=params.num_epochs,
+        )
     }
     config.test_callbacks = {**eval_callbacks}
+
+    ######################################################
+    ##                     PL CLI                       ##
+    ######################################################
+    pl_trainer = ConfigDict()
+    pl_trainer.wandb = True
+    config.pl_trainer = pl_trainer
+
+    pl_callbacks: list[pl.callbacks.Callback] = []
+    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()
