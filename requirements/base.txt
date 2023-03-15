@@ -14,6 +14,7 @@ pytorch-lightning>=1.9.0
 setuptools
 termcolor
 terminaltables
+timm>=0.6.0
 torch>=1.10
 torchvision>=0.11
 tqdm
