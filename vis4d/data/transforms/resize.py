@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import CommonKeys as CK
 from vis4d.op.box.box2d import transform_bbox
 
@@ -64,7 +65,7 @@ class GenerateResizeParameters:
         self.align_long_edge = align_long_edge
         self.interpolation = interpolation
 
-    def __call__(self, image: Tensor) -> ResizeParam:
+    def __call__(self, image: NDArrayF32) -> ResizeParam:
         """Compute the parameters and put them in the data dict."""
         im_shape = (image.size(2), image.size(3))
         target_shape = _get_target_shape(
@@ -91,8 +92,8 @@ class ResizeBoxes2D:
     """Resize 2D bounding boxes."""
 
     def __call__(
-        self, boxes: Tensor, scale_factor: tuple[float, float]
-    ) -> Tensor:
+        self, boxes: NDArrayF32, scale_factor: tuple[float, float]
+    ) -> NDArrayF32:
         """Resize 2D bounding boxes.
 
         Args:
@@ -102,10 +103,11 @@ class ResizeBoxes2D:
         Returns:
             Tensor: Resized bounding boxes according to parameters in resize.
         """
+        boxes_ = torch.from_numpy(boxes)
         scale_matrix = torch.eye(3)
         scale_matrix[0, 0] = scale_factor[0]
         scale_matrix[1, 1] = scale_factor[1]
-        return transform_bbox(scale_matrix, boxes)
+        return transform_bbox(scale_matrix, boxes).numpy()
 
 
 @Transform(
@@ -121,11 +123,11 @@ class ResizeImage:
 
     def __call__(
         self,
-        image: Tensor,
+        image: NDArrayF32,
         target_shape: tuple[int, int],
         interpolation: str = "bilinear",
-    ) -> Tensor:
-        """Resize an image of dimensions [N, C, H, W].
+    ) -> NDArrayF32:
+        """Resize an image of dimensions [N, H, W, C].
 
         Args:
             image (Tensor): The image.
@@ -136,7 +138,11 @@ class ResizeImage:
         Returns:
             Tensor: Resized image according to parameters in resize.
         """
-        return _resize_tensor(image, target_shape, interpolation=interpolation)
+        image_ = torch.from_numpy(NDArrayF32).permute(0, 3, 1, 2)
+        image_ = _resize_tensor(
+            image, target_shape, interpolation=interpolation
+        )
+        return image_.permute(0, 2, 3, 1).numpy()
 
 
 @Transform([CK.intrinsics, "transforms.resize.scale_factor"], CK.intrinsics)
@@ -144,8 +150,8 @@ class ResizeIntrinsics:
     """Resize Intrinsics."""
 
     def __call__(
-        self, intrinsics: Tensor, scale_factor: tuple[float, float]
-    ) -> Tensor:
+        self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
+    ) -> NDArrayF32:
         """Scale camera intrinsics when resizing."""
         return intrinsics[:2] * scale_factor
 
@@ -156,11 +162,13 @@ class ResizeIntrinsics:
 class ResizeMasks:
     """Resize instance segmentation masks."""
 
-    def __call__(self, masks: Tensor, target_shape: tuple[int, int]) -> Tensor:
+    def __call__(
+        self, masks: NDArrayF32, target_shape: tuple[int, int]
+    ) -> NDArrayF32:
         """Resize masks."""
         if len(masks) == 0:  # handle empty masks
             return masks
-        return (
+        masks_ = (
             _resize_tensor(
                 masks.float().unsqueeze(0),
                 target_shape,
@@ -169,6 +177,7 @@ class ResizeMasks:
             .type(masks.dtype)
             .squeeze(0)
         )
+        return masks_.numpy()
 
 
 def _resize_tensor(

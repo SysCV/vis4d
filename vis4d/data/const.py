@@ -36,7 +36,7 @@ class CommonKeys:
     keys where we expect a pre-defined format to enable the usage of common
     data pre-processing operations among different datasets.
 
-    images (Tensor): Image of shape [1, C, H, W].
+    images (NDArrayF32): Image of shape [1, H, W, C].
     original_hw (Tuple[int, int]): Original shape of image in (height, width).
     input_hw (Tuple[int, int]): Shape of image in (height, width) after
         transformations.
