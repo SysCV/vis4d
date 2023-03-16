@@ -44,12 +44,12 @@ class CommonKeys:
         temporal frame index of the current image / sample.
 
     boxes2d (NDArrayF32): 2D bounding boxes of shape [N, 4] in xyxy format.
-    boxes2d_classes (NDArrayF32): Semantic classes of 2D bounding boxes, shape
+    boxes2d_classes (NDArrayI32): Semantic classes of 2D bounding boxes, shape
         [N,].
     boxes2d_track_ids (NDArrayI32): Tracking IDs of 2D bounding boxes,
         shape [N,].
-    masks (NDArrayF32): Instance segmentation masks of shape [N, H, W].
-    segmentation_masks (NDArrayF32): Semantic segmentation masks [H, W, C]
+    instance_masks (NDArrayU8): Instance segmentation masks of shape [N, H, W].
+    segmentation_masks (NDArrayU8): Semantic segmentation masks [H, W].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
@@ -65,7 +65,7 @@ class CommonKeys:
     instances3d:  TODO complete
     boxes3d (NDArrayF32): [N, 10], each row consists of center (XYZ),
         dimensions (WLH), and orientation quaternion (WXYZ).
-    boxes3d_classes (NDArrayF32): Associated semantic classes of 3D bounding
+    boxes3d_classes (NDArrayI32): Associated semantic classes of 3D bounding
         boxes, [N,].
     """
 
