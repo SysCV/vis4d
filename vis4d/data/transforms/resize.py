@@ -67,7 +67,7 @@ class GenerateResizeParameters:
 
     def __call__(self, image: NDArrayF32) -> ResizeParam:
         """Compute the parameters and put them in the data dict."""
-        im_shape = (image.size(2), image.size(3))
+        im_shape = (image.shape[1], image.shape[2])
         target_shape = _get_target_shape(
             im_shape,
             self.shape,
@@ -107,7 +107,7 @@ class ResizeBoxes2D:
         scale_matrix = torch.eye(3)
         scale_matrix[0, 0] = scale_factor[0]
         scale_matrix[1, 1] = scale_factor[1]
-        return transform_bbox(scale_matrix, boxes).numpy()
+        return transform_bbox(scale_matrix, boxes_).numpy()
 
 
 @Transform(
@@ -138,9 +138,9 @@ class ResizeImage:
         Returns:
             Tensor: Resized image according to parameters in resize.
         """
-        image_ = torch.from_numpy(NDArrayF32).permute(0, 3, 1, 2)
+        image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
         image_ = _resize_tensor(
-            image, target_shape, interpolation=interpolation
+            image_, target_shape, interpolation=interpolation
         )
         return image_.permute(0, 2, 3, 1).numpy()
 
