@@ -87,20 +87,6 @@ class GenerateResizeParameters:
         )
 
 
-def test_resize():
-    data = dict(images=torch.zeros((1, 3, 128, 128)))
-    tr1 = GenerateResizeParameters(shape=(800, 1333))
-    data = tr1.apply_to_data(data)
-    tr2 = ResizeImage()
-    data = tr2.apply_to_data(data)
-
-    data = dict(images=torch.zeros((1, 3, 128, 128)))
-    print(data)
-    tr = compose([tr1, tr2])
-    data = tr(data)
-    print(data)
-
-
 @Transform([CK.boxes2d, "transforms.resize.scale_factor"], CK.boxes2d)
 class ResizeBoxes2D:
     def __call__(

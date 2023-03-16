@@ -27,7 +27,9 @@ class Transform:
     applied can be set via the 'sensors' attribute. By default, we assume
     a transformation is applied to all sensors.
     This class will add a 'apply_to_data' method to a given Functor which is
-    used to call it on a DictData object.
+    used to call it on a DictData object. NOTE: This is an issue for static
+    checking and is not recognized by pylint. It will usually be called in the
+    compose() function and will not be called directly.
 
     Example:
         >>> @Transform(in_keys="images", out_keys="images")
@@ -83,13 +85,7 @@ class Transform:
         """
         original_init = transform.__init__
 
-        def apply_to_data(
-            self_,
-            input_data: DictData,
-            in_keys: Sequence[str] = self.in_keys,
-            out_keys: Sequence[str] = self.out_keys,
-            sensors: Sequence[str] | None = self.sensors,
-        ) -> DictData:
+        def apply_to_data(self_, input_data: DictData) -> DictData:
             """Wrap function with a handler for input / output keys.
 
             We use the specified in_keys in order to extract the positional
@@ -100,7 +96,7 @@ class Transform:
 
             def _transform_fn(data: DictData) -> DictData:
                 in_data = []
-                for key in in_keys:
+                for key in self_.in_keys:
                     try:
                         # Optionally allow the function to get the full data
                         # dict as aux input.
@@ -116,25 +112,31 @@ class Transform:
                         return data
 
                 result = self_(*in_data)
-                if len(out_keys) == 1:
+                if len(self_.out_keys) == 1:
                     result = [result]
-                for key, value in zip(out_keys, result):
+                for key, value in zip(self_.out_keys, result):
                     set_dict_nested(data, key.split("."), value)
                 return data
 
-            if sensors is not None:
-                for sensor in sensors:
+            if self_.sensors is not None:
+                for sensor in self_.sensors:
                     input_data[sensor] = _transform_fn(input_data[sensor])
             else:
                 input_data = _transform_fn(input_data)
             return input_data
 
-        def init(*args, **kwargs):
+        def init(
+            *args,
+            in_keys: Sequence[str] = self.in_keys,
+            out_keys: Sequence[str] = self.out_keys,
+            sensors: Sequence[str] | None = self.sensors,
+            **kwargs,
+        ):
             self_ = args[0]
             original_init(*args, **kwargs)
-            self_.in_keys = self.in_keys
-            self_.out_keys = self.out_keys
-            self_.sensors = self.sensors
+            self_.in_keys = in_keys
+            self_.out_keys = out_keys
+            self_.sensors = sensors
             self_.apply_to_data = lambda *args, **kwargs: apply_to_data(
                 self_, *args, **kwargs
             )
