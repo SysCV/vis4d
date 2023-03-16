@@ -23,7 +23,6 @@ REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
     (r"^rpn_head.rpn_", "faster_rcnn_heads.rpn_head.rpn_"),
     (r"^roi_head.bbox_head\.", "faster_rcnn_heads.roi_head."),
-    (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),

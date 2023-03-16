@@ -12,7 +12,6 @@ from vis4d.common.callbacks import (
     VisualizerCallback,
 )
 from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
@@ -41,6 +40,7 @@ from vis4d.op.detect.faster_rcnn import (
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
 from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.config.base.coco_detection import det_preprocessing
 
 
 def get_config() -> ConfigDict:
@@ -66,7 +66,7 @@ def get_config() -> ConfigDict:
     # and the high level hyper parameters.
 
     config = ConfigDict()
-    config.n_gpus = 8
+    config.num_gpus = 8
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "faster_rcnn_r50_fpn_coco"
     config = set_output_dir(config)
@@ -77,7 +77,7 @@ def get_config() -> ConfigDict:
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.samples_per_gpu = 4
+    params.samples_per_gpu = 2
     params.lr = 0.02
     params.num_epochs = 12
     params.augment_proba = 0.5
@@ -97,9 +97,10 @@ def get_config() -> ConfigDict:
     # Train
     train_dataset_cfg = class_config(
         COCO,
-        keys=(K.images, K.boxes2d, K.boxes2d_classes),
+        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
+        remove_empty=True,
         data_backend=data_backend,
     )
     train_preprocess_cfg = det_preprocessing(800, 1333, params.augment_proba)
@@ -113,7 +114,7 @@ def get_config() -> ConfigDict:
     # Test
     test_dataset_cfg = class_config(
         COCO,
-        keys=(K.images, K.boxes2d, K.boxes2d_classes),
+        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
         data_backend=data_backend,
@@ -135,18 +136,17 @@ def get_config() -> ConfigDict:
 
     # Here we define the model. We use the default Faster RCNN model
     # provided by vis4d.
-    config.gen = ConfigDict()
-    config.gen.anchor_generator = class_config(get_default_anchor_generator)
-    config.gen.rcnn_box_encoder = class_config(get_default_rcnn_box_encoder)
-    config.gen.rpn_box_encoder = class_config(get_default_rpn_box_encoder)
+    anchor_generator = class_config(get_default_anchor_generator)
+    rcnn_box_encoder = class_config(get_default_rcnn_box_encoder)
+    rpn_box_encoder = class_config(get_default_rpn_box_encoder)
 
     config.model = class_config(
         FasterRCNN,
         # weights="mmdet",
         num_classes=params.num_classes,
-        rpn_box_encoder=config.gen.rpn_box_encoder,
-        rcnn_box_encoder=config.gen.rcnn_box_encoder,
-        anchor_generator=config.gen.anchor_generator,
+        rpn_box_encoder=rpn_box_encoder,
+        rcnn_box_encoder=rcnn_box_encoder,
+        anchor_generator=anchor_generator,
     )
 
     ######################################################
@@ -160,9 +160,9 @@ def get_config() -> ConfigDict:
 
     config.loss = class_config(
         get_default_faster_rcnn_loss,
-        rpn_box_encoder=config.gen.rpn_box_encoder,
-        rcnn_box_encoder=config.gen.rcnn_box_encoder,
-        anchor_generator=config.gen.anchor_generator,
+        rpn_box_encoder=rpn_box_encoder,
+        rcnn_box_encoder=rcnn_box_encoder,
+        anchor_generator=anchor_generator,
     )
 
     ######################################################
@@ -192,7 +192,7 @@ def get_config() -> ConfigDict:
     config.optimizers = [
         optimizer_cfg(
             optimizer=class_config(
-                optim.SGD, lr=params.lr, weight_decay=0.0001
+                optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
             lr_scheduler=class_config(
                 MultiStepLR, milestones=[8, 11], gamma=0.1
@@ -301,6 +301,7 @@ def get_config() -> ConfigDict:
     ##                     PL CLI                       ##
     ######################################################
     pl_trainer = ConfigDict()
+    pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 
     pl_callbacks: list[pl.callbacks.Callback] = []

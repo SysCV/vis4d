@@ -26,26 +26,23 @@ from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
-_MODE = flags.DEFINE_string(
-    "mode", default="train", help="Choice of [train, test]"
-)
-_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+# _MODE = flags.DEFINE_string(
+#     "mode", default="train", help="Choice of [train, test]"
+# )
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
 
 
-def main(  # type:ignore # pylint: disable=unused-argument
-    *args, **kwargs
-) -> None:
+def main(argv) -> None:  # type:ignore
     """Main entry point for the CLI.
 
     Example to run this script:
     >>> python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    mode = argv[1]
     config = _CONFIG.value
-    config.n_gpus = _GPUS.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -80,8 +77,8 @@ def main(  # type:ignore # pylint: disable=unused-argument
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
-    trainer_args_cfg.devices = config.n_gpus
-    if config.n_gpus > 0:
+    trainer_args_cfg.devices = config.num_gpus
+    if config.num_gpus > 0:
         trainer_args_cfg.accelerator = "gpu"
 
     # Setup logger
@@ -92,8 +89,11 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Seed
     seed = config.get("seed", None)
-    if _MODE.value == "train":
+    if mode == "fit":
         seed_everything(seed, workers=True)
+
+    # Setup sampler
+    trainer_args.replace_sampler_ddp = False
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
@@ -109,7 +109,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-    if "train_callbacks" in config and _MODE.value == "train":
+    if "train_callbacks" in config and mode == "train":
         train_callbacks = instantiate_classes(config.train_callbacks)
         for key, cb in train_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
@@ -151,13 +151,13 @@ def main(  # type:ignore # pylint: disable=unused-argument
         if ckpt_path is None:
             ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
 
-    if _MODE.value == "train":
+    if mode == "fit":
         trainer.fit(
             TrainingModule(model, optimizers, loss, data_connector),
             datamodule=data_module,
             ckpt_path=ckpt_path,
         )
-    elif _MODE.value == "test":
+    elif mode == "test":
         trainer.test(
             TrainingModule(model, optimizers, loss, data_connector),
             datamodule=data_module,

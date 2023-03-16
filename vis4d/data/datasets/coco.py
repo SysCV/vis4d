@@ -202,7 +202,8 @@ class COCO(Dataset, CacheMappingMixin):
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats}), "
+            f"remove_empty={self.remove_empty}"
         )
 
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
