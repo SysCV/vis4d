@@ -1,8 +1,9 @@
 """Segmentation/Instance Mask Transform."""
 from __future__ import annotations
 
-import torch
+import numpy as np
 
+from vis4d.common.typing import NDArrayI32, NDArrayUI8
 from vis4d.data.const import CommonKeys
 
 from .base import Transform
@@ -12,33 +13,41 @@ from .base import Transform
     in_keys=(CommonKeys.boxes2d_classes, CommonKeys.instance_masks),
     out_keys=(CommonKeys.segmentation_masks,),
 )
-def convert_to_seg_masks():
+class ConvertInstanceMaskToSegmentationMask:
     """Merge all instance masks into a single segmentation map."""
 
-    def _convert(classes, masks):
-        cats = torch.as_tensor(classes, dtype=masks.dtype)
-        target, _ = (masks * cats[:, None, None]).max(dim=0)
-        target[masks.sum(0) > 1] = 255  # discard overlapping instances
-        return target.unsqueeze(0)
+    def __call__(self, classes: NDArrayI32, masks: NDArrayUI8) -> NDArrayUI8:
+        """Execute conversion.
 
-    return _convert
+        Args:
+            classes (NDArrayI64): Array of class ids, shape [N,].
+            masks (NDArrayU8): Array of instance masks, shape [N, H, W].
+
+        Returns:
+            NDArrayU8: Segmentation mask, shape [H, W].
+        """
+        classes = np.asarray(classes, dtype=masks.dtype)
+        target = np.max(masks * classes[:, None, None], axis=0)
+        # discard overlapping instances
+        target[np.sum(masks, axis=0) > 1] = 255
+        return target
 
 
 @Transform(
     in_keys=(CommonKeys.boxes2d_classes,),
     out_keys=(CommonKeys.boxes2d_classes,),
 )
-def remap_categories(mapping: list[int]):
-    """Remap classes using a mapping list.
+class RemappingCategories:
+    def __init__(self, mapping: list[int]):
+        """Remap classes using a mapping list.
 
-    Args:
-        mapping (List[int]): List of class ids, such that classes will be
-            mapped to its location in the list.
-    """
+        Args:
+            mapping (List[int]): List of class ids, such that classes will be
+                mapped to its location in the list.
+        """
+        self.mapping = mapping
 
-    def _remap(classes: torch.Tensor):
+    def __call__(self, classes: NDArrayI32) -> NDArrayI32:
         for i, cls in enumerate(classes):
-            classes[i] = mapping.index(cls)
+            classes[i] = self.mapping.index(cls)
         return classes
-
-    return _remap

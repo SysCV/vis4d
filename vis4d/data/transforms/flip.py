@@ -8,7 +8,7 @@ from .base import Transform
 
 @Transform(K.images, K.images)
 class FlipImage:
-    """Flip a numpy array of shape [N, H, W, C] horizontally."""
+    """Flip a numpy array of shape [N, H, W, C]."""
 
     def __init__(self, direction: str = "horizontal"):
         """Creates an instance of FlipImage.
