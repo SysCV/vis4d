@@ -43,29 +43,30 @@ class CommonKeys:
     frame_ids (int): If the dataset contains videos, this field indicates the
         temporal frame index of the current image / sample.
 
-    boxes2d (Tensor): 2D bounding boxes of shape [N, 4] in xyxy format.
-    boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape
+    boxes2d (NDArrayF32): 2D bounding boxes of shape [N, 4] in xyxy format.
+    boxes2d_classes (NDArrayF32): Semantic classes of 2D bounding boxes, shape
         [N,].
-    boxes2d_track_ids (Tensor): Tracking IDs of 2D bounding boxes, shape [N,].
-    masks (Tensor): Instance segmentation masks of shape [N, H, W].
-    segmentation_masks (Tensor):
+    boxes2d_track_ids (NDArrayI32): Tracking IDs of 2D bounding boxes,
+        shape [N,].
+    masks (NDArrayF32): Instance segmentation masks of shape [N, H, W].
+    segmentation_masks (NDArrayF32): Semantic segmentation masks [H, W, C]
 
-    intrinsics (Tensor): Intrinsic sensor calibration. Shape [3, 3].
-    extrinsics (Tensor): Extrinsic sensor calibration, transformation of sensor
-        to world coordinate frame. Shape [4, 4].
+    intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
+    extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
+        sensor to world coordinate frame. Shape [4, 4].
     axis_mode (AxisMode): Coordinate convention of the current sensor.
     timestamp (int): Sensor timestamp in Unix format.
 
-    points3d (Tensor): 3D pointcloud data, assumed to be [N, 3] and in sensor
-        frame.
-    colors3d (Tensor): Associated color values for each point, [N, 3].
+    points3d (NDArrayF32): 3D pointcloud data, assumed to be [N, 3] and in
+        sensor frame.
+    colors3d (NDArrayF32): Associated color values for each point, [N, 3].
 
     semantics3d:  TODO complete
     instances3d:  TODO complete
-    boxes3d (Tensor): [N, 10], each row consists of center (XYZ), dimensions
-        (WLH), and orientation quaternion (WXYZ).
-    boxes3d_classes (Tensor): Associated semantic classes of 3D bounding boxes,
-        [N,].
+    boxes3d (NDArrayF32): [N, 10], each row consists of center (XYZ),
+        dimensions (WLH), and orientation quaternion (WXYZ).
+    boxes3d_classes (NDArrayF32): Associated semantic classes of 3D bounding
+        boxes, [N,].
     """
 
     # image based inputs
