@@ -1,8 +1,5 @@
 """Callbacks handling data related stuff (evaluation, visualization, etc)."""
-from .evaluator import DefaultEvaluatorCallback
-from .writer import DefaultWriterCallback
+from .callback_wrapper import CallbackWrapper
+from .optimizer import OptimEpochCallback
 
-__all__ = [
-    "DefaultEvaluatorCallback",
-    "DefaultWriterCallback",
-]
+__all__ = ["CallbackWrapper", "OptimEpochCallback"]

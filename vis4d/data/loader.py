@@ -16,8 +16,10 @@ from torch.utils.data import (
 )
 from torch.utils.data.distributed import DistributedSampler
 
-from ..common.distributed import PicklableWrapper, get_world_size
-from .const import CommonKeys
+from vis4d.common import ArgsType
+
+from ..common.distributed import get_world_size
+from .const import CommonKeys as CK
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
 from .samplers import VideoInferenceSampler
@@ -34,15 +36,18 @@ _DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
 def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data: DictData = {}
+    # TODO: It seems dangerous if batches originally contain different keys.
+    # e.g. if batch[0] has annotations but batch[1] doesn't.
     for key in batch[0]:
-        if key == CommonKeys.images:
-            data[key] = torch.cat([b[key] for b in batch])
-        elif key in [CommonKeys.extrinsics, CommonKeys.intrinsics]:
-            data[key] = torch.stack([b[key] for b in batch], 0)
-        elif key == CommonKeys.segmentation_masks:
-            data[key] = torch.stack([b[key] for b in batch], 0)
-        else:
-            data[key] = [b[key] for b in batch]
+        try:
+            if key in [CK.images, CK.segmentation_masks]:
+                data[key] = torch.cat([b[key] for b in batch])
+            elif key in [CK.extrinsics, CK.intrinsics]:
+                data[key] = torch.stack([b[key] for b in batch], 0)
+            else:
+                data[key] = [b[key] for b in batch]
+        except RuntimeError as e:
+            raise RuntimeError(f"Error collating key {key}") from e
     return data
 
 
@@ -84,7 +89,7 @@ class DataPipe(_CONCAT_DATASET):
         if isinstance(datasets, Dataset):
             datasets = [datasets]
         super().__init__(datasets)
-        self.preprocess_fn = PicklableWrapper(preprocess_fn)
+        self.preprocess_fn = preprocess_fn
         self.reference_view_sampler = reference_view_sampler
 
     def get_dataset_sample_index(self, idx: int) -> tuple[int, int]:
@@ -126,6 +131,21 @@ class DataPipe(_CONCAT_DATASET):
             sample = self._getitem(idx)
             data = self.preprocess_fn(sample)
         return data
+
+
+# TODO: refactor data pipe with mixin
+class VideoDataPipe(DataPipe, VideoMixin):
+    """DataPipe class for video datasets."""
+
+    def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
+        """Create data pipe for video datasets."""
+        super().__init__(*args, **kwargs)
+        assert len(self.datasets) == 1, "Only support one dataset for now."
+
+    @property
+    def video_to_indices(self) -> dict[str, list[int]]:
+        """Get video to indices mapping."""
+        return self.datasets[0].video_to_indices
 
 
 class SubdividingIterableDataset(_ITERABLE_DATASET):
@@ -250,11 +270,9 @@ def build_train_dataloader(
         dataset,
         batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
-        collate_fn=PicklableWrapper(
-            _collate_fn_single
-            if dataset.reference_view_sampler is None
-            else _collate_fn_multi
-        ),
+        collate_fn=_collate_fn_single
+        if dataset.reference_view_sampler is None
+        else _collate_fn_multi,
         sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
@@ -272,17 +290,21 @@ def build_inference_dataloaders(
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
 ) -> list[_DATALOADER]:
     """Build dataloaders for test / predict."""
+
+    def _collate_fn(data: list[DictData]) -> DictDataOrList:
+        """Collates data for inference."""
+        return collate_fn(batchprocess_fn(data))
+
     if isinstance(datasets, Dataset):
         datasets_ = [datasets]
     else:
         datasets_ = datasets
     dataloaders = []
-    _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
     for dataset in datasets_:
         dset_sampler: DistributedSampler[list[int]] | None
         if get_world_size() > 1:
             if isinstance(dataset, VideoMixin) and video_based_inference:
-                dset_sampler = VideoInferenceSampler(dataset)
+                dset_sampler = VideoInferenceSampler(dataset)  # type: ignore
             else:
                 dset_sampler = DistributedSampler(dataset)
         else:

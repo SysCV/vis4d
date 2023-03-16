@@ -9,7 +9,7 @@ from .base import Transform
 
 
 @Transform(
-    in_keys=(CommonKeys.boxes2d_classes, CommonKeys.masks),
+    in_keys=(CommonKeys.boxes2d_classes, CommonKeys.instance_masks),
     out_keys=(CommonKeys.segmentation_masks,),
 )
 def convert_to_seg_masks():
@@ -19,7 +19,7 @@ def convert_to_seg_masks():
         cats = torch.as_tensor(classes, dtype=masks.dtype)
         target, _ = (masks * cats[:, None, None]).max(dim=0)
         target[masks.sum(0) > 1] = 255  # discard overlapping instances
-        return target
+        return target.unsqueeze(0)
 
     return _convert
 

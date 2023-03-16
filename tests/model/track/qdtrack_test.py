@@ -4,19 +4,20 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
-from vis4d.data.datasets.scalabel import Scalabel
+from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.pad import pad_image
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.model.track.qdtrack import FasterRCNNQDTrack
+from vis4d.model.track.qdtrack import FasterRCNNQDTrack, TrackOut
 
 
 class QDTrackTest(unittest.TestCase):
     """QDTrack class tests."""
 
+    # TODO: Fix test with reproduced design
     model_weights = (
         "https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt"
     )
@@ -25,7 +26,7 @@ class QDTrackTest(unittest.TestCase):
         """Inference test.
 
         Run::
-            >>> pytest vis4d/op/track/qdtrack_test.py::QDTrackTest::test_inference
+            >>> pytest tests/model/track/qdtrack_test.py::QDTrackTest::test_inference
         """
         qdtrack = FasterRCNNQDTrack(num_classes=8)
         load_model_checkpoint(qdtrack, self.model_weights)
@@ -34,7 +35,7 @@ class QDTrackTest(unittest.TestCase):
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         test_data = DataPipe(
-            Scalabel(data_root, annotations, config_path=config),
+            BDD100K(data_root, annotations, config_path=config),
             preprocess_fn=normalize_image(),
         )
         batch_fn = pad_image()
@@ -56,22 +57,18 @@ class QDTrackTest(unittest.TestCase):
             tracks = qdtrack(  # pylint: disable=unused-variable
                 images, inputs_hw, frame_ids
             )
-        # FIXME
-        # testcase_gt = torch.load(get_test_file("qdtrack.pt"))
-        # for pred, expected in zip(tracks, testcase_gt):
-        #     for pred_entry, expected_entry in zip(pred, expected):
-        #         pass
-        #         assert (
-        #             torch.isclose(pred_entry, expected_entry, atol=1e-4)
-        #             .all()
-        #             .item()
-        #         )
+        assert isinstance(tracks, TrackOut)
 
-    # def test_train(self): #FIXME
+        testcase_gt = torch.load(get_test_file("qdtrack.pt"))
+        for pred_entry, expected_entry in zip(tracks, testcase_gt):
+            for pred, expected in zip(pred_entry, expected_entry):
+                assert torch.isclose(pred, expected, atol=1e-4).all().item()
+
+    # def test_train(self): # TODO: Fix test
     #     """Training test."""
     #     pass
 
-    # def test_torchscript(self):  #FIXME
+    # def test_torchscript(self): # TODO: Fix test
     #     """Test torchscipt export."""
     #     sample_images = torch.rand((2, 3, 512, 512))
     #     qdtrack = FasterRCNNQDTrack(num_classes=8)

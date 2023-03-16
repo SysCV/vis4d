@@ -18,23 +18,23 @@ class TestPrettyPrints(unittest.TestCase):
         self.assertEqual(shape_str, "{a: shape[2, 3]}")
 
         # Test list input
-        obj = [torch.rand(2, 3), {"a": torch.rand(4, 5)}]
-        shape_str = describe_shape(obj)
+        obj2 = [torch.rand(2, 3), {"a": torch.rand(4, 5)}]
+        shape_str = describe_shape(obj2)
         self.assertEqual(shape_str, "[shape[2, 3], {a: shape[4, 5]}]")
 
         # Test nested dictionary and list input
-        obj = {"a": [torch.rand(2, 3), torch.rand(4, 5)]}
-        shape_str = describe_shape(obj)
+        obj3 = {"a": [torch.rand(2, 3), torch.rand(4, 5)]}
+        shape_str = describe_shape(obj3)
         self.assertEqual(shape_str, "{a: [shape[2, 3], shape[4, 5]]}")
 
         # Test float input
-        obj = 3.14
-        shape_str = describe_shape(obj)
+        obj4 = 3.14
+        shape_str = describe_shape(obj4)
         self.assertEqual(shape_str, "3.1400")
 
         # Test other input type
-        obj = "hello"
-        shape_str = describe_shape(obj)
+        obj5 = "hello"
+        shape_str = describe_shape(obj5)
         self.assertEqual(shape_str, "hello")
 
     def test_pretty_rep_mixin(self) -> None:

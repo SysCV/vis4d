@@ -265,8 +265,8 @@ def draw_bev_box(
         yaw_hist_ = history[:, 8]
         center_hist = history[:, :2]
         for index, ct in enumerate(center_hist):
-            yaw = yaw_hist_[index].item()
-            vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
+            yaw_val = yaw_hist_[index].item()
+            vec_l = np.array([l * np.cos(yaw_val), -l * np.sin(yaw_val)])
             ct_dir = ct + 0.5 * vec_l
             alpha = max(float(index) / len(center_hist), 0.5)
             axis.plot(
@@ -500,16 +500,12 @@ def show_pointcloud(
     points = points[:, :3].cpu()
 
     if colors is None:
-        marker = dict(
-            color=np.linalg.norm(points, axis=1),
-            colorscale="Viridis",
-            size=thickness,
-        )
+        marker = {
+            "color": np.linalg.norm(points, axis=1),
+            "colorscale": "Viridis",
+        }
     else:
-        marker = dict(
-            color=colors.cpu().numpy(),
-            size=thickness,
-        )
+        marker = {"color": colors.cpu().numpy(), "size": thickness}
 
     scatter = go.Scatter3d(
         x=points[:, 0],
@@ -531,7 +527,7 @@ def show_pointcloud(
                 z=z_lines,
                 mode="lines",
                 name="lines",
-                marker=dict(size=thickness, color=f"rgb{color}"),
+                marker={"size": thickness, "color": f"rgb{color}"},
             )
             data.append(lines)
 
@@ -539,17 +535,17 @@ def show_pointcloud(
 
     # set to camera appropriate to coordinate system
     if axis_mode == AxisMode.OPENCV:
-        camera = dict(
-            up=dict(x=0, y=-1, z=0),
-            center=dict(x=0, y=0, z=0),
-            eye=dict(x=0.0, y=0.0, z=-1.25),
-        )
+        camera = {
+            "up": {"x": 0, "y": -1, "z": 0},
+            "center": {"x": 0, "y": 0, "z": 0},
+            "eye": {"x": 0, "y": 0, "z": -1.25},
+        }
     elif axis_mode == AxisMode.ROS:
-        camera = dict(
-            up=dict(x=0, y=0, z=1),
-            center=dict(x=0, y=0, z=0),
-            eye=dict(x=0.0, y=1.25, z=0),
-        )
+        camera = {
+            "up": {"x": 0, "y": 0, "z": 1},
+            "center": {"x": 0, "y": 0, "z": 0},
+            "eye": {"x": 0, "y": 0, "z": -1.25},
+        }
     else:
         raise ValueError(f"Axis mode {axis_mode} not known.")
 

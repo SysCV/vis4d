@@ -8,19 +8,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from vis4d.common.typing import LossesType
+
 
 class FCNOut(NamedTuple):
     """Output of the FCN prediction."""
 
     pred: torch.Tensor  # logits for final prediction, (N, C, H, W)
     outputs: list[torch.Tensor]  # transformed feature maps
-
-
-class FCNLosses(NamedTuple):
-    """Losses for FCN."""
-
-    total_loss: torch.Tensor
-    losses: list[torch.Tensor]
 
 
 class FCNHead(nn.Module):
@@ -156,7 +151,7 @@ class FCNLoss(nn.Module):
 
     def forward(
         self, outputs: list[torch.Tensor], target: torch.Tensor
-    ) -> FCNLosses:
+    ) -> LossesType:
         """Forward pass.
 
         Args:
@@ -167,10 +162,8 @@ class FCNLoss(nn.Module):
             FCNLosses: computed losses for each level and the weighted total
                 loss.
         """
-        losses = []
-        total_loss = torch.tensor(0.0, device=outputs[0].device)
+        losses: LossesType = {}
         for i, idx in enumerate(self.feature_idx):
             loss = self.loss_fn(outputs[idx], target)
-            total_loss += self.weights[i] * loss
-            losses.append(loss)
-        return FCNLosses(total_loss=total_loss, losses=losses)
+            losses[f"level_{idx}"] = self.weights[i] * loss
+        return losses

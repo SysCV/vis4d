@@ -139,7 +139,7 @@ logging-format-style=old
 [MISCELLANEOUS]
 
 # List of note tags to take in consideration, separated by a comma.
-notes=FIXME,XXX,TODO
+notes=FIXME,XXX # ,TODO
 
 # Regular expression of note tags to take in consideration.
 #notes-rgx=
@@ -228,7 +228,7 @@ expected-line-ending-format=
 [BASIC]
 
 # Good variable names which should always be accepted, separated by a comma
-good-names=i,j,k,ex,Run,_
+good-names=i,j,k,ex,Run,_,lr
 
 # Good variable names regexes, separated by a comma. If names match any regex,
 # they will always be accepted

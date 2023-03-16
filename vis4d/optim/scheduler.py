@@ -4,10 +4,18 @@ from __future__ import annotations
 from torch.optim import Optimizer, lr_scheduler
 
 
-class PolyLRScheduler(
-    lr_scheduler._LRScheduler  # pylint: disable=protected-access
-):
-    """Polynomial learning rate decay."""
+class PolyLR(lr_scheduler._LRScheduler):  # pylint: disable=protected-access
+    """Polynomial learning rate decay.
+
+    Example:
+        Assuming lr = 0.001, max_steps = 4, and min_lr = 0.0, the learning rate
+        will be:
+        lr = 0.001     if step == 0
+        lr = 0.00075   if step == 1
+        lr = 0.00050   if step == 2
+        lr = 0.00025   if step == 3
+        lr = 0.0       if step >= 4
+    """
 
     def __init__(
         self,
@@ -27,9 +35,9 @@ class PolyLRScheduler(
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
         step_count = self._step_count  # type: ignore
-        if step_count >= self.max_steps:
+        if step_count > self.max_steps:
             return [self.min_lr for _ in self.base_lrs]
-        coeff = (1 - step_count / self.max_steps) ** self.power
+        coeff = (1 - (step_count - 1) / self.max_steps) ** self.power
         return [
             (base_lr - self.min_lr) * coeff + self.min_lr
             for base_lr in self.base_lrs

@@ -363,7 +363,7 @@ class RPNLoss(DenseAnchorHeadLoss):
         Returns:
             DenseAnchorHeadLosses: Classification and regression losses.
         """
-        assert target_class_ids is None
+        assert target_class_ids is None  # TODO, why is this not used?
         return super().forward(
             cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
         )

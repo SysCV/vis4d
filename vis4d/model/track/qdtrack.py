@@ -1,9 +1,12 @@
 """Quasi-dense instance similarity learning model."""
 from __future__ import annotations
 
-import torch
-from torch import nn
+from typing import NamedTuple
 
+import torch
+from torch import Tensor, nn
+
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base import ResNet
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
@@ -42,12 +45,22 @@ REV_KEYS = [
 ]
 
 
+class TrackOut(NamedTuple):
+    """Output of track 3D model."""
+
+    boxes: list[Tensor]  # (N, 4)
+    class_ids: list[Tensor]
+    scores: list[Tensor]
+    track_ids: list[Tensor]
+
+
 class QDTrack(nn.Module):
     """QDTrack - quasi-dense instance similarity learning."""
 
     def __init__(
         self,
         memory_size: int = 10,
+        memory_momentum: float = 0.8,
         num_ref_views: int = 1,
         proposal_append_gt: bool = True,
     ) -> None:
@@ -57,6 +70,8 @@ class QDTrack(nn.Module):
         self.similarity_head = QDSimilarityHead()
 
         # only in inference
+        assert 0 <= memory_momentum <= 1.0
+        self.memo_momentum = memory_momentum
         self.track_graph = QDTrackAssociation()
         self.track_memory = QDTrackMemory(memory_limit=memory_size)
 
@@ -84,7 +99,7 @@ class QDTrack(nn.Module):
         frame_ids: None | tuple[int, ...] = None,
         target_boxes: None | list[torch.Tensor] = None,
         target_track_ids: None | list[torch.Tensor] = None,
-    ) -> list[QDTrackState] | QDTrackInstanceSimilarityLosses:
+    ) -> TrackOut | QDTrackInstanceSimilarityLosses:
         """Forward function."""
         if target_boxes is not None:
             assert (
@@ -129,7 +144,7 @@ class QDTrack(nn.Module):
             ref_track_ids.append(current_track_ids)
         return key_embeddings, ref_embeddings, key_track_ids, ref_track_ids
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def _sample_proposals(
         self,
         det_boxes: list[torch.Tensor],
@@ -194,7 +209,7 @@ class QDTrack(nn.Module):
         det_scores: list[torch.Tensor],
         det_class_ids: list[torch.Tensor],
         frame_ids: tuple[int, ...],
-    ) -> list[QDTrackState]:
+    ) -> TrackOut:
         """Forward during test."""
         embeddings = self.similarity_head(features, det_boxes)
 
@@ -208,7 +223,7 @@ class QDTrack(nn.Module):
                 TrackIDCounter.reset()
 
             cur_memory = self.track_memory.get_current_tracks(box.device)
-            track_ids, filter_indices = self.track_graph(
+            track_ids, match_ids, filter_indices = self.track_graph(
                 box,
                 score,
                 cls_id,
@@ -218,23 +233,38 @@ class QDTrack(nn.Module):
                 cur_memory.embeddings,
             )
 
+            valid_embeds = embeds[filter_indices]
+
+            for i, track_id in enumerate(track_ids):
+                if track_id in match_ids:
+                    track = self.track_memory.get_track(track_id)[-1]
+                    valid_embeds[i] = (
+                        (1 - self.memo_momentum) * track.embeddings
+                        + self.memo_momentum * valid_embeds[i]
+                    )
+
             data = QDTrackState(
                 track_ids,
                 box[filter_indices],
                 score[filter_indices],
                 cls_id[filter_indices],
-                embeds[filter_indices],
+                valid_embeds,
             )
             self.track_memory.update(data)
-            batched_tracks.append(self.track_memory.last_frame)
+            batched_tracks.append(self.track_memory.frames[-1])
 
-        return batched_tracks
+        return TrackOut(
+            [t.boxes for t in batched_tracks],
+            [t.class_ids for t in batched_tracks],
+            [t.scores for t in batched_tracks],
+            [t.track_ids for t in batched_tracks],
+        )
 
 
 class FasterRCNNQDTrack(nn.Module):
     """Wrap qdtrack with detector."""
 
-    def __init__(self, num_classes: int) -> None:
+    def __init__(self, num_classes: int, weights: None | str = None) -> None:
         """Creates an instance of the class."""
         super().__init__()
         self.anchor_gen = get_default_anchor_generator()
@@ -251,6 +281,9 @@ class FasterRCNNQDTrack(nn.Module):
         )
         self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
         self.qdtrack = QDTrack()
+
+        if weights is not None:
+            load_model_checkpoint(self, weights, map_location="cpu")
 
     def forward(
         self,

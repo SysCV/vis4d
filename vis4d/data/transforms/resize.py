@@ -150,7 +150,9 @@ class ResizeIntrinsics:
         return intrinsics[:2] * scale_factor
 
 
-@Transform([CK.masks, "transforms.resize.target_shape"], CK.masks)
+@Transform(
+    [CK.instance_masks, "transforms.resize.target_shape"], CK.instance_masks
+)
 class ResizeMasks:
     """Resize instance segmentation masks."""
 

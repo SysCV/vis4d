@@ -1,17 +1,13 @@
 """Vis4D tester."""
 from __future__ import annotations
 
-import logging
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
-from vis4d.common import DictStrAny
+from vis4d.common.callbacks import Callback
 from vis4d.data import DictData
-from vis4d.eval import Evaluator
-from vis4d.vis.base import Visualizer
+from vis4d.engine.connectors import DataConnector
 
 from .util import move_data_to_device
 
@@ -21,93 +17,73 @@ class Tester:
 
     def __init__(
         self,
-        num_epochs: int = -1,
-        test_every_nth_epoch: int = 1,
-        vis_every_nth_epoch: int = 1,
+        dataloaders: DataLoader[DictData],
+        data_connector: DataConnector,
+        test_callbacks: dict[str, Callback] | None,
     ) -> None:
-        """Creates an instance of the class."""
-        self.num_epochs = num_epochs
-        self.test_every_nth_epoch = test_every_nth_epoch
-        self.vis_every_nth_epoch = vis_every_nth_epoch
+        """Initialize the tester.
 
-        self.test_dataloader = self.setup_test_dataloaders()
-        self.evaluators = self.setup_evaluators()
-        self.visualizers = self.setup_visualizers()
+        Args:
+            dataloaders (dict[str, DataLoader[DictData]]): Dataloaders for
+                testing.
+            data_connector (DataConnector): Data connector used for generating
+                testing inputs from a batch of data.
+            test_callbacks (dict[str, Callback] | None): Callback functions
+                used during testing.
+        """
+        self.test_dataloaders = dataloaders
+        self.data_connector = data_connector
 
-    def setup_test_dataloaders(self) -> list[DataLoader]:
-        """Set-up testing data loaders."""
-        raise NotImplementedError
-
-    def test_connector(self, data: DictData) -> DictData:
-        """Connector between the test data and the model."""
-        return data
-
-    def setup_evaluators(self) -> list[Evaluator]:
-        """Set-up evaluators."""
-        raise NotImplementedError
-
-    def evaluator_connector(
-        self, data: DictData, output: DictStrAny
-    ) -> DictStrAny:
-        """Connector between the data and the evaluator."""
-        # For now just wrap data connector to not break anything.
-        return data | output
-
-    def do_evaluation(self, epoch: int) -> bool:
-        """Return whether to do evaluation for current epoch."""
-        return (
-            epoch == self.num_epochs - 1
-            or epoch % self.test_every_nth_epoch
-            == self.test_every_nth_epoch - 1
-        )
-
-    def setup_visualizers(self) -> list[Visualizer]:
-        """Set-up visualizers."""
-        raise NotImplementedError
-
-    def do_visualization(self, epoch: int) -> bool:
-        """Return whether to do visualization for current epoch."""
-        return (
-            epoch == self.num_epochs - 1
-            or epoch % self.vis_every_nth_epoch == self.vis_every_nth_epoch - 1
-        )
+        if test_callbacks is None:
+            self.test_callbacks = {}
+        else:
+            self.test_callbacks = test_callbacks
 
     @torch.no_grad()
-    def test(
-        self, model: nn.Module, metric: str, epoch: None | int = None
-    ) -> None:
-        """Testing loop."""
-        logger = logging.getLogger(__name__)
+    def test(self, model: nn.Module, epoch: None | int = None) -> None:
+        """Testing loop.
 
+        Args:
+            model (nn.Module): Model that should be tested.
+            epoch (None | int, optional): Epoch for testing (None if not used
+                during training). Defaults to None.
+        """
         model.eval()
-        logger.info("Running validation...")
-        for test_loader in self.test_dataloader:
-            for _, data in enumerate(tqdm(test_loader)):
+
+        # run callbacks on test epoch begin
+        for k, callback in self.test_callbacks.items():
+            if callback.run_on_epoch(epoch):
+                callback.on_test_epoch_start(model, epoch or 0)
+
+        for test_loader in self.test_dataloaders:
+            for cur_iter, data in enumerate(test_loader):
+                total_iters = len(test_loader)
+
                 # input data
-                device = next(model.parameters()).device  # model device
+                device = next(model.parameters()).device
                 data = move_data_to_device(data, device)
-                test_input = self.test_connector(data)
+                test_input = self.data_connector.get_test_input(data)
 
                 # forward
                 output = model(**test_input)
 
-                if not epoch or self.do_evaluation(epoch):
-                    for test_eval in self.evaluators:
-                        eval_kwargs = self.evaluator_connector(data, output)
-                        test_eval.process(
-                            **move_data_to_device(eval_kwargs, "cpu", True)
+                for k, callback in self.test_callbacks.items():
+                    if callback.run_on_epoch(epoch):
+                        shared_clbk_kwargs = {
+                            "epoch": epoch,
+                            "cur_iter": cur_iter,
+                            "total_iters": total_iters,
+                        }
+                        clbk_kwargs = self.data_connector.get_callback_input(
+                            k, output, data, "test"
+                        )
+                        callback.on_test_batch_end(
+                            model,
+                            shared_clbk_kwargs,
+                            clbk_kwargs,
                         )
 
-                if not epoch or self.do_visualization(epoch):
-                    for vis in self.visualizers:
-                        vis.process(data, output)
-
-        if not epoch or self.do_evaluation(epoch):
-            for test_eval in self.evaluators:
-                _, log_str = test_eval.evaluate(metric)
-                logger.info(log_str)
-
-        if not epoch or self.do_visualization(epoch):
-            for test_vis in self.visualizers:
-                test_vis.visualize()
-                # test_vis.clear()
+        # run callbacks on test epoch end
+        for k, callback in self.test_callbacks.items():
+            if callback.run_on_epoch(epoch):
+                callback.on_test_epoch_end(model, epoch)

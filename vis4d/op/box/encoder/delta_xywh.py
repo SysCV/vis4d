@@ -12,6 +12,7 @@ from torch import Tensor
 from .base import BoxEncoder2D
 
 
+# TODO: Refactor this to functors with a single forward
 class DeltaXYWHBBoxEncoder(BoxEncoder2D):
     """Delta XYWH BBox encoder.
 

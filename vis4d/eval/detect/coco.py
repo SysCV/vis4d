@@ -81,14 +81,14 @@ def predictions_to_coco(
         mask = masks[i] if masks is not None else None
         xywh = box.tolist()
         area = float(xywh[2] * xywh[3])
-        annotation = dict(
-            image_id=image_id,
-            bbox=xywh,
-            area=area,
-            score=float(score),
-            category_id=cat_map[coco_id2name[int(cls)]],
-            iscrowd=0,
-        )
+        annotation = {
+            "image_id": image_id,
+            "bbox": xywh,
+            "area": area,
+            "score": float(score),
+            "category_id": cat_map[coco_id2name[int(cls)]],
+            "iscrowd": 0,
+        }
         if mask is not None:
             annotation["segmentation"] = maskUtils.encode(
                 np.array(mask.cpu(), order="F", dtype="uint8")
@@ -146,7 +146,7 @@ class COCOEvaluator(Evaluator):
     def gather(  # type: ignore
         self, gather_func: Callable[[Any], Any]
     ) -> None:
-        """Accumulate predictions across prcoesses."""
+        """Accumulate predictions across processes."""
         all_preds = gather_func(self._predictions)
         if all_preds is not None:
             self._predictions = list(itertools.chain(*all_preds))
@@ -202,6 +202,14 @@ class COCOEvaluator(Evaluator):
         """
         if metric != "COCO_AP":
             raise NotImplementedError(f"Metric {metric} not known!")
+        coco_dt = None  # self._coco_gt.loadRes(self._predictions)
+
+        if len(self._predictions) == 0:
+            print(
+                "[COCO Evaluator]: No predictions to evaluate. "  # TODO: log
+                "Make sure to call process() first!"
+            )
+            return {}, ""
 
         with contextlib.redirect_stdout(io.StringIO()):
             if self.iou_type == "segm":
@@ -256,3 +264,7 @@ class COCOEvaluator(Evaluator):
             log_str = f"\n{table.table}\n{log_str}"
 
         return score_dict, log_str
+
+    def __repr__(self) -> str:
+        """Returns the string representation of the object."""
+        return f"CocoEvaluator(iou_type={self.iou_type})"

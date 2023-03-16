@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
 
-from .scalabel import Scalabel
+from .scalabel import ScalabelVideo
 
 bdd100k_det_map = {
     "pedestrian": 0,
@@ -98,15 +98,27 @@ if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
     from scalabel.label.typing import Dataset as ScalabelData
 
 
-class BDD100K(Scalabel):
+class BDD100K(ScalabelVideo):
     """BDD100K type dataset, based on Scalabel."""
+
+    DESCRIPTION = """BDD100K is a large-scale dataset for driving scene
+        understanding."""
+    HOMEPAGE = "https://www.bdd100k.com/"
+    PAPER = "https://arxiv.org/abs/1805.04687"
+    LICENSE = "https://www.bdd100k.com/license"
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         bdd100k_anns = load(self.annotation_path)
+        if self.config_path is None:
+            return bdd100k_anns  # pragma: no cover
         frames = bdd100k_anns.frames
         bdd100k_cfg = load_bdd100k_config(self.config_path)
         scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
         return ScalabelData(
-            frames=scalabel_frames, config=bdd100k_cfg.scalabel
+            frames=scalabel_frames, config=bdd100k_cfg.scalabel, groups=None
         )
+
+    def __repr__(self) -> str:
+        """Concise representation of the dataset."""
+        return f"BDD100KDataset {self.data_root}"
