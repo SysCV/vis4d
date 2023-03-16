@@ -53,17 +53,15 @@ class Transform:
         """Creates an instance of Transform.
 
         Args:
-            in_keys (None | list[tuple[str, str]] | tuple[str, str],
-                optional): Specifies one or multiple (if any) input keys of the
-                data dictionary which should be remapeed to another key.
-                Defaults to None.
-            out_keys (None | list[tuple[str, str]] | tuple[str, str],
-                optional): Specifies one or multiple (if any) input keys of the
-                data dictionary which should be remapeed to another key.
-                Defaults to None.
-            sensors (None | list[str] | str, optional): Specifies the sensors
-                this transformation should be applied to. If None, it will be
-                applied to all available sensors. Defaults to None.
+            in_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remapeed to
+                another key. Defaults to None.
+            out_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remaped to
+                another key. Defaults to None.
+            sensors (Sequence[str] | str | None, optional): Specifies the
+                sensors this transformation should be applied to. If None, it
+                will be applied to all available sensors. Defaults to None.
         """
         if isinstance(in_keys, str):
             in_keys = [in_keys]
@@ -175,17 +173,15 @@ class BatchTransform:
         """Creates an instance of BatchTransform.
 
         Args:
-            in_keys (None | list[tuple[str, str]] | tuple[str, str],
-                optional): Specifies one or multiple (if any) input keys of the
-                data dictionary which should be remapeed to another key.
-                Defaults to None.
-            out_keys (None | list[tuple[str, str]] | tuple[str, str],
-                optional): Specifies one or multiple (if any) input keys of the
-                data dictionary which should be remapeed to another key.
-                Defaults to None.
-            sensors (None | list[str] | str, optional): Specifies the sensors
-                this transformation should be applied to. If None, it will be
-                applied to all available sensors. Defaults to None.
+            in_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remapeed to
+                another key. Defaults to None.
+            out_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remaped to
+                another key. Defaults to None.
+            sensors (Sequence[str] | str | None, optional): Specifies the
+                sensors this transformation should be applied to. If None, it
+                will be applied to all available sensors. Defaults to None.
         """
         if isinstance(in_keys, str):
             in_keys = [in_keys]

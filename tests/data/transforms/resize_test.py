@@ -1,3 +1,4 @@
+# pylint: disable=no-member,unexpected-keyword-arg
 """Resize transformation tests."""
 import torch
 
