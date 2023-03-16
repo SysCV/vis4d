@@ -80,9 +80,12 @@ def main(  # type:ignore # pylint: disable=unused-argument
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
-    trainer_args_cfg.devices = config.n_gpus
     if config.n_gpus > 0:
         trainer_args_cfg.accelerator = "gpu"
+        trainer_args_cfg.devices = config.n_gpus
+    else:
+        trainer_args_cfg.accelerator = "cpu"
+        trainer_args_cfg.devices = None
 
     # Setup logger
     trainer_args_cfg.enable_progress_bar = False

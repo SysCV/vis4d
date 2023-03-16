@@ -61,6 +61,7 @@ def get_config() -> ConfigDict:
     params.num_epochs = 60
     params.batch_size = 40
     params.lr = 1e-3
+    params.weight_decay = 0.05
     params.augment_proba = 0.5
     params.num_classes = 1000
     params.grad_norm_clip = 1.0
@@ -70,14 +71,16 @@ def get_config() -> ConfigDict:
     ##          Datasets with augmentations             ##
     ######################################################
 
+    data = ConfigDict()
+
     # Training Datasets
-    dataset_cfg_train = class_config(
+    train_dataset_cfg = class_config(
         ImageNet,
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
     )
-    preproc_aug = (
+    aug_cfg = (
         class_config(
             flip_image,
             in_keys=(K.images,),
@@ -90,39 +93,40 @@ def get_config() -> ConfigDict:
             out_keys=(K.images,),
         ),
     )
-    preproc = classification_preprocessing(
+    train_preprocess_cfg = classification_preprocessing(
         224,
         224,
         augment_probability=params.augment_proba,
-        augmentation_transforms=preproc_aug,
+        augmentation_transforms=aug_cfg,
     )
-    dataloader_train_cfg = default_image_dataloader(
-        preproc,
-        dataset_cfg_train,
-        params.batch_size,
+    data.train_dataloader = default_image_dataloader(
+        preprocess_cfg=train_preprocess_cfg,
+        dataset_cfg=train_dataset_cfg,
+        num_samples_per_gpu=params.batch_size,
         num_workers_per_gpu=3,
         shuffle=True,
     )
-    config.train_dl = dataloader_train_cfg
 
     # Testing Datasets
-    dataset_cfg_test = class_config(
+    test_dataset_cfg = class_config(
         ImageNet,
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
     )
-    preproc_test = classification_preprocessing(
+    test_preprocess_cfg = classification_preprocessing(
         224, 224, augment_probability=0
     )
-    dataloader_cfg_test = default_image_dataloader(
-        preproc_test,
-        dataset_cfg_test,
+    test_dataloader_test = default_image_dataloader(
+        preprocess_cfg=test_preprocess_cfg,
+        dataset_cfg=test_dataset_cfg,
         num_samples_per_gpu=params.batch_size,
         num_workers_per_gpu=3,
         shuffle=False,
     )
-    config.test_dl = {"imagenet_eval": dataloader_cfg_test}
+    data.test_dataloader = {"imagenet_eval": test_dataloader_test}
+
+    config.data = data
 
     ######################################################
     ##                        MODEL                     ##
@@ -149,7 +153,7 @@ def get_config() -> ConfigDict:
     config.optimizers = [
         optimizer_cfg(
             optimizer=class_config(
-                optim.AdamW, lr=params.lr, weight_decay=0.05
+                optim.AdamW, lr=params.lr, weight_decay=params.weight_decay
             ),
             lr_scheduler=class_config(
                 PolyLR, max_steps=params.num_epochs, power=0.9
