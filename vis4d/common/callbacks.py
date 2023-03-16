@@ -329,7 +329,7 @@ class CheckpointCallback(Callback):
 
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch."""
-        os.makedirs(os.path.dirname(self.save_prefix), exist_ok=True)
-        save_path = f"{self.save_prefix}/model_e{epoch + 1}.pt"
+        os.makedirs(os.path.dirname(self.output_dir), exist_ok=True)
+        save_path = f"{self.output_dir}/model_e{epoch + 1}.pt"
         torch.save(model.state_dict(), save_path)
         rank_zero_info(f"Model checkpoint saved at {save_path}.")

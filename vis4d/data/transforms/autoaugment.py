@@ -28,13 +28,16 @@ AugOp = Union[AutoAugment, RandAugment, AugMixAugment]
 def _apply_aug(images: torch.Tensor, aug_op: AugOp) -> torch.Tensor:
     """Apply augmentation to a batch of images."""
     pil_imgs = [
-        Image.fromarray(image)
+        Image.fromarray(image.astype(np.uint8))
         for image in images.permute(0, 2, 3, 1).cpu().numpy()
     ]
     for i, img in enumerate(pil_imgs):
         pil_imgs[i] = aug_op(img)
     return torch.stack(
-        [torch.from_numpy(np.array(img)).permute(2, 0, 1) for img in pil_imgs]
+        [
+            torch.from_numpy(np.array(img).astype(np.float32)).permute(2, 0, 1)
+            for img in pil_imgs
+        ]
     )
 
 

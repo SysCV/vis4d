@@ -73,6 +73,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
     trainer_args_cfg.work_dir = config.work_dir
     trainer_args_cfg.exp_name = config.experiment_name
     trainer_args_cfg.version = config.version
+    trainer_args_cfg.params = config.params
 
     if "benchmark" in config:
         trainer_args_cfg.benchmark = config.benchmark

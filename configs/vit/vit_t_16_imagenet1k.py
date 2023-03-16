@@ -21,8 +21,6 @@ from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.imagenet import ImageNet
-from vis4d.data.transforms.autoaugment import randaug
-from vis4d.data.transforms.flip import flip_image
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.model.classification.vit import ClassificationViT
@@ -59,7 +57,7 @@ def get_config() -> ConfigDict:
     ## High level hyper parameters
     params = ConfigDict()
     params.num_epochs = 60
-    params.batch_size = 40
+    params.batch_size = 64
     params.lr = 1e-3
     params.weight_decay = 0.05
     params.augment_proba = 0.5
@@ -82,12 +80,12 @@ def get_config() -> ConfigDict:
     )
     aug_cfg = (
         class_config(
-            flip_image,
+            "vis4d.data.transforms.flip.flip_image",
             in_keys=(K.images,),
             out_keys=(K.images,),
         ),
         class_config(
-            randaug,
+            "vis4d.data.transforms.autoaugment.randaug",
             magnitude=9,
             in_keys=(K.images,),
             out_keys=(K.images,),
@@ -103,7 +101,7 @@ def get_config() -> ConfigDict:
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
         num_samples_per_gpu=params.batch_size,
-        num_workers_per_gpu=3,
+        num_workers_per_gpu=0,
         shuffle=True,
     )
 
@@ -121,7 +119,7 @@ def get_config() -> ConfigDict:
         preprocess_cfg=test_preprocess_cfg,
         dataset_cfg=test_dataset_cfg,
         num_samples_per_gpu=params.batch_size,
-        num_workers_per_gpu=3,
+        num_workers_per_gpu=0,
         shuffle=False,
     )
     data.test_dataloader = {"imagenet_eval": test_dataloader_test}
@@ -231,6 +229,7 @@ def get_config() -> ConfigDict:
     ######################################################
     pl_trainer = ConfigDict()
     pl_trainer.wandb = True
+    pl_trainer.gradient_clip_val = params.grad_norm_clip
     config.pl_trainer = pl_trainer
 
     pl_callbacks: list[pl.callbacks.Callback] = []

@@ -59,6 +59,7 @@ class DefaultTrainer(pl.Trainer):
                     project=exp_name,
                     name=version,
                 )
+                exp_logger.log_hyperparams(kwargs["params"])
             elif TENSORBOARD_AVAILABLE:
                 exp_logger = pl.loggers.TensorBoardLogger(
                     save_dir=work_dir,
@@ -104,4 +105,5 @@ class DefaultTrainer(pl.Trainer):
                 )
                 kwargs["strategy"] = ddp_plugin
 
+        kwargs.pop("params")
         super().__init__(*args, **kwargs)

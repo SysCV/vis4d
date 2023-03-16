@@ -58,7 +58,7 @@ class Tester:
             if callback.run_on_epoch(epoch):
                 callback.on_test_epoch_start(model, epoch or 0)
 
-        for dl_k, test_loader in self.test_dataloader.items():
+        for dl_k, test_loader in self.test_dataloaders.items():
             total_iters = len(test_loader)
             # Show progress bar only on rank 0
             for cur_iter, data in enumerate(

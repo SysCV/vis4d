@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytorch_lightning as pl
+import torch
 from torch import nn, optim
 from torchmetrics import MeanMetric
 
@@ -96,7 +97,10 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         """Perform a single training step."""
         out = self.model(**self.data_connector.get_train_input(batch))
         losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
-        losses["loss"] = sum(list(losses.values()))
+        if isinstance(losses, torch.Tensor):
+            losses = {"loss": losses}
+        else:
+            losses["loss"] = sum(list(losses.values()))
 
         log_dict = {}
         metric_attributes = []
