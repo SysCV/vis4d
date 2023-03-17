@@ -29,6 +29,7 @@ _CONFIG = DEFINE_config_file("config", method_name="get_config")
 # _MODE = flags.DEFINE_string(
 #     "mode", default="train", help="Choice of [train, test]"
 # )
+_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -43,6 +44,7 @@ def main(argv) -> None:  # type:ignore
     # Get config
     mode = argv[1]
     config = _CONFIG.value
+    num_gpus = _GPUS.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -77,8 +79,8 @@ def main(argv) -> None:  # type:ignore
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
-    trainer_args_cfg.devices = config.num_gpus
-    if config.num_gpus > 0:
+    trainer_args_cfg.devices = num_gpus
+    if num_gpus > 0:
         trainer_args_cfg.accelerator = "gpu"
 
     # Setup logger
@@ -109,7 +111,7 @@ def main(argv) -> None:  # type:ignore
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-    if "train_callbacks" in config and mode == "train":
+    if "train_callbacks" in config and mode == "fit":
         train_callbacks = instantiate_classes(config.train_callbacks)
         for key, cb in train_callbacks.items():
             rank_zero_info(f"Adding callback {key}")

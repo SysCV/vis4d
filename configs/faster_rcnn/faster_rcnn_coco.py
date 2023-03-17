@@ -120,13 +120,12 @@ def get_config() -> ConfigDict:
         data_backend=data_backend,
     )
     test_preprocess_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    test_dataloader_test = default_image_dataloader(
+    data.test_dataloader = default_image_dataloader(
         preprocess_cfg=test_preprocess_cfg,
         dataset_cfg=test_dataset_cfg,
         num_samples_per_gpu=1,
         train=False,
     )
-    data.test_dataloader = {"coco_eval": test_dataloader_test}
 
     config.data = data
 

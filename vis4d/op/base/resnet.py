@@ -4,6 +4,7 @@ from __future__ import annotations
 import torch
 import torchvision.models.resnet as _resnet
 from torch.nn.modules.batchnorm import _BatchNorm
+
 from .base import BaseModel
 
 

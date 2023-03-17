@@ -35,9 +35,9 @@ from vis4d.engine.train import Trainer
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
-_MODE = flags.DEFINE_string(
-    "mode", default="train", help="Choice of [train, test]"
-)
+# _MODE = flags.DEFINE_string(
+#     "mode", default="train", help="Choice of [train, test]"
+# )
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
@@ -89,17 +89,16 @@ def ddp_setup(
     _info(f"LOCAL_RANK: {local_rank} - CUDA_VISIBLE_DEVICES: [{devices}]")
 
 
-def main(  # type:ignore # pylint: disable=unused-argument
-    *args, **kwargs
-) -> None:
+def main(argv) -> None:  # type:ignore
     """Main entry point for the CLI.
 
     Example to run this script:
     >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    mode = argv[1]
     config = _CONFIG.value
-    config.n_gpus = _GPUS.value
+    num_gpus = _GPUS.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -129,7 +128,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
     else:
         shared_callbacks = {}
 
-    if "train_callbacks" in config and _MODE.value == "train":
+    if "train_callbacks" in config and mode == "fit":
         train_callbacks = {
             **shared_callbacks,
             **(instantiate_classes(config.train_callbacks)),
@@ -147,24 +146,22 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Setup DDP & seed
     seed = config.get("seed", init_random_seed())
-    if config.n_gpus > 1:
+    if num_gpus > 1:
         ddp_setup(slurm=_SLURM.value)
 
         # broadcast seed to all processes
         seed = broadcast(seed)
 
     # Setup Dataloaders & seed
-    if _MODE.value == "train":
+    if mode == "fit":
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
 
-    test_dataloader = instantiate_classes(
-        config.data.test_dataloader
-    ).values()[0]
+    test_dataloader = instantiate_classes(config.data.test_dataloader)
 
     # Setup Model
-    if config.n_gpus == 0:
+    if num_gpus == 0:
         device = torch.device("cpu")
     else:
         rank = get_local_rank()
@@ -172,7 +169,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     model.to(device)
 
-    if config.n_gpus > 1:
+    if num_gpus > 1:
         model = DDP(  # pylint: disable=redefined-variable-type
             model, device_ids=[rank]
         )
@@ -204,7 +201,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
         # ):
         #     train(config.value)
         pass
-    elif _MODE.value == "train":
+    elif mode == "fit":
         trainer = Trainer(
             num_epochs=config.params.num_epochs,
             log_step=1,
@@ -214,10 +211,10 @@ def main(  # type:ignore # pylint: disable=unused-argument
         )
 
         trainer.train(model, optimizers, loss, tester)
-    elif _MODE.value == "test":
+    elif mode == "test":
         tester.test(model)
 
-    if config.n_gpus > 1:
+    if num_gpus > 1:
         destroy_process_group()
 
 
