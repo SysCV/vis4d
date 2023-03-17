@@ -53,8 +53,8 @@ class GenerateResizeParameters:
             align_long_edge (bool, optional): If keep_ratio=true, this option
                 indicates if shape should be automatically aligned with the
                 long edge of the original image, e.g. original shape=(100, 80),
-                original shape=(100, 200) will yield (125, 100) as new shape.
-                Defaults to False.
+                shape to be resized=(100, 200) will yield (125, 100) as new
+                shape. Defaults to False.
             interpolation (str, optional): Interpolation method. One of
                 ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
         """
