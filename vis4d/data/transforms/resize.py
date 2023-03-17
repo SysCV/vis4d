@@ -168,13 +168,14 @@ class ResizeMasks:
         """Resize masks."""
         if len(masks) == 0:  # handle empty masks
             return masks
+        masks_ = torch.from_numpy(masks)
         masks_ = (
             _resize_tensor(
-                masks.float().unsqueeze(0),
+                masks_.float().unsqueeze(0),
                 target_shape,
                 interpolation="nearest",
             )
-            .type(masks.dtype)
+            .type(masks_.dtype)
             .squeeze(0)
         )
         return masks_.numpy()

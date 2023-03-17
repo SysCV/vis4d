@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import TypeVar
+from typing import TypeVar, no_type_check
 
 import torch
 
 from vis4d.common.dict import get_dict_nested, set_dict_nested
 from vis4d.data.typing import DictData
 
-TFunctor = TypeVar("TFunctor", bound=Callable)  # type: ignore
+TFunctor = TypeVar("TFunctor", bound=Callable)  # type: ignore # pylint: disable=invalid-name,line-too-long
 TransformFunction = Callable[[DictData], DictData]
 BatchTransformFunction = Callable[[list[DictData]], list[DictData]]
 TInput = TypeVar("TInput")  # pylint: disable=invalid-name
@@ -75,6 +75,7 @@ class Transform:
             sensors = [sensors]
         self.sensors = sensors
 
+    @no_type_check
     def __call__(self, transform: TFunctor) -> TFunctor:
         """Add in_keys / out_keys / sensors / apply_to_data attributes.
 
@@ -195,6 +196,7 @@ class BatchTransform:
             sensors = [sensors]
         self.sensors = sensors
 
+    @no_type_check
     def __call__(self, transform: TFunctor) -> TFunctor:
         """Add in_keys / out_keys / sensors / apply_to_data attributes.
 
@@ -287,7 +289,7 @@ def compose(transforms: list[TFunctor]) -> TransformFunction:
 
     def _preprocess_func(data: DictData) -> DictData:
         for op in transforms:
-            data = op.apply_to_data(data)
+            data = op.apply_to_data(data)  # type: ignore
         return data
 
     return _preprocess_func
@@ -302,7 +304,7 @@ def compose_batch(transforms: list[TFunctor]) -> BatchTransformFunction:
 
     def _preprocess_func(batch: list[DictData]) -> list[DictData]:
         for op in transforms:
-            batch = op.apply_to_data(batch)
+            batch = op.apply_to_data(batch)  # type: ignore
         return batch
 
     return _preprocess_func
@@ -326,7 +328,7 @@ def random_apply(
     def _apply(data: DictData) -> DictData:
         if torch.rand(1) < probability:
             for op in transforms:
-                data = op.apply_to_data(data)
+                data = op.apply_to_data(data)  # type: ignore
         return data
 
     return _apply
@@ -350,7 +352,7 @@ def random_apply_batch(
     def _apply(batch: list[DictData]) -> list[DictData]:
         if torch.rand(1) < probability:
             for op in transforms:
-                batch = op.apply_to_data(batch)
+                batch = op.apply_to_data(batch)  # type: ignore
         return batch
 
     return _apply

@@ -1,4 +1,6 @@
 """Horizontal flip augmentation."""
+import torch
+
 from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
@@ -21,10 +23,11 @@ class FlipImage:
 
     def __call__(self, image: NDArrayF32) -> NDArrayF32:
         """Execute flipping op."""
+        image_ = torch.from_numpy(image)
         if self.direction == "horizontal":
-            return image.flip(2)
+            return image_.flip(2).numpy()
         if self.direction == "vertical":
-            return image.flip(1)
+            return image_.flip(1).numpy()
         raise NotImplementedError(f"Direction {self.direction} not known!")
 
 

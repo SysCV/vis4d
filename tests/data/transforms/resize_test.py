@@ -1,4 +1,4 @@
-# pylint: disable=no-member,unexpected-keyword-arg
+# pylint: disable=no-member,unexpected-keyword-arg,use-dict-literal
 """Resize transformation tests."""
 import numpy as np
 

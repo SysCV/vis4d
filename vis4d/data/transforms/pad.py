@@ -38,7 +38,7 @@ class PadImages:
         max_hw = max(heights), max(widths)
 
         # ensure divisibility by stride
-        def _make_divisible(x: int):
+        def _make_divisible(x: int) -> int:
             return (x + (self.stride - 1)) // self.stride * self.stride
 
         max_hw = tuple(_make_divisible(x) for x in max_hw)

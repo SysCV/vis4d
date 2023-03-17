@@ -1,12 +1,11 @@
 # pylint: disable=no-member,unexpected-keyword-arg
 """Test cases for normalize transform."""
+import numpy as np
 import torch
 
-import numpy as np
-
 from vis4d.data.transforms.normalize import (
-    NormalizeImage,
     BatchNormalizeImages,
+    NormalizeImage,
 )
 
 

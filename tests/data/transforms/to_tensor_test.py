@@ -8,13 +8,13 @@ from vis4d.data.transforms.to_tensor import ToTensor
 
 def test_to_tensor():
     """Test the ToTensor transform."""
-    data = dict(
-        cam={
+    data = {
+        "cam": {
             K.images: np.zeros((1, 16, 16, 3)),
             "some_key": np.zeros((10, 4)),
             "my_list": [np.zeros((5, 2))],
         }
-    )
+    }
 
     transform = ToTensor()
     data = transform.apply_to_data(data)["cam"]  # pylint: disable=no-member
