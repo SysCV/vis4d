@@ -11,24 +11,26 @@ from vis4d.common.callbacks import (
     LoggingCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.config.default.data_connectors import (
+from vis4d.config.base.datasets.coco_detection import (
+    det_preprocessing,
+    CONN_COCO_BBOX_EVAL,
+)
+from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.base.models.faster_rcnn import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
-    CONN_BBOX_2D_VIS,
-    CONN_COCO_BBOX_EVAL,
     CONN_ROI_LOSS_2D,
     CONN_RPN_LOSS_2D,
-)
-from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
 )
-from vis4d.config.default.optimizer.default import optimizer_cfg
-from vis4d.config.default.runtime import set_output_dir
+from vis4d.config.default.data_connectors import CONN_BBOX_2D_VIS
+from vis4d.config.default.optimizer import get_optimizer_config
+from vis4d.config.default.runtime import get_runtime_config
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
+from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN
@@ -38,9 +40,6 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.vis.image import BoundingBoxVisualizer
-from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.config.base.coco_detection import det_preprocessing
 
 
 def get_config() -> ConfigDict:
@@ -52,7 +51,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
+    >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -60,22 +59,17 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-
-    # Here we define the general config for the experiment.
-    # This includes the experiment name, the dataset root, the splits
-    # and the high level hyper parameters.
-
     config = ConfigDict()
-    config.num_gpus = 8
+
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "faster_rcnn_r50_fpn_coco"
-    config = set_output_dir(config)
+    config = get_runtime_config(config)
 
     config.dataset_root = "data/coco"
     config.train_split = "train2017"
     config.test_split = "val2017"
 
-    ## High level hyper parameters
+    # High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 2
     params.lr = 0.02
@@ -87,10 +81,6 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-
-    # Here we define the training and test datasets.
-    # We use the COCO dataset and the default data augmentation
-    # provided by vis4d.
     data = ConfigDict()
     data_backend = HDF5Backend()
 
@@ -104,7 +94,7 @@ def get_config() -> ConfigDict:
         data_backend=data_backend,
     )
     train_preprocess_cfg = det_preprocessing(800, 1333, params.augment_proba)
-    data.train_dataloader = default_image_dataloader(
+    data.train_dataloader = get_dataloader_config(
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
         num_samples_per_gpu=params.samples_per_gpu,
@@ -120,7 +110,7 @@ def get_config() -> ConfigDict:
         data_backend=data_backend,
     )
     test_preprocess_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    data.test_dataloader = default_image_dataloader(
+    data.test_dataloader = get_dataloader_config(
         preprocess_cfg=test_preprocess_cfg,
         dataset_cfg=test_dataset_cfg,
         num_samples_per_gpu=1,
@@ -167,29 +157,8 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-
-    # Here we define which optimizer to use. We use the default optimizer
-    # provided by vis4d. By default, it consists of a optimizer, a learning
-    # rate scheduler and a learning rate warmup and passes all the parameters
-    # to the optimizer.
-    # If required, we can also define multiple, custom optimizers and pass
-    # them to the config. In order to only subscribe to a subset of the
-    # parameters,
-    #
-    # We could add a filtering function as follows:
-    # def only_encoder_params(params: Iterable[torch.Tensor], fun: Callable):
-    #     return fun([p for p in params if "encoder" in p.name])
-    #
-    # config.optimizers = [
-    #    optimizer_cfg(
-    #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.lr"))
-    #        )
-    #    )
-    # ]
-
     config.optimizers = [
-        optimizer_cfg(
+        get_optimizer_config(
             optimizer=class_config(
                 optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
@@ -221,7 +190,6 @@ def get_config() -> ConfigDict:
             loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
             callbacks={
                 "coco_eval_test": CONN_COCO_BBOX_EVAL,
-                # "bbox_vis_test": CONN_BBOX_2D_VIS,
             },
         ),
     )
@@ -300,7 +268,7 @@ def get_config() -> ConfigDict:
     ##                     PL CLI                       ##
     ######################################################
     pl_trainer = ConfigDict()
-    pl_trainer.wandb = True
+    # pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 
     pl_callbacks: list[pl.callbacks.Callback] = []

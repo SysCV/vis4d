@@ -1,41 +1,36 @@
 """CC-3DT nuScenes inference example."""
 from __future__ import annotations
 
+import pytorch_lightning as pl
 import torch
-
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
-import pytorch_lightning as pl
+
 from vis4d.common.callbacks import (
     CheckpointCallback,
     EvaluatorCallback,
     LoggingCallback,
 )
 from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.data.loader import multi_sensor_collate
-from vis4d.model.track3d.cc_3dt import (
-    FasterRCNNCC3DT,
-)
 from vis4d.config.default.optimizer.default import optimizer_cfg
+from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
-    nuscenes_track_map,
     nuscenes_class_range_map,
+    nuscenes_track_map,
 )
 from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.data.loader import VideoDataPipe, multi_sensor_collate
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     MultiSensorDataConnector,
     data_key,
     pred_key,
 )
-
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
-
-from vis4d.data.loader import VideoDataPipe
-from vis4d.config.default.runtime import set_output_dir
+from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 
 CONN_BBOX_3D_TEST = {
     CK.images: CK.images,

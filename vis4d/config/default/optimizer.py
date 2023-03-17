@@ -7,7 +7,7 @@ from vis4d.config.util import class_config, delay_instantiation
 from vis4d.engine.opt import Optimizer
 
 
-def optimizer_cfg(
+def get_optimizer_config(
     optimizer: ConfigDict,
     lr_scheduler: ConfigDict | None = None,
     lr_warmup: ConfigDict | None = None,
