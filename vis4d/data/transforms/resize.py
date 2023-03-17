@@ -159,7 +159,7 @@ class ResizeIntrinsics:
 @Transform(
     [CK.instance_masks, "transforms.resize.target_shape"], CK.instance_masks
 )
-class ResizeMasks:
+class ResizeInstanceMasks:
     """Resize instance segmentation masks."""
 
     def __call__(
