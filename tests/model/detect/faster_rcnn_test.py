@@ -23,6 +23,7 @@ from vis4d.data.transforms.resize import (
     ResizeImage,
     ResizeInstanceMasks,
 )
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.op.detect.rcnn import DetOut
 
@@ -42,7 +43,7 @@ def get_train_dataloader(
     if with_mask:
         resize_trans += [ResizeInstanceMasks()]
     preprocess_fn = compose([*resize_trans, NormalizeImage()])
-    batchprocess_fn = compose_batch([PadImages()])
+    batchprocess_fn = compose_batch([PadImages(), ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_train_dataloader(
         datapipe,
@@ -58,12 +59,13 @@ def get_test_dataloader(
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            GenerateResizeParameters(im_hw, keep_ratio=True),
+            GenerateResizeParameters(im_hw),
             ResizeImage(),
+            ResizeBoxes2D(),
             NormalizeImage(),
         ]
     )
-    batchprocess_fn = compose_batch([PadImages()])
+    batchprocess_fn = compose_batch([PadImages(), ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
         datapipe,

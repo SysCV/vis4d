@@ -9,9 +9,7 @@ import torch
 from vis4d.common.dict import get_dict_nested, set_dict_nested
 from vis4d.data.typing import DictData
 
-TFunctor = TypeVar(
-    "TFunctor", bound=object
-)  # pylint: disable=invalid-name,line-too-long
+TFunctor = TypeVar("TFunctor", bound=object)  # pylint: disable=invalid-name
 TransformFunction = Callable[[DictData], DictData]
 BatchTransformFunction = Callable[[list[DictData]], list[DictData]]
 TInput = TypeVar("TInput")  # pylint: disable=invalid-name

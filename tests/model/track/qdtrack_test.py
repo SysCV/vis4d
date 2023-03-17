@@ -11,6 +11,7 @@ from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose, compose_batch
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack, TrackOut
 
@@ -39,7 +40,7 @@ class QDTrackTest(unittest.TestCase):
             BDD100K(data_root, annotations, config_path=config),
             preprocess_fn=compose([NormalizeImage()]),
         )
-        batch_fn = compose_batch([PadImages()])
+        batch_fn = compose_batch([PadImages(), ToTensor()])
         batch_size = 2
         test_loader = build_inference_dataloaders(
             test_data,

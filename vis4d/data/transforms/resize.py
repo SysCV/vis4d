@@ -23,7 +23,7 @@ class ResizeParam(TypedDict):
     interpolation: str
 
 
-@Transform(CK.images, "transforms.resize")
+@Transform(CK.images, ["transforms.resize", CK.input_hw])
 class GenerateResizeParameters:
     """Generate the parameters for a resize operation."""
 
@@ -65,7 +65,9 @@ class GenerateResizeParameters:
         self.align_long_edge = align_long_edge
         self.interpolation = interpolation
 
-    def __call__(self, image: NDArrayF32) -> ResizeParam:
+    def __call__(
+        self, image: NDArrayF32
+    ) -> tuple[ResizeParam, tuple[int, int]]:
         """Compute the parameters and put them in the data dict."""
         im_shape = (image.shape[1], image.shape[2])
         target_shape = _get_target_shape(
@@ -80,10 +82,13 @@ class GenerateResizeParameters:
             target_shape[1] / im_shape[1],
             target_shape[0] / im_shape[0],
         )
-        return ResizeParam(
-            target_shape=target_shape,
-            scale_factor=scale_factor,
-            interpolation=self.interpolation,
+        return (
+            ResizeParam(
+                target_shape=target_shape,
+                scale_factor=scale_factor,
+                interpolation=self.interpolation,
+            ),
+            target_shape,
         )
 
 
@@ -126,7 +131,7 @@ class ResizeImage:
         image: NDArrayF32,
         target_shape: tuple[int, int],
         interpolation: str = "bilinear",
-    ) -> NDArrayF32:
+    ) -> tuple[NDArrayF32, tuple[int, int]]:
         """Resize an image of dimensions [N, H, W, C].
 
         Args:

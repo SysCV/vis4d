@@ -41,12 +41,12 @@ class PadImages:
         def _make_divisible(x: int) -> int:
             return (x + (self.stride - 1)) // self.stride * self.stride
 
-        max_hw = tuple(_make_divisible(x) for x in max_hw)
+        max_hw = tuple(_make_divisible(x) for x in max_hw)  # type: ignore
 
         # generate params for torch pad
         for i, (image, h, w) in enumerate(zip(images, heights, widths)):
             pad_param = (0, max_hw[1] - w, 0, max_hw[0] - h)
-            image = torch.from_numpy(image).permute(0, 3, 1, 2)
-            image = F.pad(image, pad_param, self.mode, self.value)
-            images[i] = image.permute(0, 2, 3, 1).numpy()
+            image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
+            image_ = F.pad(image_, pad_param, self.mode, self.value)
+            images[i] = image_.permute(0, 2, 3, 1).numpy()
         return images
