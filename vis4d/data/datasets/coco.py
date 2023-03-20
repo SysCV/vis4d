@@ -315,7 +315,7 @@ class COCO(Dataset, CacheMappingMixin):
             if self.with_sem_masks:
                 seg_masks, _ = (
                     mask_tensor * np.array(classes)[:, None, None]
-                ).max(dim=0)
+                ).max(axis=0)
                 seg_masks = seg_masks.astype(np.int64)
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
                 dict_data[K.segmentation_masks] = seg_masks[None]
