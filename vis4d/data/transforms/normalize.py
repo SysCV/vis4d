@@ -1,3 +1,4 @@
+# pylint: disable=no-member,unexpected-keyword-arg
 """Normalize Transform."""
 from __future__ import annotations
 
@@ -68,10 +69,10 @@ class BatchNormalizeImages:
 
     def __call__(self, images: list[NDArrayF32]) -> list[NDArrayF32]:
         """Normalize images tensor."""
-        transform = NormalizeImage(
+        transform = NormalizeImage(  # type: ignore
             in_keys=["img"],
             out_keys=["img"],
-            sensors=self.sensors,
+            sensors=self.sensors,  # type: ignore
             mean=self.mean,
             std=self.std,
             epsilon=self.epsilon,

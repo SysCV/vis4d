@@ -158,7 +158,9 @@ class ResizeIntrinsics:
         self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
     ) -> NDArrayF32:
         """Scale camera intrinsics when resizing."""
-        return intrinsics[:2] * scale_factor
+        intrinsics[0, 0] *= scale_factor[0]
+        intrinsics[1, 1] *= scale_factor[1]
+        return intrinsics
 
 
 @Transform(
