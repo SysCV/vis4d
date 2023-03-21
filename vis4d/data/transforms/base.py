@@ -1,224 +1,358 @@
 """Basic data augmentation class."""
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TypeVar
+from collections.abc import Callable, Sequence
+from typing import TypeVar, no_type_check
 
 import torch
 
 from vis4d.common.dict import get_dict_nested, set_dict_nested
-from vis4d.data.const import CommonKeys
 from vis4d.data.typing import DictData
+
+TFunctor = TypeVar("TFunctor", bound=object)  # pylint: disable=invalid-name
+TransformFunction = Callable[[DictData], DictData]
+BatchTransformFunction = Callable[[list[DictData]], list[DictData]]
+TInput = TypeVar("TInput")  # pylint: disable=invalid-name
 
 
 class Transform:
-    """Decorator for transforms, which adds `in_keys` and `out_keys`.
+    """Transforms Decorator.
 
-    This decorator defines which keys are input to the transformation function
-    and which keys are overwritten in the data dictionary by the output of
-    the transformation.
+    This class stores which `in_keys` are input to a transformation function
+    and which `out_keys` are overwritten in the data dictionary by the output
+    of this transformation.
     Nested keys in the data dictionary can be accessed via key.subkey1.subkey2
-
-    Example:
-        >>> @Transform(in_keys=["image"], out_keys=["image"])
-        >>> def my_transform(option_a, option_b):
-        >>>     def _transform(image):
-        >>>         return do_transform(image)
-        >>>     return _transform
-
+    If any of `in_keys` is 'data', the full data dictionary will be forwarded
+    to the transformation.
+    If the only entry in `out_keys` is 'data', the full data dictionary will
+    be updated with the return value of the transformation.
     For the case of multi-sensor data, the sensors that the transform should be
     applied can be set via the 'sensors' attribute. By default, we assume
-    single sensor data (DictData).
+    a transformation is applied to all sensors.
+    This class will add a 'apply_to_data' method to a given Functor which is
+    used to call it on a DictData object. NOTE: This is an issue for static
+    checking and is not recognized by pylint. It will usually be called in the
+    compose() function and will not be called directly.
+
+    Example:
+        >>> @Transform(in_keys="images", out_keys="images")
+        >>> class MyTransform:
+        >>>     def __call__(images: np.array) -> np.array:
+        >>>         image = do_something(images)
+        >>>         return image
+        >>> my_transform = MyTransform()
+        >>> data = my_transform.apply_to_data(data)
     """
 
     def __init__(
         self,
-        in_keys: tuple[str, ...] = (CommonKeys.images,),
-        out_keys: tuple[str, ...] = (CommonKeys.images,),
-        sensors: None | tuple[str, ...] = None,
-        with_data: bool = False,
-    ):
-        """Creates an instance of the class.
+        in_keys: Sequence[str] | str,
+        out_keys: Sequence[str] | str,
+        sensors: Sequence[str] | str | None = None,
+    ) -> None:
+        """Creates an instance of Transform.
 
         Args:
-            in_keys (tuple[str, ...], optional): Input keys in the data
-                dictionary. Nested keys are separated by '.', e.g.,
-                metadata.image_size. Defaults to (COMMON_KEYS.images,).
-            out_keys (tuple[str, ...], optional): Output keys (possibly
-                nested). Defaults to (COMMON_KEYS.images,).
-            sensors (None | tuple[str, ...], optional): This field indicates
-                which sensors the transform should be applied to. Defaults to
-                None.
-            with_data (bool, optional): Pass the full data dict as auxiliary
-                input. Defaults to False.
+            in_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remapeed to
+                another key. Defaults to None.
+            out_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remaped to
+                another key. Defaults to None.
+            sensors (Sequence[str] | str | None, optional): Specifies the
+                sensors this transformation should be applied to. If None, it
+                will be applied to all available sensors. Defaults to None.
         """
-        assert isinstance(in_keys, (list, tuple))
-        assert isinstance(out_keys, (list, tuple))
-        assert isinstance(sensors, (list, tuple)) or sensors is None
+        if isinstance(in_keys, str):
+            in_keys = [in_keys]
         self.in_keys = in_keys
+
+        if isinstance(out_keys, str):
+            out_keys = [out_keys]
         self.out_keys = out_keys
+
+        if isinstance(sensors, str):
+            sensors = [sensors]
         self.sensors = sensors
-        self.with_data = with_data
 
-    def __call__(self, orig_get_transform_fn):
-        """Wrap function with a handler for input / output keys."""
+    @no_type_check
+    def __call__(self, transform: TFunctor) -> TFunctor:
+        """Add in_keys / out_keys / sensors / apply_to_data attributes.
 
-        def get_transform_fn(
-            *args,
-            in_keys=self.in_keys,
-            out_keys=self.out_keys,
-            sensors=self.sensors,
-            **kwargs,
-        ):
-            orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
+        Args:
+            transform (TFunctor): A given Functor.
 
-            def _transform_fn(data):  # TODO multi sensor error msg improve
-                in_data = [
-                    get_dict_nested(data, key.split(".")) for key in in_keys
-                ]
-                # Optionally allow the function to get the full data dict as
-                # aux input.
-                if self.with_data:
-                    result = orig_transform_fn(*in_data, data=data)
-                else:
-                    result = orig_transform_fn(*in_data)
-                if len(out_keys) == 1:
+        Returns:
+            TFunctor: The decorated Functor.
+        """
+        original_init = transform.__init__
+
+        def apply_to_data(self_, input_data: DictData) -> DictData:
+            """Wrap function with a handler for input / output keys.
+
+            We use the specified in_keys in order to extract the positional
+            input arguments of a function from the data dictionary, and the
+            out_keys to replace the corresponding values in the output
+            dictionary.
+            """
+
+            def _transform_fn(data: DictData) -> DictData:
+                in_data = []
+                for key in self_.in_keys:
+                    try:
+                        # Optionally allow the function to get the full data
+                        # dict as aux input.
+                        in_data += [
+                            get_dict_nested(data, key.split("."))
+                            if key != "data"
+                            else data
+                        ]
+                    except ValueError:
+                        # if a key does not exist in the input data, do not
+                        # apply the transformation.
+                        # TODO might need to raise a warning
+                        return data
+
+                result = self_(*in_data)
+                if len(self_.out_keys) == 1:
+                    if self_.out_keys[0] == "data":
+                        return result
                     result = [result]
-                for key, value in zip(out_keys, result):
+                for key, value in zip(self_.out_keys, result):
                     set_dict_nested(data, key.split("."), value)
                 return data
 
-            if sensors is not None:
+            if self_.sensors is not None:
+                for sensor in self_.sensors:
+                    input_data[sensor] = _transform_fn(input_data[sensor])
+            else:
+                input_data = _transform_fn(input_data)
+            return input_data
 
-                def _multi_sensor_transform_fn(data):
-                    for sensor in sensors:
-                        data[sensor] = _transform_fn(data[sensor])
-                    return data
+        def init(
+            *args,
+            in_keys: Sequence[str] = self.in_keys,
+            out_keys: Sequence[str] = self.out_keys,
+            sensors: Sequence[str] | None = self.sensors,
+            **kwargs,
+        ):
+            self_ = args[0]
+            original_init(*args, **kwargs)
+            self_.in_keys = in_keys
+            self_.out_keys = out_keys
+            self_.sensors = sensors
+            self_.apply_to_data = lambda *args, **kwargs: apply_to_data(
+                self_, *args, **kwargs
+            )
 
-                return _multi_sensor_transform_fn
-            return _transform_fn
-
-        return get_transform_fn
+        transform.__init__ = init
+        return transform
 
 
 class BatchTransform:
-    """Decorator for batch transforms, which adds `in_keys` and `out_keys`."""
+    """Decorator for batched Transforms.
+
+    This class works the same as the `Transform` decorator, but operates on the
+    batch level, i.e. it transforms a list of DictData.
+
+    Example:
+        >>> @BatchTransform(in_keys="images", out_keys="images")
+        >>> class MyTransform:
+        >>>     def __call__(images: list[np.array]) -> list[np.array]:
+        >>>         images = do_something(images)
+        >>>         return images
+        >>> my_transform = MyTransform()
+        >>> batch = my_transform.apply_to_data(batch)
+    """
 
     def __init__(
         self,
-        in_keys=(CommonKeys.images,),
-        out_keys=(CommonKeys.images,),
-        sensors: None | tuple[str, ...] = None,
-        with_data: bool = False,
-    ):
-        """Creates an instance of the class.
+        in_keys: Sequence[str] | str,
+        out_keys: Sequence[str] | str,
+        sensors: Sequence[str] | str | None = None,
+    ) -> None:
+        """Creates an instance of BatchTransform.
 
         Args:
-            in_keys (tuple[str, ...], optional): Input keys in the data
-                dictionary. Nested keys are separated by '.', e.g.,
-                metadata.image_size. Defaults to (COMMON_KEYS.images,).
-            out_keys (tuple[str, ...], optional): Output keys (possibly
-                nested). Defaults to (COMMON_KEYS.images,).
-            sensors (None | tuple[str, ...], optional): This field indicates
-                which sensors the transform should be applied to. Defaults to
-                None.
-            with_data (bool, optional): Pass the full data dict as auxiliary
-                input. Defaults to False.
+            in_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remapeed to
+                another key. Defaults to None.
+            out_keys (Sequence[str] | str): Specifies one or multiple (if any)
+                input keys of the data dictionary which should be remaped to
+                another key. Defaults to None.
+            sensors (Sequence[str] | str | None, optional): Specifies the
+                sensors this transformation should be applied to. If None, it
+                will be applied to all available sensors. Defaults to None.
         """
+        if isinstance(in_keys, str):
+            in_keys = [in_keys]
         self.in_keys = in_keys
+
+        if isinstance(out_keys, str):
+            out_keys = [out_keys]
         self.out_keys = out_keys
+
+        if isinstance(sensors, str):
+            sensors = [sensors]
         self.sensors = sensors
-        self.with_data = with_data
 
-    def __call__(self, orig_get_transform_fn):
-        """Wrap function with a handler for input / output keys."""
+    @no_type_check
+    def __call__(self, transform: TFunctor) -> TFunctor:
+        """Add in_keys / out_keys / sensors / apply_to_data attributes.
 
-        def get_transform_fn(
-            *args,
-            in_keys=self.in_keys,
-            out_keys=self.out_keys,
-            sensors=self.sensors,
-            **kwargs,
-        ):
-            orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
+        Args:
+            transform (TFunctor): A given Functor.
 
-            def _transform_fn(batch):
+        Returns:
+            TFunctor: The decorated Functor.
+        """
+        original_init = transform.__init__
+
+        def apply_to_data(
+            self_, input_batch: list[DictData]
+        ) -> list[DictData]:
+            """Wrap function with a handler for input / output keys.
+
+            We use the specified in_keys in order to extract the positional
+            input arguments of a function from the data dictionary, and the
+            out_keys to replace the corresponding values in the output
+            dictionary.
+            """
+
+            def _transform_fn(batch: list[DictData]) -> list[DictData]:
                 in_batch = []
-                for key in in_keys:
+                for key in self_.in_keys:
                     key_data = []
                     for data in batch:
-                        key_data.append(get_dict_nested(data, key.split(".")))
+                        try:
+                            # Optionally allow the function to get the full
+                            # data dict as aux input.
+                            key_data += [
+                                get_dict_nested(data, key.split("."))
+                                if key != "data"
+                                else data
+                            ]
+                        except ValueError:
+                            # if a key does not exist in the input data, do not
+                            # apply the transformation.
+                            # TODO might need to raise a warning
+                            return batch
                     in_batch.append(key_data)
-                # Optionally allow the function to get the full data dict as
-                # aux input.
-                if self.with_data:
-                    result = orig_transform_fn(*in_batch, data=batch)
-                else:
-                    result = orig_transform_fn(*in_batch)
 
-                if len(self.out_keys) == 1:
+                result = self_(*in_batch)
+                if len(self_.out_keys) == 1:
+                    if self_.out_keys[0] == "data":
+                        return result
                     result = [result]
-                for key, values in zip(out_keys, result):
+                for key, values in zip(self_.out_keys, result):
                     for data, value in zip(batch, values):
                         set_dict_nested(data, key.split("."), value)
                 return batch
 
-            if sensors is not None:
+            if self_.sensors is not None:
+                for sensor in self_.sensors:
+                    batch_sensor = _transform_fn(
+                        [d[sensor] for d in input_batch]
+                    )
+                    for i, d in enumerate(batch_sensor):
+                        input_batch[i][sensor] = d
+            else:
+                input_batch = _transform_fn(input_batch)
+            return input_batch
 
-                def _multi_sensor_transform_fn(batch):
-                    for sensor in sensors:
-                        batch_sensor = _transform_fn(
-                            [d[sensor] for d in batch]
-                        )
-                        for i, d in enumerate(batch_sensor):
-                            batch[i][sensor] = d
-                    return batch
+        def init(
+            *args,
+            in_keys: Sequence[str] = self.in_keys,
+            out_keys: Sequence[str] = self.out_keys,
+            sensors: Sequence[str] | None = self.sensors,
+            **kwargs,
+        ):
+            self_ = args[0]
+            original_init(*args, **kwargs)
+            self_.in_keys = in_keys
+            self_.out_keys = out_keys
+            self_.sensors = sensors
+            self_.apply_to_data = lambda *args, **kwargs: apply_to_data(
+                self_, *args, **kwargs
+            )
 
-                return _multi_sensor_transform_fn
-            return _transform_fn
-
-        return get_transform_fn
+        transform.__init__ = init
+        return transform
 
 
-TInput = TypeVar("TInput")  # pylint: disable=invalid-name
-
-
-def compose(
-    transforms: list[Callable[[TInput], TInput]]
-) -> Callable[[TInput], TInput]:
+def compose(transforms: list[TFunctor]) -> TransformFunction:
     """Compose transformations.
 
-    This function composes a given set of transformation functions into a
-    single function.
+    This function composes a given set of transformation functions, i.e. any
+    functor decorated with Transform, into a single transform.
     """
 
-    def _preprocess_func(data: TInput) -> TInput:
+    def _preprocess_func(data: DictData) -> DictData:
         for op in transforms:
-            data = op(data)
+            data = op.apply_to_data(data)  # type: ignore
         return data
 
     return _preprocess_func
 
 
+def compose_batch(transforms: list[TFunctor]) -> BatchTransformFunction:
+    """Compose batch transformations.
+
+    This function composes a given set of batch transformation functions,
+    i.e. any functor decorated with BatchTranform, into a single transform.
+    """
+
+    def _preprocess_func(batch: list[DictData]) -> list[DictData]:
+        for op in transforms:
+            batch = op.apply_to_data(batch)  # type: ignore
+        return batch
+
+    return _preprocess_func
+
+
 def random_apply(
-    transforms: list[Callable[[TInput], TInput]], probability: float = 0.5
-) -> Callable[[TInput], TInput]:
+    transforms: list[TFunctor], probability: float = 0.5
+) -> TransformFunction:
     """Apply given transforms at random with given probability.
 
     Args:
-        transforms (list[Callable[[TInput], TInput]]): Transformations that
+        transforms (list[TFunctor]): Transformations that
             are applied with a given probability.
         probability (float, optional): Probability to apply transformations.
             Defaults to 0.5.
 
     Returns:
-        Callable[[TInput], TInput]]: The randomized transformations.
+        TransformFunction: The randomized transformations.
     """
 
     def _apply(data: DictData) -> DictData:
         if torch.rand(1) < probability:
             for op in transforms:
-                data = op(data)
+                data = op.apply_to_data(data)  # type: ignore
         return data
+
+    return _apply
+
+
+def random_apply_batch(
+    transforms: list[TFunctor], probability: float = 0.5
+) -> BatchTransformFunction:
+    """Apply given batch transforms at random with given probability.
+
+    Args:
+        transforms (list[TFunctor]): Batch transformations that
+            are applied with a given probability.
+        probability (float, optional): Probability to apply transformations.
+            Defaults to 0.5.
+
+    Returns:
+        BatchTransformFunction: The randomized transformations.
+    """
+
+    def _apply(batch: list[DictData]) -> list[DictData]:
+        if torch.rand(1) < probability:
+            for op in transforms:
+                batch = op.apply_to_data(batch)  # type: ignore
+        return batch
 
     return _apply

@@ -195,7 +195,7 @@ def generate_masks(
 
 
 def isclose_on_all_indices(
-    tensor: torch.Tensor,
+    array: torch.Tensor,
     indices: torch.Tensor,
     expected: torch.Tensor,
     atol: float = 1e-4,

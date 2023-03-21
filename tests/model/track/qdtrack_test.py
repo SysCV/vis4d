@@ -8,8 +8,10 @@ from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
-from vis4d.data.transforms.normalize import normalize_image
-from vis4d.data.transforms.pad import pad_image
+from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack, TrackOut
 
@@ -36,9 +38,9 @@ class QDTrackTest(unittest.TestCase):
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         test_data = DataPipe(
             BDD100K(data_root, annotations, config_path=config),
-            preprocess_fn=normalize_image(),
+            preprocess_fn=compose([NormalizeImage()]),
         )
-        batch_fn = pad_image()
+        batch_fn = compose_batch([PadImages(), ToTensor()])
         batch_size = 2
         test_loader = build_inference_dataloaders(
             test_data,

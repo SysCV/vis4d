@@ -8,12 +8,17 @@ from typing import Union
 
 import numpy as np
 import torch
-from torch import Tensor
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import DictStrAny, ListAny, NDArrayUI8
+from vis4d.common.typing import (
+    DictStrAny,
+    ListAny,
+    NDArrayF32,
+    NDArrayI64,
+    NDArrayUI8,
+)
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
@@ -52,38 +57,29 @@ if SCALABEL_AVAILABLE:
     )
 
 
-def load_intrinsics(intrinsics: Intrinsics) -> Tensor:
+def load_intrinsics(intrinsics: Intrinsics) -> NDArrayF32:
     """Transform intrinsic camera matrix according to augmentations."""
-    intrinsic_matrix = torch.from_numpy(
-        get_matrix_from_intrinsics(intrinsics)
-    ).to(torch.float32)
-    return intrinsic_matrix
+    return get_matrix_from_intrinsics(intrinsics).astype(np.float32)
 
 
-def load_extrinsics(extrinsics: Extrinsics) -> Tensor:
+def load_extrinsics(extrinsics: Extrinsics) -> NDArrayF32:
     """Transform extrinsics from Scalabel to Vis4D."""
-    extrinsics_matrix = torch.from_numpy(
-        get_matrix_from_extrinsics(extrinsics)
-    ).to(torch.float32)
-    return extrinsics_matrix
+    return get_matrix_from_extrinsics(extrinsics).astype(np.float32)
 
 
-def load_image(url: str, backend: DataBackend) -> Tensor:
+def load_image(url: str, backend: DataBackend) -> NDArrayF32:
     """Load image tensor from url."""
     im_bytes = backend.get(url)
     image = im_decode(im_bytes)
-    return torch.as_tensor(
-        np.ascontiguousarray(image.transpose(2, 0, 1)),
-        dtype=torch.float32,
-    ).unsqueeze(0)
+    return np.ascontiguousarray(image, dtype=np.float32)[None]
 
 
-def load_pointcloud(url: str, backend: DataBackend) -> Tensor:
+def load_pointcloud(url: str, backend: DataBackend) -> NDArrayF32:
     """Load pointcloud tensor from url."""
     assert url.endswith(".ply"), "Only PLY files are supported now."
     ply_bytes = backend.get(url)
     pointcloud = ply_decode(ply_bytes)
-    return torch.as_tensor(pointcloud, dtype=torch.float32)
+    return pointcloud.astype(np.float32)
 
 
 def instance_ids_to_global(
@@ -277,7 +273,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         data: DictData = {}
         if frame.url is not None and K.images in self.keys_to_load:
             image = load_image(frame.url, self.data_backend)
-            input_hw = (image.shape[2], image.shape[3])
+            input_hw = (image.shape[1], image.shape[2])
             data[K.images] = image
             data[K.original_hw] = input_hw
             data[K.input_hw] = input_hw
@@ -402,7 +398,7 @@ def boxes3d_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
     label_id_to_idx: dict[str, int] | None = None,
-) -> tuple[Tensor, Tensor, Tensor]:
+) -> tuple[NDArrayF32, NDArrayI64, NDArrayI64]:
     """Convert 3D bounding boxes from scalabel format to Vis4D."""
     box_list, cls_list, idx_list = [], [], []
     for i, label in enumerate(labels):
@@ -427,13 +423,13 @@ def boxes3d_from_scalabel(
 
     if len(box_list) == 0:
         return (
-            torch.empty(0, 10),
-            torch.empty(0, dtype=torch.long),
-            torch.empty(0, dtype=torch.long),
+            np.empty((0, 10), dtype=np.float32),
+            np.empty((0,), dtype=np.int64),
+            np.empty((0,), dtype=np.int64),
         )
-    box_tensor = torch.tensor(box_list, dtype=torch.float32)
-    class_ids = torch.tensor(cls_list, dtype=torch.long)
-    track_ids = torch.tensor(idx_list, dtype=torch.long)
+    box_tensor = np.array(box_list, dtype=np.float32)
+    class_ids = np.array(cls_list, dtype=np.int64)
+    track_ids = np.array(idx_list, dtype=np.int64)
     return box_tensor, class_ids, track_ids
 
 
@@ -441,7 +437,7 @@ def boxes2d_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
     label_id_to_idx: dict[str, int] | None = None,
-) -> tuple[Tensor, Tensor, Tensor]:
+) -> tuple[NDArrayF32, NDArrayI64, NDArrayI64]:
     """Convert from scalabel format to Vis4D.
 
     NOTE: The box definition in Scalabel includes x2y2 in the box area, whereas
@@ -455,7 +451,7 @@ def boxes2d_from_scalabel(
             id to index. Defaults to None.
 
     Returns:
-        tuple[Tensor, Tensor, Tensor]: boxes, classes, track_ids
+        tuple[NDArrayF32, NDArrayI64, NDArrayI64]: boxes, classes, track_ids
     """
     box_list, cls_list, idx_list = [], [], []
     for i, label in enumerate(labels):
@@ -477,14 +473,14 @@ def boxes2d_from_scalabel(
 
     if len(box_list) == 0:
         return (
-            torch.empty(0, 4),
-            torch.empty(0, dtype=torch.long),
-            torch.empty(0, dtype=torch.long),
+            np.empty((0, 4), dtype=np.float32),
+            np.empty((0,), dtype=np.int64),
+            np.empty((0,), dtype=np.int64),
         )
 
-    box_tensor = torch.tensor(box_list, dtype=torch.float32)
-    class_ids = torch.tensor(cls_list, dtype=torch.long)
-    track_ids = torch.tensor(idx_list, dtype=torch.long)
+    box_tensor = np.array(box_list, dtype=np.float32)
+    class_ids = np.array(cls_list, dtype=np.int64)
+    track_ids = np.array(idx_list, dtype=np.int64)
     return box_tensor, class_ids, track_ids
 
 
@@ -493,7 +489,7 @@ def instance_masks_from_scalabel(
     class_to_idx: dict[str, int],
     image_size: ImageSize | None = None,
     bg_as_class: bool = False,
-) -> Tensor:
+) -> NDArrayUI8:
     """Convert from scalabel format to Vis4D.
 
     Args:
@@ -504,7 +500,7 @@ def instance_masks_from_scalabel(
             Defaults to False.
 
     Returns:
-        Tensor: instance masks.
+        NDArrayUI8: instance masks.
     """
     bitmask_list = []
     if bg_as_class:
@@ -539,9 +535,8 @@ def instance_masks_from_scalabel(
             )
         bitmask_list.append(np.logical_not(foreground))
     if len(bitmask_list) == 0:  # pragma: no cover
-        return torch.empty(0, 0, 0, dtype=torch.uint8)
-    mask_tensor = torch.tensor(np.array(bitmask_list), dtype=torch.uint8)
-    return mask_tensor
+        return np.empty((0, 0, 0), dtype=np.uint8)
+    return np.array(bitmask_list, dtype=np.uint8)
 
 
 def semantic_masks_from_scalabel(
@@ -550,6 +545,6 @@ def semantic_masks_from_scalabel(
     label_id_to_idx: dict[str, int] | None = None,
     frame_size: ImageSize | None = None,
     bg_as_class: bool = False,
-) -> Tensor:
+) -> NDArrayUI8:
     """Convert from scalabel format to Vis4D."""
     raise NotImplementedError  # pragma: no cover

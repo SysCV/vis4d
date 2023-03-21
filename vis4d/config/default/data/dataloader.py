@@ -13,6 +13,7 @@ from vis4d.data.loader import (
     build_train_dataloader,
     default_collate,
 )
+from vis4d.data.transforms.pad import PadImages
 from vis4d.data.typing import DictData
 
 
@@ -22,16 +23,7 @@ def default_image_dataloader(
     num_samples_per_gpu: int | FieldReference = 1,
     num_workers_per_gpu: int | FieldReference = 4,
     shuffle: bool | FieldReference = False,
-    # TODO: Currently, resolving transforms is broken if we directly pass
-    # the function instead of the name to resolve, since resolving
-    # the function path with the decorator converts e.g. 'pad_image' which
-    # is 'BatchTransform.__call__.<locals>.get_transform_fn'
-    # to  vis4d.data.transforms.base.get_transform_fn.
-    # We need to use to full config path for now. Should probably be fixed
-    # with the transform update
-    batchprocess_cfg: ConfigDict = class_config(
-        "vis4d.data.transforms.pad.pad_image"
-    ),
+    batchprocess_cfg: ConfigDict = class_config(PadImages),
     data_pipe: type = DataPipe,
     train: bool = True,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
