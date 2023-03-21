@@ -56,11 +56,11 @@ def get_config() -> ConfigDict:
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.num_epochs = 60
-    params.batch_size = 64
+    params.num_epochs = 300
+    params.batch_size = 256
     params.lr = 1e-3
-    params.weight_decay = 0.05
-    params.augment_proba = 0.5
+    params.weight_decay = 0.1
+    params.augment_proba = 1.0
     params.num_classes = 1000
     params.grad_norm_clip = 1.0
     config.params = params
@@ -80,9 +80,15 @@ def get_config() -> ConfigDict:
     )
     aug_cfg = (
         class_config(
-            "vis4d.data.transforms.flip.flip_image",
-            in_keys=(K.images,),
-            out_keys=(K.images,),
+            "vis4d.data.transforms.base.random_apply",
+            transforms=(
+                class_config(
+                    "vis4d.data.transforms.flip.flip_image",
+                    in_keys=(K.images,),
+                    out_keys=(K.images,),
+                ),
+            ),
+            probability=0.5,
         ),
         class_config(
             "vis4d.data.transforms.autoaugment.randaug",

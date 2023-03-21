@@ -20,6 +20,7 @@ from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer
@@ -32,6 +33,9 @@ _MODE = flags.DEFINE_string(
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
+)
+_LOAD_FROM = flags.DEFINE_string(
+    "load-from", default="", help="If set, load from a specified checkpoint."
 )
 
 
@@ -147,10 +151,15 @@ def main(  # type:ignore # pylint: disable=unused-argument
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
     data_module = DataModule(config.data)
 
-    # Checkpoint path
-    ckpt_path = config.get("pl_ckpt", None)
+    # Load command-line specified checkpoint
+    if _LOAD_FROM.value:
+        if osp.isfile(_LOAD_FROM.value):
+            load_model_checkpoint(model, _LOAD_FROM.value)
+        else:
+            rank_zero_info(f"Checkpoint {_LOAD_FROM.value} does not exist!")
 
     # Resume training
+    ckpt_path = config.get("pl_ckpt", None)
     if config.get("resume", False):
         if ckpt_path is None:
             ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
