@@ -4,15 +4,18 @@ from __future__ import annotations
 import copy
 import unittest
 
+import numpy as np
 import pytest
 import torch
 
 from vis4d.data.const import CommonKeys
 from vis4d.data.transforms.point_sampling import (
+    GenerateSamplingIndices,
+    SamplePoints,
     sample_from_block,
     sample_points_block_full_coverage,
-    sample_points_random,
 )
+from vis4d.data.typing import DictData
 
 
 class TestSampleFromBlock(unittest.TestCase):
@@ -87,27 +90,6 @@ class TestSampleFromBlock(unittest.TestCase):
             ).item()
         )
 
-    def test_sampler(self) -> None:
-        """Test the Class implementation of the sampling functional."""
-        # pylint: disable=unexpected-keyword-arg
-        sampler = sample_points_random(
-            num_pts=500,
-            in_keys=(
-                CommonKeys.points3d,
-                CommonKeys.semantics3d,
-                CommonKeys.colors3d,
-            ),
-            out_keys=(
-                CommonKeys.points3d,
-                CommonKeys.semantics3d,
-                CommonKeys.colors3d,
-            ),
-        )
-        data_sampled = sampler(self.data)
-        self.assertEqual(data_sampled[CommonKeys.points3d].size(0), 500)
-        self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 500)
-        self.assertEqual(data_sampled[CommonKeys.colors3d].size(0), 500)
-
     def test_full_scale_block_sampling(self) -> None:
         """Tests if all points are sampled when using full coverage."""
         # pylint: disable=unexpected-keyword-arg
@@ -143,56 +125,25 @@ class TestSampleFromBlock(unittest.TestCase):
 class RandomPointSamplingTest(unittest.TestCase):
     """Test point sampling."""
 
-    n_scene_pts = 1000
-    data: dict[str, torch.Tensor] = {}
-
-    @pytest.fixture(autouse=True)
-    def initdata(self) -> None:
-        """Loads dummy data."""
-        self.data = {
-            CommonKeys.points3d: torch.rand(self.n_scene_pts, 3),
-            CommonKeys.colors3d: torch.rand(self.n_scene_pts, 3),
-            CommonKeys.semantics3d: torch.rand(self.n_scene_pts, 1),
-        }
-
     def test_sample_less_pts(self) -> None:
         """Test if sampling works when sampling less pts than in the scene."""
-        # pylint: disable=unexpected-keyword-arg
-        sampler = sample_points_random(
-            num_pts=100,
-            in_keys=(CommonKeys.points3d, CommonKeys.semantics3d),
-            out_keys=(
-                CommonKeys.points3d,
-                CommonKeys.semantics3d,
-            ),
-        )
-        data_sampled = sampler(self.data)
-        self.assertEqual(data_sampled[CommonKeys.points3d].size(0), 100)
-        self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 100)
-        self.assertEqual(
-            data_sampled[CommonKeys.colors3d].size(0), self.n_scene_pts
-        )
+
+        data: DictData = dict(points3d=np.random.rand(100, 3))
+        tr1 = GenerateSamplingIndices(num_idxs=10)
+        tr2 = SamplePoints()
+        with_idxs = tr1.apply_to_data(data)
+        sampled_points = tr2.apply_to_data(with_idxs)
+        self.assertEqual(sampled_points["points3d"].shape[0], 10)
 
     def test_sample_more_pts(self) -> None:
         """Tests if sampling works with more points.
 
         It uses more points than given in the scene.
         """
-        # pylint: disable=unexpected-keyword-arg
-        sampler = sample_points_random(
-            num_pts=10000,
-            in_keys=(
-                CommonKeys.points3d,
-                CommonKeys.semantics3d,
-                CommonKeys.colors3d,
-            ),
-            out_keys=(
-                CommonKeys.points3d,
-                CommonKeys.semantics3d,
-                CommonKeys.colors3d,
-            ),
-        )
-        data_sampled = sampler(self.data)
-        self.assertEqual(data_sampled[CommonKeys.points3d].size(0), 10000)
-        self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 10000)
-        self.assertEqual(data_sampled[CommonKeys.colors3d].size(0), 10000)
+
+        data: DictData = dict(points3d=np.random.rand(100, 3))
+        tr1 = GenerateSamplingIndices(num_idxs=1000)
+        tr2 = SamplePoints()
+        with_idxs = tr1.apply_to_data(data)
+        sampled_points = tr2.apply_to_data(with_idxs)
+        self.assertEqual(sampled_points["points3d"].shape[0], 1000)
