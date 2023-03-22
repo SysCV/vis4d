@@ -1,10 +1,7 @@
-"""Contains Different Sampling methods to downsample pointclouds."""
+"""Contains different Sampling Trasnforms for pointclouds."""
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import numpy as np
-import torch
 
 from vis4d.common.typing import NDArrayInt, NDArrayNumber
 from vis4d.data.const import CommonKeys as CK
@@ -33,7 +30,7 @@ class GenerateSamplingIndices:
         self.num_idxs = num_idxs
 
     def __call__(self, data: NDArrayNumber) -> NDArrayInt:
-        """Samples n_ num_idxs from the first dim of the provided data tensor.
+        """Samples num_idxs from the first dim of the provided data tensor.
 
         If num_idxs > data.shape[0], the indices will be upsampled with
         replacement. If num_idxs < data.shape[0], the indices will be sampled
@@ -60,46 +57,113 @@ class GenerateSamplingIndices:
             return np.random.choice(len(data), self.num_idxs, replace=False)
 
 
-def sample_from_block(
-    n_pts: int,
-    data: torch.Tensor,
-    center_xyz: torch.Tensor,
-    block_size: torch.Tensor,
-    ignore_axis: Sequence[int] = (2,),
-) -> tuple[int, torch.Tensor]:
-    """Samples point indices inside a box.
+@Transform(CK.points3d, "transforms.sampling_idxs")
+class GenerateBlockSamplingIndices:
+    """Samples num_idxs from the first dim of the provided data tensor.
 
-    Args:
-        n_pts (int): How many points to sample
-        data: (Tensor): Data containing pointwise information. Shape [n_pts, x]
-        center_xyz (Tensor): Center point around which to sample (x,y,z) [3]
-        block_size (Tensor): Block length in each direction (x,y,z) [3]
-        ignore_axis (Sequence[int]): If specified, this axis will be ignored
-            and all points along this axis will be considered
-
-    Returns:
-        tuple[int, Tensor]: Number of points that were in the box and
-                            the selected indices of shape [n_pts]
+    Makes sure that the sampled points are within a block of size block_size
+    centered around center_xyz. If num_idxs > data.shape[0], the indices will
+    be upsampled with replacement. If num_idxs < data.shape[0], the indices
+    will be sampled without replacement.
     """
-    min_data = torch.min(data, dim=0).values
-    max_data = torch.max(data, dim=0).values
-    max_box = center_xyz + block_size / 2.0
-    min_box = center_xyz - block_size / 2.0
-    for axis in ignore_axis:
-        max_box[axis] = max_data[axis]
-        min_box[axis] = min_data[axis]
 
-    box_mask = torch.logical_and(
-        torch.all(data >= min_box, dim=1), torch.all(data <= max_box, dim=1)
-    )
-    if box_mask.sum().item() == 0:  # No valid data sample found!
-        return 0, torch.tensor([], dtype=torch.int)
+    def __init__(
+        self,
+        num_idxs: int,
+        block_dimensions: tuple[float, float, float],
+        center_point: tuple[float, float, float] | None = None,
+    ) -> None:
+        """Creates an instance of the class.
 
-    selected_idxs_masked = sample_indices(n_pts, data[box_mask, ...])
+        Args:
+            num_idxs (int): Number of indices to sample
+            block_dimensions (tuple[float, float, float]): Dimensions of the
+                block in x,y,z
+            center_point (tuple[float, float, float] | None): Center point of
+                the block in x,y,z. If None, the center will be sampled
+                randomly.
+        """
+        self.block_dimensions = np.asarray(block_dimensions)
+        self.center_point = np.asarray(center_point)
 
-    masked_idxs = torch.arange(data.shape[0])[box_mask]
-    selected_idxs_global = masked_idxs[selected_idxs_masked]
-    return int(torch.sum(box_mask).item()), selected_idxs_global
+        self._idx_sampler = GenerateSamplingIndices(num_idxs)
+
+    def __call__(self, data: NDArrayNumber) -> NDArrayInt:
+        """Samples num_idxs from the first dim of the provided data tensor."""
+        if self.center_point is None:
+            center_point = data[np.random.choice(len(data), 1)]
+        else:
+            center_point = self.center_point
+
+        max_box = center_point + self.block_dimensions / 2.0
+        min_box = center_point - self.block_dimensions / 2.0
+
+        box_mask = np.logical_and(
+            np.all(data >= min_box, axis=1),
+            np.all(data <= max_box, axis=1),
+        )
+        if box_mask.sum().item() == 0:  # No valid data sample found!
+            return np.array([], dtype=np.int32)
+
+        idxs = self._idx_sampler(data[box_mask, ...])
+
+        masked_idxs = np.arange(data.shape[0])[box_mask]
+        selected_idxs_global = masked_idxs[idxs]
+        return selected_idxs_global
+
+
+@Transform(CK.points3d, "transforms.sampling_idxs")
+class GenFullCovBlockSamplingIndices:
+    """Subsamples the pointcloud using blocks of a given size."""
+
+    def __init__(
+        self,
+        num_pts: int,
+        block_dimensions: tuple[float, float, float],
+        min_pts: int = 32,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            num_pts (int): Number of points to sample for each block
+            block_dimensions (tuple[float, float, float]): Dimensions of the
+                block in x,y,z
+            min_pts (int): Minimum number of points in a block to be considered
+                valid
+        """
+        self.num_pts = num_pts
+        self.min_pts = min_pts
+        self.block_dimensions = np.asarray(block_dimensions)
+        self._idx_sampler = GenerateBlockSamplingIndices(
+            num_idxs=self.num_pts,
+            block_dimensions=block_dimensions,
+        )
+
+    def __call__(self, coordinates: NDArrayNumber) -> NDArrayInt:
+        # Get bounding box for sampling
+        coord_min, coord_max = (
+            np.min(coordinates, axis=0),
+            np.max(coordinates, axis=0),
+        )
+        sampled_idxs = []
+        hwl = coord_max - coord_min
+        num_blocks = np.ceil(hwl / self.block_dimensions).astype(np.int32)
+
+        for idx_x in range(num_blocks[0]):
+            for idx_y in range(num_blocks[1]):
+                for idx_z in range(num_blocks[2]):
+                    center_pt = (
+                        coord_min
+                        + np.array([idx_x, idx_y, idx_z])
+                        * self.block_dimensions
+                        + self.block_dimensions / 2.0
+                    )
+
+                    self._idx_sampler.center_point = center_pt
+                    selected_idxs = self._idx_sampler(coordinates)
+                    if selected_idxs.sum() >= self.min_pts:
+                        sampled_idxs.append(selected_idxs)
+        return np.stack(sampled_idxs)
 
 
 @Transform([CK.points3d, "transforms.sampling_idxs"], CK.points3d)
@@ -111,146 +175,18 @@ class SamplePoints:
 
     This transform is used to sample points from a pointcloud. The indices
     are generated by the GenerateSamplingIndices transform.
+
     """
 
     def __call__(
         self, data: NDArrayNumber, selected_idxs: NDArrayInt
     ) -> NDArrayNumber:
-        """Returns data[selected_idxs]."""
-        return data[selected_idxs]
+        """Returns data[selected_idxs].
 
-
-@Transform(in_keys=(CK.points3d,), out_keys=(CK.points3d,))
-def sample_points_block_random(
-    num_pts: int = 1024,
-    min_pts: int = 32,
-    block_size: Sequence[float] = (1.0, 1.0, 1.0),
-    max_tries: int = 100,
-    center: bool = False,
-):
-    """Subsamples points around a randomly chosen block.
-
-    Samples 'num_pts' (with repetition if needed) around a random block from
-    the provided data tensors.
-
-    Args:
-        num_pts (int): How many points to sample
-        min_pts (int): Only sample points if at least these many points
-                       are inside it
-        block_size (Sequence[float]): Dimension of block from which to sample
-            (xyz)
-        max_tries (bool): Maximum of tries to sample a block before giving up
-        center (bool): If true, substracts center point coordiantes
-    """
-
-    def _sample_points_block_random(
-        coordinates: torch.Tensor, *args: torch.Tensor
-    ) -> torch.Tensor | list[torch.Tensor]:
-        """Apply point sampling."""
-        for _ in range(max_tries):
-            center_pt_idx = torch.randperm(coordinates.shape[0])[0]
-            center_pt = coordinates[center_pt_idx, ...]
-            n_pts, selected_idxs = sample_from_block(
-                num_pts, coordinates, center_pt, torch.tensor(block_size)
-            )
-            # Found enough points
-            if n_pts >= min_pts:
-                break
-        sampled_coords = coordinates[selected_idxs, ...]
-        if center:
-            sampled_coords -= center_pt
-
-        if len(args) == 0:
-            return sampled_coords
-        return [sampled_coords] + [d[selected_idxs, ...] for d in args]
-
-    return _sample_points_block_random
-
-
-@Transform(
-    in_keys=(CK.points3d,),
-    out_keys=(CK.points3d,),
-)
-def sample_points_block_full_coverage(  # pylint: disable=invalid-name
-    n_pts_per_block: int = 1024,
-    min_pts_per_block: int = 1,
-    block_size: Sequence[float] = (1.0, 1.0, 1.0),
-):
-    """Subsamples the full pointcloud by regularly dividing it into blocks.
-
-    Divides a room into boxes of size 'block size' and samples 'num_pts'
-    (with repetition if needed from the provided data tensors for each block.
-    Boxes are only sampled at the xy plane.
-
-    Args:
-        n_pts_per_block (int): How many points to sample per block.
-        min_pts_per_block (int): Only sample points if at least these many
-            points are inside the block.
-        block_size (Sequence[float]): Dimension of block from which to
-            sample (xyz).
-    """
-
-    def _sample_points_block_full_coverage(  # pylint: disable=invalid-name
-        coordinates: torch.Tensor, *args: torch.Tensor
-    ) -> torch.Tensor | list[torch.Tensor]:
-        """Apply point sampling."""
-        # Get bounding box for sampling
-        coord_min, coord_max = (
-            torch.min(coordinates, dim=0).values,
-            torch.max(coordinates, dim=0).values,
-        )
-        hwl = coord_max - coord_min
-
-        block_size_torch = torch.tensor(block_size)
-
-        grid_idxs = (
-            torch.ceil((hwl - torch.tensor(block_size) / 2.0)) + 1
-        ).int()
-
-        sampled_coords = torch.zeros(
-            (0, coordinates.shape[1]), dtype=coordinates.dtype
-        )
-
-        other_sampled_pts = []
-        for d in args:
-            other_sampled_pts.append(
-                torch.zeros((0, d.shape[1]), dtype=d.dtype)
-                if len(d.shape) > 1
-                else torch.zeros((0), dtype=d.dtype)
-            )
-
-        for idx_x in range(int(grid_idxs[0].item())):
-            for idx_y in range(int(grid_idxs[1].item())):
-                center_pt = torch.tensor(
-                    [
-                        coord_min[0] + idx_x,
-                        coord_min[1] + idx_y,
-                        0,
-                    ],
-                    dtype=coordinates.dtype,
-                )
-
-                n_pts, sampled_idxs = sample_from_block(
-                    n_pts_per_block,
-                    coordinates,
-                    center_pt,
-                    block_size=block_size_torch,
-                )
-                if (
-                    n_pts < min_pts_per_block
-                ):  # Not enough points in this block
-                    continue
-                sampled_coords = torch.vstack(
-                    [sampled_coords, coordinates[sampled_idxs, ...]]
-                )
-
-                for idx, data in enumerate(other_sampled_pts):
-                    other_sampled_pts[idx] = torch.cat(
-                        [data, args[idx][sampled_idxs, ...]], dim=0
-                    )
-
-        if len(args) == 0:
-            return sampled_coords
-        return [sampled_coords] + other_sampled_pts
-
-    return _sample_points_block_full_coverage
+        If the provided indices have two dimension (i.e n_masks, 64), then
+        this operation indices the data n_masks times and returns an array
+        """
+        assert selected_idxs.ndim <= 2, "Indices must be 1D or 2D"
+        if selected_idxs.ndim == 2:
+            return np.stack([data[idxs, ...] for idxs in selected_idxs])
+        return data[selected_idxs, ...]
