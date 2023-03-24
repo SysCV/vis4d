@@ -17,8 +17,9 @@ from vis4d.data.loader import (
 )
 from vis4d.data.transforms import compose, mask, normalize, pad, resize
 from vis4d.data.transforms.point_sampling import (
-    sample_points_block_full_coverage,
-    sample_points_random,
+    GenerateBlockSamplingIndices,
+    GenFullCovBlockSamplingIndices,
+    SamplePoints,
 )
 from vis4d.data.typing import DictData
 

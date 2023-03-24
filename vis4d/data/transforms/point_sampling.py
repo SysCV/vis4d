@@ -4,12 +4,12 @@ from __future__ import annotations
 import numpy as np
 
 from vis4d.common.typing import NDArrayInt, NDArrayNumber
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
 
 
-@Transform(CK.points3d, "transforms.sampling_idxs")
+@Transform(K.points3d, "transforms.sampling_idxs")
 class GenerateSamplingIndices:
     """Samples n_ num_idxs from the first dim of the provided data tensor.
 
@@ -53,11 +53,10 @@ class GenerateSamplingIndices:
                     np.random.randint(0, len(data), self.num_idxs - len(data)),
                 ]
             )
-        else:
-            return np.random.choice(len(data), self.num_idxs, replace=False)
+        return np.random.choice(len(data), self.num_idxs, replace=False)
 
 
-@Transform(CK.points3d, "transforms.sampling_idxs")
+@Transform(K.points3d, "transforms.sampling_idxs")
 class GenerateBlockSamplingIndices:
     """Samples num_idxs from the first dim of the provided data tensor.
 
@@ -112,7 +111,7 @@ class GenerateBlockSamplingIndices:
         return selected_idxs_global
 
 
-@Transform(CK.points3d, "transforms.sampling_idxs")
+@Transform(K.points3d, "transforms.sampling_idxs")
 class GenFullCovBlockSamplingIndices:
     """Subsamples the pointcloud using blocks of a given size."""
 
@@ -166,7 +165,7 @@ class GenFullCovBlockSamplingIndices:
         return np.stack(sampled_idxs)
 
 
-@Transform([CK.points3d, "transforms.sampling_idxs"], CK.points3d)
+@Transform([K.points3d, "transforms.sampling_idxs"], K.points3d)
 class SamplePoints:
     """Subsamples points randomly.
 

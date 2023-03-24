@@ -19,7 +19,7 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.common import ArgsType
 
 from ..common.distributed import get_world_size
-from .const import CommonKeys as CK
+from .const import CommonKeys as K
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
 from .samplers import VideoInferenceSampler
@@ -40,9 +40,9 @@ def default_collate(batch: list[DictData]) -> DictData:
     # e.g. if batch[0] has annotations but batch[1] doesn't.
     for key in batch[0]:
         try:
-            if key in [CK.images, CK.segmentation_masks]:
+            if key in [K.images, K.segmentation_masks]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [CK.extrinsics, CK.intrinsics]:
+            elif key in [K.extrinsics, K.intrinsics]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
                 data[key] = [b[key] for b in batch]
