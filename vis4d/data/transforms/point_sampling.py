@@ -11,29 +11,29 @@ from .base import Transform
 
 @Transform(K.points3d, "transforms.sampling_idxs")
 class GenerateSamplingIndices:
-    """Samples n_ num_idxs from the first dim of the provided data tensor.
+    """Samples num_pts from the first dim of the provided data tensor.
 
-    If num_idxs > data.shape[0], the indices will be upsampled with
-    replacement. If num_idxs < data.shape[0], the indices will be sampled
+    If num_pts > data.shape[0], the indices will be upsampled with
+    replacement. If num_pts < data.shape[0], the indices will be sampled
     without replacement.
     """
 
     def __init__(
         self,
-        num_idxs: int,
+        num_pts: int,
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            num_idxs (int): Number of indices to sample
+            num_pts (int): Number of indices to sample
         """
-        self.num_idxs = num_idxs
+        self.num_pts = num_pts
 
     def __call__(self, data: NDArrayNumber) -> NDArrayInt:
-        """Samples num_idxs from the first dim of the provided data tensor.
+        """Samples num_pts from the first dim of the provided data tensor.
 
-        If num_idxs > data.shape[0], the indices will be upsampled with
-        replacement. If num_idxs < data.shape[0], the indices will be sampled
+        If num_pts > data.shape[0], the indices will be upsampled with
+        replacement. If num_pts < data.shape[0], the indices will be sampled
         without replacement.
 
         Args:
@@ -46,36 +46,36 @@ class GenerateSamplingIndices:
         if len(data) == 0:
             raise ValueError("Data sample was empty!")
 
-        if self.num_idxs > len(data):
+        if self.num_pts > len(data):
             return np.concatenate(
                 [
                     np.arange(len(data)),
-                    np.random.randint(0, len(data), self.num_idxs - len(data)),
+                    np.random.randint(0, len(data), self.num_pts - len(data)),
                 ]
             )
-        return np.random.choice(len(data), self.num_idxs, replace=False)
+        return np.random.choice(len(data), self.num_pts, replace=False)
 
 
 @Transform(K.points3d, "transforms.sampling_idxs")
 class GenerateBlockSamplingIndices:
-    """Samples num_idxs from the first dim of the provided data tensor.
+    """Samples num_pts from the first dim of the provided data tensor.
 
     Makes sure that the sampled points are within a block of size block_size
-    centered around center_xyz. If num_idxs > data.shape[0], the indices will
-    be upsampled with replacement. If num_idxs < data.shape[0], the indices
+    centered around center_xyz. If num_pts > data.shape[0], the indices will
+    be upsampled with replacement. If num_pts < data.shape[0], the indices
     will be sampled without replacement.
     """
 
     def __init__(
         self,
-        num_idxs: int,
+        num_pts: int,
         block_dimensions: tuple[float, float, float],
         center_point: tuple[float, float, float] | None = None,
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            num_idxs (int): Number of indices to sample
+            num_pts (int): Number of indices to sample
             block_dimensions (tuple[float, float, float]): Dimensions of the
                 block in x,y,z
             center_point (tuple[float, float, float] | None): Center point of
@@ -83,12 +83,14 @@ class GenerateBlockSamplingIndices:
                 randomly.
         """
         self.block_dimensions = np.asarray(block_dimensions)
-        self.center_point = np.asarray(center_point)
+        self.center_point = (
+            np.asarray(center_point) if center_point is not None else None
+        )
 
-        self._idx_sampler = GenerateSamplingIndices(num_idxs)
+        self._idx_sampler = GenerateSamplingIndices(num_pts)
 
     def __call__(self, data: NDArrayNumber) -> NDArrayInt:
-        """Samples num_idxs from the first dim of the provided data tensor."""
+        """Samples num_pts from the first dim of the provided data tensor."""
         if self.center_point is None:
             center_point = data[np.random.choice(len(data), 1)]
         else:
@@ -134,11 +136,12 @@ class GenFullCovBlockSamplingIndices:
         self.min_pts = min_pts
         self.block_dimensions = np.asarray(block_dimensions)
         self._idx_sampler = GenerateBlockSamplingIndices(
-            num_idxs=self.num_pts,
+            num_pts=self.num_pts,
             block_dimensions=block_dimensions,
         )
 
     def __call__(self, coordinates: NDArrayNumber) -> NDArrayInt:
+        """Subsamples the pointcloud using blocks of a given size"""
         # Get bounding box for sampling
         coord_min, coord_max = (
             np.min(coordinates, axis=0),
@@ -189,3 +192,39 @@ class SamplePoints:
         if selected_idxs.ndim == 2:
             return np.stack([data[idxs, ...] for idxs in selected_idxs])
         return data[selected_idxs, ...]
+
+
+@Transform([K.colors3d, "transforms.sampling_idxs"], K.colors3d)
+class SampleColors(SamplePoints):
+    """Subsamples colors randomly.
+
+    Samples 'num_pts' randomly from the provided data tensors using the
+    provided sampling indices.
+
+    This transform is used to sample colors from a pointcloud. The indices
+    are generated by the GenerateSamplingIndices transform.
+    """
+
+
+@Transform([K.semantics3d, "transforms.sampling_idxs"], K.semantics3d)
+class SampleSemantics(SamplePoints):
+    """Subsamples semantics randomly.
+
+    Samples 'num_pts' randomly from the provided data tensors using the
+    provided sampling indices.
+
+    This transform is used to sample semantics from a pointcloud. The indices
+    are generated by the GenerateSamplingIndices transform.
+    """
+
+
+@Transform([K.instances3d, "transforms.sampling_idxs"], K.instances3d)
+class SampleInstances(SamplePoints):
+    """Subsamples instances randomly.
+
+    Samples 'num_pts' randomly from the provided data tensors using the
+    provided sampling indices.
+
+    This transform is used to sample instances from a pointcloud. The indices
+    are generated by the GenerateSamplingIndices transform.
+    """

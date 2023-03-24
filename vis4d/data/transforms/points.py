@@ -25,6 +25,7 @@ class GenPcBounds:
     def __call__(
         self, coordinates: NDArrayFloat
     ) -> tuple[NDArrayFloat, NDArrayFloat]:
+        """Extracts the max and min values of the pointcloud."""
         return np.stack([coordinates.min(0), coordinates.max(0)])
 
 
@@ -39,7 +40,8 @@ class NormalizeByMaxBounds:
         """Creates an instance of the class.
 
         Args:
-            axes (tuple[int, int, int]): Over which axes to apply normalization
+            axes (tuple[int, int, int]): Over which axes to apply
+                normalization.
         """
         self.axes = axes
 
@@ -71,6 +73,7 @@ class CenterAndNormalize:
         self.normalize = normalize
 
     def __call__(self, coords: NDArrayFloat) -> NDArrayFloat:
+        """Applies the Center and Normalization operations."""
         if self.centering:
             coords = coords - np.mean(coords, axis=0)
         if self.normalize:
@@ -96,14 +99,14 @@ class GenRandSE3Transform:
         """Creates an instance of the class.
 
         Args:
-            translation_min (tuple[float, float, float]): Minimum translation
-            translation_max (tuple[float, float, float]): Maximum translation
+            translation_min (tuple[float, float, float]): Minimum translation.
+            translation_max (tuple[float, float, float]): Maximum translation.
             rotation_min (tuple[float, float, float]):
                 Minimum euler rotation angles [rad]. Applied in the order
-                rot_x -> rot_y -> rot_z
+                rot_x -> rot_y -> rot_z.
             rotation_max (tuple[float, float, float]):
                 Maximum euler rotation angles [rad]. Applied in the order
-                rot_x -> rot_y -> rot_z
+                rot_x -> rot_y -> rot_z.
         """
         self.translation_min = np.asarray(translation_min)
         self.translation_max = np.asarray(translation_max)
@@ -111,6 +114,7 @@ class GenRandSE3Transform:
         self.rotation_max = np.asarray(rotation_max)
 
     def __call__(self) -> SE3Transform:
+        """Applies the SE3 Transform."""
         angle = np.random.uniform(self.rotation_min, self.rotation_max)
         translation = np.random.uniform(
             self.translation_min, self.translation_max
@@ -158,6 +162,7 @@ class AddGaussianNoise:
 
     def __init__(self, noise_level: float = 0.01):
         """Creates an instance of the class.
+
         Args:
             noise_level (float): The noise level. Standard deviation for
                 the gaussian noise.
@@ -165,6 +170,7 @@ class AddGaussianNoise:
         self.noise_level = noise_level
 
     def __call__(self, coordinates: NDArrayFloat) -> NDArrayFloat:
+        """Adds gaussian noise to the coordiantes."""
         return (
             coordinates
             + np.random.randn(*coordinates.shape) * self.noise_level
@@ -184,6 +190,7 @@ class AddUniformNoise:
 
     def __init__(self, noise_level: float = 0.01):
         """Creates an instance of the class.
+
         Args:
             noise_level (float): The noise level. Half the range of the
                 uniform noise. The noise is sampled from
@@ -192,6 +199,7 @@ class AddUniformNoise:
         self.noise_level = noise_level
 
     def __call__(self, coordinates: NDArrayFloat) -> NDArrayFloat:
+        """Adds uniform noise to the coordinates."""
         return coordinates + np.random.uniform(
             -self.noise_level, self.noise_level, coordinates.shape
         )
@@ -207,6 +215,7 @@ class ApplySE3Transform:
     def __call__(
         self, coordinates: NDArrayFloat, transform: SE3Transform
     ) -> NDArrayFloat:
+        """Applies a SE3 Transform."""
         if coordinates.shape[-1] == 3:
             return (transform["rotation"] @ coordinates.T).T + transform[
                 "translation"
@@ -223,12 +232,12 @@ class ApplySE3Transform:
     out_keys=(K.points3d,),
 )
 class ApplySO3Transform:
-    """Applies a given SE3 Transform to the data."""
+    """Applies a given SO3 Transform to the data."""
 
     def __call__(
         self, coordinates: NDArrayFloat, transform: NDArrayFloat
     ) -> NDArrayFloat:
-        """Applies a given SE3 Transform to the data."""
+        """Applies a given SO3 Transform to the data."""
         if coordinates.shape[-1] == 3:
             return (transform @ coordinates.T).T
         if coordinates.shape[-2] == 3:

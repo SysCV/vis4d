@@ -6,6 +6,7 @@ import math
 from collections.abc import Callable, Iterable, Iterator
 from typing import Union
 
+import numpy as np
 import torch
 from torch.utils.data import (
     ConcatDataset,
@@ -215,7 +216,7 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
                 continue
             data_sample = self.dataset[data_idx]
 
-            n_elements = list((data_sample.values()))[0].size(0)
+            n_elements = list((data_sample.values()))[0].shape[0]
             for idx in range(int(n_elements / self.n_samples_per_batch)):
                 # This is kind of ugly
                 # this field defines from which source the data was loaded
@@ -223,7 +224,7 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
                 # this is required if we e.g. want to subdivide a room that is
                 # too big into equal sized chunks and stick them back together
                 # for visualizaton
-                out_data = {"source_index": torch.tensor([data_idx])}
+                out_data = {"source_index": np.ndarray([data_idx])}
                 for key in data_sample:
                     start_idx = idx * self.n_samples_per_batch
                     end_idx = (idx + 1) * self.n_samples_per_batch

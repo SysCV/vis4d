@@ -90,7 +90,7 @@ class TestPointcloudViewer(unittest.TestCase):
 
         ds = S3DIS(data_root=get_test_data("s3d_test"))
         mask_generator = GenFullCovBlockSamplingIndices(
-            num_pts=4096, min_pts_per_block=512, block_dimensions=(1, 1, 4)
+            num_pts=4096, min_pts=512, block_dimensions=(1, 1, 4)
         )
         sample = SamplePoints(  # pylint: disable=unexpected-keyword-arg,line-too-long
             in_keys=[

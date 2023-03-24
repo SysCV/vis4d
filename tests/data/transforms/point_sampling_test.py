@@ -104,7 +104,6 @@ class TestSampleFromBlock(unittest.TestCase):
 
     def test_full_scale_block_sampling(self) -> None:
         """Tests if all points are sampled when using full coverage."""
-        # pylint: disable=unexpected-keyword-arg
         mask_gen = GenFullCovBlockSamplingIndices(
             block_dimensions=(1, 1, 1),
             min_pts=1,
@@ -128,9 +127,8 @@ class RandomPointSamplingTest(unittest.TestCase):
 
     def test_sample_less_pts(self) -> None:
         """Test if sampling works when sampling less pts than in the scene."""
-
         data: DictData = dict(points3d=np.random.rand(100, 3))
-        tr1 = GenerateSamplingIndices(num_idxs=10)
+        tr1 = GenerateSamplingIndices(num_pts == 10)
         tr2 = SamplePoints()
         with_idxs = tr1.apply_to_data(data)
         sampled_points = tr2.apply_to_data(with_idxs)
@@ -141,9 +139,8 @@ class RandomPointSamplingTest(unittest.TestCase):
 
         It uses more points than given in the scene.
         """
-
         data: DictData = dict(points3d=np.random.rand(100, 3))
-        tr1 = GenerateSamplingIndices(num_idxs=1000)
+        tr1 = GenerateSamplingIndices(num_pts=1000)
         tr2 = SamplePoints()
         with_idxs = tr1.apply_to_data(data)
         sampled_points = tr2.apply_to_data(with_idxs)
