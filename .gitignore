@@ -81,6 +81,3 @@ docs/source/tutorials/.ipynb_checkpoints/*
 wandb/
 # No lightning logs
 lightning_logs/
-
-# No vis4d logs
-vis4d-workspace/
