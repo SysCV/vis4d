@@ -26,10 +26,9 @@ from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
-# _MODE = flags.DEFINE_string(
-#     "mode", default="train", help="Choice of [train, test]"
-# )
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+_CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
+_RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -75,7 +74,6 @@ def main(argv) -> None:  # type:ignore
 
     if "benchmark" in config:
         trainer_args_cfg.benchmark = config.benchmark
-    trainer_args_cfg.max_epochs = config.params.num_epochs
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
@@ -91,15 +89,12 @@ def main(argv) -> None:  # type:ignore
 
     # Seed
     seed = config.get("seed", None)
-    if mode == "fit":
-        seed_everything(seed, workers=True)
 
     # Setup sampler
     trainer_args.replace_sampler_ddp = False
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
-    model = instantiate_classes(config.model)
     optimizers = instantiate_classes(config.optimizers)
     loss = instantiate_classes(config.loss)
 
@@ -143,25 +138,29 @@ def main(argv) -> None:  # type:ignore
     callbacks.append(OptimEpochCallback())
 
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
+    training_module = TrainingModule(
+        config.model, optimizers, loss, data_connector, seed
+    )
     data_module = DataModule(config.data)
 
     # Checkpoint path
-    ckpt_path = config.get("pl_ckpt", None)
+    ckpt_path = _CKPT.value
 
     # Resume training
-    if config.get("resume", False):
+    resume = _RESUME.value
+    if resume:
         if ckpt_path is None:
             ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
 
     if mode == "fit":
         trainer.fit(
-            TrainingModule(model, optimizers, loss, data_connector),
+            training_module,
             datamodule=data_module,
             ckpt_path=ckpt_path,
         )
     elif mode == "test":
         trainer.test(
-            TrainingModule(model, optimizers, loss, data_connector),
+            training_module,
             datamodule=data_module,
             verbose=False,
             ckpt_path=ckpt_path,

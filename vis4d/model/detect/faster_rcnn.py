@@ -7,16 +7,9 @@ from torch import nn
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
-from vis4d.op.box.encoder.base import BoxEncoder2D
 from vis4d.op.detect.anchor_generator import AnchorGenerator
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    FRCNNOut,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
-from vis4d.op.detect.rcnn import DetOut, RoI2Det
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
+from vis4d.op.detect.rcnn import RCNNOut, RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
@@ -37,9 +30,11 @@ class FasterRCNN(nn.Module):
         self,
         num_classes: int,
         weights: None | str = None,
-        anchor_generator: AnchorGenerator = get_default_anchor_generator(),
-        rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
-        rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
+        anchor_generator: None | AnchorGenerator = None,
+        rpn_box_encoder: None | nn.Module = None,
+        rpn_box_decoder: None | nn.Module = None,
+        rcnn_box_encoder: None | nn.Module = None,
+        rcnn_box_decoder: None | nn.Module = None,
         backbone: BaseModel = ResNet(
             "resnet50", pretrained=True, trainable_layers=3
         ),
@@ -61,18 +56,17 @@ class FasterRCNN(nn.Module):
                 ResNet( "resnet50", pretrained=True, trainable_layers=3 ).
         """
         super().__init__()
-        self.anchor_gen = anchor_generator
-        self.rpn_bbox_encoder = rpn_box_encoder
-        self.rcnn_bbox_encoder = rcnn_box_encoder
         self.backbone = backbone
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
-            anchor_generator=self.anchor_gen,
-            rpn_box_encoder=self.rpn_bbox_encoder,
-            rcnn_box_encoder=self.rcnn_bbox_encoder,
+            anchor_generator=anchor_generator,
+            rpn_box_encoder=rpn_box_encoder,
+            rpn_box_decoder=rpn_box_decoder,
+            rcnn_box_encoder=rcnn_box_encoder,
+            rcnn_box_decoder=rcnn_box_decoder,
         )
-        self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
+        self.roi2det = RoI2Det(rcnn_box_decoder)
 
         if weights == "mmdet":
             weights = (
@@ -90,7 +84,7 @@ class FasterRCNN(nn.Module):
         boxes2d: None | list[torch.Tensor] = None,
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> FRCNNOut | DetOut:
+    ) -> FRCNNOut | RCNNOut:
         # TODO, why do we have both.
         #  Why not just model output with different
         #  keys for training outs e.g. class_logits?
@@ -108,7 +102,7 @@ class FasterRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            FRCNNOut | DetOut: Either raw model outputs (for
+            FRCNNOut | RCNNOut: Either raw model outputs (for
                 training) or predicted outputs (for testing).
         """
         if self.training:
@@ -126,7 +120,7 @@ class FasterRCNN(nn.Module):
         boxes2d: None | list[torch.Tensor] = None,
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> FRCNNOut | DetOut:
+    ) -> FRCNNOut | RCNNOut:
         """Type definition for call implementation."""
         return self._call_impl(
             images, input_hw, boxes2d, boxes2d_classes, original_hw
@@ -160,7 +154,7 @@ class FasterRCNN(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         original_hw: list[tuple[int, int]],
-    ) -> DetOut:
+    ) -> RCNNOut:
         """Forward testing stage.
 
         Args:
@@ -170,7 +164,7 @@ class FasterRCNN(nn.Module):
                 (before padding and resizing).
 
         Returns:
-            DetOut: Predicted outputs.
+            RCNNOut: Predicted outputs.
         """
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -181,4 +175,4 @@ class FasterRCNN(nn.Module):
         for i, boxs in enumerate(boxes):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
 
-        return DetOut(boxes, scores, class_ids)
+        return RCNNOut(boxes, scores, class_ids)

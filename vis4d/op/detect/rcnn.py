@@ -160,7 +160,7 @@ class RCNNHead(nn.Module):
         return self._call_impl(features, boxes)
 
 
-class DetOut(NamedTuple):  # TODO: decide where to put the class
+class RCNNOut(NamedTuple):
     """Output of the final detections from RCNN."""
 
     boxes: list[torch.Tensor]  # N, 4
@@ -182,7 +182,7 @@ class RoI2Det(nn.Module):
 
     def __init__(
         self,
-        box_encoder: BoxEncoder2D,
+        box_decoder: BoxEncoder2D,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
@@ -200,7 +200,7 @@ class RoI2Det(nn.Module):
                 image. Defaults to 100.
         """
         super().__init__()
-        self.bbox_coder = box_encoder
+        self.bbox_decoder = box_decoder
         self.score_threshold = score_threshold
         self.max_per_img = max_per_img
         self.iou_threshold = iou_threshold
@@ -211,7 +211,7 @@ class RoI2Det(nn.Module):
         regression_outs: torch.Tensor,
         boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-    ) -> DetOut:
+    ) -> RCNNOut:
         """Convert RCNN network outputs to detections.
 
         Args:
@@ -223,7 +223,7 @@ class RoI2Det(nn.Module):
             images_hw (list[tuple[int, int]]): Image sizes.
 
         Returns:
-            DetOut: boxes, scores and class ids of detections per image.
+            RCNNOut: boxes, scores and class ids of detections per image.
         """
         num_proposals_per_img = tuple(len(p) for p in boxes)
         regression_outs = regression_outs.split(num_proposals_per_img, 0)
@@ -236,7 +236,7 @@ class RoI2Det(nn.Module):
         ):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = bbox_clip(
-                self.bbox_coder.decode(boxs[:, :4], reg_out).view(-1, 4),
+                self.bbox_decoder(boxs[:, :4], reg_out).view(-1, 4),
                 image_hw,
             ).view(reg_out.shape)
             det_bbox, det_scores, det_label, _ = multiclass_nms(
@@ -250,7 +250,7 @@ class RoI2Det(nn.Module):
             all_det_scores.append(det_scores)
             all_det_class_ids.append(det_label)
 
-        return DetOut(
+        return RCNNOut(
             boxes=all_det_boxes,
             scores=all_det_scores,
             class_ids=all_det_class_ids,
@@ -262,7 +262,7 @@ class RoI2Det(nn.Module):
         regression_outs: torch.Tensor,
         boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-    ) -> DetOut:
+    ) -> RCNNOut:
         """Type definition for function call."""
         return self._call_impl(class_outs, regression_outs, boxes, images_hw)
 

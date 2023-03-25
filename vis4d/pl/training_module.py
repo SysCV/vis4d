@@ -5,12 +5,18 @@ from collections.abc import Callable
 from typing import Any
 
 import pytorch_lightning as pl
+import torch
 from torch import nn, optim
 from torchmetrics import MeanMetric
 
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.opt import Optimizer
+from vis4d.common.util import init_random_seed
+from vis4d.common.logging import rank_zero_info
+from pytorch_lightning import seed_everything
+from vis4d.common.distributed import broadcast
+from vis4d.config.util import instantiate_classes
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -68,6 +74,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         optimizers: list[Optimizer],
         loss: nn.Module,
         data_connector: DataConnector,
+        seed: None | int,
     ):
         """Initialize the TrainingModule.
 
@@ -83,6 +90,21 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.optims = optimizers
         self.loss_fn = loss
         self.data_connector = data_connector
+        self.seed = seed
+
+    def setup(self, stage) -> None:
+        """Setup the model."""
+        if stage == "fit":
+            if self.seed is None:
+                seed = init_random_seed()
+                seed = broadcast(seed)
+            else:
+                seed = self.seed
+
+            seed_everything(seed)
+            rank_zero_info(f"Global seed set to {seed}")
+
+        self.model = instantiate_classes(self.model)
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, data: DictData
@@ -96,7 +118,10 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         """Perform a single training step."""
         out = self.model(**self.data_connector.get_train_input(batch))
         losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
-        losses["loss"] = sum(list(losses.values()))
+        if isinstance(losses, torch.Tensor):
+            losses = {"loss": losses}
+        else:
+            losses["loss"] = sum(list(losses.values()))
 
         log_dict = {}
         metric_attributes = []
