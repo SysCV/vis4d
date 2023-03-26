@@ -35,36 +35,45 @@ def _apply_aug(images: NDArrayUI8, aug_op: AugOp) -> NDArrayUI8:
 
 
 @Transform(K.images, K.images)
-class AutoAug:
-    """Apply Timm's AutoAugment to a image tensor."""
+class _AutoAug:
+    """Apply Timm's AutoAugment to a image array."""
 
-    def __init__(
-        self,
-        policy: str = "original",
-        magnitude_std: float = 0.5,
-    ):
-        """Create an instance of AutoAug.
-
-        Args:
-            policy (str): Policy name for autoaugment. Options are "original",
-                "originalr", "v0", "v0r".
-            magnitude_std (float, optional): Standard deviation of the
-                magnitude for random autoaugment. Defaults to 0.5.
-        """
-        assert TIMM_AVAILABLE, "timm is not installed."
-        assert policy in {
-            "original",
-            "originalr",
-            "v0",
-            "v0r",
-        }, "Policy must be one of 'original', 'originalr', 'v0', 'v0r'."
-        hparams = {"magnitude_std": magnitude_std}
+    def _create(self, policy: str, hparams: dict[str, float]) -> AugOp:
+        """Create augmentation op."""
         aa_policy = auto_augment_policy(policy, hparams=hparams)
-        self.aug_op = AutoAugment(aa_policy)
+        return AutoAugment(aa_policy)
 
     def __call__(self, images: NDArrayUI8) -> NDArrayUI8:
         """Execute augmentation op."""
         return _apply_aug(images, self.aug_op)
+
+
+class AutoAugV0(_AutoAug):
+    """Apply Timm's AutoAugment (policy=v0) to a image array."""
+
+    def __init__(self, magnitude_std: float = 0.5):
+        """Create an instance of AutoAug.
+
+        Args:
+            magnitude_std (float, optional): Standard deviation of the
+                magnitude for random autoaugment. Defaults to 0.5.
+        """
+        self.aug_op = self._create("v0", {"magnitude_std": magnitude_std})
+
+
+class AutoAugOriginal(_AutoAug):
+    """Apply Timm's AutoAugment (policy=original) to a image array."""
+
+    def __init__(self, magnitude_std: float = 0.5):
+        """Create an instance of AutoAug.
+
+        Args:
+            magnitude_std (float, optional): Standard deviation of the
+                magnitude for random autoaugment. Defaults to 0.5.
+        """
+        self.aug_op = self._create(
+            "original", {"magnitude_std": magnitude_std}
+        )
 
 
 @Transform(K.images, K.images)

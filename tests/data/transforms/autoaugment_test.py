@@ -2,14 +2,34 @@
 import numpy as np
 
 from vis4d.common.util import set_random_seed
-from vis4d.data.transforms.autoaugment import AutoAug, RandAug, AugMix
+from vis4d.data.transforms.autoaugment import (
+    AutoAugV0,
+    AutoAugOriginal,
+    RandAug,
+    AugMix,
+)
 
 
 def test_autoaugment() -> None:
     """Auto augment testcase."""
     set_random_seed(0, deterministic=True)
 
-    transform = AutoAug(policy="original", magnitude_std=0.5)
+    transform = AutoAugOriginal(magnitude_std=0.5)
+    batch_size = 4
+    x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
+
+    x = transform(x)
+
+    assert x.shape == (batch_size, 32, 32, 3)
+    assert x.min() == 120
+    assert x.max() == 128
+
+
+def test_autoaugment_v0() -> None:
+    """Auto augment testcase."""
+    set_random_seed(0, deterministic=True)
+
+    transform = AutoAugV0(magnitude_std=0.5)
     batch_size = 4
     x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
