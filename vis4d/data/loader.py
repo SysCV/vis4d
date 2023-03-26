@@ -6,6 +6,7 @@ import math
 from collections.abc import Callable, Iterable, Iterator
 from typing import Union
 
+import numpy as np
 import torch
 from torch.utils.data import (
     ConcatDataset,
@@ -19,7 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.common import ArgsType
 
 from ..common.distributed import get_world_size
-from .const import CommonKeys as CK
+from .const import CommonKeys as K
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
 from .samplers import VideoInferenceSampler
@@ -40,9 +41,9 @@ def default_collate(batch: list[DictData]) -> DictData:
     # e.g. if batch[0] has annotations but batch[1] doesn't.
     for key in batch[0]:
         try:
-            if key in [CK.images, CK.segmentation_masks]:
+            if key in [K.images, K.segmentation_masks]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [CK.extrinsics, CK.intrinsics]:
+            elif key in [K.extrinsics, K.intrinsics]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
                 data[key] = [b[key] for b in batch]
@@ -215,7 +216,7 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
                 continue
             data_sample = self.dataset[data_idx]
 
-            n_elements = list((data_sample.values()))[0].size(0)
+            n_elements = list((data_sample.values()))[0].shape[0]
             for idx in range(int(n_elements / self.n_samples_per_batch)):
                 # This is kind of ugly
                 # this field defines from which source the data was loaded
@@ -223,7 +224,7 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
                 # this is required if we e.g. want to subdivide a room that is
                 # too big into equal sized chunks and stick them back together
                 # for visualizaton
-                out_data = {"source_index": torch.tensor([data_idx])}
+                out_data = {"source_index": np.ndarray([data_idx])}
                 for key in data_sample:
                     start_idx = idx * self.n_samples_per_batch
                     end_idx = (idx + 1) * self.n_samples_per_batch

@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from vis4d.common.typing import NDArrayF32
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import transform_bbox
 
 from .base import Transform
@@ -23,7 +23,7 @@ class ResizeParam(TypedDict):
     interpolation: str
 
 
-@Transform(CK.images, ["transforms.resize", CK.input_hw])
+@Transform(K.images, ["transforms.resize", K.input_hw])
 class GenerateResizeParameters:
     """Generate the parameters for a resize operation."""
 
@@ -92,7 +92,7 @@ class GenerateResizeParameters:
         )
 
 
-@Transform([CK.boxes2d, "transforms.resize.scale_factor"], CK.boxes2d)
+@Transform([K.boxes2d, "transforms.resize.scale_factor"], K.boxes2d)
 class ResizeBoxes2D:
     """Resize 2D bounding boxes."""
 
@@ -117,11 +117,11 @@ class ResizeBoxes2D:
 
 @Transform(
     [
-        CK.images,
+        K.images,
         "transforms.resize.target_shape",
         "transforms.resize.interpolation",
     ],
-    CK.images,
+    K.images,
 )
 class ResizeImage:
     """Resize Image."""
@@ -150,7 +150,7 @@ class ResizeImage:
         return image_.permute(0, 2, 3, 1).numpy()
 
 
-@Transform([CK.intrinsics, "transforms.resize.scale_factor"], CK.intrinsics)
+@Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
 class ResizeIntrinsics:
     """Resize Intrinsics."""
 
@@ -164,7 +164,7 @@ class ResizeIntrinsics:
 
 
 @Transform(
-    [CK.instance_masks, "transforms.resize.target_shape"], CK.instance_masks
+    [K.instance_masks, "transforms.resize.target_shape"], K.instance_masks
 )
 class ResizeInstanceMasks:
     """Resize instance segmentation masks."""
