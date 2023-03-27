@@ -49,7 +49,7 @@ class BDD100KDetTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.dataset[0]
-        item = ToTensor().apply_to_data([item])[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
         self.assertEqual(
             tuple(item.keys()),
             (
@@ -126,7 +126,7 @@ class BDD100KInsSegTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.dataset[0]
-        item = ToTensor().apply_to_data([item])[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
         self.assertEqual(
             tuple(item.keys()),
             (

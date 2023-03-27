@@ -227,12 +227,7 @@ def test_train_loader_3d() -> None:
 def test_train_loader_3d_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
-    keys = (
-        K.points3d,
-        K.colors3d,
-        K.instances3d,
-        K.semantics3d,
-    )
+    keys = (K.points3d, K.colors3d, K.instances3d, K.semantics3d)
     batch_size = 2
     preprocess_fn = compose(
         [
@@ -254,18 +249,8 @@ def test_train_loader_3d_batched() -> None:
     )
 
     for sample in inference_loader[0]:
-        assert isinstance(sample[K.colors3d], np.ndarray)
-        assert isinstance(sample[K.points3d], np.ndarray)
-        assert isinstance(sample[K.semantics3d], np.ndarray)
-        assert isinstance(sample[K.instances3d], np.ndarray)
-
-        assert batch_size == sample[K.colors3d].shape[0]
-        assert batch_size == sample[K.points3d].shape[0]
-        assert batch_size == sample[K.semantics3d].shape[0]
-        assert batch_size == sample[K.instances3d].shape[0]
-
-        assert sample[K.semantics3d].shape[1] == 1024
-        assert sample[K.points3d].shape[1] == 1024
-        assert sample[K.colors3d].shape[1] == 1024
-        assert sample[K.instances3d].shape[1] == 1024
+        for k in keys:
+            assert isinstance(sample[k], np.ndarray)
+            assert batch_size == sample[k].shape[0]
+            assert sample[k].shape[1] == 1024
         break

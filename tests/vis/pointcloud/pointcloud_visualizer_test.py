@@ -15,10 +15,7 @@ from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.loader import DataPipe, SubdividingIterableDataset
 from vis4d.data.transforms.base import compose
-from vis4d.data.transforms.point_sampling import (
-    GenFullCovBlockSamplingIndices,
-    SamplePoints,
-)
+from vis4d.data.transforms.point_sampling import SamplePoints
 from vis4d.vis.pointcloud.pointcloud_visualizer import PointCloudVisualizer
 
 if OPEN3D_AVAILABLE:
@@ -89,9 +86,9 @@ class TestPointcloudViewer(unittest.TestCase):
             return
 
         ds = S3DIS(data_root=get_test_data("s3d_test"))
-        mask_generator = GenFullCovBlockSamplingIndices(
-            num_pts=4096, min_pts=512, block_dimensions=(1, 1, 4)
-        )
+        # mask_generator = GenFullCovBlockSamplingIndices(
+        #     num_pts=4096, min_pts=512, block_dimensions=(1, 1, 4)
+        # )
         sample = SamplePoints(  # pylint: disable=unexpected-keyword-arg,line-too-long
             in_keys=[
                 CommonKeys.points3d,
