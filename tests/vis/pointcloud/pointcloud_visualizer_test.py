@@ -117,11 +117,11 @@ class TestPointcloudViewer(unittest.TestCase):
         vis = PointCloudVisualizer()
         for e in datapipe:
             vis.process(
-                points_xyz=e[CommonKeys.points3d].numpy(),
-                semantics=e[CommonKeys.semantics3d].numpy(),
-                colors=e[CommonKeys.colors3d].numpy(),
-                instances=e[CommonKeys.instances3d].numpy(),
-                scene_index=e["source_index"].numpy(),
+                points_xyz=e[CommonKeys.points3d],
+                semantics=e[CommonKeys.semantics3d],
+                colors=e[CommonKeys.colors3d],
+                instances=e[CommonKeys.instances3d],
+                scene_index=e["source_index"],
             )
 
         vis.save_to_disk(self.test_dir)

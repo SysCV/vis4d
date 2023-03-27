@@ -18,7 +18,7 @@ class SE3Transform(TypedDict):
     rotation: NDArrayFloat
 
 
-@Transform(in_keys=(K.points3d,), out_keys=("transforms.pc_bounds"))
+@Transform(in_keys=(K.points3d,), out_keys=("transforms.pc_bounds",))
 class GenPcBounds:
     """Extracts the max and min values of the loaded points."""
 

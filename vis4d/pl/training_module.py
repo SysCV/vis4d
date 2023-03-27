@@ -30,7 +30,7 @@ class TorchOptimizer(optim.Optimizer):
 
         super().__init__(
             params=self.optim.optimizer.param_groups,
-            defaults=self.optim.optimizer.defaults,
+            defaults=self.optim.optimizer.defaults,  # type: ignore
         )
 
     def step(self, closure: Callable[[], float] | None = None) -> None:

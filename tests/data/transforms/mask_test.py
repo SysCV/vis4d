@@ -7,7 +7,7 @@ from vis4d.data.transforms.mask import (
 )
 
 
-def test_convert_instance_mask_to_segmentation_mask():
+def test_convert_ins2seg_mask():
     """Test case for convert instance mask to segmentation mask."""
     transform = ConvertInstanceMaskToSegmentationMask()
     classes = np.array([1, 2, 3], dtype=np.int32)

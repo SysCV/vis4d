@@ -128,7 +128,7 @@ class RandomPointSamplingTest(unittest.TestCase):
     def test_sample_less_pts(self) -> None:
         """Test if sampling works when sampling less pts than in the scene."""
         data: DictData = dict(points3d=np.random.rand(100, 3))
-        tr1 = GenerateSamplingIndices(num_pts == 10)
+        tr1 = GenerateSamplingIndices(num_pts=10)
         tr2 = SamplePoints()
         with_idxs = tr1.apply_to_data(data)
         sampled_points = tr2.apply_to_data(with_idxs)

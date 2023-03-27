@@ -175,10 +175,7 @@ class SHIFTTest(unittest.TestCase):
         for view in ("center",):
             self.assertEqual(
                 tuple(self.dataset_multiview[0][view].keys()),
-                (
-                    K.boxes3d,
-                    K.points3d,
-                ),
+                (K.boxes3d, K.points3d),
             )
             item = self.dataset_multiview[0][view][K.points3d]
             self.assertEqual(item.shape, (51111, 4))

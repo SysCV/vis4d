@@ -24,6 +24,8 @@ from .const import CommonKeys as K
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
 from .samplers import VideoInferenceSampler
+from .transforms import compose_batch
+from .transforms.to_tensor import ToTensor
 from .typing import DictData
 
 DictDataOrList = Union[DictData, list[DictData]]
@@ -41,9 +43,9 @@ def default_collate(batch: list[DictData]) -> DictData:
     # e.g. if batch[0] has annotations but batch[1] doesn't.
     for key in batch[0]:
         try:
-            if key in [K.images, K.segmentation_masks]:
+            if key in [K.images]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [K.extrinsics, K.intrinsics]:
+            elif key in [K.segmentation_masks, K.extrinsics, K.intrinsics]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
                 data[key] = [b[key] for b in batch]
@@ -239,11 +241,18 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
                 ) if self.preprocess_fn else out_data
 
 
+def default_pipeline(data: list[DictData]) -> DictData:
+    """Default data pipeline."""
+    return compose_batch([ToTensor()])(data)
+
+
 def build_train_dataloader(
     dataset: DataPipe,
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
-    batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
+    batchprocess_fn: Callable[
+        [list[DictData]], list[DictData]
+    ] = default_pipeline,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
     pin_memory: bool = True,
     shuffle: bool = True,
@@ -287,7 +296,9 @@ def build_inference_dataloaders(
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     video_based_inference: bool = True,
-    batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
+    batchprocess_fn: Callable[
+        [list[DictData]], list[DictData]
+    ] = default_pipeline,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
 ) -> list[_DATALOADER]:
     """Build dataloaders for test / predict."""
