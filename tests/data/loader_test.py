@@ -1,5 +1,3 @@
-# pylint: disable=unexpected-keyword-arg
-# TODO remove this once new transforms are implemented
 """Test loader components."""
 from __future__ import annotations
 
@@ -15,7 +13,15 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     build_train_dataloader,
 )
-from vis4d.data.transforms import compose, mask, normalize, pad, resize
+from vis4d.data.transforms import (
+    compose,
+    compose_batch,
+    mask,
+    normalize,
+    pad,
+    resize,
+    to_tensor,
+)
 from vis4d.data.transforms.point_sampling import (
     sample_points_block_full_coverage,
     sample_points_random,
@@ -29,11 +35,12 @@ def test_train_loader() -> None:
     batch_size = 2
     preprocess_fn = compose(
         [
-            resize.resize_image((256, 256), keep_ratio=True),
-            normalize.normalize_image(),
+            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+            resize.ResizeImage(),
+            normalize.NormalizeImage(),
         ]
     )
-    batchprocess_fn = pad.pad_image()
+    batchprocess_fn = compose_batch([pad.PadImages(), to_tensor.ToTensor()])
 
     datapipe = DataPipe(coco, preprocess_fn)
     train_loader = build_train_dataloader(
@@ -54,11 +61,12 @@ def test_inference_loader() -> None:
     coco = COCO(data_root=get_test_data("coco_test"), split="train")
     preprocess_fn = compose(
         [
-            resize.resize_image((256, 256), keep_ratio=True),
-            normalize.normalize_image(),
+            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+            resize.ResizeImage(),
+            normalize.NormalizeImage(),
         ]
     )
-    batchprocess_fn = pad.pad_image()
+    batchprocess_fn = compose_batch([pad.PadImages(), to_tensor.ToTensor()])
 
     datapipe = DataPipe(coco, preprocess_fn)
     test_loaders = build_inference_dataloaders(
@@ -85,14 +93,18 @@ def test_segment_train_loader() -> None:
     batch_size = 4
     preprocess_fn = compose(
         [
-            resize.resize_image((520, 520)),
-            resize.resize_masks(),
-            normalize.normalize_image(),
-            mask.convert_to_seg_masks(),
+            resize.GenerateResizeParameters((520, 520)),
+            resize.ResizeImage(),
+            resize.ResizeInstanceMasks(),
+            normalize.NormalizeImage(),
+            mask.ConvertInstanceMaskToSegmentationMask(),
         ]
     )
+    batchprocess_fn = compose_batch([to_tensor.ToTensor()])
     datapipe = DataPipe(coco, preprocess_fn)
-    train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
+    train_loader = build_train_dataloader(
+        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
+    )
 
     for sample in train_loader:
         images = sample[K.images]
@@ -120,10 +132,16 @@ def test_segment_inference_loader() -> None:
     )
     batch_size = 1
     preprocess_fn = compose(
-        [normalize.normalize_image(), mask.convert_to_seg_masks()]
+        [
+            normalize.NormalizeImage(),
+            mask.ConvertInstanceMaskToSegmentationMask(),
+        ]
     )
+    batchprocess_fn = compose_batch([to_tensor.ToTensor()])
     datapipe = DataPipe(coco, preprocess_fn)
-    test_loader = build_inference_dataloaders(datapipe)
+    test_loader = build_inference_dataloaders(
+        datapipe, batchprocess_fn=batchprocess_fn
+    )
 
     for sample in test_loader[0]:
         images = sample[K.images]

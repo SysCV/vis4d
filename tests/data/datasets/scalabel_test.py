@@ -72,5 +72,5 @@ def test_3d_data() -> None:
 
     assert np.isclose(
         item[K.boxes3d_track_ids],
-        np.array([0, 1, 2, 3, 4, 5, 6], dtype=np.intr64),
+        np.array([0, 1, 2, 3, 4, 5, 6], dtype=np.int64),
     ).all()
