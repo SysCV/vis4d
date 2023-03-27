@@ -2,14 +2,13 @@
 import os
 
 import numpy as np
-import torch
 
-from tests.util import get_test_data, isclose_on_all_indices
+from tests.util import get_test_data, isclose_on_all_indices_numpy
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.scalabel import Scalabel
 
-IMAGE_INDICES = torch.tensor([0, 1, 232875, 465749])
-IMAGE_VALUES = torch.tensor(
+IMAGE_INDICES = np.array([0, 1, 232875, 465749])
+IMAGE_VALUES = np.array(
     [
         [173.0, 255.0, 255.0],
         [173.0, 255.0, 255.0],
@@ -40,8 +39,8 @@ def test_3d_data() -> None:
 
     assert item[K.images].shape == (1, 375, 1242, 3)
     assert item[K.original_hw] == (375, 1242)
-    assert isclose_on_all_indices(
-        torch.from_numpy(item[K.images]).float().view(-1, 3),
+    assert isclose_on_all_indices_numpy(
+        item[K.images].astype(np.float32).reshape(-1, 3),
         IMAGE_INDICES,
         IMAGE_VALUES,
     )

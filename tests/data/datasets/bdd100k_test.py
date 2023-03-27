@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data, isclose_on_all_indices
+from tests.util import get_test_data, isclose_on_all_indices_tensor
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -76,7 +76,7 @@ class BDD100KDetTest(unittest.TestCase):
         self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
         self.assertEqual(item["videoName"], None)
 
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
             IMAGE_INDICES,
             IMAGE_VALUES,
@@ -154,12 +154,12 @@ class BDD100KInsSegTest(unittest.TestCase):
         self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
         self.assertEqual(item["videoName"], None)
 
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
             IMAGE_INDICES,
             IMAGE_VALUES,
         )
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.instance_masks].reshape(-1),
             INSTANCE_MASK_INDICES,
             INSTANCE_MASK_VALUES,
