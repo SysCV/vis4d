@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data, isclose_on_all_indices
+from tests.util import get_test_data, isclose_on_all_indices_tensor
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -66,12 +66,12 @@ class COCOTest(unittest.TestCase):
         self.assertEqual(len(item[K.boxes2d_classes]), 14)
         self.assertEqual(len(item[K.instance_masks]), 14)
 
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
             IMAGE_INDICES,
             IMAGE_VALUES,
         )
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.instance_masks].reshape(-1),
             INSTANCE_MASK_INDICES,
             INSTANCE_MASK_VALUES,
@@ -134,12 +134,12 @@ class COCOSegTest(unittest.TestCase):
         self.assertEqual(len(item[K.instance_masks]), 5)
         self.assertEqual(item[K.segmentation_masks].shape, (1, 230, 352))
 
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
             IMAGE_INDICES,
             IMAGE_VALUES,
         )
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.segmentation_masks].reshape(-1),
             SEMANTIC_MASK_INDICES,
             SEMANTIC_MASK_VALUES,
