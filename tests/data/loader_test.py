@@ -1,6 +1,7 @@
 """Test loader components."""
 from __future__ import annotations
 
+import numpy as np
 import torch
 
 from tests.util import get_test_data
@@ -23,8 +24,12 @@ from vis4d.data.transforms import (
     to_tensor,
 )
 from vis4d.data.transforms.point_sampling import (
-    sample_points_block_full_coverage,
-    sample_points_random,
+    GenerateBlockSamplingIndices,
+    GenFullCovBlockSamplingIndices,
+    SampleColors,
+    SampleInstances,
+    SamplePoints,
+    SampleSemantics,
 )
 from vis4d.data.typing import DictData
 
@@ -176,7 +181,7 @@ def point_collate(batch: list[DictData]) -> DictData:
             K.instances3d,
             K.semantics3d,
         ):
-            data[key] = torch.stack([b[key] for b in batch], 0)
+            data[key] = np.stack([b[key] for b in batch], 0)
         else:
             data[key] = [b[key] for b in batch]
     return data
@@ -185,16 +190,17 @@ def point_collate(batch: list[DictData]) -> DictData:
 def test_train_loader_3d() -> None:
     """Test the data loading pipeline for 3D Data."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
-
     batch_size = 2
-    keys = (
-        K.points3d,
-        K.colors3d,
-        K.instances3d,
-        K.semantics3d,
-    )
     preprocess_fn = compose(
-        [sample_points_random(in_keys=keys, out_keys=keys, num_pts=1024)]
+        [
+            GenerateBlockSamplingIndices(
+                num_pts=1024, block_dimensions=(1, 1, 4)
+            ),
+            SampleInstances(),
+            SampleSemantics(),
+            SampleColors(),
+            SamplePoints(),
+        ]
     )
 
     datapipe = DataPipe(s3dis, preprocess_fn)
@@ -203,13 +209,18 @@ def test_train_loader_3d() -> None:
     )
 
     for sample in train_loader:
-        assert isinstance(sample[K.colors3d], torch.Tensor)
-        assert isinstance(sample[K.points3d], torch.Tensor)
-        assert isinstance(sample[K.semantics3d], torch.Tensor)
-        assert isinstance(sample[K.instances3d], torch.Tensor)
-        assert batch_size == sample[K.colors3d].size(0)
-        assert batch_size == sample[K.points3d].size(0)
-        assert batch_size == sample[K.semantics3d].size(0)
+        assert isinstance(sample[K.colors3d], np.ndarray)
+        assert isinstance(sample[K.points3d], np.ndarray)
+        assert isinstance(sample[K.semantics3d], np.ndarray)
+        assert isinstance(sample[K.instances3d], np.ndarray)
+        assert batch_size == sample[K.colors3d].shape[0]
+        assert batch_size == sample[K.points3d].shape[0]
+        assert batch_size == sample[K.semantics3d].shape[0]
+
+        assert sample[K.semantics3d].shape[1] == 1024
+        assert sample[K.points3d].shape[1] == 1024
+        assert sample[K.colors3d].shape[1] == 1024
+        assert sample[K.instances3d].shape[1] == 1024
         break
 
 
@@ -225,9 +236,13 @@ def test_train_loader_3d_batched() -> None:
     batch_size = 2
     preprocess_fn = compose(
         [
-            sample_points_block_full_coverage(
-                in_keys=keys, out_keys=keys, n_pts_per_block=1024
-            )
+            GenFullCovBlockSamplingIndices(
+                num_pts=1024, block_dimensions=(1, 1, 4)
+            ),
+            SampleInstances(),
+            SampleSemantics(),
+            SampleColors(),
+            SamplePoints(),
         ]
     )
 
@@ -239,13 +254,18 @@ def test_train_loader_3d_batched() -> None:
     )
 
     for sample in inference_loader[0]:
-        assert isinstance(sample[K.colors3d], torch.Tensor)
-        assert isinstance(sample[K.points3d], torch.Tensor)
-        assert isinstance(sample[K.semantics3d], torch.Tensor)
-        assert isinstance(sample[K.instances3d], torch.Tensor)
+        assert isinstance(sample[K.colors3d], np.ndarray)
+        assert isinstance(sample[K.points3d], np.ndarray)
+        assert isinstance(sample[K.semantics3d], np.ndarray)
+        assert isinstance(sample[K.instances3d], np.ndarray)
 
-        assert batch_size == sample[K.colors3d].size(0)
-        assert batch_size == sample[K.points3d].size(0)
-        assert batch_size == sample[K.semantics3d].size(0)
-        assert batch_size == sample[K.instances3d].size(0)
+        assert batch_size == sample[K.colors3d].shape[0]
+        assert batch_size == sample[K.points3d].shape[0]
+        assert batch_size == sample[K.semantics3d].shape[0]
+        assert batch_size == sample[K.instances3d].shape[0]
+
+        assert sample[K.semantics3d].shape[1] == 1024
+        assert sample[K.points3d].shape[1] == 1024
+        assert sample[K.colors3d].shape[1] == 1024
+        assert sample[K.instances3d].shape[1] == 1024
         break

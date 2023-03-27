@@ -7,10 +7,9 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-from torch import Tensor
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
-from vis4d.common.typing import DictStrAny
+from vis4d.common.typing import DictStrAny, NDArrayF32, NDArrayI64
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import Dataset, VideoMixin
@@ -47,7 +46,7 @@ nuscenes_class_range_map = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
 
 def _get_extrinsics(
     ego_pose: DictStrAny, car_from_sensor: DictStrAny
-) -> torch.Tensor:
+) -> NDArrayF32:
     """Convert NuScenes ego pose / sensor_to_car to global extrinsics."""
     global_from_car = transform_matrix(
         ego_pose["translation"],
@@ -59,8 +58,8 @@ def _get_extrinsics(
         Quaternion(car_from_sensor["rotation"]),
         inverse=False,
     )
-    extrinsics = np.dot(global_from_car, car_from_sensor_)
-    return torch.tensor(extrinsics, dtype=torch.float32)
+    extrinsics = np.dot(global_from_car, car_from_sensor_).astype(np.float32)
+    return extrinsics
 
 
 class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
@@ -233,7 +232,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
     def _load_lidar_data(
         self, lidar_data: DictStrAny, ego_pose: DictStrAny
-    ) -> tuple[Tensor, Tensor, str]:
+    ) -> tuple[NDArrayF32, NDArrayF32, str]:
         """Load LiDAR data.
 
         Args:
@@ -241,7 +240,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             ego_pose (DictStrAny): Ego vehicle pose in NuScenes format.
 
         Returns:
-            tuple[Tensor, Tensor, str]: Pointcloud, extrinsics, timestamp.
+            tuple[NDArrayF32, NDArrayF32, str]: Pointcloud, extrinsics,
+                timestamp.
         """
         calibration_lidar = self.data.get(
             "calibrated_sensor", lidar_data["calibrated_sensor_token"]
@@ -251,15 +251,15 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         points_bytes = self.data_backend.get(
             os.path.join(self.data_root, lidar_filepath)
         )
-        points = torch.frombuffer(points_bytes, dtype=torch.float32)
-        points = points.view(-1, 5)[:, :3]
+        points = np.frombuffer(points_bytes, dtype=np.float32)
+        points = points.reshape(-1, 5)[:, :3]
         extrinsics = _get_extrinsics(ego_pose, calibration_lidar)
         return points, extrinsics, timestamp
 
     # TODO: add unit tests for all coordinate transforms
     def _load_cam_data(
         self, cam_data: DictStrAny, ego_pose_cam: DictStrAny
-    ) -> tuple[Tensor, Tensor, Tensor, str]:
+    ) -> tuple[NDArrayF32, NDArrayF32, NDArrayF32, str]:
         """Load camera data.
 
         Args:
@@ -267,8 +267,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             ego_pose_cam (dict): Ego vehicle pose in NuScenes format.
 
         Returns:
-            tuple[Tensor, Tensor, Tensor, str]: Image, intrinscs, extrinsics,
-                timestamp.
+            tuple[NDArrayF32, NDArrayF32, NDArrayF32, str]: Image, intrinscs,
+                extrinsics, timestamp.
         """
         timestamp = cam_data["timestamp"]
         cam_filepath = cam_data["filename"]
@@ -278,15 +278,12 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         im_bytes = self.data_backend.get(
             os.path.join(self.data_root, cam_filepath)
         )
-        image = (
-            torch.from_numpy(im_decode(im_bytes))
-            .to(torch.float32)
-            .permute(2, 0, 1)
-            .unsqueeze(0)
-        )
+        image = np.ascontiguousarray(im_decode(im_bytes), dtype=np.float32)[
+            None
+        ]
         extrinsics = _get_extrinsics(ego_pose_cam, calibration_cam)
-        intrinsics = torch.tensor(
-            calibration_cam["camera_intrinsic"], dtype=torch.float32
+        intrinsics = np.array(
+            calibration_cam["camera_intrinsic"], dtype=np.float32
         )
         return image, intrinsics, extrinsics, timestamp
 
@@ -302,25 +299,27 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
     def _load_boxes3d(
         self,
         list_boxes: list[Box],
-        sensor_extrinsics: Tensor | None = None,
+        sensor_extrinsics: NDArrayF32 | None = None,
         axis_mode: AxisMode = AxisMode.ROS,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[NDArrayF32, NDArrayI64, NDArrayI64]:
         """Load 3D bounding boxes.
 
         Args:
             list_boxes (List[Box]): List of boxes in NuScenes format.
-            sensor_extrinsics (Optional[torch.Tensor], optional): Extrinsics
+            sensor_extrinsics (Optional[NDArrayF32], optional): Extrinsics
                 of current sensor. Defaults to None.
             axis_mode (AxisMode, optional): Axis mode of current sensor.
                 Defaults to AxisMode.ROS.
 
         Returns:
-            tuple[Tensor, Tensor, Tensor]: 3D boxes, classes and track ids in
-                Vis4D format.
+            tuple[NDArrayF32, NDArrayF32, NDArrayF32]: 3D boxes, classes and
+                track ids in Vis4D format.
         """
         boxes = copy.deepcopy(list_boxes)
         if sensor_extrinsics is not None:
-            inverse_extrinsics = inverse_rigid_transform(sensor_extrinsics)
+            inverse_extrinsics = inverse_rigid_transform(
+                torch.from_numpy(sensor_extrinsics)
+            )
             translation_sensor = inverse_extrinsics[:3, 3].numpy()
             rotation_sensor = Quaternion._from_matrix(  # pylint: disable=protected-access,line-too-long
                 inverse_extrinsics[:3, :3].numpy(), atol=1e-5
@@ -330,26 +329,24 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 box.translate(translation_sensor)
 
         boxes_tensor, boxes_classes, boxes_track_ids = (
-            torch.empty((1, 10), dtype=torch.float32),
-            torch.empty((1,), dtype=torch.long),
-            torch.empty((1,), dtype=torch.long),
+            np.empty((1, 10), dtype=np.float32),
+            np.empty((1,), dtype=np.int64),
+            np.empty((1,), dtype=np.int64),
         )
         for box in boxes:
             box_class = category_to_detection_name(box.name)
             if box_class is None:
                 continue
-            boxes_classes = torch.cat(
+            boxes_classes = np.concatenate(
                 [
                     boxes_classes,
-                    torch.tensor(
-                        [nuscenes_track_map[box_class]], dtype=torch.long
-                    ),
+                    np.array([nuscenes_track_map[box_class]], dtype=np.int64),
                 ]
             )
-            boxes_track_ids = torch.cat(
+            boxes_track_ids = np.concatenate(
                 [
                     boxes_track_ids,
-                    torch.tensor([self._get_track_id(box)], dtype=torch.long),
+                    np.array([self._get_track_id(box)], dtype=np.int64),
                 ]
             )
             if axis_mode == AxisMode.OPENCV:
@@ -360,35 +357,37 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 )
                 yaw = -np.arctan2(v[2], v[0])
                 box.orientation = Quaternion(angle=yaw, axis=[0, 1, 0])
-
-            box_params = torch.tensor(
+            box_params = np.array(
                 [[*box.center, *box.wlh, *box.orientation]],
-                dtype=torch.float32,
+                dtype=np.float32,
             )
-            boxes_tensor = torch.cat([boxes_tensor, box_params])
+            boxes_tensor = np.concatenate([boxes_tensor, box_params])
         return boxes_tensor[1:], boxes_classes[1:], boxes_track_ids[1:]
 
     def _load_boxes2d(
         self,
-        boxes3d: torch.Tensor,
-        intrinsics: torch.Tensor,
+        boxes3d: NDArrayF32,
+        intrinsics: NDArrayF32,
         im_hw: tuple[int, int],
-    ) -> tuple[Tensor, Tensor]:
+    ) -> tuple[NDArrayF32, NDArrayF32]:
         """Load 2D bounding boxes.
 
         Args:
-            boxes3d (torch.Tensor): Tensor of 3D boxes in camera frame.
-            intrinsics (torch.Tensor): Camera intrinsics
+            boxes3d (NDArrayF32): 3D boxes in camera frame.
+            intrinsics (NDArrayF32): Camera intrinsics
             im_hw (Tuple[int, int]): Image dimensions.
 
         Returns:
-            tuple[Tensor, Tensor]: Mask of 3D bounding boxes successfully
-                projecting to the image, the corresponding 2D bounding boxes.
+            tuple[NDArrayF32, NDArrayF32]: Mask of 3D bounding boxes
+                successfully projecting to the image, the corresponding 2D
+                bounding boxes.
         """
-        box_corners = boxes3d_to_corners(boxes3d, AxisMode.OPENCV)
-        points = project_points(box_corners.view(-1, 3), intrinsics).view(
-            -1, 8, 2
+        box_corners = boxes3d_to_corners(
+            torch.from_numpy(boxes3d), AxisMode.OPENCV
         )
+        points = project_points(
+            box_corners.view(-1, 3), torch.from_numpy(intrinsics)
+        ).view(-1, 8, 2)
         mask = (points[..., 0] >= 0) * (points[..., 0] < im_hw[1]) * (
             points[..., 1] >= 0
         ) * (points[..., 1] < im_hw[0]) * box_corners[..., 2] > 0.0
@@ -405,7 +404,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             ),
             dim=-1,
         )
-        return mask, boxes2d
+        return mask.numpy(), boxes2d.numpy()
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.
@@ -457,7 +456,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                         extrinsics,
                         timestamp,
                     ) = self._load_cam_data(cam_data, ego_pose_cam)
-                    image_hw = image.size(2), image.size(3)
+                    image_hw = image.shape[1], image.shape[2]
                     (
                         boxes3d,
                         boxes3d_classes,
