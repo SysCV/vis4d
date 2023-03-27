@@ -6,8 +6,8 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.common.imports import SCALABEL_AVAILABLE
+from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.base import Dataset
 from vis4d.data.datasets.util import filter_by_keys, im_decode, npy_decode

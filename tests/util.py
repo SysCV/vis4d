@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.typing import ModelOutput, NDArrayNumber, NDArrayI64
+from vis4d.common.typing import ModelOutput, NDArrayI64, NDArrayNumber
 
 
 def fill_weights(module: nn.Module, value: float = 0.0) -> None:

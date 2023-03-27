@@ -38,8 +38,10 @@ class ConvertInstanceMaskToSegmentationMask:
     out_keys=(CommonKeys.boxes2d_classes,),
 )
 class RemappingCategories:
+    """Remap classes using a mapping list."""
+
     def __init__(self, mapping: list[int]):
-        """Remap classes using a mapping list.
+        """Initialize remapping.
 
         Args:
             mapping (List[int]): List of class ids, such that classes will be
@@ -48,6 +50,14 @@ class RemappingCategories:
         self.mapping = mapping
 
     def __call__(self, classes: NDArrayI32) -> NDArrayI32:
+        """Execute remapping.
+
+        Args:
+            classes (NDArrayI64): Array of class ids, shape [N,].
+
+        Returns:
+            NDArrayI64: Array of remapped class ids, shape [N,].
+        """
         for i, cls in enumerate(classes):
             classes[i] = self.mapping.index(cls)
         return classes
