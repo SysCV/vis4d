@@ -7,6 +7,7 @@ import torch
 from tests.util import get_test_data, isclose_on_all_indices
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
+from vis4d.data.transforms.to_tensor import ToTensor
 
 IMAGE_INDICES = torch.tensor([0, 1, 460800, 921599])
 IMAGE_VALUES = torch.tensor(
@@ -48,6 +49,7 @@ class BDD100KDetTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.dataset[0]
+        item = ToTensor().apply_to_data([item])[0]
         self.assertEqual(
             tuple(item.keys()),
             (
@@ -124,6 +126,7 @@ class BDD100KInsSegTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.dataset[0]
+        item = ToTensor().apply_to_data([item])[0]
         self.assertEqual(
             tuple(item.keys()),
             (

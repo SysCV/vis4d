@@ -6,6 +6,7 @@ import torch
 from tests.util import get_test_data, isclose_on_all_indices
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
+from vis4d.data.transforms.to_tensor import ToTensor
 
 IMAGE_INDICES = torch.tensor([0, 1, 40480, 80659])
 IMAGE_VALUES = torch.tensor(
@@ -43,6 +44,7 @@ class COCOTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.coco[0]
+        item = ToTensor().apply_to_data([item])[0]
         self.assertEqual(
             tuple(item.keys()),
             (
@@ -111,6 +113,7 @@ class COCOSegTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.coco[0]
+        item = ToTensor().apply_to_data([item])[0]
         assert tuple(item.keys()) == (
             "original_hw",
             "input_hw",
