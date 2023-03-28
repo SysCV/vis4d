@@ -22,7 +22,14 @@ class FlipImage:
         self.direction = direction
 
     def __call__(self, image: NDArrayF32) -> NDArrayF32:
-        """Execute flipping op."""
+        """Execute flipping op.
+
+        Args:
+            image (NDArrayF32): [N, H, W, C] array of image.
+
+        Returns:
+            NDArrayF32: [N, H, W, C] array of flipped image.
+        """
         image_ = torch.from_numpy(image)
         if self.direction == "horizontal":
             return image_.flip(2).numpy()
@@ -48,15 +55,23 @@ class FlipBoxes2D:
         self.direction = direction
 
     def __call__(self, boxes: NDArrayF32, image: NDArrayF32) -> NDArrayF32:
-        """Execute flipping op."""
+        """Execute flipping op.
+
+        Args:
+            boxes (NDArrayF32): [M, 4] array of boxes.
+            image (NDArrayF32): [N, H, W, C] array of image.
+
+        Returns:
+            NDArrayF32: [M, 4] array of flipped boxes.
+        """
         if self.direction == "horizontal":
-            im_width = image.shape[3]
+            im_width = image.shape[2]
             tmp = im_width - boxes[..., 2::4]
             boxes[..., 2::4] = im_width - boxes[..., 0::4]
             boxes[..., 0::4] = tmp
             return boxes
         if self.direction == "vertical":
-            im_height = image.shape[2]
+            im_height = image.shape[1]
             tmp = im_height - boxes[..., 3::4]
             boxes[..., 3::4] = im_height - boxes[..., 1::4]
             boxes[..., 1::4] = tmp
