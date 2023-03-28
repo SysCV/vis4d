@@ -1,3 +1,4 @@
+# pylint: disable=no-member,unexpected-keyword-arg,use-dict-literal
 """Point transformation testing class."""
 import unittest
 
@@ -5,7 +6,7 @@ import numpy as np
 import pytest
 import torch
 
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.points import (
     ApplySE3Transform,
     GenRandSE3Transform,
@@ -22,7 +23,7 @@ class TestPoints(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def initdata(self):
         """Loads dummy data."""
-        self.data = {CommonKeys.points3d: np.random.rand(200, 3)}
+        self.data = {K.points3d: np.random.rand(200, 3)}
         self.original_data = self.data.copy()
 
     def test_move_pts_to_last_channel(self) -> None:
@@ -30,7 +31,7 @@ class TestPoints(unittest.TestCase):
         # pylint: disable=unexpected-keyword-arg
         transform = TransposeChannels(channels=(-1, -2))
         out = transform.apply_to_data(self.data.copy())
-        self.assertEqual(out[CommonKeys.points3d].shape, (3, 200))
+        self.assertEqual(out[K.points3d].shape, (3, 200))
 
     def test_no_se3_tf(self) -> None:
         """Tests rotation of pointcloud."""
@@ -41,10 +42,7 @@ class TestPoints(unittest.TestCase):
 
         out = tf.apply_to_data(transform.apply_to_data(self.data.copy()))
         self.assertTrue(
-            np.all(
-                out[CommonKeys.points3d]
-                == self.original_data[CommonKeys.points3d]
-            )
+            np.all(out[K.points3d] == self.original_data[K.points3d])
         )
         # Make sure also works if channels are not last
         swap_ch = TransposeChannels(channels=(-1, -2))
@@ -52,10 +50,7 @@ class TestPoints(unittest.TestCase):
             swap_ch.apply_to_data(transform.apply_to_data(self.data.copy()))
         )
         self.assertTrue(
-            np.all(
-                out[CommonKeys.points3d]
-                == self.original_data[CommonKeys.points3d]
-            )
+            np.all(out[K.points3d] == self.original_data[K.points3d])
         )
 
     def test_rotate_points_180_deg(self) -> None:
@@ -67,8 +62,8 @@ class TestPoints(unittest.TestCase):
         tf = ApplySE3Transform()
         out = tf.apply_to_data(transform.apply_to_data(self.data.copy()))
 
-        in_points = self.data[CommonKeys.points3d]
-        out_points = out[CommonKeys.points3d]
+        in_points = self.data[K.points3d]
+        out_points = out[K.points3d]
         # Make sure signs are correct
         self.assertTrue(
             np.all(np.isclose(in_points[:, :2], -out_points[:, :2]))

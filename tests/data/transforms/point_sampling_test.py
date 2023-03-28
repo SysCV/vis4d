@@ -1,3 +1,4 @@
+# pylint: disable=no-member,unexpected-keyword-arg,use-dict-literal
 """Point sampling transforms testing class."""
 from __future__ import annotations
 
@@ -7,7 +8,7 @@ import unittest
 import numpy as np
 import pytest
 
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.point_sampling import (
     GenerateBlockSamplingIndices,
     GenerateSamplingIndices,
@@ -30,7 +31,7 @@ class TestSampleFromBlock(unittest.TestCase):
     def initdata(self) -> None:
         """Loads dummy data."""
         self.data = {
-            CommonKeys.points3d: np.concatenate(
+            K.points3d: np.concatenate(
                 [self.data_in_unit_square, self.data_outside_unit_square]
             ),
         }
@@ -39,7 +40,7 @@ class TestSampleFromBlock(unittest.TestCase):
     def test_block_sampling(self) -> None:
         """Tests the functor."""
         # Should return the full block
-        data_to_sample_from = {CommonKeys.points3d: self.data_in_unit_square}
+        data_to_sample_from = {K.points3d: self.data_in_unit_square}
 
         mask_gen = GenerateBlockSamplingIndices(
             self.n_pts_to_sample,
@@ -54,14 +55,14 @@ class TestSampleFromBlock(unittest.TestCase):
 
         self.assertTrue(
             np.all(
-                np.sort(data_sampled[CommonKeys.points3d], axis=0)
+                np.sort(data_sampled[K.points3d], axis=0)
                 == self.data_in_unit_square
             )
         )
 
         # Should only sample from the first block
         data_to_sample_from = {
-            CommonKeys.points3d: np.concatenate(
+            K.points3d: np.concatenate(
                 [self.data_in_unit_square, self.data_outside_unit_square]
             )
         }
@@ -76,13 +77,13 @@ class TestSampleFromBlock(unittest.TestCase):
         )
         self.assertTrue(
             np.all(
-                np.sort(data_sampled[CommonKeys.points3d], axis=0)
+                np.sort(data_sampled[K.points3d], axis=0)
                 == self.data_in_unit_square
             )
         )
         # Should only sample from the second block
         data_to_sample_from = {
-            CommonKeys.points3d: np.concatenate(
+            K.points3d: np.concatenate(
                 [self.data_in_unit_square, self.data_outside_unit_square]
             )
         }
@@ -97,7 +98,7 @@ class TestSampleFromBlock(unittest.TestCase):
         )
         self.assertTrue(
             np.all(
-                np.sort(data_sampled[CommonKeys.points3d], axis=0)
+                np.sort(data_sampled[K.points3d], axis=0)
                 == self.data_outside_unit_square
             )
         )
@@ -114,10 +115,8 @@ class TestSampleFromBlock(unittest.TestCase):
         data_sampled = sampler.apply_to_data(mask_gen.apply_to_data(self.data))
         self.assertTrue(
             np.all(
-                np.unique(
-                    data_sampled[CommonKeys.points3d].reshape(-1, 3), axis=0
-                )
-                == np.unique(self.original_data[CommonKeys.points3d], axis=00)
+                np.unique(data_sampled[K.points3d].reshape(-1, 3), axis=0)
+                == np.unique(self.original_data[K.points3d], axis=00)
             )
         )
 
