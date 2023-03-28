@@ -42,7 +42,6 @@ class GenerateSamplingIndices:
         Raises:
             ValueError: If data is empty.
         """
-
         if len(data) == 0:
             raise ValueError("Data sample was empty!")
 
@@ -141,7 +140,7 @@ class GenFullCovBlockSamplingIndices:
         )
 
     def __call__(self, coordinates: NDArrayNumber) -> NDArrayInt:
-        """Subsamples the pointcloud using blocks of a given size"""
+        """Subsamples the pointcloud using blocks of a given size."""
         # Get bounding box for sampling
         coord_min, coord_max = (
             np.min(coordinates, axis=0),

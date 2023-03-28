@@ -101,12 +101,10 @@ class GenRandSE3Transform:
         Args:
             translation_min (tuple[float, float, float]): Minimum translation.
             translation_max (tuple[float, float, float]): Maximum translation.
-            rotation_min (tuple[float, float, float]):
-                Minimum euler rotation angles [rad]. Applied in the order
-                rot_x -> rot_y -> rot_z.
-            rotation_max (tuple[float, float, float]):
-                Maximum euler rotation angles [rad]. Applied in the order
-                rot_x -> rot_y -> rot_z.
+            rotation_min (tuple[float, float, float]):  Minimum euler rotation
+                angles [rad]. Applied in the order rot_x -> rot_y -> rot_z.
+            rotation_max (tuple[float, float, float]): Maximum euler rotation
+                angles [rad]. Applied in the order rot_x -> rot_y -> rot_z.
         """
         self.translation_min = np.asarray(translation_min)
         self.translation_max = np.asarray(translation_max)
