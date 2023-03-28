@@ -310,49 +310,53 @@ def compose_batch(transforms: list[TFunctor]) -> BatchTransformFunction:
     return _preprocess_func
 
 
-def random_apply(
-    transforms: list[TFunctor], probability: float = 0.5
-) -> TransformFunction:
-    """Apply given transforms at random with given probability.
+@Transform("data", "data")
+class RandomApply:
+    """Randomize the application of a given set of transformations."""
 
-    Args:
-        transforms (list[TFunctor]): Transformations that
-            are applied with a given probability.
-        probability (float, optional): Probability to apply transformations.
-            Defaults to 0.5.
+    def __init__(
+        self, transforms: list[TFunctor], probability: float = 0.5
+    ) -> None:
+        """Creates an instance of RandomApply.
 
-    Returns:
-        TransformFunction: The randomized transformations.
-    """
+        Args:
+            transforms (list[TFunctor]): Transformations that
+                are applied with a given probability.
+            probability (float, optional): Probability to apply
+                transformations. Defaults to 0.5.
+        """
+        self.transforms = transforms
+        self.probability = probability
 
-    def _apply(data: DictData) -> DictData:
-        if torch.rand(1) < probability:
-            for op in transforms:
+    def __call__(self, data: DictData) -> DictData:
+        """Apply transforms with a given probability."""
+        if torch.rand(1) < self.probability:
+            for op in self.transforms:
                 data = op.apply_to_data(data)  # type: ignore
         return data
 
-    return _apply
 
+@BatchTransform("data", "data")
+class BatchRandomApply:
+    """Randomize the application of a given set of batch transformations."""
 
-def random_apply_batch(
-    transforms: list[TFunctor], probability: float = 0.5
-) -> BatchTransformFunction:
-    """Apply given batch transforms at random with given probability.
+    def __init__(
+        self, transforms: list[TFunctor], probability: float = 0.5
+    ) -> None:
+        """Creates an instance of BatchRandomApply.
 
-    Args:
-        transforms (list[TFunctor]): Batch transformations that
-            are applied with a given probability.
-        probability (float, optional): Probability to apply transformations.
-            Defaults to 0.5.
+        Args:
+            transforms (list[TFunctor]): Batch transformations that
+                are applied with a given probability.
+            probability (float, optional): Probability to apply
+                transformations. Defaults to 0.5.
+        """
+        self.transforms = transforms
+        self.probability = probability
 
-    Returns:
-        BatchTransformFunction: The randomized transformations.
-    """
-
-    def _apply(batch: list[DictData]) -> list[DictData]:
-        if torch.rand(1) < probability:
-            for op in transforms:
+    def __call__(self, batch: list[DictData]) -> list[DictData]:
+        """Apply transforms with a given probability."""
+        if torch.rand(1) < self.probability:
+            for op in self.transforms:
                 batch = op.apply_to_data(batch)  # type: ignore
         return batch
-
-    return _apply

@@ -7,7 +7,7 @@ from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
-from vis4d.data.transforms.base import compose, random_apply
+from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.resize import (
@@ -73,7 +73,7 @@ def det_preprocessing(
         class_config(ResizeImage),
         class_config(ResizeBoxes2D),
         class_config(
-            random_apply,
+            RandomApply,
             transforms=augmentation_transforms,
             probability=augment_probability,
         ),
