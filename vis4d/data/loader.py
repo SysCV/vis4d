@@ -30,7 +30,6 @@ from .typing import DictData
 
 DictDataOrList = Union[DictData, list[DictData]]
 _DATASET = Dataset[DictDataOrList]
-_DATASET_ONLY_DICT = Dataset[DictData]  # pylint: disable=invalid-name
 _CONCAT_DATASET = ConcatDataset[DictDataOrList]  # pylint: disable=invalid-name
 _ITERABLE_DATASET = IterableDataset[DictData]  # pylint: disable=invalid-name
 _DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
@@ -173,7 +172,7 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
 
     def __init__(
         self,
-        dataset: _DATASET_ONLY_DICT,
+        dataset: _DATASET,
         n_samples_per_batch: int,
         preprocess_fn: Callable[[DictData], DictData] | None = None,
     ) -> None:
