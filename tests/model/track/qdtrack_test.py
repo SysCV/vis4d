@@ -32,6 +32,7 @@ class QDTrackTest(unittest.TestCase):
         """
         qdtrack = FasterRCNNQDTrack(num_classes=8)
         load_model_checkpoint(qdtrack, self.model_weights)
+        qdtrack.eval()
 
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
