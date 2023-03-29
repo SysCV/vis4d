@@ -455,11 +455,7 @@ def boxes2d_from_scalabel(
     """
     box_list, cls_list, idx_list = [], [], []
     for i, label in enumerate(labels):
-        box, box_cls, l_id = (
-            label.box2d,
-            label.category,
-            label.id,
-        )
+        box, box_cls, l_id = label.box2d, label.category, label.id
         if box is None:
             continue
         if box_cls in class_to_idx:
