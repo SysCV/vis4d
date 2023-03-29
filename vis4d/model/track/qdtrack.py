@@ -290,7 +290,7 @@ class FasterRCNNQDTrack(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         frame_ids: list[int],
-    ) -> list[QDTrackState]:
+    ) -> TrackOut:
         """Forward."""
         # TODO implement forward_train
         return self._forward_test(images, images_hw, frame_ids)
@@ -300,7 +300,7 @@ class FasterRCNNQDTrack(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         frame_ids: list[int],
-    ) -> list[QDTrackState]:
+    ) -> TrackOut:
         """Forward inference stage."""
         features = self.backbone(images)
         features = self.fpn(features)
@@ -317,6 +317,6 @@ class FasterRCNNQDTrack(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         frame_ids: list[int],
-    ) -> list[QDTrackState]:
+    ) -> TrackOut:
         """Type definition for call implementation."""
         return self._call_impl(images, images_hw, frame_ids)
