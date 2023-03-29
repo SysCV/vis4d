@@ -21,6 +21,8 @@ from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.imagenet import ImageNet
+from vis4d.data.transforms.autoaugment import randaug
+from vis4d.data.transforms.flip import flip_image
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.model.classification.vit import ClassificationViT
@@ -45,7 +47,6 @@ def get_config() -> ConfigDict:
 
     config = ConfigDict()
     config.n_gpus = 1
-    config.experiment_name = "vit_imagenet"
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "vit_t_16_imagenet1k"
     config = set_output_dir(config)
@@ -59,10 +60,11 @@ def get_config() -> ConfigDict:
     params.num_epochs = 300
     params.batch_size = 256
     params.lr = 1e-3
-    params.weight_decay = 0.1
+    params.weight_decay = 0.0001
     params.augment_proba = 1.0
     params.num_classes = 1000
     params.grad_norm_clip = 1.0
+    params.accumulate_grad_batches = 1
     config.params = params
 
     ######################################################
@@ -92,7 +94,14 @@ def get_config() -> ConfigDict:
         ),
         class_config(
             "vis4d.data.transforms.autoaugment.randaug",
-            magnitude=9,
+            magnitude=10,
+            in_keys=(K.images,),
+            out_keys=(K.images,),
+        ),
+        class_config(
+            "vis4d.data.transforms.random_erasing.random_erasing",
+            probability=0.5,
+            mean=(123.675, 116.28, 103.53),
             in_keys=(K.images,),
             out_keys=(K.images,),
         ),
@@ -107,7 +116,7 @@ def get_config() -> ConfigDict:
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
         num_samples_per_gpu=params.batch_size,
-        num_workers_per_gpu=0,
+        num_workers_per_gpu=9,
         shuffle=True,
     )
 
@@ -115,7 +124,7 @@ def get_config() -> ConfigDict:
     test_dataset_cfg = class_config(
         ImageNet,
         data_root=config.dataset_root,
-        split=config.train_split,
+        split=config.test_split,
         num_classes=params.num_classes,
     )
     test_preprocess_cfg = classification_preprocessing(
@@ -125,7 +134,7 @@ def get_config() -> ConfigDict:
         preprocess_cfg=test_preprocess_cfg,
         dataset_cfg=test_dataset_cfg,
         num_samples_per_gpu=params.batch_size,
-        num_workers_per_gpu=0,
+        num_workers_per_gpu=5,
         shuffle=False,
     )
     data.test_dataloader = {"imagenet_eval": test_dataloader_test}
@@ -148,7 +157,7 @@ def get_config() -> ConfigDict:
     ##                        LOSS                      ##
     ######################################################
 
-    config.loss = class_config(nn.CrossEntropyLoss, label_smoothing=0.11)
+    config.loss = class_config(nn.CrossEntropyLoss)
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -160,13 +169,16 @@ def get_config() -> ConfigDict:
                 optim.AdamW, lr=params.lr, weight_decay=params.weight_decay
             ),
             lr_scheduler=class_config(
-                PolyLR, max_steps=params.num_epochs, power=0.9
+                optim.lr_scheduler.CosineAnnealingLR,
+                T_max=params.num_epochs * 1281167 / (params.batch_size * 4)
+                - 10000,
+                eta_min=1e-9,
             ),
             lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.01, warmup_steps=6
+                LinearLRWarmup, warmup_ratio=1e-4, warmup_steps=10000
             ),
-            epoch_based_lr=True,
-            epoch_based_warmup=True,
+            epoch_based_lr=False,
+            epoch_based_warmup=False,
         )
     ]
 
@@ -186,7 +198,6 @@ def get_config() -> ConfigDict:
                 ClassificationEvaluator,
                 num_classes=params.num_classes,
             ),
-            run_every_nth_epoch=1,
             num_epochs=params.num_epochs,
         )
     }
@@ -224,7 +235,7 @@ def get_config() -> ConfigDict:
         "ckpt": class_config(
             CheckpointCallback,
             save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
+            run_every_nth_epoch=5,
             num_epochs=params.num_epochs,
         )
     }
@@ -236,6 +247,9 @@ def get_config() -> ConfigDict:
     pl_trainer = ConfigDict()
     pl_trainer.wandb = True
     pl_trainer.gradient_clip_val = params.grad_norm_clip
+    pl_trainer.accumulate_grad_batches = params.accumulate_grad_batches
+    pl_trainer.check_val_every_n_epoch = 5
+
     config.pl_trainer = pl_trainer
 
     pl_callbacks: list[pl.callbacks.Callback] = []
