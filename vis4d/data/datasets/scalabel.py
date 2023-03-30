@@ -264,7 +264,6 @@ class Scalabel(Dataset, CacheMappingMixin):
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         data = load(self.annotation_path)
-        data.frames = sorted(data.frames, key=lambda x: x.name)
         if self.config_path is not None:
             data.config = load_label_config(self.config_path)
         return data
