@@ -110,9 +110,6 @@ class BDD100K(ScalabelVideo):
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         bdd100k_anns = load(self.annotation_path)
-        bdd100k_anns.frames = sorted(
-            bdd100k_anns.frames, key=lambda frame: frame.name
-        )
         if self.config_path is None:
             return bdd100k_anns  # pragma: no cover
         frames = bdd100k_anns.frames
