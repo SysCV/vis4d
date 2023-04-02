@@ -5,10 +5,9 @@ import os
 from collections.abc import Sequence
 
 import numpy as np
-import torch
-from torch import Tensor
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
+from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.base import Dataset
 from vis4d.data.datasets.util import filter_by_keys, im_decode, npy_decode
@@ -298,7 +297,7 @@ class SHIFT(Dataset):
 
     def _load(
         self, view: str, data_group: str, file_ext: str, video: str, frame: str
-    ) -> Tensor:
+    ) -> NDArrayNumber:
         """Load data from the given data group."""
         frame_number = frame.split("_")[0]
         filepath = os.path.join(
@@ -318,13 +317,15 @@ class SHIFT(Dataset):
             f"Invalid data group '{data_group}'"
         )  # pragma: no cover
 
-    def _load_semseg(self, filepath: str) -> Tensor:
+    def _load_semseg(self, filepath: str) -> NDArrayI64:
         """Load semantic segmentation data."""
         im_bytes = self.backend.get(filepath)
         image = im_decode(im_bytes)[..., 0]
-        return torch.as_tensor(image, dtype=torch.int64).unsqueeze(0)
+        return image.astype(np.int64)
 
-    def _load_depth(self, filepath: str, max_depth: float = 1000.0) -> Tensor:
+    def _load_depth(
+        self, filepath: str, max_depth: float = 1000.0
+    ) -> NDArrayF32:
         """Load depth data."""
         assert max_depth > 0, "Max depth value must be greater than 0."
 
@@ -338,20 +339,13 @@ class SHIFT(Dataset):
         depth = (
             image[:, :, 2] * 256 * 256 + image[:, :, 1] * 256 + image[:, :, 0]
         )
-        return torch.as_tensor(
-            np.ascontiguousarray(depth / max_depth),
-            dtype=torch.float32,
-        ).unsqueeze(0)
+        return np.ascontiguousarray(depth / max_depth, dtype=np.float32)
 
-    def _load_flow(self, filepath: str) -> Tensor:
+    def _load_flow(self, filepath: str) -> NDArrayF32:
         """Load optical flow data."""
         npy_bytes = self.backend.get(filepath)
         flow = npy_decode(npy_bytes, key="flow")
-        return (
-            torch.as_tensor(flow, dtype=torch.float32)
-            .permute(2, 0, 1)
-            .unsqueeze(0)
-        )
+        return flow.astype(np.float32)
 
     def _get_frame_key(self, idx: int) -> tuple[str, str]:
         """Get the frame identifier (video name, frame name) by index."""

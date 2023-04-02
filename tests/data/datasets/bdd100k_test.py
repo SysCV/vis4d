@@ -4,9 +4,10 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data, isclose_on_all_indices
+from tests.util import get_test_data, isclose_on_all_indices_tensor
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
+from vis4d.data.transforms.to_tensor import ToTensor
 
 IMAGE_INDICES = torch.tensor([0, 1, 460800, 921599])
 IMAGE_VALUES = torch.tensor(
@@ -48,6 +49,7 @@ class BDD100KDetTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.dataset[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
         self.assertEqual(
             tuple(item.keys()),
             (
@@ -74,7 +76,7 @@ class BDD100KDetTest(unittest.TestCase):
         self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
         self.assertEqual(item["videoName"], None)
 
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
             IMAGE_INDICES,
             IMAGE_VALUES,
@@ -124,6 +126,7 @@ class BDD100KInsSegTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         item = self.dataset[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
         self.assertEqual(
             tuple(item.keys()),
             (
@@ -151,12 +154,12 @@ class BDD100KInsSegTest(unittest.TestCase):
         self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
         self.assertEqual(item["videoName"], None)
 
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
             IMAGE_INDICES,
             IMAGE_VALUES,
         )
-        assert isclose_on_all_indices(
+        assert isclose_on_all_indices_tensor(
             item[K.instance_masks].reshape(-1),
             INSTANCE_MASK_INDICES,
             INSTANCE_MASK_VALUES,

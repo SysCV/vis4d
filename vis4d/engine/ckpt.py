@@ -50,8 +50,7 @@ def load_model_checkpoint(
 
     Args:
         model (Module): Module to load checkpoint.
-        weights (str): Accept local filepath, URL, ``torchvision://xxx``,
-            ``open-mmlab://xxx``.
+        weights (str): Accept local filepath, URL, or e.g.``torchvision://xxx``
         strict (bool): Whether to allow different params for the model and
             checkpoint.
         rev_keys (tuple[tuple[str, str]]): A tuple of customized keywords to

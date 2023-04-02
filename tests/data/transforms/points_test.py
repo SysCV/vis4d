@@ -1,18 +1,19 @@
+# pylint: disable=no-member,unexpected-keyword-arg,use-dict-literal
 """Point transformation testing class."""
-import copy
 import unittest
 
+import numpy as np
 import pytest
 import torch
 
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.points import (
-    move_pts_to_last_channel,
-    rotate_around_axis,
+    ApplySE3Transform,
+    GenRandSE3Transform,
+    TransposeChannels,
 )
 
 
-# TODO, more tests required here
 class TestPoints(unittest.TestCase):
     """Tests sampling in a block based fashion."""
 
@@ -22,68 +23,50 @@ class TestPoints(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def initdata(self):
         """Loads dummy data."""
-        self.data = {
-            CommonKeys.points3d: torch.rand(200, 3),
-            CommonKeys.colors3d: torch.rand(200, 3),
-            CommonKeys.semantics3d: torch.randint(10, (200, 1)),
-        }
-        self.original_data = copy.deepcopy(self.data)
+        self.data = {K.points3d: np.random.rand(200, 3)}
+        self.original_data = self.data.copy()
 
     def test_move_pts_to_last_channel(self) -> None:
         """Tests the functional."""
         # pylint: disable=unexpected-keyword-arg
-        tf = move_pts_to_last_channel(
-            in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,)
-        )
+        transform = TransposeChannels(channels=(-1, -2))
+        out = transform.apply_to_data(self.data.copy())
+        self.assertEqual(out[K.points3d].shape, (3, 200))
 
-        # Check that points are now at last channel
-        self.assertEqual(tf(self.data)[CommonKeys.points3d].shape[-1], 200)
-
-    def test_move_pts_to_last_channel_w_multi_keys(self) -> None:
-        """Tests the functional with multiple inputs."""
-        # Check mutli key case
-        # pylint: disable=unexpected-keyword-arg
-        tf = move_pts_to_last_channel(
-            in_keys=(
-                CommonKeys.points3d,
-                CommonKeys.colors3d,
-                CommonKeys.semantics3d,
-            ),
-            out_keys=(
-                CommonKeys.points3d,
-                CommonKeys.colors3d,
-                CommonKeys.semantics3d,
-            ),
-        )
-
-        # Check that num_points are now at last channel
-        out = tf(self.data)
-        for data in out.values():
-            self.assertEqual(data.shape[-1], 200)
-
-    def test_rotation_not_rotate_points(self) -> None:
+    def test_no_se3_tf(self) -> None:
         """Tests rotation of pointcloud."""
-        # No rotation
-        tf = rotate_around_axis(angle_min=0, angle_max=0)
-        out = tf(self.data)
+        transform = GenRandSE3Transform(
+            (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)
+        )
+        tf = ApplySE3Transform()
+
+        out = tf.apply_to_data(transform.apply_to_data(self.data.copy()))
         self.assertTrue(
-            (
-                out[CommonKeys.points3d]
-                == self.original_data[CommonKeys.points3d]
-            ).all()
+            np.all(out[K.points3d] == self.original_data[K.points3d])
+        )
+        # Make sure also works if channels are not last
+        swap_ch = TransposeChannels(channels=(-1, -2))
+        out = tf.apply_to_data(
+            swap_ch.apply_to_data(transform.apply_to_data(self.data.copy()))
+        )
+        self.assertTrue(
+            np.all(out[K.points3d] == self.original_data[K.points3d])
         )
 
     def test_rotate_points_180_deg(self) -> None:
-        """Tests rotation of pointcloud."""
+        """Tests rotation of pointcloud of 180 deg. around z axis."""
         # 180 degree rotation
-        tf = rotate_around_axis(angle_min=torch.pi, angle_max=torch.pi, axis=2)
-        out = tf(self.data)
+        transform = GenRandSE3Transform(
+            (0, 0, 0), (0, 0, 0), (0, 0, np.pi), (0, 0, np.pi)
+        )
+        tf = ApplySE3Transform()
+        out = tf.apply_to_data(transform.apply_to_data(self.data.copy()))
 
-        in_points = self.original_data[CommonKeys.points3d]
-        out_points = out[CommonKeys.points3d]
+        in_points = self.data[K.points3d]
+        out_points = out[K.points3d]
         # Make sure signs are correct
         self.assertTrue(
-            torch.isclose(in_points[:, :2], -out_points[:, :2]).all()
+            np.all(np.isclose(in_points[:, :2], -out_points[:, :2]))
         )
         # Z component should not change
-        self.assertTrue((in_points[:, -1] == out_points[:, -1]).all())
+        self.assertTrue(np.all(in_points[:, -1] == out_points[:, -1]))

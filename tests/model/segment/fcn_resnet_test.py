@@ -25,10 +25,11 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for training."""
     preprocess_fn = compose(
         [
-            resize.resize_image((520, 520)),
-            resize.resize_masks(),
-            normalize.normalize_image(),
-            mask.convert_to_seg_masks(),
+            resize.GenerateResizeParameters((520, 520)),
+            resize.ResizeImage(),
+            resize.ResizeInstanceMasks(),
+            normalize.NormalizeImage(),
+            mask.ConvertInstanceMaskToSegmentationMask(),
         ]
     )
     datapipe = DataPipe(datasets, preprocess_fn)
@@ -43,8 +44,9 @@ def get_test_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            resize.resize_image((520, 520)),
-            normalize.normalize_image(),
+            resize.GenerateResizeParameters((520, 520)),
+            resize.ResizeImage(),
+            normalize.NormalizeImage(),
         ]
     )
     datapipe = DataPipe(datasets, preprocess_fn)

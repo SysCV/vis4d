@@ -256,13 +256,13 @@ class S3DIS(Dataset, CacheMappingMixin):
         data = {}
         for key in self.keys_to_load:
             if key == K.points3d:
-                data[key] = torch.from_numpy(coords)
+                data[key] = coords
             elif key == K.colors3d:
-                data[key] = torch.from_numpy(color / 255)
+                data[key] = color / 255.0
             elif key == K.semantics3d:
-                data[key] = torch.from_numpy(semantic_ids).squeeze(-1)
+                data[key] = semantic_ids.squeeze(-1)
             elif key == K.instances3d:
-                data[key] = torch.from_numpy(instance_ids).squeeze(-1)
+                data[key] = instance_ids.squeeze(-1)
             else:
                 raise ValueError(f"Can not load data for key: {key}")
 
