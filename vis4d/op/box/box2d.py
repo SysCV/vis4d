@@ -91,10 +91,7 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
 
 
 @torch.jit.script  # type: ignore
-def bbox_intersection(
-    boxes1: Tensor,
-    boxes2: Tensor,
-) -> torch.Tensor:
+def bbox_intersection(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
     Args:

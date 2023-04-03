@@ -91,7 +91,7 @@ class CallbackWrapper(pl.Callback):
                 get_model(pl_module), pl_module.current_epoch
             )
 
-    def on_validation_batch_end(  # type: ignore
+    def on_validation_batch_end(  # type: ignore # pylint: disable=signature-differs,line-too-long
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
@@ -137,7 +137,7 @@ class CallbackWrapper(pl.Callback):
                 get_model(pl_module), pl_module.current_epoch
             )
 
-    def on_test_batch_end(  # type: ignore
+    def on_test_batch_end(  # type: ignore # pylint: disable=signature-differs,line-too-long
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,

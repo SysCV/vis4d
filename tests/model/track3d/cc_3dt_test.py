@@ -1,3 +1,4 @@
+# pylint: disable=unexpected-keyword-arg
 """CC-3DT model test file."""
 import unittest
 
@@ -15,10 +16,15 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     multi_sensor_collate,
 )
-from vis4d.data.transforms import compose
-from vis4d.data.transforms.normalize import batched_normalize_image
-from vis4d.data.transforms.pad import pad_image
-from vis4d.data.transforms.resize import resize_image, resize_intrinsics
+from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.normalize import BatchNormalizeImages
+from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeImage,
+    ResizeIntrinsics,
+)
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     MultiSensorDataConnector,
@@ -59,28 +65,23 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
             weights=self.model_weights,
         )
 
-        # TODO: It seems pylint will compain about sensors for transforms
         preprocess_fn = compose(
             [
-                resize_image(  # pylint: disable=unexpected-keyword-arg
+                GenerateResizeParameters(
                     shape=(900, 1600),
                     keep_ratio=True,
                     sensors=self.CAMERAS,
                 ),
-                resize_intrinsics(  # pylint: disable=unexpected-keyword-arg
-                    sensors=self.CAMERAS
-                ),
+                ResizeImage(sensors=self.CAMERAS),
+                ResizeIntrinsics(sensors=self.CAMERAS),
             ]
         )
 
-        batch_fn = compose(
+        batch_fn = compose_batch(
             [
-                pad_image(  # pylint: disable=unexpected-keyword-arg
-                    sensors=self.CAMERAS
-                ),
-                batched_normalize_image(  # pylint: disable=unexpected-keyword-arg, line-too-long
-                    sensors=self.CAMERAS
-                ),
+                PadImages(sensors=self.CAMERAS),
+                BatchNormalizeImages(sensors=self.CAMERAS),
+                ToTensor(sensors=self.CAMERAS),
             ]
         )
 

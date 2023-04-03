@@ -32,6 +32,16 @@ from vis4d.engine.connectors import (
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 
+from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.normalize import BatchNormalizeImages
+from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeImage,
+    ResizeIntrinsics,
+)
+
 CONN_BBOX_3D_TEST = {
     CK.images: CK.images,
     CK.original_hw: "images_hw",
@@ -100,30 +110,38 @@ def get_config() -> ConfigDict:
     )
 
     test_preprocess_cfg = class_config(
-        "vis4d.data.transforms.compose",
+        compose,
         transforms=[
             class_config(
-                "vis4d.data.transforms.resize.resize_image",
+                GenerateResizeParameters,
                 shape=(900, 1600),
                 keep_ratio=True,
                 sensors=NuScenes._CAMERAS,
             ),
             class_config(
-                "vis4d.data.transforms.resize.resize_intrinsics",
+                ResizeImage,
+                sensors=NuScenes._CAMERAS,
+            ),
+            class_config(
+                ResizeIntrinsics,
                 sensors=NuScenes._CAMERAS,
             ),
         ],
     )
 
     test_batchprocess_cfg = class_config(
-        "vis4d.data.transforms.compose",
+        compose_batch,
         transforms=[
             class_config(
-                "vis4d.data.transforms.pad.pad_image",
+                PadImages,
                 sensors=NuScenes._CAMERAS,
             ),
             class_config(
-                "vis4d.data.transforms.normalize.batched_normalize_image",
+                BatchNormalizeImages,
+                sensors=NuScenes._CAMERAS,
+            ),
+            class_config(
+                ToTensor,
                 sensors=NuScenes._CAMERAS,
             ),
         ],

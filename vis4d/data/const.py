@@ -36,36 +36,37 @@ class CommonKeys:
     keys where we expect a pre-defined format to enable the usage of common
     data pre-processing operations among different datasets.
 
-    images (Tensor): Image of shape [1, C, H, W].
+    images (NDArrayF32): Image of shape [1, H, W, C].
     original_hw (Tuple[int, int]): Original shape of image in (height, width).
     input_hw (Tuple[int, int]): Shape of image in (height, width) after
         transformations.
     frame_ids (int): If the dataset contains videos, this field indicates the
         temporal frame index of the current image / sample.
 
-    boxes2d (Tensor): 2D bounding boxes of shape [N, 4] in xyxy format.
-    boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape
+    boxes2d (NDArrayF32): 2D bounding boxes of shape [N, 4] in xyxy format.
+    boxes2d_classes (NDArrayI32): Semantic classes of 2D bounding boxes, shape
         [N,].
-    boxes2d_track_ids (Tensor): Tracking IDs of 2D bounding boxes, shape [N,].
-    masks (Tensor): Instance segmentation masks of shape [N, H, W].
-    segmentation_masks (Tensor):
+    boxes2d_track_ids (NDArrayI32): Tracking IDs of 2D bounding boxes,
+        shape [N,].
+    instance_masks (NDArrayU8): Instance segmentation masks of shape [N, H, W].
+    segmentation_masks (NDArrayU8): Semantic segmentation masks [H, W].
 
-    intrinsics (Tensor): Intrinsic sensor calibration. Shape [3, 3].
-    extrinsics (Tensor): Extrinsic sensor calibration, transformation of sensor
-        to world coordinate frame. Shape [4, 4].
+    intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
+    extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
+        sensor to world coordinate frame. Shape [4, 4].
     axis_mode (AxisMode): Coordinate convention of the current sensor.
     timestamp (int): Sensor timestamp in Unix format.
 
-    points3d (Tensor): 3D pointcloud data, assumed to be [N, 3] and in sensor
-        frame.
-    colors3d (Tensor): Associated color values for each point, [N, 3].
+    points3d (NDArrayF32): 3D pointcloud data, assumed to be [N, 3] and in
+        sensor frame.
+    colors3d (NDArrayF32): Associated color values for each point, [N, 3].
 
     semantics3d:  TODO complete
     instances3d:  TODO complete
-    boxes3d (Tensor): [N, 10], each row consists of center (XYZ), dimensions
-        (WLH), and orientation quaternion (WXYZ).
-    boxes3d_classes (Tensor): Associated semantic classes of 3D bounding boxes,
-        [N,].
+    boxes3d (NDArrayF32): [N, 10], each row consists of center (XYZ),
+        dimensions (WLH), and orientation quaternion (WXYZ).
+    boxes3d_classes (NDArrayI32): Associated semantic classes of 3D bounding
+        boxes, [N,].
     """
 
     # image based inputs
