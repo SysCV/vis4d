@@ -39,13 +39,8 @@ def test_3d_data() -> None:
 
     assert item[K.images].shape == (1, 375, 1242, 3)
     assert item[K.original_hw] == (375, 1242)
-<<<<<<< HEAD
-    assert isclose_on_all_indices(
-        item[K.images].reshape(-1, 3),
-=======
     assert isclose_on_all_indices_numpy(
         item[K.images].astype(np.float32).reshape(-1, 3),
->>>>>>> main
         IMAGE_INDICES,
         IMAGE_VALUES,
     )
@@ -77,9 +72,5 @@ def test_3d_data() -> None:
 
     assert np.isclose(
         item[K.boxes3d_track_ids],
-<<<<<<< HEAD
-        np.array([0, 1, 2, 3, 4, 5, 6], dtype=np.intr64),
-=======
         np.array([0, 1, 2, 3, 4, 5, 6], dtype=np.int64),
->>>>>>> main
     ).all()
