@@ -43,8 +43,13 @@ class Mixup:
         lambda_: float,
     ) -> NDArrayF32:
         """Apply label smoothing to two category labels."""
-        off_value = self.label_smoothing / self.num_classes
-        on_value = 1 - self.label_smoothing + off_value
+        lam = np.array(lambda_, dtype=np.float32)
+        off_value = np.array(
+            self.label_smoothing / self.num_classes, dtype=np.float32
+        )
+        on_value = np.array(
+            1 - self.label_smoothing + off_value, dtype=np.float32
+        )
         categories_1: NDArrayF32 = (
             np.zeros((self.num_classes,), dtype=np.float32) + off_value
         )
@@ -53,7 +58,8 @@ class Mixup:
         )
         categories_1[cat_1] = on_value
         categories_2[cat_2] = on_value
-        return categories_1 * lambda_ + categories_2 * (1 - lambda_)
+        smoothed = categories_1 * lam + categories_2 * (1 - lam)
+        return smoothed.astype(np.float32)
 
     def _get_lambda(self, batch_size: int) -> NDArrayF32:
         """Get lambda values for mixup."""
@@ -68,7 +74,7 @@ class Mixup:
         assert batch_size % 2 == 0, "Batch size must be even for mixup!"
 
         if np.random.rand() > self.probability:
-            _eye = np.eye(self.num_classes)
+            _eye = np.eye(self.num_classes, dtype=np.float32)
             smooth_categories = [_eye[cat] for cat in categories]
             return images, smooth_categories
 
@@ -84,6 +90,6 @@ class Mixup:
             smooth_cat_j = self._label_smoothing(
                 categories[j], categories[i], lam[i]
             )
-            smooth_categories[i] = smooth_cat_i  # type: ignore
-            smooth_categories[j] = smooth_cat_j  # type: ignore
+            smooth_categories[i] = smooth_cat_i
+            smooth_categories[j] = smooth_cat_j
         return images, smooth_categories
