@@ -183,19 +183,18 @@ def convert_dataset(source_dir: str) -> None:
     file_count = sum(len(files) for (_, _, files) in sub_dirs)
 
     with tqdm(total=file_count) as pbar:
-        for root, dirs, files in sub_dirs:
-            if not dirs:
-                g_name = root.replace(source_dir, "")
-                g = hdf5_file.create_group(g_name) if g_name else hdf5_file
-                for f in files:
-                    filepath = os.path.join(root, f)
-                    if os.path.isfile(filepath):
-                        with open(filepath, "rb") as fp:
-                            file_content = fp.read()
-                        g.create_dataset(
-                            f, data=np.frombuffer(file_content, dtype="uint8")
-                        )
-                    pbar.update()
+        for root, _, files in sub_dirs:
+            g_name = root.replace(source_dir, "")
+            g = hdf5_file.create_group(g_name) if g_name else hdf5_file
+            for f in files:
+                filepath = os.path.join(root, f)
+                if os.path.isfile(filepath):
+                    with open(filepath, "rb") as fp:
+                        file_content = fp.read()
+                    g.create_dataset(
+                        f, data=np.frombuffer(file_content, dtype="uint8")
+                    )
+                pbar.update()
 
     hdf5_file.close()
     print("done.")
