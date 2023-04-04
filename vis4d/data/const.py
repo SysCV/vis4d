@@ -50,6 +50,7 @@ class CommonKeys:
         shape [N,].
     instance_masks (NDArrayU8): Instance segmentation masks of shape [N, H, W].
     segmentation_masks (NDArrayU8): Semantic segmentation masks [H, W].
+<<<<<<< HEAD
     depth_maps (NDArrayF32): Depth maps of shape [H, W].
     optical_flow (NDArrayF32): Optical flow of shape [H, W, 2], where the first
         channel is the horizontal flow and the second channel is the vertical
@@ -59,6 +60,9 @@ class CommonKeys:
     smooth_categories (NDArrayF32): Smoothed image categories of shape [N,
         num_classes].
 
+=======
+
+>>>>>>> main
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
         sensor to world coordinate frame. Shape [4, 4].

@@ -17,7 +17,9 @@ def test_to_tensor():
     }
 
     transform = ToTensor()
-    data = transform.apply_to_data(data)["cam"]  # pylint: disable=no-member
+    data = transform.apply_to_data([data])[0][  # pylint: disable=no-member
+        "cam"
+    ]
 
     images = data[K.images]
     assert isinstance(images, torch.Tensor)

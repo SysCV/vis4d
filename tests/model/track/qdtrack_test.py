@@ -32,6 +32,7 @@ class QDTrackTest(unittest.TestCase):
         """
         qdtrack = FasterRCNNQDTrack(num_classes=8)
         load_model_checkpoint(qdtrack, self.model_weights)
+        qdtrack.eval()
 
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
@@ -60,10 +61,12 @@ class QDTrackTest(unittest.TestCase):
                 images, inputs_hw, frame_ids
             )
         assert isinstance(tracks, TrackOut)
-
+        print("Testcase file:", get_test_file("qdtrack.pt"))
         testcase_gt = torch.load(get_test_file("qdtrack.pt"))
         for pred_entry, expected_entry in zip(tracks, testcase_gt):
             for pred, expected in zip(pred_entry, expected_entry):
+                print("PREDICTION:", pred.shape, pred)
+                print("EXPECTED:", expected.shape, expected)
                 assert torch.isclose(pred, expected, atol=1e-4).all().item()
 
     # def test_train(self): # TODO: Fix test

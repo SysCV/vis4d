@@ -4,14 +4,14 @@ from __future__ import annotations
 import numpy as np
 
 from vis4d.common.typing import NDArrayI32, NDArrayUI8
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
 
 
 @Transform(
-    in_keys=(CommonKeys.boxes2d_classes, CommonKeys.instance_masks),
-    out_keys=(CommonKeys.segmentation_masks,),
+    in_keys=(K.boxes2d_classes, K.instance_masks),
+    out_keys=(K.segmentation_masks,),
 )
 class ConvertInstanceMaskToSegmentationMask:
     """Merge all instance masks into a single segmentation map."""
@@ -34,12 +34,14 @@ class ConvertInstanceMaskToSegmentationMask:
 
 
 @Transform(
-    in_keys=(CommonKeys.boxes2d_classes,),
-    out_keys=(CommonKeys.boxes2d_classes,),
+    in_keys=(K.boxes2d_classes,),
+    out_keys=(K.boxes2d_classes,),
 )
 class RemappingCategories:
+    """Remap classes using a mapping list."""
+
     def __init__(self, mapping: list[int]):
-        """Remap classes using a mapping list.
+        """Initialize remapping.
 
         Args:
             mapping (List[int]): List of class ids, such that classes will be
@@ -48,6 +50,14 @@ class RemappingCategories:
         self.mapping = mapping
 
     def __call__(self, classes: NDArrayI32) -> NDArrayI32:
+        """Execute remapping.
+
+        Args:
+            classes (NDArrayI64): Array of class ids, shape [N,].
+
+        Returns:
+            NDArrayI64: Array of remapped class ids, shape [N,].
+        """
         for i, cls in enumerate(classes):
             classes[i] = self.mapping.index(cls)
         return classes

@@ -4,10 +4,11 @@ from __future__ import annotations
 import inspect
 import os
 
+import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.typing import ModelOutput
+from vis4d.common.typing import ModelOutput, NDArrayI64, NDArrayNumber
 
 
 def fill_weights(module: nn.Module, value: float = 0.0) -> None:
@@ -194,8 +195,8 @@ def generate_masks(
     )
 
 
-def isclose_on_all_indices(
-    array: torch.Tensor,
+def isclose_on_all_indices_tensor(
+    tensor: torch.Tensor,
     indices: torch.Tensor,
     expected: torch.Tensor,
     atol: float = 1e-4,
@@ -220,6 +221,39 @@ def isclose_on_all_indices(
     if tensor[indices].shape != expected.shape:
         return False
     return torch.allclose(
+        tensor[indices],
+        expected,
+        atol=atol,
+        rtol=rtol,
+    )
+
+
+def isclose_on_all_indices_numpy(
+    tensor: NDArrayNumber,
+    indices: NDArrayI64,
+    expected: NDArrayNumber,
+    atol: float = 1e-4,
+    rtol: float = 1e-6,
+) -> bool:
+    """Check if values from two numpy arrays are close enough on indices.
+
+    Args:
+        tensor (np.ndarray): Input array.
+        indices (np.ndarray): Indices of values in arrays to compare.
+        expected (np.ndarray): Expected array.
+        atol (float, optional): Absolute tolerance. Defaults to 1e-4.
+        rtol (float, optional): Relative tolerance. Defaults to 1e-6.
+
+    Returns:
+        bool: True if values are close enough, False otherwise.
+    """
+    if not np.all(np.isfinite(tensor)):
+        return False
+    if not np.all(np.isfinite(expected)):
+        return False
+    if tensor[indices].shape != expected.shape:
+        return False
+    return np.allclose(
         tensor[indices],
         expected,
         atol=atol,

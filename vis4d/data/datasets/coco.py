@@ -313,7 +313,11 @@ class COCO(Dataset, CacheMappingMixin):
             if self.with_masks:
                 dict_data[K.instance_masks] = mask_tensor
             if self.with_sem_masks:
+<<<<<<< HEAD
                 seg_masks, _ = (
+=======
+                seg_masks = (
+>>>>>>> main
                     mask_tensor * np.array(classes)[:, None, None]
                 ).max(axis=0)
                 seg_masks = seg_masks.astype(np.int64)

@@ -1,4 +1,18 @@
 """Transforms."""
-from .base import BatchTransform, Transform, compose, random_apply
+from .base import (
+    BatchRandomApply,
+    BatchTransform,
+    RandomApply,
+    Transform,
+    compose,
+    compose_batch,
+)
 
-__all__ = ["BatchTransform", "Transform", "random_apply", "compose"]
+__all__ = [
+    "BatchTransform",
+    "Transform",
+    "RandomApply",
+    "BatchRandomApply",
+    "compose",
+    "compose_batch",
+]

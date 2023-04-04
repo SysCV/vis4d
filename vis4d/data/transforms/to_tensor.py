@@ -25,7 +25,7 @@ def _replace_arrays(data: DictData) -> None:
 
 @BatchTransform("data", "data")
 class ToTensor:
-    """Transform all entris in a list of DataDict from numpy to torch.
+    """Transform all entries in a list of DataDict from numpy to torch.
 
     Note that we reshape K.images from NHWC to NCHW.
     """

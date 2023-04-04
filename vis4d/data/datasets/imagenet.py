@@ -7,7 +7,6 @@ import tarfile
 from collections.abc import Sequence
 
 import numpy as np
-import torch
 
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
@@ -95,10 +94,9 @@ class ImageNet(Dataset):
 
         data_dict = {}
         if K.images in self.keys_to_load:
-            data_dict[K.images] = torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0)
+            data_dict[K.images] = np.ascontiguousarray(
+                image, dtype=np.float32
+            )[np.newaxis, ...]
         if K.categories in self.keys_to_load:
-            data_dict[K.categories] = torch.tensor(class_idx, dtype=torch.long)
+            data_dict[K.categories] = np.array(class_idx, dtype=np.int64)
         return data_dict
