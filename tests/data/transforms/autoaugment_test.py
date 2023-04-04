@@ -31,12 +31,12 @@ def test_autoaugment_v0() -> None:
 
     transform = AutoAugV0(magnitude_std=0.5)
     batch_size = 4
-    x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
+    x = 128 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
     x = transform(x)
 
     assert x.shape == (batch_size, 32, 32, 3)
-    assert x.min() == 120
+    assert x.min() == 127
     assert x.max() == 128
 
 
@@ -44,7 +44,7 @@ def test_randaugment() -> None:
     """Random augment testcase."""
     set_random_seed(0, deterministic=True)
 
-    transform = RandAug(magnitude=9, magnitude_std=0.5)
+    transform = RandAug(magnitude=10, magnitude_std=0.5)
     batch_size = 4
     x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
