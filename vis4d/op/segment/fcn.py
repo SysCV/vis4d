@@ -1,14 +1,11 @@
 """FCN Head for semantic segmentation."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn
-
-from vis4d.common.typing import LossesType
 
 
 class FCNOut(NamedTuple):
@@ -117,53 +114,3 @@ class FCNHead(nn.Module):
     def __call__(self, feats: list[torch.Tensor]) -> FCNOut:
         """Type definition for function call."""
         return super()._call_impl(feats)
-
-
-class FCNLoss(nn.Module):
-    """FCN segmentation loss class."""
-
-    def __init__(
-        self,
-        feature_idx: list[int],
-        loss_fn: Callable[
-            [torch.Tensor, torch.Tensor], torch.Tensor
-        ] = nn.CrossEntropyLoss(),
-        weights: list[float] | None = None,
-    ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            feature_idx (list[int]): Indices for the level of features to
-                compute losses.
-            loss_fn (Callable, optional): Loss function that computes between
-                predictions and targets. Defaults to nn.NLLLoss.
-            weights (list[float], optional): The weights of each feature level.
-                If None passes, it will set to 1 for all levels. Defaults to
-                    None.
-        """
-        super().__init__()
-        self.feature_idx = feature_idx
-        self.loss_fn = loss_fn
-        if weights is None:
-            self.weights = [1.0] * len(self.feature_idx)
-        else:
-            self.weights = weights
-
-    def forward(
-        self, outputs: list[torch.Tensor], target: torch.Tensor
-    ) -> LossesType:
-        """Forward pass.
-
-        Args:
-            outputs (list[torch.Tensor]): Multilevel FCN outputs.
-            target (torch.Tensor): Assigned segmentation target mask.
-
-        Returns:
-            FCNLosses: computed losses for each level and the weighted total
-                loss.
-        """
-        losses: LossesType = {}
-        for i, idx in enumerate(self.feature_idx):
-            loss = self.loss_fn(outputs[idx], target)
-            losses[f"level_{idx}"] = self.weights[i] * loss
-        return losses

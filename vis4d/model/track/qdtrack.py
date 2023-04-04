@@ -6,7 +6,7 @@ from typing import NamedTuple
 import torch
 from torch import Tensor, nn
 
-from vis4d.engine.ckpt import load_model_checkpoint
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import ResNet
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals

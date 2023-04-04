@@ -1,4 +1,4 @@
-"""Faster RCNN tests."""
+"""FCN ResNet tests."""
 from __future__ import annotations
 
 import unittest
@@ -8,6 +8,7 @@ from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_file
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -17,7 +18,6 @@ from vis4d.data.loader import (
 )
 from vis4d.data.transforms import mask, normalize, resize
 from vis4d.data.transforms.base import compose
-from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.segment.fcn_resnet import REV_KEYS, FCNResNet, FCNResNetLoss
 
 
@@ -34,9 +34,7 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_train_dataloader(
-        datapipe,
-        samples_per_gpu=batch_size,
-        workers_per_gpu=1,
+        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
     )
 
 
@@ -58,7 +56,7 @@ def get_test_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 
 
 class FCNResNetTest(unittest.TestCase):
-    """Faster RCNN test class."""
+    """FCN ResNet test class."""
 
     def test_inference(self) -> None:
         """Test inference of FCNResNet."""
@@ -86,7 +84,7 @@ class FCNResNetTest(unittest.TestCase):
         assert torch.isclose(pred, testcase_gt, atol=1e-4).all().item()
 
     def test_train(self) -> None:
-        """Test Faster RCNN training."""
+        """Test FCNResNet training."""
         model = FCNResNet(base_model="resnet50", resize=(520, 520))
         loss_fn = FCNResNetLoss()
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)

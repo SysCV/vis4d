@@ -16,7 +16,7 @@ from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.model.segment.fcn_resnet import FCNResNet
-from vis4d.op.segment.fcn import FCNLoss
+from vis4d.op.segment.loss import SegmentLoss
 from vis4d.optim import PolyLR
 
 
@@ -128,7 +128,7 @@ def get_config() -> ConfigDict:
     # are averaged using a weighted sum.
 
     config.loss = class_config(
-        FCNLoss,
+        SegmentLoss,
         feature_idx=[4, 5],
         loss_fn=class_config(nn.CrossEntropyLoss, ignore_index=255),
         weights=[0.5, 1],

@@ -207,7 +207,6 @@ def main(  # type:ignore # pylint: disable=unused-argument
     elif _MODE.value == "train":
         trainer = Trainer(
             num_epochs=config.params.num_epochs,
-            log_step=1,
             dataloaders=train_dataloader,
             data_connector=data_connector,
             train_callbacks=train_callbacks,
