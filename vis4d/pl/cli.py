@@ -10,12 +10,13 @@ import os.path as osp
 
 from absl import app, flags
 from ml_collections import ConfigDict
-from pytorch_lightning import Callback, seed_everything
+from pytorch_lightning import Callback
 from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
     MisconfigurationException,
 )
 from torch.utils.collect_env import get_pretty_env_info
 
+from vis4d.common.callbacks import VisualizerCallback
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
@@ -29,6 +30,9 @@ _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
 _RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
+_VISUALISZE = flags.DEFINE_bool(
+    "visualize", default=False, help="visualize the results"
+)
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -99,6 +103,8 @@ def main(argv) -> None:  # type:ignore
     loss = instantiate_classes(config.loss)
 
     # Callbacks
+    visualize = _VISUALISZE.value
+
     callbacks: list[Callback] = []
     if "shared_callbacks" in config:
         shared_callbacks = instantiate_classes(config.shared_callbacks)
@@ -115,6 +121,8 @@ def main(argv) -> None:  # type:ignore
     if "test_callbacks" in config:
         test_callbacks = instantiate_classes(config.test_callbacks)
         for key, cb in test_callbacks.items():
+            if isinstance(cb, VisualizerCallback) and not visualize:
+                continue
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
@@ -126,12 +134,9 @@ def main(argv) -> None:  # type:ignore
     for cb in pl_callbacks:
         if not isinstance(cb, Callback):
             raise MisconfigurationException(
-                "Callback must be a subclass of "
-                "pytorch_lightning.Callback. Provided "
-                f"callback: {cb} is not a subclass of "
-                "pytorch_lightning.Callback."
+                "Callback must be a subclass of pytorch_lightning.Callback. "
+                f"Provided callback: {cb} is not!"
             )
-
         callbacks.append(cb)
 
     # Add needed callbacks

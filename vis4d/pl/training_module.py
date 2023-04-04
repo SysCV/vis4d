@@ -101,7 +101,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
             else:
                 seed = self.seed
 
-            seed_everything(seed)
+            seed_everything(seed, workers=True)
             rank_zero_info(f"Global seed set to {seed}")
 
         self.model = instantiate_classes(self.model)

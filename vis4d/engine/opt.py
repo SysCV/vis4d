@@ -203,18 +203,11 @@ class Optimizer:
         """
         assert self.optimizer is not None, "Optimizer was not correctly setup."
 
-        base_lr = self.optimizer.defaults.get("lr", None)
-        if base_lr is None:
-            raise ValueError(
-                "Couldn't determine base LR from optimizer defaults: "
-                f"{self.optimizer.defaults}"
-            )
-
         if self._warmup is not None and step <= self._warmup.warmup_steps:
             for g in self.optimizer.param_groups:
                 if step < self._warmup.warmup_steps:
-                    g["lr"] = self._warmup(step, base_lr)
+                    g["lr"] = self._warmup(step, g["initial_lr"])
                 else:
-                    g["lr"] = base_lr
+                    g["lr"] = g["initial_lr"]
             return False
         return True
