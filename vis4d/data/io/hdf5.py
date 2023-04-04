@@ -161,7 +161,7 @@ class HDF5Backend(DataBackend):
         while keys:
             value_buf = value_buf.get(keys.pop())
             if value_buf is None:
-                raise ValueError(f"Value {url} not found in {filepath}!")
+                raise ValueError(f"Value {url} not found in {hdf5_path}!")
 
         return bytes(value_buf[()])
 
