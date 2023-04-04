@@ -297,67 +297,6 @@ def compose(transforms: list[TFunctor]) -> TransformFunction:
 
 def compose_batch(transforms: list[TFunctor]) -> BatchTransformFunction:
     """Compose batch transformations.
-<<<<<<< HEAD
-
-    This function composes a given set of batch transformation functions,
-    i.e. any functor decorated with BatchTranform, into a single transform.
-    """
-
-    def _preprocess_func(batch: list[DictData]) -> list[DictData]:
-        for op in transforms:
-            batch = op.apply_to_data(batch)  # type: ignore
-        return batch
-
-    return _preprocess_func
-
-
-def random_apply(
-    transforms: list[TFunctor], probability: float = 0.5
-) -> TransformFunction:
-    """Apply given transforms at random with given probability.
-
-    Args:
-        transforms (list[TFunctor]): Transformations that
-            are applied with a given probability.
-        probability (float, optional): Probability to apply transformations.
-            Defaults to 0.5.
-
-    Returns:
-        TransformFunction: The randomized transformations.
-    """
-
-    def _apply(data: DictData) -> DictData:
-        if torch.rand(1) < probability:
-            for op in transforms:
-                data = op.apply_to_data(data)  # type: ignore
-        return data
-
-    return _apply
-
-
-def random_apply_batch(
-    transforms: list[TFunctor], probability: float = 0.5
-) -> BatchTransformFunction:
-    """Apply given batch transforms at random with given probability.
-
-    Args:
-        transforms (list[TFunctor]): Batch transformations that
-            are applied with a given probability.
-        probability (float, optional): Probability to apply transformations.
-            Defaults to 0.5.
-
-    Returns:
-        BatchTransformFunction: The randomized transformations.
-    """
-
-    def _apply(batch: list[DictData]) -> list[DictData]:
-        if torch.rand(1) < probability:
-            for op in transforms:
-                batch = op.apply_to_data(batch)  # type: ignore
-        return batch
-
-    return _apply
-=======
 
     This function composes a given set of batch transformation functions,
     i.e. any functor decorated with BatchTranform, into a single transform.
@@ -421,4 +360,3 @@ class BatchRandomApply:
             for op in self.transforms:
                 batch = op.apply_to_data(batch)  # type: ignore
         return batch
->>>>>>> main

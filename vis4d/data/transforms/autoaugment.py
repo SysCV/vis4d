@@ -4,8 +4,8 @@ from typing import Union
 import numpy as np
 from PIL import Image
 
-from vis4d.common.typing import NDArrayUI8
 from vis4d.common.imports import TIMM_AVAILABLE
+from vis4d.common.typing import NDArrayUI8
 from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
@@ -38,6 +38,9 @@ def _apply_aug(images: NDArrayUI8, aug_op: AugOp) -> NDArrayUI8:
 class _AutoAug:
     """Apply Timm's AutoAugment to a image array."""
 
+    def __init__(self) -> None:
+        self.aug_op = None
+
     def _create(self, policy: str, hparams: dict[str, float]) -> AugOp:
         """Create augmentation op."""
         aa_policy = auto_augment_policy(policy, hparams=hparams)
@@ -45,6 +48,7 @@ class _AutoAug:
 
     def __call__(self, images: NDArrayUI8) -> NDArrayUI8:
         """Execute augmentation op."""
+        assert self.aug_op is not None, "Augmentation op not initialized."
         return _apply_aug(images, self.aug_op)
 
 
@@ -58,6 +62,7 @@ class AutoAugV0(_AutoAug):
             magnitude_std (float, optional): Standard deviation of the
                 magnitude for random autoaugment. Defaults to 0.5.
         """
+        super().__init__()
         self.aug_op = self._create("v0", {"magnitude_std": magnitude_std})
 
 
@@ -71,6 +76,7 @@ class AutoAugOriginal(_AutoAug):
             magnitude_std (float, optional): Standard deviation of the
                 magnitude for random autoaugment. Defaults to 0.5.
         """
+        super().__init__()
         self.aug_op = self._create(
             "original", {"magnitude_std": magnitude_std}
         )
@@ -107,6 +113,7 @@ class RandAug:
             Rand augment with magnitude 9. (`https://arxiv.org/abs/1909.13719`)
             >>> rand_augment(magnitude=9)
         """
+        super().__init__()
         assert TIMM_AVAILABLE, "timm is not installed."
         self.magnitude = magnitude
         self.num_layers = num_layers
@@ -164,6 +171,7 @@ class AugMix:
             Augmix with magnitude 9. (`https://arxiv.org/abs/1912.02781`)
             >>> augmix(magnitude=9)
         """
+        super().__init__()
         assert TIMM_AVAILABLE, "timm is not installed."
         self.magnitude = magnitude
         self.width = width

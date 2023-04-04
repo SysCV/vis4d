@@ -3,10 +3,10 @@ import numpy as np
 
 from vis4d.common.util import set_random_seed
 from vis4d.data.transforms.autoaugment import (
-    AutoAugV0,
-    AutoAugOriginal,
-    RandAug,
     AugMix,
+    AutoAugOriginal,
+    AutoAugV0,
+    RandAug,
 )
 
 

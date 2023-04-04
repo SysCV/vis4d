@@ -1,8 +1,9 @@
 # tests/transforms/test_mixup.py
 """Tests for Mixup."""
 
-import numpy as np
 import unittest
+
+import numpy as np
 
 from vis4d.common.util import set_random_seed
 from vis4d.data.transforms.mixup import Mixup
@@ -51,4 +52,3 @@ class TestMixup(unittest.TestCase):
         self.assertAlmostEqual(smooth_categories[0][1], 1, places=3)
         self.assertAlmostEqual(smooth_categories[1][0], 1, places=3)
         self.assertAlmostEqual(smooth_categories[1][1], 0, places=3)
-        

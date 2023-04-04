@@ -40,11 +40,7 @@ class TestSampleFromBlock(unittest.TestCase):
     def test_block_sampling(self) -> None:
         """Tests the functor."""
         # Should return the full block
-<<<<<<< HEAD
-        data_to_sample_from = {CommonKeys.points3d: self.data_in_unit_square}
-=======
         data_to_sample_from = {K.points3d: self.data_in_unit_square}
->>>>>>> main
 
         mask_gen = GenerateBlockSamplingIndices(
             self.n_pts_to_sample,
@@ -59,22 +55,14 @@ class TestSampleFromBlock(unittest.TestCase):
 
         self.assertTrue(
             np.all(
-<<<<<<< HEAD
-                np.sort(data_sampled[CommonKeys.points3d], axis=0)
-=======
                 np.sort(data_sampled[K.points3d], axis=0)
->>>>>>> main
                 == self.data_in_unit_square
             )
         )
 
         # Should only sample from the first block
         data_to_sample_from = {
-<<<<<<< HEAD
-            CommonKeys.points3d: np.concatenate(
-=======
             K.points3d: np.concatenate(
->>>>>>> main
                 [self.data_in_unit_square, self.data_outside_unit_square]
             )
         }
@@ -89,21 +77,13 @@ class TestSampleFromBlock(unittest.TestCase):
         )
         self.assertTrue(
             np.all(
-<<<<<<< HEAD
-                np.sort(data_sampled[CommonKeys.points3d], axis=0)
-=======
                 np.sort(data_sampled[K.points3d], axis=0)
->>>>>>> main
                 == self.data_in_unit_square
             )
         )
         # Should only sample from the second block
         data_to_sample_from = {
-<<<<<<< HEAD
-            CommonKeys.points3d: np.concatenate(
-=======
             K.points3d: np.concatenate(
->>>>>>> main
                 [self.data_in_unit_square, self.data_outside_unit_square]
             )
         }
@@ -118,11 +98,7 @@ class TestSampleFromBlock(unittest.TestCase):
         )
         self.assertTrue(
             np.all(
-<<<<<<< HEAD
-                np.sort(data_sampled[CommonKeys.points3d], axis=0)
-=======
                 np.sort(data_sampled[K.points3d], axis=0)
->>>>>>> main
                 == self.data_outside_unit_square
             )
         )
@@ -139,15 +115,8 @@ class TestSampleFromBlock(unittest.TestCase):
         data_sampled = sampler.apply_to_data(mask_gen.apply_to_data(self.data))
         self.assertTrue(
             np.all(
-<<<<<<< HEAD
-                np.unique(
-                    data_sampled[CommonKeys.points3d].reshape(-1, 3), axis=0
-                )
-                == np.unique(self.original_data[CommonKeys.points3d], axis=00)
-=======
                 np.unique(data_sampled[K.points3d].reshape(-1, 3), axis=0)
                 == np.unique(self.original_data[K.points3d], axis=00)
->>>>>>> main
             )
         )
 
@@ -158,11 +127,7 @@ class RandomPointSamplingTest(unittest.TestCase):
     def test_sample_less_pts(self) -> None:
         """Test if sampling works when sampling less pts than in the scene."""
         data: DictData = dict(points3d=np.random.rand(100, 3))
-<<<<<<< HEAD
-        tr1 = GenerateSamplingIndices(num_pts == 10)
-=======
         tr1 = GenerateSamplingIndices(num_pts=10)
->>>>>>> main
         tr2 = SamplePoints()
         with_idxs = tr1.apply_to_data(data)
         sampled_points = tr2.apply_to_data(with_idxs)

@@ -13,13 +13,9 @@ from vis4d.data.loader import (
     build_train_dataloader,
     default_collate,
 )
-<<<<<<< HEAD
-from vis4d.data.transforms.pad import PadImages
-=======
 from vis4d.data.transforms.base import compose_batch
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.to_tensor import ToTensor
->>>>>>> main
 from vis4d.data.typing import DictData
 
 
@@ -29,9 +25,6 @@ def default_image_dataloader(
     num_samples_per_gpu: int | FieldReference = 1,
     num_workers_per_gpu: int | FieldReference = 4,
     shuffle: bool | FieldReference = False,
-<<<<<<< HEAD
-    batchprocess_cfg: ConfigDict = class_config(PadImages),
-=======
     batchprocess_cfg: ConfigDict = class_config(
         compose_batch,
         transforms=[
@@ -39,7 +32,6 @@ def default_image_dataloader(
             class_config(ToTensor),
         ],
     ),
->>>>>>> main
     data_pipe: type = DataPipe,
     train: bool = True,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
