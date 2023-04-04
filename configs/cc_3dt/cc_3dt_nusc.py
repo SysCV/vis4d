@@ -23,6 +23,15 @@ from vis4d.data.datasets.nuscenes import (
 )
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.loader import VideoDataPipe, multi_sensor_collate
+from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.normalize import BatchNormalizeImages
+from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeImage,
+    ResizeIntrinsics,
+)
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     MultiSensorDataConnector,
@@ -31,16 +40,6 @@ from vis4d.engine.connectors import (
 )
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
-
-from vis4d.data.transforms.base import compose, compose_batch
-from vis4d.data.transforms.normalize import BatchNormalizeImages
-from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
-    ResizeImage,
-    ResizeIntrinsics,
-)
 
 CONN_BBOX_3D_TEST = {
     CK.images: CK.images,

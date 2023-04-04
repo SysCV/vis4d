@@ -7,6 +7,21 @@ from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
+from vis4d.config.default import get_dataloader_config
+
+from vis4d.data.const import CommonKeys as K
+from vis4d.data.datasets.coco import COCO
+from vis4d.data.io import DataBackend
+from vis4d.data.transforms.base import RandomApply, compose
+from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
+from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeBoxes2D,
+    ResizeImage,
+)
+
+
 from vis4d.engine.connectors import data_key, pred_key
 
 CONN_COCO_BBOX_EVAL = {
@@ -16,77 +31,144 @@ CONN_COCO_BBOX_EVAL = {
     "pred_classes": pred_key("class_ids"),
 }
 
+CONN_BBOX_2D_VIS = {
+    K.images: data_key(K.images),
+    "boxes": pred_key("boxes"),
+}
 
-def det_augmentations() -> Iterable[ConfigDict]:
-    """Returns the default image augmentations used for detection tasks.
 
-    These augmentations consist of solely of left-right flipping the image and
-    boxes.
-
-    Returns:
-        list[ConfigDict]: List with all transformations encoded as ConfigDict.
-    """
-    return (
-        class_config("vis4d.data.transforms.flip.flip_image"),
-        class_config("vis4d.data.transforms.flip.flip_boxes2d"),
+def get_train_dataloader(
+    data_root: str,
+    split: str,
+    data_backend: None | DataBackend,
+    image_size: tuple(int, int),
+    samples_per_gpu: int,
+    workers_per_gpu: int,
+) -> ConfigDict:
+    """Get the default train dataloader for COCO detection."""
+    # Train Dataset
+    train_dataset_cfg = class_config(
+        COCO,
+        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
+        data_root=data_root,
+        split=split,
+        remove_empty=True,
+        data_backend=data_backend,
     )
 
-
-def det_preprocessing(
-    target_img_height: int | FieldReference,
-    target_img_width: int | FieldReference,
-    augment_probability: float | FieldReference,
-    augmentation_transforms: Iterable[ConfigDict] = det_augmentations(),
-) -> ConfigDict:
-    """Creates the default image preprocessing pipeling for a detection tasks.
-
-    The pipeline consists of the following:
-    1. Scale image and boxes to target size.
-    2. Randomly apply given augmentations with the specified probability.
-    3. Normalize the Image.
-
-    Use this in combination with a dataset config to create a dataloader.
-
-    Example:
-    >>> preprocess_cfg = get_default_detection_preprocessing(480, 640, 0.5)
-    >>> dataset_cfg = class_config("your.dataset.Dataset", root = "data/set/")
-    >>> dataloader = get_dataloader_config(preprocess_cfg, dataset_cfg)
-
-    Args:
-        target_img_height (int | FieldReference): Target image height which
-            should be fed to the network.
-        target_img_width (int | FieldReference): Target image width which
-            should be fed to the network.
-        augment_probability (float | FieldReference): Probability to apply
-            the augmentation operations.
-        augmentation_transforms (list[ConfigDict], optional): List of
-            transformation configurations that will be chained together and
-            executed with propability `augmentation_probability`.
-
-    Returns:
-        ConfigDict: A ConfigDict that can be instantiated as
-            vis4d.data.transforms.base.compose and passed to a dataloader.
-    """
-    transforms = [
+    # Train Preprocessing
+    preprocess_transforms = [
         class_config(
-            "vis4d.data.transforms.resize.resize_image",
-            shape=(
-                target_img_height,
-                target_img_width,
-            ),
+            GenerateResizeParameters,
+            shape=image_size,
             keep_ratio=True,
             align_long_edge=True,
         ),
-        class_config("vis4d.data.transforms.resize.resize_boxes2d"),
-        class_config(
-            "vis4d.data.transforms.base.random_apply",
-            transforms=augmentation_transforms,
-            probability=augment_probability,
-        ),
-        class_config("vis4d.data.transforms.normalize.normalize_image"),
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
     ]
 
-    return class_config(
-        "vis4d.data.transforms.base.compose",
-        transforms=transforms,
+    preprocess_transforms.append(
+        class_config(
+            RandomApply,
+            transforms=[
+                class_config(FlipImage),
+                class_config(FlipBoxes2D),
+            ],
+            probability=0.5,
+        )
     )
+
+    preprocess_transforms.append(class_config(NormalizeImage))
+
+    train_preprocess_cfg = class_config(
+        compose,
+        transforms=preprocess_transforms,
+    )
+
+    return get_dataloader_config(
+        preprocess_cfg=train_preprocess_cfg,
+        dataset_cfg=train_dataset_cfg,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
+        shuffle=True,
+    )
+
+
+def get_test_dataloader(
+    data_root: str,
+    split: str,
+    data_backend: None | DataBackend,
+    image_size: tuple(int, int),
+    samples_per_gpu: int,
+    workers_per_gpu: int,
+) -> ConfigDict:
+    """Get the default test dataloader for COCO detection."""
+    # Test Dataset
+    test_dataset_cfg = class_config(
+        COCO,
+        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
+        data_root=data_root,
+        split=split,
+        data_backend=data_backend,
+    )
+
+    # Test Preprocessing
+    preprocess_transforms = [
+        class_config(
+            GenerateResizeParameters,
+            shape=image_size,
+            keep_ratio=True,
+            align_long_edge=True,
+        ),
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
+    ]
+
+    preprocess_transforms.append(class_config(NormalizeImage))
+
+    test_preprocess_cfg = class_config(
+        compose,
+        transforms=preprocess_transforms,
+    )
+
+    return get_dataloader_config(
+        preprocess_cfg=test_preprocess_cfg,
+        dataset_cfg=test_dataset_cfg,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
+        train=False,
+    )
+
+
+def get_coco_detection_config(
+    data_root: str = "data/coco",
+    train_split: str = "train2017",
+    test_split: str = "val2017",
+    data_backend: None | DataBackend = None,
+    image_size: tuple(int, int) = (800, 1333),
+    samples_per_gpu: int = 2,
+    workers_per_gpu: int = 4,
+) -> ConfigDict:
+    """Get the default config for COCO detection."""
+    data = ConfigDict()
+
+    data.train_dataloader = get_train_dataloader(
+        data_root=data_root,
+        split=train_split,
+        data_backend=data_backend,
+        image_size=image_size,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
+    )
+
+    data.test_dataloader = get_test_dataloader(
+        data_root=data_root,
+        split=test_split,
+        data_backend=data_backend,
+        image_size=image_size,
+        samples_per_gpu=1,
+        workers_per_gpu=workers_per_gpu,
+    )
+
+    return data

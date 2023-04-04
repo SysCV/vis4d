@@ -33,10 +33,11 @@ class DeltaXYWHBBoxEncoder(nn.Module):
             target_stds (tuple, optional): Denormalizing standard deviation of
                 target for delta coordinates. Defaults to (1.0, 1.0, 1.0, 1.0).
         """
+        super().__init__()
         self.means = target_means
         self.stds = target_stds
 
-    def foward(self, boxes: Tensor, targets: Tensor) -> Tensor:
+    def forward(self, boxes: Tensor, targets: Tensor) -> Tensor:
         """Get box regression transformation deltas.
 
         Used to transform target boxes into target regression parameters.
@@ -78,6 +79,7 @@ class DeltaXYWHBBoxDecoder(nn.Module):
             wh_ratio_clip (float, optional): Maximum aspect ratio for boxes.
                 Defaults to 16/1000.
         """
+        super().__init__()
         self.means = target_means
         self.stds = target_stds
         self.wh_ratio_clip = wh_ratio_clip

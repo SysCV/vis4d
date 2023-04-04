@@ -22,9 +22,7 @@ from vis4d.data.typing import DictData
 def get_dataloader_config(
     preprocess_cfg: ConfigDict,
     dataset_cfg: ConfigDict,
-    num_samples_per_gpu: int | FieldReference = 1,
-    num_workers_per_gpu: int | FieldReference = 4,
-    shuffle: bool | FieldReference = False,
+    data_pipe: type = DataPipe,
     batchprocess_cfg: ConfigDict = class_config(
         compose_batch,
         transforms=[
@@ -32,8 +30,10 @@ def get_dataloader_config(
             class_config(ToTensor),
         ],
     ),
-    data_pipe: type = DataPipe,
+    samples_per_gpu: int | FieldReference = 1,
+    workers_per_gpu: int | FieldReference = 4,
     train: bool = True,
+    shuffle: bool | FieldReference = False,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
 ) -> ConfigDict:
     """Creates dataloader configuration given dataset and preprocessing.
@@ -44,16 +44,15 @@ def get_dataloader_config(
         preprocess_cfg (ConfigDict): The configuration that contains the
             preprocessing operations.
         dataset_cfg (ConfigDict): The configuration that contains the dataset.
-        num_samples_per_gpu (int | FieldReference): How many samples
-            each GPU will process. Defaults to 1.
-        num_workers_per_gpu (int | FieldReference): How many workers
-            to spawn per GPU. Defaults to 4.
-        shuffle (bool, FieldReference): Whether to shuffle the dataset.
+        samples_per_gpu (int | FieldReference): How many samples each GPU will
+            process. Defaults to 1.
+        workers_per_gpu (int | FieldReference): How many workers to spawn per
+            GPU. Defaults to 4.
+        data_pipe (DataPipe): The data pipe class to use. Defaults to DataPipe.
         batchprocess_cfg (ConfigDict): The configuration that
             contains the batch processing operations.
-        data_pipe (Callable): The data pipe class to use.
-            Defaults to DataPipe.
         train (bool): Whether to create a train dataloader.
+        shuffle (bool, FieldReference): Whether to shuffle the dataset.
         collate_fn (Callable): The collate function to use.
 
     Returns:
@@ -69,8 +68,8 @@ def get_dataloader_config(
             ),
             batchprocess_fn=batchprocess_cfg,
             collate_fn=collate_fn,
-            samples_per_gpu=num_samples_per_gpu,
-            workers_per_gpu=num_workers_per_gpu,
+            samples_per_gpu=samples_per_gpu,
+            workers_per_gpu=workers_per_gpu,
             shuffle=shuffle,
         )
 
@@ -82,7 +81,7 @@ def get_dataloader_config(
             preprocess_fn=preprocess_cfg,
         ),
         batchprocess_fn=batchprocess_cfg,
-        samples_per_gpu=num_samples_per_gpu,
-        workers_per_gpu=num_workers_per_gpu,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
         collate_fn=collate_fn,
     )

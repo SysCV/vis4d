@@ -10,7 +10,7 @@ from torch import nn
 from torchvision.ops import batched_nms
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
-from vis4d.op.box.encoder import BoxEncoder2D
+
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
 
@@ -127,7 +127,7 @@ class RPN2RoI(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: BoxEncoder2D,
+        box_decoder: nn.Module,
         num_proposals_pre_nms_train: int = 2000,
         num_proposals_pre_nms_test: int = 1000,
         max_per_img: int = 1000,
@@ -139,7 +139,7 @@ class RPN2RoI(nn.Module):
         Args:
             anchor_generator (AnchorGenerator): Creates anchor grid serving as
                 for bounding box regression.
-            box_encoder (BoxEncoder2D): decodes box energies predicted by the
+            box_decoder (nn.Module): decodes box energies predicted by the
                 network into 2D bounding box parameters.
             num_proposals_pre_nms_train (int, optional): How many boxes are
                 kept prior to NMS during training. Defaults to 2000.
@@ -154,7 +154,7 @@ class RPN2RoI(nn.Module):
         """
         super().__init__()
         self.anchor_generator = anchor_generator
-        self.box_encoder = box_encoder
+        self.box_decoder = box_decoder
         self.max_per_img = max_per_img
         self.min_proposal_size = min_proposal_size
         self.num_proposals_pre_nms_train = num_proposals_pre_nms_train
@@ -230,9 +230,7 @@ class RPN2RoI(nn.Module):
         levels = torch.cat(level_all)
 
         proposals = bbox_clip(
-            self.box_encoder.decode(
-                torch.cat(anchors_all), torch.cat(reg_out_all)
-            ),
+            self.box_decoder(torch.cat(anchors_all), torch.cat(reg_out_all)),
             image_hw,
         )
 
@@ -319,13 +317,13 @@ class RPNLoss(DenseAnchorHeadLoss):
     """Loss of region proposal network."""
 
     def __init__(
-        self, anchor_generator: AnchorGenerator, box_encoder: BoxEncoder2D
+        self, anchor_generator: AnchorGenerator, box_encoder: nn.Module
     ):
         """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (BoxEncoder2D): Encodes bounding boxes to the desired
+            box_encoder (nn.Module): Encodes bounding boxes to the desired
                 network output.
         """
         matcher = MaxIoUMatcher(

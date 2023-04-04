@@ -160,7 +160,7 @@ class RCNNHead(nn.Module):
         return self._call_impl(features, boxes)
 
 
-class RCNNOut(NamedTuple):
+class DetOut(NamedTuple):  # TODO: decide where to put the class
     """Output of the final detections from RCNN."""
 
     boxes: list[torch.Tensor]  # N, 4
@@ -211,7 +211,7 @@ class RoI2Det(nn.Module):
         regression_outs: torch.Tensor,
         boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-    ) -> RCNNOut:
+    ) -> DetOut:
         """Convert RCNN network outputs to detections.
 
         Args:
@@ -223,7 +223,7 @@ class RoI2Det(nn.Module):
             images_hw (list[tuple[int, int]]): Image sizes.
 
         Returns:
-            RCNNOut: boxes, scores and class ids of detections per image.
+            DetOut: boxes, scores and class ids of detections per image.
         """
         num_proposals_per_img = tuple(len(p) for p in boxes)
         regression_outs = regression_outs.split(num_proposals_per_img, 0)
@@ -250,7 +250,7 @@ class RoI2Det(nn.Module):
             all_det_scores.append(det_scores)
             all_det_class_ids.append(det_label)
 
-        return RCNNOut(
+        return DetOut(
             boxes=all_det_boxes,
             scores=all_det_scores,
             class_ids=all_det_class_ids,
@@ -262,7 +262,7 @@ class RoI2Det(nn.Module):
         regression_outs: torch.Tensor,
         boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-    ) -> RCNNOut:
+    ) -> DetOut:
         """Type definition for function call."""
         return self._call_impl(class_outs, regression_outs, boxes, images_hw)
 
@@ -290,13 +290,11 @@ class RCNNLoss(nn.Module):
     corresponding target boxes with the given box encoder.
     """
 
-    def __init__(
-        self, box_encoder: BoxEncoder2D, num_classes: int = 80
-    ) -> None:
+    def __init__(self, box_encoder: nn.Module, num_classes: int = 80) -> None:
         """Creates an instance of the class.
 
         Args:
-            box_encoder (BoxEncoder2D): Decodes box regression parameters into
+            box_encoder (nn.Module): Decodes box regression parameters into
                 detected boxes.
             num_classes (int, optional): number of object categories. Defaults
                 to 80.
@@ -341,7 +339,7 @@ class RCNNLoss(nn.Module):
             pos_target_classes = target_classes[pos_mask]
             labels[:num_pos] = pos_target_classes
             label_weights[:num_pos] = 1.0
-            pos_box_targets = self.box_encoder.encode(
+            pos_box_targets = self.box_encoder(
                 boxes[pos_mask], pos_target_boxes
             )
             box_targets[:num_pos, :] = pos_box_targets

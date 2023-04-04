@@ -83,71 +83,31 @@ class FasterRCNNHead(nn.Module):
 
     def __init__(
         self,
-        num_classes: int = 80,
-        anchor_generator: None | AnchorGenerator = None,
-        rpn_box_encoder: None | nn.Module = None,
-        rpn_box_decoder: None | nn.Module = None,
-        rcnn_box_encoder: None | nn.Module = None,
-        rcnn_box_decoder: None | nn.Module = None,
-        box_matcher: None | Matcher = None,
-        box_sampler: None | Sampler = None,
+        anchor_generator: AnchorGenerator,
+        rpn_box_decoder: nn.Module,
+        box_matcher: Matcher,
+        box_sampler: Sampler,
+        roi_head: nn.Module,
         proposal_append_gt: bool = True,
-        roi_head: None | nn.Module = None,
     ):
         """Creates an instance of the class.
 
         Args:
-            num_classes (int, optional): Number of object categories. Defaults
-                to 80.
-            anchor_generator (Optional[AnchorGenerator], optional): Custom
-                anchor generator for RPN. Defaults to None.
-            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box
-                encoder. Defaults to None.
-            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn
-                box encoder. Defaults to None.
-            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher
-                for RCNN stage. Defaults to None.
-            box_sampler (Optional[RandomSampler], optional): Custom box sampler
-                for RCNN stage. Defaults to None.
+            anchor_generator (AnchorGenerator): Custom generator for RPN.
+            rpn_box_encoder (nn.Module): Custom rpn box decoder.
+            box_matcher (Matcher): Custom box matcher for RCNN stage.
+            box_sampler (Sampler): Custom box sampler for RCNN stage.
+            roi_head (nn.Module): Custom ROI head.
             proposal_append_gt (bool): If to append the ground truth boxes for
                 proposal sampling during training. Defaults to True.
-            roi_head (Optional[nn.Module], optional): Custom ROI head. Defaults
-                to None.
         """
         super().__init__()
-        self.anchor_generator = (
-            anchor_generator
-            if anchor_generator is not None
-            else get_default_anchor_generator()
-        )
-        self.rpn_box_encoder = (
-            rpn_box_encoder
-            if rpn_box_encoder is not None
-            else get_default_rpn_box_encoder()
-        )
-        self.rcnn_box_encoder = (
-            rcnn_box_encoder
-            if rcnn_box_encoder is not None
-            else get_default_rcnn_box_encoder()
-        )
-        self.box_matcher = (
-            box_matcher
-            if box_matcher is not None
-            else get_default_box_matcher()
-        )
-        self.box_sampler = (
-            box_sampler
-            if box_sampler is not None
-            else get_default_box_sampler()
-        )
+        self.box_matcher = box_matcher
+        self.box_sampler = box_sampler
         self.proposal_append_gt = proposal_append_gt
-        self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
-        self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
-        self.roi_head = (
-            roi_head
-            if roi_head is not None
-            else get_default_roi_head(num_classes)
-        )
+        self.rpn_head = RPNHead(anchor_generator.num_base_priors[0])
+        self.rpn2roi = RPN2RoI(anchor_generator, rpn_box_decoder)
+        self.roi_head = roi_head
 
     @torch.no_grad()
     def _sample_proposals(
