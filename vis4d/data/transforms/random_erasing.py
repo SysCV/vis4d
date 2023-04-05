@@ -13,7 +13,6 @@ class RandomErasing:
 
     def __init__(
         self,
-        probability: float = 0.5,
         min_area: float = 0.02,
         max_area: float = 0.4,
         min_aspect_ratio: float = 0.3,
@@ -28,8 +27,6 @@ class RandomErasing:
         `https://arxiv.org/abs/1708.04896`.
 
         Args:
-            probability (float, optional): Probability of applying the
-                transform. Defaults to 0.5.
             min_area (float, optional): Minimum area of the erased region.
                 Defaults to 0.02.
             max_area (float, optional): Maximum area of the erased region.
@@ -40,14 +37,15 @@ class RandomErasing:
                 erased region. Defaults to 1 / 0.3.
             mean (tuple[float, float, float], optional): Mean of the dataset.
                 Defaults to (0.0, 0.0, 0.0).
-            num_attempt (int, optional): Number of attempts to find a valid
-                erased region. Defaults to 10.
+            num_attempt (int, optional): Number of maximum attempts to find a
+                valid erased region. This is used to avoid infinite attempts of
+                resampling the region, though such cases are very unlikely to
+                happen. Defaults to 10.
 
         Returns:
-            Callable: A function that takes a tensor of shape [N, C, H, W] and
+            Callable: A function that takes a tensor of shape [N, H, W, C] and
                 returns a tensor of the same shape.
         """
-        self.probability = probability
         self.min_area = min_area
         self.max_area = max_area
         self.min_aspect_ratio = min_aspect_ratio
@@ -57,9 +55,6 @@ class RandomErasing:
 
     def __call__(self, images: NDArrayNumber) -> NDArrayNumber:
         """Execute the transform."""
-        if np.random.rand() > self.probability:
-            return images
-
         fill = np.array(self.mean).reshape((3, 1, 1))
         for i in range(images.shape[0]):
             image = images[i]
