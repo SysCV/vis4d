@@ -113,8 +113,6 @@ class ResNet(BaseModel):
     def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """Torchvision ResNet forward.
 
-        # TODO(tobiasfshr) Add tests
-
         Args:
             images (Tensor[N, C, H, W]): Image input to process. Expected to
                 type float32 with values ranging 0..255.

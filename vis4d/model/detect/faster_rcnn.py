@@ -80,9 +80,6 @@ class FasterRCNN(nn.Module):
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
     ) -> FRCNNOut | DetOut:
-        # TODO, why do we have both.
-        #  Why not just model output with different
-        #  keys for training outs e.g. class_logits?
         """Forward pass.
 
         Args:
