@@ -8,6 +8,7 @@ from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import LossesType
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.fpp.fpn import FPN
+from vis4d.op.mask.util import clip_mask
 from vis4d.op.segment.loss import SegmentLoss
 from vis4d.op.segment.semantic_fpn import SemanticFPNHead, SemanticFPNOut
 
@@ -37,7 +38,13 @@ class SemanticFPN(nn.Module):
             "resnet50", pretrained=True, trainable_layers=3
         ),
     ) -> None:
-        """Semantic FPN."""
+        """Semantic FPN.
+
+        Args:
+            num_classes (int): Number of classes.
+            weights (None | str): Pre-trained weights.
+            basemodel (BaseModel): Base model.
+        """
         super().__init__()
         self.basemodel = basemodel
         self.fpn = FPN(self.basemodel.out_channels[2:], 256)
@@ -50,8 +57,11 @@ class SemanticFPN(nn.Module):
             )
             load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
         elif weights == "bdd100k":
-            # TODO: add bdd100k pre-trained weights
-            pass
+            weights = (
+                "bdd100k://sem_seg/models/"
+                "fpn_r50_512x1024_80k_sem_seg_bdd100k.pth"
+            )
+            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
         elif weights is not None:
             load_model_checkpoint(self, weights)
 
@@ -64,38 +74,63 @@ class SemanticFPN(nn.Module):
         Returns:
             SemanticFPNOut: Raw model predictions.
         """
-        return self.forward(images)
+        features = self.fpn(self.basemodel(images))
+        out = self.seg_head(features)
+        return out
 
-    def forward_test(self, images: torch.Tensor) -> SemanticFPNOut:
+    def forward_test(
+        self, images: torch.Tensor, original_hw: list[tuple[int, int]]
+    ) -> SemanticFPNOut:
         """Forward pass for testing.
 
         Args:
             images (torch.Tensor): Input images.
-
-        Returns:
-            SemanticFPNOut: Raw model predictions.
-        """
-        return self.forward(images)
-
-    def forward(self, images: torch.Tensor) -> SemanticFPNOut:
-        """Forward pass.
-
-        Args:
-            images (torch.Tensor): Input images.
+            original_hw (list[tuple[int, int]], optional): Original image
+                resolutions (before padding and resizing). Required for
+                testing.
 
         Returns:
             SemanticFPNOut: Raw model predictions.
         """
         features = self.fpn(self.basemodel(images))
         out = self.seg_head(features)
-        return out
+
+        new_masks = []
+        for i, outputs in enumerate(out.outputs):
+            new_masks.append(clip_mask(outputs, original_hw[i]))
+        return SemanticFPNOut(outputs=torch.stack(new_masks))
+
+    def forward(
+        self,
+        images: torch.Tensor,
+        original_hw: None | list[tuple[int, int]] = None,
+    ) -> SemanticFPNOut:
+        """Forward pass.
+
+        Args:
+            images (torch.Tensor): Input images.
+            original_hw (None | list[tuple[int, int]], optional): Original
+                image resolutions (before padding and resizing). Required for
+                testing. Defaults to None.
+
+        Returns:
+            SemanticFPNOut: Raw model predictions.
+        """
+        if self.training:
+            return self.forward_train(images)
+        assert original_hw is not None
+        return self.forward_test(images, original_hw)
 
 
 class SemanticFPNLoss(nn.Module):
     """SemanticFPN Loss."""
 
     def __init__(self, weights: None | torch.Tensor = None) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            weights (None | torch.Tensor): Loss weights.
+        """
         super().__init__()
         self.loss = SegmentLoss(
             loss_fn=nn.CrossEntropyLoss(weights, ignore_index=255)

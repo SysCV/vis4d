@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from vis4d.common.typing import NDArrayF32
+from vis4d.common.typing import NDArrayF32, NDArrayUI8
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.geometry.rotation import (
@@ -166,6 +166,36 @@ class FlipPoints3D:
         """Execute flipping."""
         points3d[:, get_axis(self.direction, axis_mode)] *= -1.0
         return points3d
+
+
+@Transform(K.segmentation_masks, K.segmentation_masks)
+class FlipSemanticMasks:
+    """Flip semantic segmentation masks."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipSemanticMasks.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(self, masks: NDArrayUI8) -> NDArrayUI8:
+        """Execute flipping op.
+
+        Args:
+            masks (NDArrayUI8): [H, W] array of masks.
+
+        Returns:
+            NDArrayUI8: [H, W] array of flipped masks.
+        """
+        image_ = torch.from_numpy(masks)
+        if self.direction == "horizontal":
+            return image_.flip(1).numpy()
+        if self.direction == "vertical":
+            return image_.flip(0).numpy()
+        raise NotImplementedError(f"Direction {self.direction} not known!")
 
 
 @Transform(

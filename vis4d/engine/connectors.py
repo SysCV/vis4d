@@ -404,6 +404,9 @@ class StaticDataConnector(DataConnector):
             dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
                 onto the callback.
         """
+        if "callbacks" not in self.connections:
+            return {}  # No data connections registered for callbacks
+
         if f"{mode}_{cb_type}" in self.connections["callbacks"]:
             mode = f"{mode}_{cb_type}"
 

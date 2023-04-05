@@ -160,9 +160,7 @@ class Trainer:
                         )
 
                         callback.on_train_batch_end(
-                            model,
-                            shared_clbk_kwargs,
-                            clbk_kwargs,
+                            model, shared_clbk_kwargs, clbk_kwargs
                         )
 
                 step += 1

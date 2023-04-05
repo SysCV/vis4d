@@ -178,11 +178,38 @@ class ResizeInstanceMasks:
         masks_ = torch.from_numpy(masks)
         masks_ = (
             _resize_tensor(
-                masks_.float().unsqueeze(0),
+                masks_.float().unsqueeze(1),
                 target_shape,
                 interpolation="nearest",
             )
             .type(masks_.dtype)
+            .squeeze(1)
+        )
+        return masks_.numpy()
+
+
+@Transform(
+    [K.segmentation_masks, "transforms.resize.target_shape"],
+    K.segmentation_masks,
+)
+class ResizeSemanticMasks:
+    """Resize semantic segmentation masks."""
+
+    def __call__(
+        self, masks: NDArrayF32, target_shape: tuple[int, int]
+    ) -> NDArrayF32:
+        """Resize masks."""
+        if len(masks) == 0:  # handle empty masks
+            return masks
+        masks_ = torch.from_numpy(masks)
+        masks_ = (
+            _resize_tensor(
+                masks_.float().unsqueeze(0).unsqueeze(0),
+                target_shape,
+                interpolation="nearest",
+            )
+            .type(masks_.dtype)
+            .squeeze(0)
             .squeeze(0)
         )
         return masks_.numpy()

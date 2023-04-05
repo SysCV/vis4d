@@ -52,8 +52,9 @@ class SegmentLoss(nn.Module):
             LossesType: computed losses for each level and the weighted total
                 loss.
         """
+        tgt_h, tgt_w = target.shape[-2:]
         losses: LossesType = {}
         for i, idx in enumerate(self.feature_idx):
-            loss = self.loss_fn(outputs[idx], target)
+            loss = self.loss_fn(outputs[idx][:, :, :tgt_h, :tgt_w], target)
             losses[f"level_{idx}"] = self.weights[i] * loss
         return losses

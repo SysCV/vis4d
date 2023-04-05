@@ -8,6 +8,7 @@ from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.transforms import RandomApply, compose, flip, normalize, resize
 
 
 def segment_augmentations() -> Iterable[ConfigDict]:
@@ -21,12 +22,10 @@ def segment_augmentations() -> Iterable[ConfigDict]:
     """
     return (
         class_config(
-            "vis4d.data.transforms.flip.flip_image",
-            in_keys=(K.images,),
-            out_keys=(K.images,),
+            flip.FlipImage, in_keys=(K.images,), out_keys=(K.images,)
         ),
         class_config(
-            "vis4d.data.transforms.flip.flip_image",
+            flip.FlipSemanticMasks,
             in_keys=(K.segmentation_masks,),
             out_keys=(K.segmentation_masks,),
         ),
@@ -36,6 +35,7 @@ def segment_augmentations() -> Iterable[ConfigDict]:
 def segment_preprocessing(
     target_img_height: int | FieldReference,
     target_img_width: int | FieldReference,
+    keep_ratio: bool | FieldReference,
     augment_probability: float | FieldReference,
     augmentation_transforms: Iterable[ConfigDict] = segment_augmentations(),
 ) -> ConfigDict:
@@ -58,6 +58,7 @@ def segment_preprocessing(
             should be fed to the network.
         target_img_width (int | FieldReference): Target image width which
             should be fed to the network.
+        keep_ratio (bool | FieldReference): Whether to keep the aspect ratio.
         augment_probability (float | FieldReference): Probability to apply
             the augmentation operations.
         augmentation_transforms (list[ConfigDict], optional): List of
@@ -70,27 +71,18 @@ def segment_preprocessing(
     """
     transforms = [
         class_config(
-            "vis4d.data.transforms.resize.resize_image",
-            shape=(
-                target_img_height,
-                target_img_width,
-            ),
-            keep_ratio=False,
+            resize.GenerateResizeParameters,
+            shape=(target_img_height, target_img_width),
+            keep_ratio=keep_ratio,
         ),
+        class_config(resize.ResizeImage),
+        class_config(resize.ResizeSemanticMasks),
         class_config(
-            "vis4d.data.transforms.resize.resize_masks",
-            in_keys=(K.segmentation_masks, K.input_hw),
-            out_keys=(K.segmentation_masks,),
-        ),
-        class_config(
-            "vis4d.data.transforms.base.random_apply",
+            RandomApply,
             transforms=augmentation_transforms,
             probability=augment_probability,
         ),
-        class_config("vis4d.data.transforms.normalize.normalize_image"),
+        class_config(normalize.NormalizeImage),
     ]
 
-    return class_config(
-        "vis4d.data.transforms.base.compose",
-        transforms=transforms,
-    )
+    return class_config(compose, transforms=transforms)

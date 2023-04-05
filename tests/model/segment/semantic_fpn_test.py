@@ -87,7 +87,7 @@ class SemanticFPNTest(unittest.TestCase):
 
     def test_inference(self) -> None:
         """Test inference of SemanticFPN."""
-        model = SemanticFPN(num_classes=21)
+        model = SemanticFPN(num_classes=21, weights="bdd100k")
         dataset = COCO(
             get_test_file("coco_test"),
             split="train",

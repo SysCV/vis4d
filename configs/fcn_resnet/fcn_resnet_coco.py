@@ -6,9 +6,9 @@ from torch import nn, optim
 from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.segment import segment_preprocessing
 from vis4d.config.default.data_connectors.segment import (
-    CONN_FCN_LOSS,
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
+    CONN_SEGMENT_LOSS,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
@@ -78,7 +78,7 @@ def get_config() -> ConfigDict:
         use_pascal_voc_cats=True,
         minimum_box_area=10,
     )
-    preproc = segment_preprocessing(520, 520, params.augment_proba)
+    preproc = segment_preprocessing(520, 520, False, params.augment_proba)
     dataloader_train_cfg = default_image_dataloader(
         preproc,
         dataset_cfg_train,
@@ -96,7 +96,7 @@ def get_config() -> ConfigDict:
         use_pascal_voc_cats=True,
     )
     preprocess_test_cfg = segment_preprocessing(
-        520, 520, augment_probability=0
+        520, 520, False, augment_probability=0
     )
     dataloader_cfg_test = default_image_dataloader(
         preprocess_test_cfg,
@@ -182,7 +182,7 @@ def get_config() -> ConfigDict:
         connections=DataConnectionInfo(
             train=CONN_MASKS_TRAIN,
             test=CONN_MASKS_TEST,
-            loss=CONN_FCN_LOSS,
+            loss=CONN_SEGMENT_LOSS,
         ),
     )
     return config.value_mode()

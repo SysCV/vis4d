@@ -90,7 +90,11 @@ class FCNResNetLoss(nn.Module):
     """FCNResNet Loss."""
 
     def __init__(self, weights: None | torch.Tensor = None) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            weights (None | torch.Tensor): Loss weights.
+        """
         super().__init__()
         self.loss = SegmentLoss(
             (4, 5),
@@ -98,15 +102,15 @@ class FCNResNetLoss(nn.Module):
             weights=[0.5, 1],
         )
 
-    def forward(self, out: FCNOut, targets: torch.Tensor) -> LossesType:
+    def forward(self, outs: FCNOut, targets: torch.Tensor) -> LossesType:
         """Forward of loss function.
 
         Args:
-            out (FCNOut): Raw model outputs.
+            outs (FCNOut): Raw model outputs.
             targets (torch.Tensor): Segmentation masks.
 
         Returns:
             LossesType: Dictionary of model losses.
         """
-        losses = self.loss(out.outputs, targets.long())
+        losses = self.loss(outs.outputs, targets.long())
         return losses

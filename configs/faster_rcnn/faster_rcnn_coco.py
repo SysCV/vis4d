@@ -30,6 +30,7 @@ from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
+from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN
@@ -40,7 +41,6 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
-from vis4d.data.io.hdf5 import HDF5Backend
 
 
 def get_config() -> ConfigDict:

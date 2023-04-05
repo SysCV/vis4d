@@ -48,8 +48,9 @@ class CommonKeys:
         [N,].
     boxes2d_track_ids (NDArrayI32): Tracking IDs of 2D bounding boxes,
         shape [N,].
-    instance_masks (NDArrayU8): Instance segmentation masks of shape [N, H, W].
-    segmentation_masks (NDArrayU8): Semantic segmentation masks [H, W].
+    instance_masks (NDArrayUI8): Instance segmentation masks of shape
+        [N, H, W].
+    segmentation_masks (NDArrayUI8): Semantic segmentation masks [H, W].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
