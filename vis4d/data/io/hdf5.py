@@ -1,7 +1,7 @@
 """Hdf5 data backend.
 
-This backend works with filepaths pointing to valid HDF5 files. We assume that
-the given HDF5 file contains the whole dataset associated to this backend.
+This backend works with filepaths pointing to valid HDF5 files. We assume the
+key structure of the HDF5 files resembles the folder structure of the dataset.
 """
 from __future__ import annotations
 
@@ -31,8 +31,9 @@ class HDF5Backend(DataBackend):
     that the given HDF5 file contains the whole dataset associated to this
     backend.
 
-    You can use the provided script at vis4d/data/datasets/to_hdf5.py to
-    convert your dataset to the expected hdf5 format before using this backend.
+    You can use the provided conversion function:
+    `python -m vis4d.data.io.hdf5 --path <path/to/dataset>`
+    This converts your dataset to the expected hdf5 format.
     """
 
     def __init__(self) -> None:
@@ -167,7 +168,18 @@ class HDF5Backend(DataBackend):
 
 
 def convert_dataset(source_dir: str) -> None:
-    """Convert particular dataset instance to hdf5."""
+    """Convert a dataset to HDF5 format.
+
+    This function converts an arbitary dictionary to an HDF5 file. The keys
+    inside the HDF5 file preserve the directory structure of the original.
+
+    As an example, if you convert "/path/to/dataset" to HDF5, the resulting
+    file will be: "/path/to/dataset.hdf5". The file "relative/path/to/file"
+    will be stored at "relative/path/to/file" inside /path/to/dataset.hdf5.
+
+    Args:
+        source_dir (str): The path to the dataset to convert.
+    """
     if not os.path.exists(source_dir):
         raise FileNotFoundError(f"No such file or directory: {source_dir}")
 
@@ -202,7 +214,8 @@ def convert_dataset(source_dir: str) -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(
-        description="Converts a dataset at the specified path to hdf5."
+        description="Converts a dataset at the specified path to hdf5. The "
+        "local directory structure is preserved in the hdf5 file."
     )
     parser.add_argument(
         "-p",
