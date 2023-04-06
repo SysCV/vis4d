@@ -63,9 +63,7 @@ def main(argv) -> None:  # type:ignore
     set_tf32(False)
 
     if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
 
     # Setup Trainer kwargs
     trainer_args_cfg = ConfigDict()

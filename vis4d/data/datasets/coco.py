@@ -296,8 +296,8 @@ class COCO(Dataset, CacheMappingMixin):
                         # RLE
                         rle = mask_ann
                     masks.append(maskUtils.decode(rle))
-                else:
-                    masks.append(np.empty((img_h, img_w)))  # pragma: no cover
+                else:  # pragma: no cover
+                    masks.append(np.empty((img_h, img_w), dtype=np.uint8))
             if not boxes:  # pragma: no cover
                 box_tensor = np.empty((0, 4), dtype=np.float32)
                 mask_tensor = np.empty((0, img_h, img_w), dtype=np.uint8)

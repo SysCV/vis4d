@@ -145,7 +145,7 @@ def get_coco_detection_config(
     data_root: str = "data/coco",
     train_split: str = "train2017",
     test_split: str = "val2017",
-    data_backend: None | DataBackend = None,
+    data_backend: None | ConfigDict = None,
     image_size: tuple(int, int) = (800, 1333),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 4,

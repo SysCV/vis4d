@@ -61,10 +61,6 @@ def get_config() -> ConfigDict:
     config.experiment_name = "faster_rcnn_r50_fpn_coco"
     config = set_output_dir(config)
 
-    data_root = "data/coco"
-    train_split = "train2017"
-    test_split = "val2017"
-
     # High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 2
@@ -77,12 +73,18 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
+    data_root = "data/coco"
+    train_split = "train2017"
+    test_split = "val2017"
+
+    data_backend = class_config(HDF5Backend)
+
     config.data = get_coco_detection_config(
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
         samples_per_gpu=params.samples_per_gpu,
-        data_backend=HDF5Backend(),
+        data_backend=data_backend,
     )
 
     ######################################################
