@@ -1,31 +1,32 @@
-"""Scalabel tracking evaluator."""
+"""BDD100K semantic segmentation evaluator."""
 from __future__ import annotations
 
 import itertools
 from collections.abc import Callable
 from typing import Any
 
-from torch import Tensor
+import numpy as np
 
+from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
-from vis4d.common.typing import MetricLogs
-from vis4d.data.datasets.bdd100k import bdd100k_track_map
+from vis4d.common.typing import ArrayLike, MetricLogs
+from vis4d.data.datasets.bdd100k import bdd100k_seg_map
 
 from ..base import Evaluator
 
 if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from bdd100k.common.utils import load_bdd100k_config
     from bdd100k.label.to_scalabel import bdd100k_to_scalabel
-    from scalabel.eval.mot import acc_single_video_mot, evaluate_track
-    from scalabel.label.io import group_and_sort, load
-    from scalabel.label.transforms import xyxy_to_box2d
+    from scalabel.eval.sem_seg import evaluate_sem_seg
+    from scalabel.label.io import load
+    from scalabel.label.transforms import mask_to_rle
     from scalabel.label.typing import Frame, Label
 
 
-class BDD100KTrackingEvaluator(Evaluator):
-    """BDD100K 2D tracking evaluation class."""
+class BDD100KSemSegEvaluator(Evaluator):
+    """BDD100K semantic segmentation evaluation class."""
 
-    inverse_track_map = {v: k for k, v in bdd100k_track_map.items()}
+    inverse_seg_map = {v: k for k, v in bdd100k_seg_map.items()}
 
     def __init__(self, annotation_path: str) -> None:
         """Initialize the evaluator."""
@@ -36,12 +37,12 @@ class BDD100KTrackingEvaluator(Evaluator):
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
-        return "BDD100K Tracking Evaluator"
+        return "BDD100K Semantic Segmentation Evaluator"
 
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return ["track"]
+        return ["sem_seg"]
 
     def gather(  # type: ignore
         self, gather_func: Callable[[Any], Any]
@@ -60,64 +61,32 @@ class BDD100KTrackingEvaluator(Evaluator):
         self.frames = []
 
     def process(  # type: ignore # pylint: disable=arguments-differ
-        self,
-        frame_ids: list[int],
-        data_names: list[str],
-        video_names: list[str],
-        boxes_list: list[Tensor],
-        class_ids_list: list[Tensor],
-        scores_list: list[Tensor],
-        track_ids_list: list[Tensor],
+        self, data_names: list[str], masks_list: list[ArrayLike]
     ) -> None:
         """Process tracking results."""
-        for (
-            frame_id,
-            data_name,
-            video_name,
-            boxes,
-            scores,
-            class_ids,
-            track_ids,
-        ) in zip(
-            frame_ids,
-            data_names,
-            video_names,
-            boxes_list,
-            scores_list,
-            class_ids_list,
-            track_ids_list,
-        ):
+        masks_numpy = [array_to_numpy(m) for m in masks_list]  # to numpy
+        for data_name, masks in zip(data_names, masks_numpy):
             labels = []
-            for box, score, class_id, track_id in zip(
-                boxes, scores, class_ids, track_ids
-            ):
-                box2d = xyxy_to_box2d(*box.cpu().numpy().tolist())
+            for i, class_id in enumerate(np.unique(masks)):
                 label = Label(
-                    box2d=box2d,
-                    category=self.inverse_track_map[int(class_id)],
-                    score=float(score),
-                    id=str(int(track_id)),
+                    rle=mask_to_rle(masks == class_id),
+                    category=self.inverse_seg_map[int(class_id)],
+                    id=str(i),
                 )
                 labels.append(label)
-            frame = Frame(
-                name=data_name,
-                videoName=video_name,
-                frameIndex=frame_id,
-                labels=labels,
-            )
+            frame = Frame(name=data_name, labels=labels)
             self.frames.append(frame)
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
-        if metric == "track":
+        if metric == "sem_seg":
             bdd100k_anns = load(self.annotation_path)
             frames = bdd100k_anns.frames
-            bdd100k_cfg = load_bdd100k_config("box_track")
+            bdd100k_cfg = load_bdd100k_config("sem_seg")
             scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
-            results = evaluate_track(
-                acc_single_video_mot,
-                gts=group_and_sort(scalabel_frames),
-                results=group_and_sort(self.frames),
+            results = evaluate_sem_seg(
+                ann_frames=scalabel_frames,
+                pred_frames=self.frames,
                 config=bdd100k_cfg.scalabel,
                 nproc=0,
             )

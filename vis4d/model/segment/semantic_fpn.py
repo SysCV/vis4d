@@ -1,7 +1,10 @@
 """SemanticFPN Implementation."""
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
@@ -27,12 +30,19 @@ REV_KEYS = [
 ]
 
 
+class MaskOut(NamedTuple):
+    """Output mask predictions."""
+
+    masks: list[torch.Tensor]  # list of masks for each image
+
+
 class SemanticFPN(nn.Module):
     """Semantic FPN."""
 
     def __init__(
         self,
         num_classes: int,
+        resize: bool = True,
         weights: None | str = None,
         basemodel: BaseModel = ResNet(
             "resnet50", pretrained=True, trainable_layers=3
@@ -42,10 +52,12 @@ class SemanticFPN(nn.Module):
 
         Args:
             num_classes (int): Number of classes.
+            resize (bool): Resize output to input size.
             weights (None | str): Pre-trained weights.
             basemodel (BaseModel): Base model.
         """
         super().__init__()
+        self.resize = resize
         self.basemodel = basemodel
         self.fpn = FPN(self.basemodel.out_channels[2:], 256)
         self.seg_head = SemanticFPNHead(num_classes, 256)
@@ -76,11 +88,20 @@ class SemanticFPN(nn.Module):
         """
         features = self.fpn(self.basemodel(images))
         out = self.seg_head(features)
+        if self.resize:
+            out = SemanticFPNOut(
+                outputs=F.interpolate(
+                    out.outputs,
+                    scale_factor=4,
+                    mode="bilinear",
+                    align_corners=False,
+                )
+            )
         return out
 
     def forward_test(
         self, images: torch.Tensor, original_hw: list[tuple[int, int]]
-    ) -> SemanticFPNOut:
+    ) -> MaskOut:
         """Forward pass for testing.
 
         Args:
@@ -97,14 +118,20 @@ class SemanticFPN(nn.Module):
 
         new_masks = []
         for i, outputs in enumerate(out.outputs):
-            new_masks.append(clip_mask(outputs, original_hw[i]))
-        return SemanticFPNOut(outputs=torch.stack(new_masks))
+            opt = F.interpolate(
+                outputs,
+                scale_factor=4,
+                mode="bilinear",
+                align_corners=False,
+            )
+            new_masks.append(clip_mask(opt, original_hw[i]).argmax(dim=0))
+        return MaskOut(masks=new_masks)
 
     def forward(
         self,
         images: torch.Tensor,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> SemanticFPNOut:
+    ) -> SemanticFPNOut | MaskOut:
         """Forward pass.
 
         Args:
@@ -114,7 +141,7 @@ class SemanticFPN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            SemanticFPNOut: Raw model predictions.
+            MaskOut: Raw model predictions.
         """
         if self.training:
             return self.forward_train(images)

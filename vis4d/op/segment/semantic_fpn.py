@@ -24,7 +24,6 @@ class SemanticFPNHead(nn.Module):
         inner_channels: int = 128,
         start_level: int = 2,
         end_level: int = 6,
-        resize: bool = True,
     ):
         """Creates an instance of the class.
 
@@ -36,7 +35,6 @@ class SemanticFPNHead(nn.Module):
                 SemanticFPN.
             end_level (int): The end level of the used features, the
                 ``end_level``-th layer will not be used.
-            resize (bool): Whether to resize the output to the input size.
         """
         super().__init__()
         self.num_classes = num_classes
@@ -46,12 +44,11 @@ class SemanticFPNHead(nn.Module):
         self.end_level = end_level
         self.num_stages = end_level - start_level
         self.inner_channels = inner_channels
-        self.resize = resize
 
         self.scale_heads = nn.ModuleList()
         for i in range(start_level, end_level):
             head_length = max(1, i - start_level)
-            scale_head = []
+            scale_head: list[nn.Module] = []
             for k in range(head_length):
                 scale_head.append(
                     nn.Sequential(
@@ -110,11 +107,4 @@ class SemanticFPNHead(nn.Module):
             )
 
         seg_preds = self.conv_seg(output)
-        if self.resize:
-            seg_preds = F.interpolate(
-                seg_preds,
-                scale_factor=4,
-                mode="bilinear",
-                align_corners=False,
-            )
         return SemanticFPNOut(outputs=seg_preds)

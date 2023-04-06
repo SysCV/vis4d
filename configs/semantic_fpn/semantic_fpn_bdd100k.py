@@ -16,10 +16,10 @@ from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_seg_map
+from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
-from vis4d.eval.segment.segmentation_evaluator import SegmentationEvaluator
+from vis4d.eval.segment.bdd100k import BDD100KSemSegEvaluator
 from vis4d.model.segment.semantic_fpn import SemanticFPN, SemanticFPNLoss
 from vis4d.optim import PolyLR
 from vis4d.optim.warmup import LinearLRWarmup
@@ -157,9 +157,8 @@ def get_config() -> ConfigDict:
         "bdd100k_eval": class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                SegmentationEvaluator,
-                num_classes=params.num_classes,
-                # class_mapping={v: k for k, v in bdd100k_seg_map.items()},
+                BDD100KSemSegEvaluator,
+                annotation_path=f"data/bdd100k/labels/sem_seg_val_rle.json",
             ),
             run_every_nth_epoch=1,
             num_epochs=params.num_epochs,
@@ -184,9 +183,9 @@ def get_config() -> ConfigDict:
     # }
 
     # Assign the defined callbacks to the config
-    config.shared_callbacks = {**logger_callback, **eval_callbacks}
+    config.shared_callbacks = {**logger_callback}
 
     config.train_callbacks = {}
-    config.test_callbacks = {}
+    config.test_callbacks = {**eval_callbacks}
 
     return config.value_mode()

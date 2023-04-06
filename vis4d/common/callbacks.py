@@ -158,9 +158,6 @@ class EvaluatorCallback(Callback):
         self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
     ) -> None:
         """Hook to run at the end of a testing batch."""
-        for k, v in inputs.items():
-            if isinstance(v, torch.Tensor):
-                inputs[k] = v.detach().cpu().numpy()
         self.evaluator.process(**inputs)
 
     def evaluate(self) -> MetricLogs:

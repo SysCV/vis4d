@@ -11,7 +11,12 @@ CONN_SEGMENT_LOSS = {
     "targets": data_key(K.segmentation_masks),
 }
 
-CONN_BDD100K_SEGMENT_EVAL = {
-    "prediction": pred_key("outputs"),
+CONN_SEGMENT_EVAL = {
+    "prediction": pred_key("masks"),
     "groundtruth": data_key(K.segmentation_masks),
+}
+
+CONN_BDD100K_SEGMENT_EVAL = {
+    "data_names": data_key("name"),
+    "masks_list": pred_key("masks"),
 }

@@ -24,7 +24,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.eval.track.bdd100k import BDD100KEvaluator
+from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
 CONN_BBOX_2D_TEST = {
@@ -184,7 +184,7 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             save_prefix=config.output_dir,
             evaluator=class_config(
-                BDD100KEvaluator,
+                BDD100KTrackingEvaluator,
                 annotation_path=annotation_path,
             ),
             run_every_nth_epoch=1,
