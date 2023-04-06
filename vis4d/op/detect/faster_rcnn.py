@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.op.box.box2d import apply_mask
-from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import (
     RandomSampler,
@@ -32,44 +32,26 @@ class FRCNNOut(NamedTuple):
     sampled_target_indices: list[torch.Tensor] | None
 
 
-def get_default_anchor_generator() -> AnchorGenerator:
-    """Get default anchor generator."""
-    return AnchorGenerator(
-        scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
+def get_default_rpn_box_codec(
+    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
+    target_stds: tuple[float, ...] = (1.0, 1.0, 1.0, 1.0),
+) -> tuple[nn.Module, nn.Module]:
+    """Get the default bounding box encoder and decoder for RPN."""
+    return (
+        DeltaXYWHBBoxEncoder(target_means, target_stds),
+        DeltaXYWHBBoxDecoder(target_means, target_stds),
     )
 
 
-def get_default_rpn_box_encoder() -> DeltaXYWHBBoxEncoder:
-    """Get the default bounding box encoder for RPN."""
-    return DeltaXYWHBBoxEncoder(
-        target_means=(0.0, 0.0, 0.0, 0.0),
-        target_stds=(1.0, 1.0, 1.0, 1.0),
+def get_default_rcnn_box_codec(
+    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
+    target_stds: tuple[float, ...] = (0.1, 0.1, 0.2, 0.2),
+) -> tuple[nn.Module, nn.Module]:
+    """Get the default bounding box encoder and decoder for RCNN."""
+    return (
+        DeltaXYWHBBoxEncoder(target_means, target_stds),
+        DeltaXYWHBBoxDecoder(target_means, target_stds),
     )
-
-
-def get_default_rcnn_box_encoder() -> DeltaXYWHBBoxEncoder:
-    """Get the default bounding box encoder for RCNN."""
-    return DeltaXYWHBBoxEncoder(
-        target_means=(0.0, 0.0, 0.0, 0.0),
-        target_stds=(0.1, 0.1, 0.2, 0.2),
-    )
-
-
-def get_default_box_matcher() -> MaxIoUMatcher:
-    """Get default bounding box matcher."""
-    return MaxIoUMatcher(
-        thresholds=[0.5], labels=[0, 1], allow_low_quality_matches=False
-    )
-
-
-def get_default_box_sampler() -> RandomSampler:
-    """Get default bounding box sampler."""
-    return RandomSampler(batch_size=512, positive_fraction=0.25)
-
-
-def get_default_roi_head(num_classes: int) -> RCNNHead:
-    """Get default ROI head."""
-    return RCNNHead(num_classes=num_classes)
 
 
 class FasterRCNNHead(nn.Module):
@@ -83,31 +65,63 @@ class FasterRCNNHead(nn.Module):
 
     def __init__(
         self,
-        anchor_generator: AnchorGenerator,
-        rpn_box_decoder: nn.Module,
-        box_matcher: Matcher,
-        box_sampler: Sampler,
-        roi_head: nn.Module,
+        num_classes: int,
+        anchor_generator: None | AnchorGenerator = None,
+        rpn_box_decoder: None | DeltaXYWHBBoxDecoder = None,
+        box_matcher: None | Matcher = None,
+        box_sampler: None | Sampler = None,
+        roi_head: None | RCNNHead = None,
         proposal_append_gt: bool = True,
-    ):
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
-            anchor_generator (AnchorGenerator): Custom generator for RPN.
-            rpn_box_encoder (nn.Module): Custom rpn box decoder.
-            box_matcher (Matcher): Custom box matcher for RCNN stage.
-            box_sampler (Sampler): Custom box sampler for RCNN stage.
-            roi_head (nn.Module): Custom ROI head.
+            num_classes (int): Number of object categories.
+            anchor_generator (AnchorGenerator, optional): Custom generator for
+                RPN. Defaults to None.
+            rpn_box_decoder (DeltaXYWHBBoxDecoder, optional): Custom rpn box
+                decoder. Defaults to None.
+            box_matcher (Matcher, optional): Custom box matcher for RCNN stage.
+                Defaults to None.
+            box_sampler (Sampler, optional): Custom box sampler for RCNN stage.
+                Defaults to None.
+            roi_head (RCNNHead, optional): Custom ROI head. Defaults to None.
             proposal_append_gt (bool): If to append the ground truth boxes for
                 proposal sampling during training. Defaults to True.
         """
         super().__init__()
-        self.box_matcher = box_matcher
-        self.box_sampler = box_sampler
+        if anchor_generator is None:
+            anchor_generator = AnchorGenerator(
+                scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
+            )
+
+        if rpn_box_decoder is None:
+            _, rpn_box_decoder = get_default_rpn_box_codec()
+
+        if box_matcher is None:
+            self.box_matcher = MaxIoUMatcher(
+                thresholds=[0.5],
+                labels=[0, 1],
+                allow_low_quality_matches=False,
+            )
+        else:
+            self.box_matcher = box_matcher
+
+        if box_sampler is None:
+            self.box_sampler = RandomSampler(
+                batch_size=512, positive_fraction=0.25
+            )
+        else:
+            self.box_sampler = box_sampler
+
         self.proposal_append_gt = proposal_append_gt
         self.rpn_head = RPNHead(anchor_generator.num_base_priors[0])
         self.rpn2roi = RPN2RoI(anchor_generator, rpn_box_decoder)
-        self.roi_head = roi_head
+
+        if roi_head is None:
+            self.roi_head = RCNNHead(num_classes=num_classes)
+        else:
+            self.roi_head = roi_head
 
     @torch.no_grad()
     def _sample_proposals(

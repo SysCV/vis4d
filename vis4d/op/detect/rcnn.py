@@ -11,12 +11,13 @@ from torch import Tensor, nn
 from torchvision.ops import roi_align
 
 from vis4d.op.box.box2d import apply_mask, bbox_clip, multiclass_nms
-from vis4d.op.box.encoder import BoxEncoder2D
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image
+from vis4d.op.detect.common import DetOut
 
 from ..typing import Proposals, Targets
 
@@ -160,14 +161,6 @@ class RCNNHead(nn.Module):
         return self._call_impl(features, boxes)
 
 
-class DetOut(NamedTuple):  # TODO: decide where to put the class
-    """Output of the final detections from RCNN."""
-
-    boxes: list[torch.Tensor]  # N, 4
-    scores: list[torch.Tensor]
-    class_ids: list[torch.Tensor]
-
-
 class RoI2Det(nn.Module):
     """Post processing of RCNN results and detection generation.
 
@@ -182,7 +175,7 @@ class RoI2Det(nn.Module):
 
     def __init__(
         self,
-        box_decoder: BoxEncoder2D,
+        box_decoder: DeltaXYWHBBoxDecoder,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
@@ -190,7 +183,7 @@ class RoI2Det(nn.Module):
         """Creates an instance of the class.
 
         Args:
-            box_encoder (BoxEncoder2D): Decodes regression parameters to
+            box_encoder (DeltaXYWHBBoxDecoder): Decodes regression parameters to
                 detected boxes.
             score_threshold (float, optional): Minimum score of a detection.
                 Defaults to 0.05.

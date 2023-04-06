@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from vis4d.common import TorchLossFunc
-from vis4d.op.box.encoder import BoxEncoder2D
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
 from vis4d.op.loss.common import l1_loss
@@ -49,7 +49,7 @@ def get_targets_per_image(
     anchors: Tensor,
     matcher: Matcher,
     sampler: Sampler,
-    box_encoder: nn.Module,
+    box_encoder: DeltaXYWHBBoxDecoder,
     image_hw: tuple[int, int],
     target_class: Tensor | float = 1.0,
     allowed_border: int = 0,
@@ -62,8 +62,8 @@ def get_targets_per_image(
         anchors (Tensor): (M, 4) box priors
         matcher (Matcher): box matcher matching anchors to targets.
         sampler (Sampler): box sampler sub-sampling matches.
-        box_encoder (nn.Module): Encodes boxes into target regression
-            parameters.
+        box_encoder (DeltaXYWHBBoxDecoder): Encodes boxes into target
+            regression parameters.
         image_hw (tuple[int, int]): input image height and width.
         target_class (Tensor | float, optional): class label(s) of target
             boxes. Defaults to 1.0.

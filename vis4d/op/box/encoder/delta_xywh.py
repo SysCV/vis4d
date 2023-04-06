@@ -7,13 +7,10 @@ from __future__ import annotations
 import math
 
 import torch
-from torch import Tensor, nn
-
-from .base import BoxEncoder2D
+from torch import Tensor
 
 
-# TODO: Refactor this to functors with a single forward
-class DeltaXYWHBBoxEncoder(nn.Module):
+class DeltaXYWHBBoxEncoder:
     """Delta XYWH BBox encoder.
 
     Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,
@@ -33,11 +30,10 @@ class DeltaXYWHBBoxEncoder(nn.Module):
             target_stds (tuple, optional): Denormalizing standard deviation of
                 target for delta coordinates. Defaults to (1.0, 1.0, 1.0, 1.0).
         """
-        super().__init__()
         self.means = target_means
         self.stds = target_stds
 
-    def forward(self, boxes: Tensor, targets: Tensor) -> Tensor:
+    def __call__(self, boxes: Tensor, targets: Tensor) -> Tensor:
         """Get box regression transformation deltas.
 
         Used to transform target boxes into target regression parameters.
@@ -56,7 +52,7 @@ class DeltaXYWHBBoxEncoder(nn.Module):
         return encoded_bboxes
 
 
-class DeltaXYWHBBoxDecoder(nn.Module):
+class DeltaXYWHBBoxDecoder:
     """Delta XYWH BBox decoder.
 
     Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,
@@ -79,12 +75,11 @@ class DeltaXYWHBBoxDecoder(nn.Module):
             wh_ratio_clip (float, optional): Maximum aspect ratio for boxes.
                 Defaults to 16/1000.
         """
-        super().__init__()
         self.means = target_means
         self.stds = target_stds
         self.wh_ratio_clip = wh_ratio_clip
 
-    def forward(self, boxes: Tensor, box_deltas: Tensor) -> Tensor:
+    def __call__(self, boxes: Tensor, box_deltas: Tensor) -> Tensor:
         """Apply box offset energies box_deltas to boxes.
 
         Args:

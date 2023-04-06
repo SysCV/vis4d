@@ -491,7 +491,7 @@ def _instantiate_classes(data: _ConfigDict | Any) -> ConfigDict | Any:  # type: 
     if isinstance(data, FieldReference):
         data = data.get()
 
-    if not isinstance(data, (_ConfigDict, list, tuple)):
+    if not isinstance(data, (_ConfigDict, list, tuple, dict)):
         return data
 
     for key in _get_index(data):

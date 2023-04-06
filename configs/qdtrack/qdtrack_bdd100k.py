@@ -1,31 +1,32 @@
 """QDTrack BDD100K inference example."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
-
+import pytorch_lightning as pl
 from vis4d.common.callbacks import (
     CheckpointCallback,
     EvaluatorCallback,
     LoggingCallback,
 )
 from vis4d.config.default.data.dataloader import default_image_dataloader
+from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 from vis4d.config.default.optimizer.default import optimizer_cfg
-from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.data.loader import VideoDataPipe
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     StaticDataConnector,
     data_key,
     pred_key,
 )
+
 from vis4d.eval.track.bdd100k import BDD100KEvaluator
-from vis4d.model.track.qdtrack import FasterRCNNQDTrack
+
+from vis4d.data.loader import VideoDataPipe
+from vis4d.config.default.runtime import set_output_dir
 
 CONN_BBOX_2D_TEST = {
     CK.images: CK.images,

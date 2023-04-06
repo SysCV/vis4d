@@ -5,13 +5,17 @@ import torch
 from torch import nn
 
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.op.base import BaseModel
+from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
-from vis4d.op.detect.anchor_generator import AnchorGenerator
-from vis4d.op.box.matchers import Matcher
-from vis4d.op.box.samplers import Sampler
-from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
-from vis4d.op.detect.rcnn import DetOut, RoI2Det
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+
+from vis4d.op.detect.faster_rcnn import (
+    FasterRCNNHead,
+    FRCNNOut,
+    get_default_rcnn_box_codec,
+)
+from vis4d.op.detect.rcnn import RoI2Det
+from vis4d.op.detect.common import DetOut
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
@@ -30,37 +34,42 @@ class FasterRCNN(nn.Module):
 
     def __init__(
         self,
-        backbone: BaseModel,
-        anchor_generator: AnchorGenerator,
-        rpn_box_decoder: nn.Module,
-        rcnn_box_decoder: nn.Module,
-        box_matcher: Matcher,
-        box_sampler: Sampler,
-        roi_head: nn.Module,
+        num_classes: int,
+        backbone: BaseModel | None = None,
+        faster_rcnn_head: FasterRCNNHead | None = None,
+        rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         weights: None | str = None,
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            backbone (nn.Module, optional): Backbone network.
-            anchor_generator (AnchorGenerator, optional): Generator for anchors
-                for detection.
-            rpn_box_decoder (nn.Module): Decoder for RPN bounding boxes.
-            rcnn_box_decoder (nn.Module): Decoder for RCNN bounding boxes.
-            weights (None | str, optional): Weights to load for model. If
+            num_classes (int): Number of object categories.
+            backbone (BaseModel, optional): Backbone network. Defaults to None.
+            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+                Defaults to None.
+            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+                bounding boxes. Defaults to None.
+            weights (str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
         """
         super().__init__()
-        self.backbone = backbone
+        if backbone is None:
+            self.backbone = ResNet(
+                resnet_name="resnet50", pretrained=True, trainable_layers=3
+            )
+        else:
+            self.backbone = backbone
+
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            anchor_generator=anchor_generator,
-            rpn_box_decoder=rpn_box_decoder,
-            box_matcher=box_matcher,
-            box_sampler=box_sampler,
-            roi_head=roi_head,
-        )
+
+        if faster_rcnn_head is None:
+            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+        else:
+            self.faster_rcnn_heads = faster_rcnn_head
+
+        if rcnn_box_decoder is None:
+            _, rcnn_box_decoder = get_default_rcnn_box_codec()
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
         if weights == "mmdet":

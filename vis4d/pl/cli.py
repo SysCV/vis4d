@@ -42,10 +42,11 @@ def main(argv) -> None:  # type:ignore
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     mode = argv[1]
+    assert mode in ["fit", "test"], f"Invalid mode: {mode}"
     config = _CONFIG.value
     num_gpus = _GPUS.value
 

@@ -12,14 +12,15 @@ from vis4d.engine.loss import WeightedMultiLoss
 
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
+from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder
 from vis4d.op.detect.rcnn import RCNNHead
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.rcnn import RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
-
-from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 
 from vis4d.model.detect.faster_rcnn import FasterRCNN
+
 
 # Data connectors
 CONN_BBOX_2D_TRAIN = {
@@ -52,70 +53,41 @@ CONN_ROI_LOSS_2D = {
 }
 
 
-def get_default_anchor_generator() -> AnchorGenerator:
-    """Get default anchor generator."""
-    return AnchorGenerator(
-        scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
-    )
-
-
-def get_default_rpn_box_codec(
+def get_default_rpn_box_codec_cfg(
     target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
     target_stds: tuple[float, ...] = (1.0, 1.0, 1.0, 1.0),
-) -> tuple[nn.Module, nn.Module]:
-    """Get the default bounding box encoder and decoder for RPN."""
+) -> tuple[ConfigDict, ConfigDict]:
+    """Get default config for rpn box encoder and decoder."""
     return (
-        DeltaXYWHBBoxEncoder(target_means, target_stds),
-        DeltaXYWHBBoxDecoder(target_means, target_stds),
+        class_config(
+            DeltaXYWHBBoxEncoder,
+            target_means=target_means,
+            target_stds=target_stds,
+        ),
+        class_config(
+            DeltaXYWHBBoxDecoder,
+            target_means=target_means,
+            target_stds=target_stds,
+        ),
     )
 
 
-def get_default_rcnn_box_codec(
+def get_default_rcnn_box_codec_cfg(
     target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
     target_stds: tuple[float, ...] = (0.1, 0.1, 0.2, 0.2),
-) -> tuple[nn.Module, nn.Module]:
-    """Get the default bounding box encoder and decoder for RCNN."""
+) -> tuple[ConfigDict, ConfigDict]:
+    """Get default config for rcnn box encoder and decoder."""
     return (
-        DeltaXYWHBBoxEncoder(target_means, target_stds),
-        DeltaXYWHBBoxDecoder(target_means, target_stds),
-    )
-
-
-def get_default_box_matcher() -> MaxIoUMatcher:
-    """Get default bounding box matcher."""
-    return MaxIoUMatcher(
-        thresholds=[0.5], labels=[0, 1], allow_low_quality_matches=False
-    )
-
-
-def get_default_box_sampler() -> RandomSampler:
-    """Get default bounding box sampler."""
-    return RandomSampler(batch_size=512, positive_fraction=0.25)
-
-
-def get_default_roi_head(num_classes: int) -> RCNNHead:
-    """Get default ROI head."""
-    return RCNNHead(num_classes=num_classes)
-
-
-def get_default_faster_rcnn_loss(
-    anchor_generator: AnchorGenerator,
-    rpn_box_encoder: nn.Module,
-    rcnn_box_encoder: nn.Module,
-) -> nn.Module:
-    """Return default loss for faster_rcnn model.
-
-    This los consists of a RPN loss as well as a RCNN loss.
-    # TODO: Add better docstring
-
-    Returns:
-        nn.Module: Loss module.
-    """
-    rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
-    rcnn_loss = RCNNLoss(rcnn_box_encoder)
-
-    return WeightedMultiLoss(
-        [{"loss": rpn_loss, "weight": 1.0}, {"loss": rcnn_loss, "weight": 1.0}]
+        class_config(
+            DeltaXYWHBBoxEncoder,
+            target_means=target_means,
+            target_stds=target_stds,
+        ),
+        class_config(
+            DeltaXYWHBBoxDecoder,
+            target_means=target_means,
+            target_stds=target_stds,
+        ),
     )
 
 
@@ -127,34 +99,66 @@ def get_model_cfg(
     ######################################################
     ##                        MODEL                     ##
     ######################################################
-    anchor_generator = get_default_anchor_generator()
-    rpn_box_encoder, rpn_box_decoder = get_default_rpn_box_codec()
-    rcnn_box_encoder, rcnn_box_decoder = get_default_rcnn_box_codec()
+    # TODO: Check whether it is a right way to do this.
+    # These are the same as the faster-rcnn default but can demonstrate
+    # how to override them
+    anchor_generator = class_config(
+        AnchorGenerator,
+        scales=[8],
+        ratios=[0.5, 1.0, 2.0],
+        strides=[4, 8, 16, 32, 64],
+    )
 
-    box_matcher = get_default_box_matcher()
-    box_sampler = get_default_box_sampler()
+    rpn_box_encoder, rpn_box_decoder = get_default_rpn_box_codec_cfg()
+    rcnn_box_encoder, rcnn_box_decoder = get_default_rcnn_box_codec_cfg()
 
-    roi_head = class_config(get_default_roi_head, num_classes=num_classes)
+    box_matcher = class_config(
+        MaxIoUMatcher,
+        thresholds=[0.5],
+        labels=[0, 1],
+        allow_low_quality_matches=False,
+    )
 
-    model = class_config(
-        FasterRCNN,
-        backbone=backbone,
+    box_sampler = class_config(
+        RandomSampler, batch_size=512, positive_fraction=0.25
+    )
+
+    roi_head = class_config(RCNNHead, num_classes=num_classes)
+
+    faster_rcnn_head = class_config(
+        FasterRCNNHead,
+        num_classes=num_classes,
         anchor_generator=anchor_generator,
         rpn_box_decoder=rpn_box_decoder,
-        rcnn_box_decoder=rcnn_box_decoder,
         box_matcher=box_matcher,
         box_sampler=box_sampler,
         roi_head=roi_head,
+    )
+
+    model = class_config(
+        FasterRCNN,
+        num_classes=num_classes,
+        backbone=backbone,
+        faster_rcnn_head=faster_rcnn_head,
+        rcnn_box_decoder=rcnn_box_decoder,
         # weights="mmdet",
     )
 
     ######################################################
     ##                      LOSS                        ##
     ######################################################
-    loss = class_config(
-        get_default_faster_rcnn_loss,
-        rpn_box_encoder=rpn_box_encoder,
-        rcnn_box_encoder=rcnn_box_encoder,
+    rpn_loss = class_config(
+        RPNLoss,
         anchor_generator=anchor_generator,
+        box_encoder=rpn_box_encoder,
+    )
+    rcnn_loss = class_config(RCNNLoss, box_encoder=rcnn_box_encoder)
+
+    loss = class_config(
+        WeightedMultiLoss,
+        losses=[
+            {"loss": rpn_loss, "weight": 1.0},
+            {"loss": rcnn_loss, "weight": 1.0},
+        ],
     )
     return model, loss
