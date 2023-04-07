@@ -113,6 +113,7 @@ class BDD100K(ScalabelVideo):
         if self.config_path is None:
             return bdd100k_anns  # pragma: no cover
         frames = bdd100k_anns.frames
+        assert isinstance(self.config_path, str)
         bdd100k_cfg = load_bdd100k_config(self.config_path)
         scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
         return ScalabelData(
