@@ -150,19 +150,6 @@ class ResizeImage:
         return image_.permute(0, 2, 3, 1).numpy()
 
 
-@Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
-class ResizeIntrinsics:
-    """Resize Intrinsics."""
-
-    def __call__(
-        self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
-    ) -> NDArrayF32:
-        """Scale camera intrinsics when resizing."""
-        intrinsics[0, 0] *= scale_factor[0]
-        intrinsics[1, 1] *= scale_factor[1]
-        return intrinsics
-
-
 @Transform(
     [K.instance_masks, "transforms.resize.target_shape"], K.instance_masks
 )
@@ -213,6 +200,19 @@ class ResizeSemanticMasks:
             .squeeze(0)
         )
         return masks_.numpy()
+
+
+@Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
+class ResizeIntrinsics:
+    """Resize Intrinsics."""
+
+    def __call__(
+        self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
+    ) -> NDArrayF32:
+        """Scale camera intrinsics when resizing."""
+        intrinsics[0, 0] *= scale_factor[0]
+        intrinsics[1, 1] *= scale_factor[1]
+        return intrinsics
 
 
 def _resize_tensor(

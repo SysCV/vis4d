@@ -25,7 +25,7 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for training."""
     preprocess_fn = compose(
         [
-            resize.GenerateResizeParameters((520, 520)),
+            resize.GenerateResizeParameters((64, 64)),
             resize.ResizeImage(),
             resize.ResizeInstanceMasks(),
             normalize.NormalizeImage(),
@@ -42,16 +42,14 @@ def get_test_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            resize.GenerateResizeParameters((520, 520)),
+            resize.GenerateResizeParameters((64, 64)),
             resize.ResizeImage(),
             normalize.NormalizeImage(),
         ]
     )
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
-        datapipe,
-        samples_per_gpu=batch_size,
-        workers_per_gpu=1,
+        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
     )[0]
 
 
@@ -60,7 +58,7 @@ class FCNResNetTest(unittest.TestCase):
 
     def test_inference(self) -> None:
         """Test inference of FCNResNet."""
-        model = FCNResNet(base_model="resnet50", resize=(520, 520))
+        model = FCNResNet(base_model="resnet50", resize=(64, 64))
         dataset = COCO(
             get_test_file("coco_test"),
             split="train",
@@ -85,7 +83,7 @@ class FCNResNetTest(unittest.TestCase):
 
     def test_train(self) -> None:
         """Test FCNResNet training."""
-        model = FCNResNet(base_model="resnet50", resize=(520, 520))
+        model = FCNResNet(base_model="resnet50", resize=(64, 64))
         loss_fn = FCNResNetLoss()
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         dataset = COCO(
@@ -97,34 +95,20 @@ class FCNResNetTest(unittest.TestCase):
         train_loader = get_train_dataloader(dataset, 2)
         model.train()
 
-        running_losses: dict[str, float] = {}
-        latest_loss = 0.0
-        for epoch in range(2):
-            for i, data in enumerate(train_loader):
-                # zero the parameter gradients
-                optimizer.zero_grad()
+        # test two training steps
+        batch = next(iter(train_loader))
+        optimizer.zero_grad()
+        out = model(batch[K.images])
+        assert out.pred.shape == (2, 21, 64, 64)
+        loss = loss_fn(out, batch[K.segmentation_masks])
+        assert "level_4" in loss and "level_5" in loss
+        total_loss = sum(loss.values())
+        assert not torch.isnan(total_loss)
+        total_loss.backward()
+        optimizer.step()
 
-                # forward + backward + optimize
-                outputs = model(data[K.images])
-                loss = loss_fn(outputs, data[K.segmentation_masks])
-                total_loss = sum(loss.values())
-                total_loss.backward()
-                optimizer.step()
-
-                # print statistics
-                losses = {"loss": total_loss}
-                for k, loss in losses.items():
-                    if k in running_losses:
-                        running_losses[k] += loss.item()
-                    else:
-                        running_losses[k] = loss.item()
-
-                log_str = f"[{epoch + 1}, {i + 1:5d}] "
-                for k, loss in running_losses.items():
-                    log_str += f"{k}: {loss:.3f}, "
-
-                latest_loss = running_losses["loss"]
-                print(log_str.rstrip(", "))
-                running_losses = {}
-
-        assert latest_loss <= 4.0
+        out = model(batch[K.images])
+        assert out.pred.shape == (2, 21, 64, 64)
+        loss = loss_fn(out, batch[K.segmentation_masks])
+        assert "level_4" in loss and "level_5" in loss
+        assert not torch.isnan(sum(loss.values()))

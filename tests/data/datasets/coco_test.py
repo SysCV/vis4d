@@ -87,6 +87,37 @@ class COCOTest(unittest.TestCase):
             ).long(),
         ).all()
 
+    def test_mapping(self):
+        """Test if mapping is correct."""
+        samples = (
+            self.coco._generate_data_mapping()  # pylint: disable=protected-access,line-too-long
+        )
+        assert len(samples) == 2
+        assert set(samples[0].keys()) == {"img_id", "anns", "img"}
+        assert samples[0]["img_id"] == 37777
+        assert set(samples[0]["img"].keys()) == {
+            "license",
+            "file_name",
+            "coco_url",
+            "height",
+            "width",
+            "date_captured",
+            "flickr_url",
+            "id",
+        }
+        assert len(samples[0]["anns"]) == 14
+        assert set(samples[0]["anns"][0].keys()) == {
+            "segmentation",
+            "area",
+            "iscrowd",
+            "image_id",
+            "bbox",
+            "category_id",
+            "id",
+        }
+        assert samples[1]["img_id"] == 397133
+        assert len(samples[1]["anns"]) == 19
+
 
 class COCOSegTest(unittest.TestCase):
     """Test coco dataloading."""

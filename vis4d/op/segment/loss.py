@@ -14,7 +14,7 @@ class SegmentLoss(nn.Module):
 
     def __init__(
         self,
-        feature_idx: tuple[int, ...] = (-1,),
+        feature_idx: tuple[int, ...] = (0,),
         loss_fn: Callable[
             [torch.Tensor, torch.Tensor], torch.Tensor
         ] = nn.CrossEntropyLoss(),
@@ -24,7 +24,7 @@ class SegmentLoss(nn.Module):
 
         Args:
             feature_idx (tuple[int]): Indices for the level of features to
-                compute losses. Defaults to (-1,).
+                compute losses. Defaults to (0,).
             loss_fn (Callable, optional): Loss function that computes between
                 predictions and targets. Defaults to nn.NLLLoss.
             weights (list[float], optional): The weights of each feature level.

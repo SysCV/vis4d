@@ -38,7 +38,7 @@ class TransferableDataType(ABC):
         if cls is TransferableDataType:
             to = getattr(subclass, "to", None)
             return callable(to)
-        return NotImplemented
+        return NotImplemented  # pragma: no cover
 
 
 def is_namedtuple(obj: object) -> bool:

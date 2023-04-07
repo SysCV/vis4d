@@ -42,13 +42,10 @@ class FlipImage:
             return image_.flip(2).numpy()
         if self.direction == "vertical":
             return image_.flip(1).numpy()
-        raise NotImplementedError(f"Direction {self.direction} not known!")
+        raise ValueError(f"Direction {self.direction} not known!")
 
 
-@Transform(
-    in_keys=(K.boxes2d, K.images),
-    out_keys=(K.boxes2d,),
-)
+@Transform(in_keys=(K.boxes2d, K.images), out_keys=(K.boxes2d,))
 class FlipBoxes2D:
     """Flip 2D bounding boxes."""
 
@@ -83,89 +80,7 @@ class FlipBoxes2D:
             boxes[..., 3::4] = im_height - boxes[..., 1::4]
             boxes[..., 1::4] = tmp
             return boxes
-        raise NotImplementedError(f"Direction {self.direction} not known!")
-
-
-def get_axis(direction: str, axis_mode: AxisMode) -> int:
-    """Get axis number of certain direction given axis mode.
-
-    Args:
-        direction (str): One of horizontal, vertical and lateral.
-        axis_mode (AxisMode): axis mode.
-
-    Returns:
-        int: Number of axis in certain direction.
-    """
-    assert direction in {"horizontal", "lateral", "vertical"}
-    coord_mapping = {
-        AxisMode.ROS: {
-            "horizontal": 0,
-            "lateral": 1,
-            "vertical": 2,
-        },
-        AxisMode.OPENCV: {
-            "horizontal": 0,
-            "vertical": 1,
-            "lateral": 2,
-        },
-    }
-    return coord_mapping[axis_mode][direction]
-
-
-@Transform(
-    in_keys=(K.boxes3d, K.axis_mode),
-    out_keys=(K.boxes3d,),
-)
-class FlipBoxes3D:
-    """Flip 3D bounding box array."""
-
-    def __init__(self, direction: str = "horizontal"):
-        """Creates an instance of FlipBoxes3D.
-
-        Args:
-            direction (str, optional): Either vertical or horizontal.
-                Defaults to "horizontal".
-        """
-        self.direction = direction
-
-    def __call__(self, boxes: NDArrayF32, axis_mode: AxisMode) -> NDArrayF32:
-        """Execute flipping."""
-        axis = get_axis(self.direction, axis_mode)
-        angle_dir = "vertical" if self.direction == "horizontal" else "lateral"
-        angles_axis = get_axis(angle_dir, axis_mode)
-        boxes[:, axis] *= -1.0
-        angles = matrix_to_euler_angles(
-            quaternion_to_matrix(torch.from_numpy(boxes[:, 6:]))
-        )
-        angles[:, angles_axis] = np.pi - angles[:, angles_axis]
-        boxes[:, 6:] = matrix_to_quaternion(
-            euler_angles_to_matrix(angles)
-        ).numpy()
-        return boxes
-
-
-@Transform(
-    in_keys=(K.points3d, K.axis_mode),
-    out_keys=(K.points3d,),
-)
-class FlipPoints3D:
-    """Flip pointcloud array."""
-
-    def __init__(self, direction: str = "horizontal"):
-        """Creates an instance of FlipBoxes2D.
-
-        Args:
-            direction (str, optional): Either vertical or horizontal.
-                Defaults to "horizontal".
-        """
-        self.direction = direction
-
-    def __call__(
-        self, points3d: NDArrayF32, axis_mode: AxisMode
-    ) -> NDArrayF32:
-        """Execute flipping."""
-        points3d[:, get_axis(self.direction, axis_mode)] *= -1.0
-        return points3d
+        raise ValueError(f"Direction {self.direction} not known!")
 
 
 @Transform(K.segmentation_masks, K.segmentation_masks)
@@ -195,13 +110,79 @@ class FlipSemanticMasks:
             return image_.flip(1).numpy()
         if self.direction == "vertical":
             return image_.flip(0).numpy()
-        raise NotImplementedError(f"Direction {self.direction} not known!")
+        raise ValueError(f"Direction {self.direction} not known!")
 
 
-@Transform(
-    in_keys=(K.intrinsics, K.images),
-    out_keys=(K.intrinsics,),
-)
+def get_axis(direction: str, axis_mode: AxisMode) -> int:
+    """Get axis number of certain direction given axis mode.
+
+    Args:
+        direction (str): One of horizontal, vertical and lateral.
+        axis_mode (AxisMode): axis mode.
+
+    Returns:
+        int: Number of axis in certain direction.
+    """
+    if direction not in {"horizontal", "lateral", "vertical"}:
+        raise ValueError(f"Direction {direction} not known!")
+    coord_mapping = {
+        AxisMode.ROS: {"horizontal": 0, "lateral": 1, "vertical": 2},
+        AxisMode.OPENCV: {"horizontal": 0, "vertical": 1, "lateral": 2},
+    }
+    return coord_mapping[axis_mode][direction]
+
+
+@Transform(in_keys=(K.boxes3d, K.axis_mode), out_keys=(K.boxes3d,))
+class FlipBoxes3D:
+    """Flip 3D bounding box array."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipBoxes3D.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(self, boxes: NDArrayF32, axis_mode: AxisMode) -> NDArrayF32:
+        """Execute flipping."""
+        axis = get_axis(self.direction, axis_mode)
+        angle_dir = "vertical" if self.direction == "horizontal" else "lateral"
+        angles_axis = get_axis(angle_dir, axis_mode)
+        boxes[:, axis] *= -1.0
+        angles = matrix_to_euler_angles(
+            quaternion_to_matrix(torch.from_numpy(boxes[:, 6:]))
+        )
+        angles[:, angles_axis] = np.pi - angles[:, angles_axis]
+        boxes[:, 6:] = matrix_to_quaternion(
+            euler_angles_to_matrix(angles)
+        ).numpy()
+        return boxes
+
+
+@Transform(in_keys=(K.points3d, K.axis_mode), out_keys=(K.points3d,))
+class FlipPoints3D:
+    """Flip pointcloud array."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipBoxes2D.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(
+        self, points3d: NDArrayF32, axis_mode: AxisMode
+    ) -> NDArrayF32:
+        """Execute flipping."""
+        points3d[:, get_axis(self.direction, axis_mode)] *= -1.0
+        return points3d
+
+
+@Transform(in_keys=(K.intrinsics, K.images), out_keys=(K.intrinsics,))
 class FlipIntrinsics:
     """Modify intrinsics for image flip."""
 
@@ -226,4 +207,4 @@ class FlipIntrinsics:
             center = image.shape[1] / 2
             intrinsics[1, 2] = center - intrinsics[1, 2] + center
             return intrinsics
-        raise NotImplementedError(f"Direction {self.direction} not known!")
+        raise ValueError(f"Direction {self.direction} not known!")

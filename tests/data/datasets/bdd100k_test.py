@@ -98,6 +98,15 @@ class BDD100KDetTest(unittest.TestCase):
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
 
+    def test_mapping(self):
+        """Test if mapping is generated correctly."""
+        data = (
+            self.dataset._generate_mapping()  # pylint: disable=protected-access,line-too-long
+        )
+        assert len(data.frames) == 1
+        assert len(data.config.categories) == 5
+        assert len(data.frames[0].labels) == 10
+
 
 class BDD100KInsSegTest(unittest.TestCase):
     """Test BDD100K dataloading."""

@@ -7,7 +7,6 @@ from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
-from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms import RandomApply, compose, flip, normalize, resize
 
 
@@ -21,14 +20,8 @@ def segment_augmentations() -> Iterable[ConfigDict]:
         list[ConfigDict]: List with all transformations encoded as ConfigDict.
     """
     return (
-        class_config(
-            flip.FlipImage, in_keys=(K.images,), out_keys=(K.images,)
-        ),
-        class_config(
-            flip.FlipSemanticMasks,
-            in_keys=(K.segmentation_masks,),
-            out_keys=(K.segmentation_masks,),
-        ),
+        class_config(flip.FlipImage),
+        class_config(flip.FlipSemanticMasks),
     )
 
 
