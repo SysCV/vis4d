@@ -1,7 +1,7 @@
 """Common functionality for segment tests."""
-from torch.utils.data import DataLoader, Dataset
-
 from vis4d.data.loader import (
+    _DATALOADER,
+    _DATASET,
     DataPipe,
     build_inference_dataloaders,
     build_train_dataloader,
@@ -10,7 +10,7 @@ from vis4d.data.transforms import mask, normalize, resize
 from vis4d.data.transforms.base import compose
 
 
-def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
+def get_train_dataloader(datasets: _DATASET, batch_size: int) -> _DATALOADER:
     """Get data loader for training."""
     preprocess_fn = compose(
         [
@@ -27,7 +27,7 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )
 
 
-def get_test_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
+def get_test_dataloader(datasets: _DATASET, batch_size: int) -> _DATALOADER:
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
