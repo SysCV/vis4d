@@ -5,51 +5,13 @@ import unittest
 
 import torch
 from torch import optim
-from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_file
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.data.loader import (
-    DataPipe,
-    build_inference_dataloaders,
-    build_train_dataloader,
-)
-from vis4d.data.transforms import mask, normalize, resize
-from vis4d.data.transforms.base import compose
 from vis4d.model.segment.semantic_fpn import SemanticFPN, SemanticFPNLoss
 
-
-def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
-    """Get data loader for training."""
-    preprocess_fn = compose(
-        [
-            resize.GenerateResizeParameters((64, 64)),
-            resize.ResizeImage(),
-            resize.ResizeInstanceMasks(),
-            normalize.NormalizeImage(),
-            mask.ConvertInstanceMaskToSegmentationMask(),
-        ]
-    )
-    datapipe = DataPipe(datasets, preprocess_fn)
-    return build_train_dataloader(
-        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
-    )
-
-
-def get_test_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
-    """Get data loader for testing."""
-    preprocess_fn = compose(
-        [
-            resize.GenerateResizeParameters((64, 64)),
-            resize.ResizeImage(),
-            normalize.NormalizeImage(),
-        ]
-    )
-    datapipe = DataPipe(datasets, preprocess_fn)
-    return build_inference_dataloaders(
-        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
-    )[0]
+from .common import get_test_dataloader, get_train_dataloader
 
 
 class SemanticFPNTest(unittest.TestCase):
@@ -66,7 +28,7 @@ class SemanticFPNTest(unittest.TestCase):
         """Test inference of SemanticFPN."""
         state = torch.random.get_rng_state()
         torch.random.set_rng_state(torch.manual_seed(0).get_state())
-        model = SemanticFPN(num_classes=21)
+        model = SemanticFPN(num_classes=21, weights="bdd100k")
         test_loader = get_test_dataloader(self.dataset, 2)
         batch = next(iter(test_loader))
 

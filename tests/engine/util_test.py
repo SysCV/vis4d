@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from vis4d.engine.util import apply_to_collection
 
 
+@dataclass
+class Test:
+    """Test dataclass."""
+
+    aaa: int
+    bbb: int
+
+
 def test_apply_to_collection():
     """Test apply_to_collection."""
     data = {"a": 1, "b": 2, "c": 3}
@@ -37,59 +45,67 @@ def test_apply_to_collection():
     )
     assert data == {"a": 1, "b": 2, "c": 3}
 
-
-def test_apply_to_collection_dataclass():
-    """Test apply_to_collection with data as namedtuple or dataclass."""
-
-    @dataclass
-    class Test:
-        a: int
-        b: int
-
-    data = Test(1, 2)
-    data = apply_to_collection(data, int, lambda x: x * 2)
+    # test with data as namedtuple or dataclass
+    data_cls = Test(1, 2)
+    data = apply_to_collection(data_cls, int, lambda x: x * 2)
     assert data == Test(2, 4)
 
-    data = Test(1, 2)
-    data = apply_to_collection(data, (int, str), lambda x: x * 2)
+    data_cls = Test(1, 2)
+    data = apply_to_collection(data_cls, (int, str), lambda x: x * 2)
     assert data == Test(2, 4)
 
-    data = Test(1, 2)
-    data = apply_to_collection(data, int, lambda x: x * 2, wrong_dtype=str)
+    data_cls = Test(1, 2)
+    data = apply_to_collection(data_cls, int, lambda x: x * 2, wrong_dtype=str)
     assert data == Test(2, 4)
 
-    data = Test(1, 2)
+    data_cls = Test(1, 2)
     data = apply_to_collection(
-        data, int, lambda x: x * 2, wrong_dtype=(str, int), include_none=False
+        data_cls,
+        int,
+        lambda x: x * 2,
+        wrong_dtype=(str, int),
+        include_none=False,
     )
     assert data == Test(1, 2)
 
-    data = Test(1, 2)
+    data_cls = Test(1, 2)
     data = apply_to_collection(
-        data, int, lambda x: x * 2, wrong_dtype=(str, int), include_none=True
+        data_cls,
+        int,
+        lambda x: x * 2,
+        wrong_dtype=(str, int),
+        include_none=True,
     )
     assert data == Test(1, 2)
 
-    data = namedtuple("test", "a b")(1, 2)
-    data = apply_to_collection(data, int, lambda x: x * 2)
-    assert data == namedtuple("test", "a b")(2, 4)
+    data_tup = namedtuple("test", "aaa bbb")(1, 2)
+    data = apply_to_collection(data_tup, int, lambda x: x * 2)
+    assert data == namedtuple("test", "aaa bbb")(2, 4)
 
-    data = namedtuple("test", "a b")(1, 2)
-    data = apply_to_collection(data, (int, str), lambda x: x * 2)
-    assert data == namedtuple("test", "a b")(2, 4)
+    data_tup = namedtuple("test", "aaa bbb")(1, 2)
+    data = apply_to_collection(data_tup, (int, str), lambda x: x * 2)
+    assert data == namedtuple("test", "aaa bbb")(2, 4)
 
-    data = namedtuple("test", "a b")(1, 2)
-    data = apply_to_collection(data, int, lambda x: x * 2, wrong_dtype=str)
-    assert data == namedtuple("test", "a b")(2, 4)
+    data_tup = namedtuple("test", "aaa bbb")(1, 2)
+    data = apply_to_collection(data_tup, int, lambda x: x * 2, wrong_dtype=str)
+    assert data == namedtuple("test", "aaa bbb")(2, 4)
 
-    data = namedtuple("test", "a b")(1, 2)
+    data_tup = namedtuple("test", "aaa bbb")(1, 2)
     data = apply_to_collection(
-        data, int, lambda x: x * 2, wrong_dtype=(str, int), include_none=False
+        data_tup,
+        int,
+        lambda x: x * 2,
+        wrong_dtype=(str, int),
+        include_none=False,
     )
-    assert data == namedtuple("test", "a b")(1, 2)
+    assert data == namedtuple("test", "aaa bbb")(1, 2)
 
-    data = namedtuple("test", "a b")(1, 2)
+    data_tup = namedtuple("test", "aaa bbb")(1, 2)
     data = apply_to_collection(
-        data, int, lambda x: x * 2, wrong_dtype=(str, int), include_none=True
+        data_tup,
+        int,
+        lambda x: x * 2,
+        wrong_dtype=(str, int),
+        include_none=True,
     )
-    assert data == namedtuple("test", "a b")(1, 2)
+    assert data == namedtuple("test", "aaa bbb")(1, 2)
