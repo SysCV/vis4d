@@ -4,8 +4,12 @@ import os
 import numpy as np
 
 from tests.util import get_test_data, isclose_on_all_indices_numpy
+from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.scalabel import Scalabel
+
+if SCALABEL_AVAILABLE:
+    from scalabel.label.typing import Config
 
 IMAGE_INDICES = np.array([0, 1, 232875, 465749])
 IMAGE_VALUES = np.array(
@@ -16,6 +20,21 @@ IMAGE_VALUES = np.array(
         [14.0, 16.0, 20.0],
     ]
 )
+
+
+def test_setup_categories():
+    """Test setup categories."""
+    data_root = get_test_data("bdd100k_test")
+    annotations = os.path.join(data_root, "detect/labels/annotation.json")
+    dataset = Scalabel(
+        data_root,
+        annotations,
+        category_map={K.images: {}, K.boxes2d: {"car": 0, "person": 1}},
+        config_path=Config(categories=[]),
+    )
+    assert isinstance(dataset.cats_name2id, dict)
+    assert dataset.cats_name2id[K.images] == {}
+    assert dataset.cats_name2id[K.boxes2d] == {"car": 0, "person": 1}
 
 
 def test_3d_data() -> None:

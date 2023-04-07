@@ -203,7 +203,7 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
             # not distributed
             num_workers = 1
             worker_id = 0
-        else:
+        else:  # pragma: no cover
             num_workers = worker_info.num_workers
             worker_id = worker_info.id
 

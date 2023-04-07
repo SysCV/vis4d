@@ -11,7 +11,7 @@ def package_available(package_name: str) -> bool:
     """Check if a package is available in your environment."""
     try:
         return find_spec(package_name) is not None
-    except ModuleNotFoundError:
+    except ModuleNotFoundError:  # pragma: no cover
         return False
 
 

@@ -70,7 +70,7 @@ class BDD100KSemSegEvaluator(Evaluator):
         self, data_names: list[str], masks_list: list[ArrayLike]
     ) -> None:
         """Process tracking results."""
-        masks_numpy = [array_to_numpy(m) for m in masks_list]  # to numpy
+        masks_numpy = [array_to_numpy(m, None) for m in masks_list]  # to numpy
         for data_name, masks in zip(data_names, masks_numpy):
             labels = []
             for i, class_id in enumerate(np.unique(masks)):

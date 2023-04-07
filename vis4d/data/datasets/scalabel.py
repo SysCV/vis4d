@@ -130,7 +130,7 @@ def prepare_labels(
     """Add category id and instance id to labels, return class frequencies."""
     instance_ids: dict[str, list[str]] = defaultdict(list)
     for frame_id, ann in enumerate(frames):
-        if ann.labels is None:
+        if ann.labels is None:  # pragma: no cover
             continue
 
         for label in ann.labels:
@@ -174,7 +174,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
-        config_path: None | str = None,
+        config_path: None | str | Config = None,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
     ) -> None:
@@ -191,9 +191,9 @@ class Scalabel(Dataset, CacheMappingMixin):
                 Scalabel category string to an integer index. If None, the
                 standard mapping in the dataset config will be used. Defaults
                 to None.
-            config_path (None | str, optional): Path to the dataset config, can
-                be added if it is not provided together with the labels or
-                should be modified. Defaults to None.
+            config_path (None | str | Config, optional): Path to the dataset
+                config, can be added if it is not provided together with the
+                labels or should be modified. Defaults to None.
             global_instance_ids (bool): Whether to convert tracking IDs of
                 annotations into dataset global IDs or stay with local,
                 per-video IDs. Defaults to false.
@@ -263,7 +263,10 @@ class Scalabel(Dataset, CacheMappingMixin):
         """Generate data mapping."""
         data = load(self.annotation_path)
         if self.config_path is not None:
-            data.config = load_label_config(self.config_path)
+            if isinstance(self.config_path, str):
+                data.config = load_label_config(self.config_path)
+            else:
+                data.config = self.config_path
         return data
 
     def _load_inputs(self, frame: Frame) -> DictData:
@@ -553,7 +556,7 @@ def semantic_masks_from_scalabel(
         )
         cls_list.append(class_to_idx["background"])
     if len(bitmask_list) == 0:  # pragma: no cover
-        return np.empty((0, 0, 0), dtype=np.uint8)
+        return np.empty((0, 0), dtype=np.uint8)
     mask_array = np.array(bitmask_list, dtype=np.uint8)
     class_ids = np.array(cls_list, dtype=np.int64)
     return nhw_to_hwc_mask(mask_array, class_ids)

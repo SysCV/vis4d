@@ -264,8 +264,7 @@ def get_torchvision_models() -> dict[str, str]:
 
 @CheckpointLoader.register_scheme(prefixes="torchvision://")
 def load_from_torchvision(
-    filename: str,
-    map_location: str | torch.device | None = None,
+    filename: str, map_location: str | torch.device | None = None
 ) -> TorchCheckpoint:
     """Load checkpoint through the file path prefixed with torchvision.
 

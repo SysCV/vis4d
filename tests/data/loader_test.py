@@ -1,19 +1,26 @@
 """Test loader components."""
 from __future__ import annotations
 
+import os
+import unittest
+
 import numpy as np
 import torch
 
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.loader import (
     DataPipe,
     SubdividingIterableDataset,
+    VideoDataPipe,
     build_inference_dataloaders,
     build_train_dataloader,
+    default_collate,
 )
+from vis4d.data.reference import UniformViewSampler
 from vis4d.data.transforms import (
     compose,
     compose_batch,
@@ -34,57 +41,117 @@ from vis4d.data.transforms.point_sampling import (
 from vis4d.data.typing import DictData
 
 
-def test_train_loader() -> None:
-    """Test the data loading pipeline."""
-    coco = COCO(data_root=get_test_data("coco_test"), split="train")
-    batch_size = 2
-    preprocess_fn = compose(
-        [
-            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
-            resize.ResizeImage(),
-            normalize.NormalizeImage(),
-        ]
-    )
-    batchprocess_fn = compose_batch([pad.PadImages(), to_tensor.ToTensor()])
+class DataLoaderTest(unittest.TestCase):
+    """Test loader components."""
 
-    datapipe = DataPipe(coco, preprocess_fn)
-    train_loader = build_train_dataloader(
-        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
-    )
+    def test_datapipe(self) -> None:
+        """Test the data loading pipeline."""
+        dataset = BDD100K(
+            data_root=os.path.join(
+                get_test_data("bdd100k_test"), "track/images"
+            ),
+            annotation_path=os.path.join(
+                get_test_data("bdd100k_test"), "track/labels"
+            ),
+            config_path="box_track",
+        )
+        datapipe = VideoDataPipe(
+            dataset, reference_view_sampler=UniformViewSampler(1, 1)
+        )
+        batch = datapipe[0]
+        assert len(batch) == 2
+        assert set(batch[0].keys()) == {
+            "images",
+            "original_hw",
+            "input_hw",
+            "axis_mode",
+            "frame_ids",
+            "name",
+            "videoName",
+            "boxes2d",
+            "boxes2d_classes",
+            "boxes2d_track_ids",
+        }
+        assert batch[0]["frame_ids"] - batch[1]["frame_ids"] in [1, -1]
 
-    for sample in train_loader:
-        assert isinstance(sample[K.images], torch.Tensor)
-        assert batch_size == sample[K.images].size(0)
-        assert batch_size == len(sample[K.boxes2d])
-        assert sample[K.boxes2d][0].shape[1] == 4
-        assert sample[K.images].shape[1] == 3
-        break
+        batch = datapipe.get_dataset_sample_index(-1)
+        with self.assertRaises(ValueError):
+            datapipe.get_dataset_sample_index(-13)
 
+    def test_train_loader(self) -> None:
+        """Test the data loading pipeline."""
+        coco = COCO(data_root=get_test_data("coco_test"), split="train")
+        batch_size = 2
+        preprocess_fn = compose(
+            [
+                resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+                resize.ResizeImage(),
+                normalize.NormalizeImage(),
+            ]
+        )
+        batchprocess_fn = compose_batch(
+            [pad.PadImages(), to_tensor.ToTensor()]
+        )
 
-def test_inference_loader() -> None:
-    """Test the data loading pipeline."""
-    coco = COCO(data_root=get_test_data("coco_test"), split="train")
-    preprocess_fn = compose(
-        [
-            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
-            resize.ResizeImage(),
-            normalize.NormalizeImage(),
-        ]
-    )
-    batchprocess_fn = compose_batch([pad.PadImages(), to_tensor.ToTensor()])
+        datapipe = DataPipe(coco, preprocess_fn)
+        train_loader = build_train_dataloader(
+            datapipe,
+            samples_per_gpu=batch_size,
+            batchprocess_fn=batchprocess_fn,
+        )
 
-    datapipe = DataPipe(coco, preprocess_fn)
-    test_loaders = build_inference_dataloaders(
-        datapipe, batchprocess_fn=batchprocess_fn
-    )
+        for sample in train_loader:
+            assert isinstance(sample[K.images], torch.Tensor)
+            assert batch_size == sample[K.images].size(0)
+            assert batch_size == len(sample[K.boxes2d])
+            assert sample[K.boxes2d][0].shape[1] == 4
+            assert sample[K.images].shape[1] == 3
+            break
 
-    for sample in test_loaders[0]:
-        assert isinstance(sample[K.images], torch.Tensor)
-        assert sample[K.images].size(0) == 1
-        assert len(sample[K.boxes2d]) == 1
-        assert sample[K.boxes2d][0].shape == torch.Size([14, 4])
-        assert sample[K.images].shape == torch.Size([1, 3, 192, 256])
-        break
+    def test_inference_loader(self) -> None:
+        """Test the data loading pipeline."""
+        coco = COCO(data_root=get_test_data("coco_test"), split="train")
+        preprocess_fn = compose(
+            [
+                resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+                resize.ResizeImage(),
+                normalize.NormalizeImage(),
+            ]
+        )
+        batchprocess_fn = compose_batch(
+            [pad.PadImages(), to_tensor.ToTensor()]
+        )
+
+        datapipe = DataPipe(coco, preprocess_fn)
+        test_loaders = build_inference_dataloaders(
+            datapipe, batchprocess_fn=batchprocess_fn
+        )
+
+        for sample in test_loaders[0]:
+            assert isinstance(sample[K.images], torch.Tensor)
+            assert sample[K.images].size(0) == 1
+            assert len(sample[K.boxes2d]) == 1
+            assert sample[K.boxes2d][0].shape == torch.Size([14, 4])
+            assert sample[K.images].shape == torch.Size([1, 3, 192, 256])
+            break
+
+    def test_default_collate(self) -> None:
+        """Test the default collate."""
+        t1, t2 = torch.rand(2, 3), torch.rand(2, 3)
+        data = [{K.segmentation_masks: t1}, {K.segmentation_masks: t2}]
+        col_data = default_collate(data)
+        assert (col_data[K.segmentation_masks] == torch.stack([t1, t2])).all()
+
+        col_data = default_collate([{"name": ["a"]}, {"name": ["b"]}])
+        assert col_data["name"] == [["a"], ["b"]]
+
+        with self.assertRaises(RuntimeError):
+            default_collate(
+                [
+                    {K.segmentation_masks: torch.rand(1, 3)},
+                    {K.segmentation_masks: torch.rand(2, 3)},
+                ]
+            )
 
 
 def test_segment_train_loader() -> None:

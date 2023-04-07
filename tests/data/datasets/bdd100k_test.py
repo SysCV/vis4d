@@ -245,3 +245,18 @@ class BDD100KSemSegTest(unittest.TestCase):
             SEMANTIC_MASK_INDICES,
             SEMANTIC_MASK_VALUES,
         )
+
+    def test_bg_as_class(self):
+        """Test if background class is added."""
+        dataset = BDD100K(
+            self.data_root,
+            self.annotations,
+            keys_to_load=(K.images, K.segmentation_masks),
+            category_map={"car": 0, "person": 1, "background": 2},
+            global_instance_ids=True,
+            bg_as_class=True,
+        )
+        item = dataset[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
+        assert 2 in item["segmentation_masks"].unique()
+        assert 255 not in item["segmentation_masks"].unique()
