@@ -33,6 +33,12 @@ class BDD100KSemSegEvaluator(Evaluator):
         super().__init__()
         self.annotation_path = annotation_path
         self.frames: list[Frame] = []
+
+        bdd100k_anns = load(annotation_path)
+        frames = bdd100k_anns.frames
+        self.config = load_bdd100k_config("sem_seg")
+        self.gt_frames = bdd100k_to_scalabel(frames, self.config)
+
         self.reset()
 
     def __repr__(self) -> str:
@@ -44,7 +50,7 @@ class BDD100KSemSegEvaluator(Evaluator):
         """Supported metrics."""
         return ["sem_seg"]
 
-    def gather(  # type: ignore
+    def gather(  # type: ignore # pragma: no cover
         self, gather_func: Callable[[Any], Any]
     ) -> None:
         """Gather variables in case of distributed setting (if needed).
@@ -80,14 +86,10 @@ class BDD100KSemSegEvaluator(Evaluator):
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
         if metric == "sem_seg":
-            bdd100k_anns = load(self.annotation_path)
-            frames = bdd100k_anns.frames
-            bdd100k_cfg = load_bdd100k_config("sem_seg")
-            scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
             results = evaluate_sem_seg(
-                ann_frames=scalabel_frames,
+                ann_frames=self.gt_frames,
                 pred_frames=self.frames,
-                config=bdd100k_cfg.scalabel,
+                config=self.config.scalabel,
                 nproc=0,
             )
         else:

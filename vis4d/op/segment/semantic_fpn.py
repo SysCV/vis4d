@@ -7,6 +7,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from vis4d.op.layer.conv2d import Conv2d
+
 
 class SemanticFPNOut(NamedTuple):
     """Output of the SemanticFPN prediction."""
@@ -51,17 +53,15 @@ class SemanticFPNHead(nn.Module):
             scale_head: list[nn.Module] = []
             for k in range(head_length):
                 scale_head.append(
-                    nn.Sequential(
-                        nn.Conv2d(
-                            in_channels if k == 0 else inner_channels,
-                            inner_channels,
-                            3,
-                            padding=1,
-                            stride=1,
-                            bias=False,
-                        ),
-                        nn.BatchNorm2d(inner_channels),
-                        nn.ReLU(inplace=True),
+                    Conv2d(
+                        in_channels if k == 0 else inner_channels,
+                        inner_channels,
+                        3,
+                        padding=1,
+                        stride=1,
+                        bias=False,
+                        norm=nn.BatchNorm2d(inner_channels),
+                        activation=nn.ReLU(inplace=True),
                     )
                 )
                 if i > start_level:

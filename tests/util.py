@@ -164,13 +164,13 @@ def generate_boxes(
     )
 
 
-def generate_masks(
+def generate_instance_masks(
     height: int,
     width: int,
     num_masks: int,
     batch_size: int = 1,
 ) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor]]:
-    """Generate random semantic masks.
+    """Generate random instance masks.
 
     Args:
         height (int): Image height
@@ -193,6 +193,30 @@ def generate_masks(
         [torch.rand(num_masks)] * batch_size,
         [torch.arange(num_masks)] * batch_size,
     )
+
+
+def generate_semantic_masks(
+    height: int,
+    width: int,
+    num_classes: int,
+    batch_size: int = 1,
+) -> list[torch.Tensor]:
+    """Generate random semantic masks.
+
+    Args:
+        height (int): Image height
+        width (int): Image width
+        num_classes (int): Number of classes
+        batch_size (int, optional): Batch size
+
+    Returns:
+        list[torch.Tensor]: [masks]
+    """
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    rand_mask = torch.randint(0, num_classes, (height, width))
+    torch.random.set_rng_state(state)
+    return [rand_mask] * batch_size
 
 
 def isclose_on_all_indices_tensor(

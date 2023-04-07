@@ -85,25 +85,31 @@ def get_test_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 class SemanticFPNTest(unittest.TestCase):
     """Semantic FPN test class."""
 
+    dataset = COCO(
+        get_test_file("coco_test"),
+        split="train",
+        use_pascal_voc_cats=True,
+        minimum_box_area=10,
+    )
+
     def test_inference(self) -> None:
         """Test inference of SemanticFPN."""
-        model = SemanticFPN(num_classes=21, weights="bdd100k")
-        dataset = COCO(
-            get_test_file("coco_test"),
-            split="train",
-            use_pascal_voc_cats=True,
-            minimum_box_area=10,
-        )
-        test_loader = get_test_dataloader(dataset, 2)
+        state = torch.random.get_rng_state()
+        torch.random.set_rng_state(torch.manual_seed(0).get_state())
+        model = SemanticFPN(num_classes=21)
+        test_loader = get_test_dataloader(self.dataset, 2)
         batch = next(iter(test_loader))
 
         model.eval()
         with torch.no_grad():
-            outs = model(batch[K.images])
+            outs = model(batch[K.images], batch["original_hw"])
 
-        pred = outs.pred.argmax(1)
-        testcase_gt = torch.load(get_test_file("fcn_resnet.pt"))
-        assert torch.isclose(pred, testcase_gt, atol=1e-4).all().item()
+        pred = outs.masks
+        testcase_gt = torch.load(get_test_file("semantic_fpn.pt"))
+        for p, g in zip(pred, testcase_gt):
+            assert torch.isclose(p, g, atol=1e-4).all().item()
+
+        torch.random.set_rng_state(state)
 
     def test_train(self) -> None:
         """Test SemanticFPN training."""
@@ -112,13 +118,7 @@ class SemanticFPNTest(unittest.TestCase):
         optimizer = Optimizer(
             lambda params: optim.SGD(params, lr=0.01, momentum=0.9)
         )
-        dataset = COCO(
-            get_test_file("coco_test"),
-            split="train",
-            use_pascal_voc_cats=True,
-            minimum_box_area=10,
-        )
-        train_loader = get_train_dataloader(dataset, 2)
+        train_loader = get_train_dataloader(self.dataset, 2)
         data_connector = StaticDataConnector(
             connections=DataConnectionInfo(
                 train={K.images: K.images},

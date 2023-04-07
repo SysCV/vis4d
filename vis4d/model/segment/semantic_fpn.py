@@ -17,10 +17,6 @@ from vis4d.op.segment.semantic_fpn import SemanticFPNHead, SemanticFPNOut
 
 REV_KEYS = [
     (r"^decode_head\.", "seg_head."),
-    (r"\.bn\.weight", ".1.weight"),
-    (r"\.bn\.bias", ".1.bias"),
-    (r"\.bn\.running_mean", ".1.running_mean"),
-    (r"\.bn\.running_var", ".1.running_var"),
     (r"^classifier\.", "fcn.heads.1."),
     (r"^backbone\.", "basemodel.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
@@ -28,6 +24,14 @@ REV_KEYS = [
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
+for ki in range(4):
+    for kj in range(5):
+        REV_KEYS += [
+            (
+                rf"^seg_head.scale_heads\.{ki}\.{kj}\.bn\.",
+                f"seg_head.scale_heads.{ki}.{kj}.norm.",
+            )
+        ]
 
 
 class MaskOut(NamedTuple):
@@ -119,11 +123,11 @@ class SemanticFPN(nn.Module):
         new_masks = []
         for i, outputs in enumerate(out.outputs):
             opt = F.interpolate(
-                outputs,
+                outputs.unsqueeze(0),
                 scale_factor=4,
                 mode="bilinear",
                 align_corners=False,
-            )
+            ).squeeze(0)
             new_masks.append(clip_mask(opt, original_hw[i]).argmax(dim=0))
         return MaskOut(masks=new_masks)
 

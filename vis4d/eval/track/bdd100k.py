@@ -32,6 +32,12 @@ class BDD100KTrackingEvaluator(Evaluator):
         super().__init__()
         self.annotation_path = annotation_path
         self.frames: list[Frame] = []
+
+        bdd100k_anns = load(self.annotation_path)
+        frames = bdd100k_anns.frames
+        self.config = load_bdd100k_config("box_track")
+        self.gt_frames = bdd100k_to_scalabel(frames, self.config)
+
         self.reset()
 
     def __repr__(self) -> str:
@@ -43,7 +49,7 @@ class BDD100KTrackingEvaluator(Evaluator):
         """Supported metrics."""
         return ["track"]
 
-    def gather(  # type: ignore
+    def gather(  # type: ignore # pragma: no cover
         self, gather_func: Callable[[Any], Any]
     ) -> None:
         """Gather variables in case of distributed setting (if needed).
@@ -110,15 +116,11 @@ class BDD100KTrackingEvaluator(Evaluator):
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
         if metric == "track":
-            bdd100k_anns = load(self.annotation_path)
-            frames = bdd100k_anns.frames
-            bdd100k_cfg = load_bdd100k_config("box_track")
-            scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
             results = evaluate_track(
                 acc_single_video_mot,
-                gts=group_and_sort(scalabel_frames),
+                gts=group_and_sort(self.gt_frames),
                 results=group_and_sort(self.frames),
-                config=bdd100k_cfg.scalabel,
+                config=self.config.scalabel,
                 nproc=0,
             )
         else:
