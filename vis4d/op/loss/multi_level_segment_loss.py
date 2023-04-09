@@ -1,37 +1,48 @@
-"""Semantic segmentation loss."""
+"""Multi-level segmentation loss."""
 from __future__ import annotations
 
 from collections.abc import Callable
 
 import torch
-from torch import nn
 
 from vis4d.common.typing import LossesType
 
+from .base import Loss
+from .reducer import LossReducer, mean_loss
+from .segment_cross_entropy_loss import segment_cross_entropy
 
-class SegmentLoss(nn.Module):
-    """Segmentation loss class."""
+
+class MultiLevelSegmentLoss(Loss):
+    """Multi-level segmentation loss class.
+
+    Applies the segmentation loss function to multiple levels of predictions to
+    provide auxiliary losses for intermediate outputs in addition to the final
+    output, used in FCN.
+    """
 
     def __init__(
         self,
+        reducer: LossReducer = mean_loss,
         feature_idx: tuple[int, ...] = (0,),
         loss_fn: Callable[
             [torch.Tensor, torch.Tensor], torch.Tensor
-        ] = nn.CrossEntropyLoss(),
+        ] = segment_cross_entropy,
         weights: list[float] | None = None,
     ) -> None:
         """Creates an instance of the class.
 
         Args:
+            reducer (LossReducer): Reducer for the loss function. Defaults to
+                mean_loss.
             feature_idx (tuple[int]): Indices for the level of features to
                 compute losses. Defaults to (0,).
             loss_fn (Callable, optional): Loss function that computes between
-                predictions and targets. Defaults to nn.NLLLoss.
+                predictions and targets. Defaults to segment_cross_entropy.
             weights (list[float], optional): The weights of each feature level.
                 If None passes, it will set to 1 for all levels. Defaults to
                     None.
         """
-        super().__init__()
+        super().__init__(reducer)
         self.feature_idx = feature_idx
         self.loss_fn = loss_fn
         if weights is None:
@@ -45,16 +56,15 @@ class SegmentLoss(nn.Module):
         """Forward pass.
 
         Args:
-            outputs (list[torch.Tensor]): Multilevel outputs.
+            outputs (list[torch.Tensor]): Multi-level outputs.
             target (torch.Tensor): Assigned segmentation target mask.
 
         Returns:
-            LossesType: computed losses for each level and the weighted total
-                loss.
+            LossesType: Computed losses for each level.
         """
-        tgt_h, tgt_w = target.shape[-2:]
         losses: LossesType = {}
         for i, idx in enumerate(self.feature_idx):
-            loss = self.loss_fn(outputs[idx][:, :, :tgt_h, :tgt_w], target)
-            losses[f"level_{idx}"] = self.weights[i] * loss
+            loss = self.reducer(self.loss_fn(outputs[idx], target))
+            losses[f"loss_level{idx}"] = self.weights[i] * loss
+
         return losses

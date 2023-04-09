@@ -24,7 +24,8 @@ from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.segment.bdd100k import BDD100KSemSegEvaluator
-from vis4d.model.segment.semantic_fpn import SemanticFPN, SemanticFPNLoss
+from vis4d.model.segment.semantic_fpn import SemanticFPN
+from vis4d.op.loss import SegmentCrossEntropyLoss
 from vis4d.optim import PolyLR
 from vis4d.optim.warmup import LinearLRWarmup
 
@@ -115,7 +116,7 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.model = class_config(SemanticFPN, num_classes=params.num_classes)
-    config.loss = class_config(SemanticFPNLoss)
+    config.loss = class_config(SegmentCrossEntropyLoss)
 
     ######################################################
     ##                    OPTIMIZERS                    ##

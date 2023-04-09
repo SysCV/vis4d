@@ -8,11 +8,9 @@ import torch.nn.functional as F
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.common.typing import LossesType
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.mask.util import clip_mask
-from vis4d.op.segment.loss import SegmentLoss
 from vis4d.op.segment.semantic_fpn import SemanticFPNHead, SemanticFPNOut
 
 REV_KEYS = [
@@ -151,31 +149,3 @@ class SemanticFPN(nn.Module):
             return self.forward_train(images)
         assert original_hw is not None
         return self.forward_test(images, original_hw)
-
-
-class SemanticFPNLoss(nn.Module):
-    """SemanticFPN Loss."""
-
-    def __init__(self, weights: None | torch.Tensor = None) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            weights (None | torch.Tensor): Loss weights.
-        """
-        super().__init__()
-        self.loss = SegmentLoss(
-            loss_fn=nn.CrossEntropyLoss(weights, ignore_index=255)
-        )
-
-    def forward(self, outs: torch.Tensor, targets: torch.Tensor) -> LossesType:
-        """Forward of loss function.
-
-        Args:
-            outs (torch.Tensor): Raw model outputs.
-            targets (torch.Tensor): Segmentation masks.
-
-        Returns:
-            LossesType: Dictionary of model losses.
-        """
-        losses = self.loss([outs], targets.long())
-        return losses

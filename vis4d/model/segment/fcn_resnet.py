@@ -4,10 +4,8 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.common.typing import LossesType
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.segment.fcn import FCNHead, FCNOut
-from vis4d.op.segment.loss import SegmentLoss
 
 REV_KEYS = [
     (r"^backbone\.", "basemodel.body."),
@@ -84,33 +82,3 @@ class FCNResNet(nn.Module):
         features = self.basemodel(images)
         out = self.fcn(features)
         return out
-
-
-class FCNResNetLoss(nn.Module):
-    """FCNResNet Loss."""
-
-    def __init__(self, weights: None | torch.Tensor = None) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            weights (None | torch.Tensor): Loss weights.
-        """
-        super().__init__()
-        self.loss = SegmentLoss(
-            (4, 5),
-            nn.CrossEntropyLoss(weights, ignore_index=255),
-            weights=[0.5, 1],
-        )
-
-    def forward(self, outs: FCNOut, targets: torch.Tensor) -> LossesType:
-        """Forward of loss function.
-
-        Args:
-            outs (FCNOut): Raw model outputs.
-            targets (torch.Tensor): Segmentation masks.
-
-        Returns:
-            LossesType: Dictionary of model losses.
-        """
-        losses = self.loss(outs.outputs, targets.long())
-        return losses

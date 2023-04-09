@@ -8,7 +8,7 @@ from vis4d.config.default.data.segment import segment_preprocessing
 from vis4d.config.default.data_connectors.segment import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
-    CONN_SEGMENT_LOSS,
+    CONN_MULTI_SEGMENT_LOSS,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
@@ -16,7 +16,7 @@ from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.model.segment.fcn_resnet import FCNResNet
-from vis4d.op.segment.loss import SegmentLoss
+from vis4d.op.loss import MultiLevelSegmentLoss
 from vis4d.optim import PolyLR
 
 
@@ -128,10 +128,7 @@ def get_config() -> ConfigDict:
     # are averaged using a weighted sum.
 
     config.loss = class_config(
-        SegmentLoss,
-        feature_idx=[4, 5],
-        loss_fn=class_config(nn.CrossEntropyLoss, ignore_index=255),
-        weights=[0.5, 1],
+        MultiLevelSegmentLoss, feature_idx=[4, 5], weights=[0.5, 1]
     )
 
     ######################################################
@@ -182,7 +179,7 @@ def get_config() -> ConfigDict:
         connections=DataConnectionInfo(
             train=CONN_MASKS_TRAIN,
             test=CONN_MASKS_TEST,
-            loss=CONN_SEGMENT_LOSS,
+            loss=CONN_MULTI_SEGMENT_LOSS,
         ),
     )
     return config.value_mode()

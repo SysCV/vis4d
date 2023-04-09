@@ -29,7 +29,8 @@ from vis4d.engine.connectors import (
 )
 from vis4d.engine.opt import Optimizer
 from vis4d.engine.train import Trainer
-from vis4d.model.segment.semantic_fpn import SemanticFPN, SemanticFPNLoss
+from vis4d.model.segment.semantic_fpn import SemanticFPN
+from vis4d.op.loss import SegmentCrossEntropyLoss
 
 
 def segment_pipeline(data: list[DictData]) -> DictData:
@@ -65,7 +66,7 @@ class EngineTrainTest(unittest.TestCase):
     def test_train(self) -> None:
         """Test engine training."""
         model = SemanticFPN(num_classes=80)
-        loss_fn = SemanticFPNLoss()
+        loss_fn = SegmentCrossEntropyLoss()
         optimizer = Optimizer(
             lambda params: optim.SGD(params, lr=0.01, momentum=0.9)
         )
@@ -76,8 +77,8 @@ class EngineTrainTest(unittest.TestCase):
                 train={K.images: K.images},
                 test={K.images: K.images},
                 loss={
-                    "outs": pred_key("outputs"),
-                    "targets": data_key(K.segmentation_masks),
+                    "output": pred_key("outputs"),
+                    "target": data_key(K.segmentation_masks),
                 },
             )
         )
