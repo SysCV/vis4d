@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from vis4d.common.typing import NDArrayF32, NDArrayI32
+from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import CommonKeys as K
 
 from .base import BatchTransform
