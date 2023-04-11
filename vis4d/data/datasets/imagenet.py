@@ -12,7 +12,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
 from .base import Dataset
-from .util import im_decode
+from .util import im_decode, to_onehot
 
 
 class ImageNet(Dataset):
@@ -60,6 +60,7 @@ class ImageNet(Dataset):
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split
+        self.num_classes = num_classes
         self.data_infos = []
 
         self._classes = []
@@ -98,5 +99,7 @@ class ImageNet(Dataset):
                 image, dtype=np.float32
             )[np.newaxis, ...]
         if K.categories in self.keys_to_load:
-            data_dict[K.categories] = np.array(class_idx, dtype=np.int64)
+            data_dict[K.categories] = to_onehot(
+                np.array(class_idx, dtype=np.int64), self.num_classes
+            )
         return data_dict

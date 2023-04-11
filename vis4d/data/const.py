@@ -53,8 +53,7 @@ class CommonKeys:
     depth_maps (NDArrayF32): Depth maps of shape [H, W].
     optical_flows (NDArrayF32): Optical flow maps of shape [H, W, 2].
 
-    categories (NDArrayI32): Image categories of shape [N,].
-    smooth_categories (NDArrayF32): Smoothed image categories of shape [N, C].
+    categories (NDArrayF32): Image categories of shape [N, C].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
@@ -91,7 +90,6 @@ class CommonKeys:
 
     # Image Classification
     categories = "categories"
-    smooth_categories = "smooth_categories"
 
     # sensor calibration
     intrinsics = "intrinsics"
