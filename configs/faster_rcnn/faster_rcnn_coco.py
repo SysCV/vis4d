@@ -39,10 +39,10 @@ from vis4d.vis.image import BoundingBoxVisualizer
 
 
 def get_config() -> ConfigDict:
-    """Returns the config dict for the coco detection task.
+    """Returns the Faster-RCNN config dict for the coco detection task.
 
-    This is a simple example that shows how to set up a training experiment
-    for the COCO detection task.
+    This is an example that shows how to set up a training experiment for the
+    COCO detection task.
 
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
@@ -64,9 +64,9 @@ def get_config() -> ConfigDict:
     # High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 2
+    params.workers_per_gpu = 2
     params.lr = 0.02
     params.num_epochs = 12
-    params.augment_proba = 0.5
     params.num_classes = 80
     config.params = params
 
@@ -83,8 +83,9 @@ def get_config() -> ConfigDict:
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
-        samples_per_gpu=params.samples_per_gpu,
         data_backend=data_backend,
+        samples_per_gpu=params.samples_per_gpu,
+        workers_per_gpu=params.workers_per_gpu,
     )
 
     ######################################################

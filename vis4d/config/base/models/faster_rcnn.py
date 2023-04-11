@@ -95,13 +95,18 @@ def get_model_cfg(
     num_classes: FieldReference | int,
     backbone: ConfigDict,
 ) -> tuple[ConfigDict, ConfigDict]:
-    """Return default config for faster_rcnn model and loss."""
+    """Return default config for faster_rcnn model and loss.
+
+    This is an example for setting every component of the model and loss.
+    Everything is the same as the default args.
+
+    Args:
+        num_classes (FieldReference | int): Number of classes.
+        backbone (ConfigDict): Backbone config.
+    """
     ######################################################
     ##                        MODEL                     ##
     ######################################################
-    # TODO: Check whether it is a right way to do this.
-    # These are the same as the faster-rcnn default but can demonstrate
-    # how to override them
     anchor_generator = class_config(
         AnchorGenerator,
         scales=[8],

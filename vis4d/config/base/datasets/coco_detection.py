@@ -1,9 +1,6 @@
 """COCO data loading config for object detection."""
 from __future__ import annotations
 
-from collections.abc import Iterable
-
-from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
@@ -148,7 +145,7 @@ def get_coco_detection_config(
     data_backend: None | ConfigDict = None,
     image_size: tuple(int, int) = (800, 1333),
     samples_per_gpu: int = 2,
-    workers_per_gpu: int = 4,
+    workers_per_gpu: int = 2,
 ) -> ConfigDict:
     """Get the default config for COCO detection."""
     data = ConfigDict()
