@@ -1,7 +1,10 @@
 """CLI interface for vis4d.
 
 Example to run this script:
->>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
+>>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
+
+To run a parameter sweep:
+>>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --sweep configs/faster_rcnn/faster_rcnn_coco.py
 """
 from __future__ import annotations
 
@@ -23,7 +26,8 @@ from vis4d.common.distributed import (
 from vis4d.common.logging import _info, rank_zero_info, setup_logger
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
-from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.config.replicator import replicate_config
+from vis4d.config.util import ConfigDict, instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
@@ -91,13 +95,74 @@ def main(argv) -> None:  # type:ignore
 
     Example to run this script:
     >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
+
+    To run a parameter sweep:
+    >>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --sweep configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config = _CONFIG.value
-    num_gpus = _GPUS.value
+    experiment_config = _CONFIG.value
 
+    if _SWEEP.value is not None:
+        # Perform parameter sweep
+        rank_zero_info(
+            "Found Parameter Sweep in config file. Running Parameter Sweep..."
+        )
+        experiment_config = _CONFIG.value
+        sweep_config = instantiate_classes(_SWEEP.value)
+
+        for run_id, config in enumerate(
+            replicate_config(
+                experiment_config,
+                method=sweep_config.method,
+                sampling_args=sweep_config.sampling_args,
+                fstring=sweep_config.get("postfix", ""),
+            )
+        ):
+            rank_zero_info(
+                f"Running experiment #%d: %s",  # pylint: disable=f-string-without-interpolation, line-too-long
+                run_id,
+                config.experiment_name,
+            )
+            run_single_experiment(
+                experiment_config,
+                mode,
+                _GPUS.value,
+                _SHOW_CONFIG.value,
+                _SLURM.value,
+            )
+    else:
+        # Run single experiment
+        run_single_experiment(
+            experiment_config,
+            mode,
+            _GPUS.value,
+            _SHOW_CONFIG.value,
+            _SLURM.value,
+        )
+
+
+def run_single_experiment(
+    config: ConfigDict,
+    mode: str,
+    num_gpus: int = 0,
+    show_config: bool = False,
+    use_slurm: bool = False,
+) -> None:
+    """Entry point for running a single experiment.
+
+    Args:
+        config (ConfigDict): Configuration dictionary.
+        mode (str): Mode to run the experiment in. Either `fit` or `test`.
+        num_gpus (int): Number of GPUs to use.
+        show_config (bool): If set, prints the configuration.
+        use_slurm (bool): If set, setup slurm running jobs. This will set the
+            required environment variables for slurm.
+
+    Raises:
+        ValueError: If `mode` is not `fit` or `test`.
+    """
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
     log_dir = os.path.join(config.output_dir, f"log_{config.timestamp}.txt")
@@ -110,7 +175,7 @@ def main(argv) -> None:  # type:ignore
     if "benchmark" in config:
         torch.backends.cudnn.benchmark = config.benchmark
 
-    if _SHOW_CONFIG.value:
+    if show_config:
         rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
         rank_zero_info("*" * 80)
@@ -145,7 +210,7 @@ def main(argv) -> None:  # type:ignore
     # Setup DDP & seed
     seed = config.get("seed", init_random_seed())
     if num_gpus > 1:
-        ddp_setup(slurm=_SLURM.value)
+        ddp_setup(slurm=use_slurm)
 
         # broadcast seed to all processes
         seed = broadcast(seed)
@@ -185,21 +250,7 @@ def main(argv) -> None:  # type:ignore
         test_callbacks=test_callbacks,
     )
 
-    # TODO: Parameter sweep. Where to save the results? What name for the run?
-    if _SWEEP.value is not None:
-        # config = _CONFIG.value
-        # sweep_obj = instantiate_classes(_SWEEP.value)
-
-        # from vis4d.config.replicator import replicate_config
-
-        # for config in replicate_config(
-        #     _CONFIG.value,
-        #     method=sweep_obj.method,
-        #     sampling_args=sweep_obj.sampling_args,
-        # ):
-        #     train(config.value)
-        pass
-    elif mode == "fit":
+    if mode == "fit":
         trainer = Trainer(
             num_epochs=config.params.num_epochs,
             log_step=1,

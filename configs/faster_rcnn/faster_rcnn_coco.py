@@ -5,12 +5,10 @@ import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.op.base import ResNet
-
 from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.base.datasets.coco_detection import (
-    CONN_COCO_BBOX_EVAL,
     CONN_BBOX_2D_VIS,
+    CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
 )
 from vis4d.config.base.models.faster_rcnn import (
@@ -20,22 +18,47 @@ from vis4d.config.base.models.faster_rcnn import (
     CONN_RPN_LOSS_2D,
     get_model_cfg,
 )
-
-from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import (
-    set_output_dir,
     get_generic_callback_config,
     get_pl_trainer_args,
+    set_output_dir,
 )
-
+from vis4d.config.default.sweep.default import linear_grid_search
+from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
-
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
-
+from vis4d.op.base import ResNet
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
+
+
+def get_sweep() -> ConfigDict:
+    """Returns the config dict for a grid search over learning rate.
+
+    The name of the experiments will also be updated to include the learning
+    rate in the format "lr_{params.lr:.3f}_".
+
+    Returns:
+        ConfigDict: The configuration that can be used to run a grid search.
+            It can be passed to replicate_config to create a list of configs
+            that can be used to run a grid search.
+
+    """
+    # Here we define the parameters that we want to sweep over.
+    # In order to sweep over multiple parameters, we can pass a list of
+    # parameters to the linear_grid_search function.
+    # Example:
+    # >>> linear_grid_search(["params.lr", "params.momentum"], [0.001, 0.9], [0.01, 0.99], [3, 3])
+    # Will sweep over the learning rate and momentum. The learning rate will
+    # be swept over 3 values between 0.001 and 0.01 and the momentum will be
+    # swept over 3 values between 0.9 and 0.99.
+    sweep_config = linear_grid_search("params.lr", 0.001, 0.01, 3)
+
+    # Here we update the name of the experiment to include the learning rate.
+    sweep_config.postfix = "lr_{params.lr:.3f}_"
+    return sweep_config
 
 
 def get_config() -> ConfigDict:

@@ -1,6 +1,7 @@
 """Replication methods to perform different parameters sweeps."""
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Generator, Iterable
 from queue import Queue
 from typing import Any
@@ -90,6 +91,7 @@ def replicate_config(  # type: ignore
     configuration: ConfigDict,
     sampling_args: list[tuple[str, Callable[[], Generator[Any, None, None]]]],
     method: str = "grid",
+    fstring="",
 ) -> Generator[ConfigDict, None, None]:
     """Function used to replicate a config.
 
@@ -134,6 +136,11 @@ def replicate_config(  # type: ignore
             Grid combines the sampling arguments in a grid wise fashion
             ([1,2],[3,4] -> [1,3],[1,4],[2,3],[2,4]) whereas 'linear' will
             only select elements at the same index ([1,2],[3,4]->[1,3],[2,4]).
+        fstring (str): Format string to use for the experiment name. Defaults
+            to an empty string. The format string will be resolved with the
+            values of the config dict. For example, if the config dict
+            contains a key 'trainer.lr' with value 0.1, the format string
+            '{trainer.lr}' will be resolved to '0.1'.
 
     Raises:
         ValueError: if the replication method is unknown.
@@ -146,11 +153,52 @@ def replicate_config(  # type: ignore
         sampling_queue.put((key, value))
 
     if method == "grid":
-        return _replicate_config_grid(configuration, sampling_queue)
-    if method == "linear":
-        return _replicate_config_linear(configuration, sampling_queue)
+        replicated = _replicate_config_grid(configuration, sampling_queue)
+    elif method == "linear":
+        replicated = _replicate_config_linear(configuration, sampling_queue)
+    else:
+        raise ValueError(f"Unknown replication method {method}")
 
-    raise ValueError(f"Unknown replication method {method}")
+    original_name = configuration.experiment_name
+
+    for config in replicated:
+        # Update config name
+        config.experiment_name = (
+            f"{original_name}_{_resolve_fstring(fstring, config)}"
+        )
+        yield config
+
+
+def _resolve_fstring(fstring: str, config: ConfigDict) -> str:
+    """Resolves a format string with the values from the config.
+
+    This function takes a format string and replaces all the keys
+    with the values from the config. The keys are expected to be
+    in the format {key} or {key:format}.
+    This function may fail if the format string contains a key that
+    is not present in the config. It will also fail if the format
+    string contains a key that is not a valid python identifier.
+
+    Args:
+        fstring (str): The format string. E.g. "lr_{params.lr}".
+        config (ConfigDict): The config dict. E.g. {"params": {"lr": 0.1}}.
+
+    Returns:
+        str: The resolved format string. E.g. "lr_0.1
+    """
+    # match everything between { and ':' or '}'
+    pattern = re.compile(r"{([^:}]+)")
+    required_params = set([p.strip() for p in pattern.findall(fstring)])
+
+    format_dict: dict[str, str] = {}
+    for param in required_params:
+        # Maks out '.' which is invalid for .format() call
+        new_param_name = param.replace(".", "_")
+        format_dict[new_param_name] = getattr(config, param)
+        fstring = fstring.replace(param, new_param_name)
+
+    # apply formatting
+    return fstring.format(**format_dict)
 
 
 def _replicate_config_grid(  # type: ignore

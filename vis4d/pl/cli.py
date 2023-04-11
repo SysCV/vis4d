@@ -19,6 +19,7 @@ from torch.utils.collect_env import get_pretty_env_info
 from vis4d.common.callbacks import VisualizerCallback
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
+from vis4d.config.replicator import replicate_config
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
@@ -30,9 +31,10 @@ _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
 _RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
-_VISUALISZE = flags.DEFINE_bool(
+_VISUALIZE = flags.DEFINE_bool(
     "visualize", default=False, help="visualize the results"
 )
+_SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -42,13 +44,80 @@ def main(argv) -> None:  # type:ignore
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
+
+    To run a parameter sweep:
+    >>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --sweep configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config = _CONFIG.value
-    num_gpus = _GPUS.value
+    experiment_config = _CONFIG.value
+
+    if _SWEEP.value is not None:
+        # Perform parameter sweep
+        rank_zero_info(
+            "Found Parameter Sweep in config file. Running Parameter Sweep..."
+        )
+        experiment_config = _CONFIG.value
+        sweep_config = instantiate_classes(_SWEEP.value)
+
+        for run_id, config in enumerate(
+            replicate_config(
+                experiment_config,
+                method=sweep_config.method,
+                sampling_args=sweep_config.sampling_args,
+                fstring=sweep_config.get("postfix", ""),
+            )
+        ):
+            rank_zero_info(
+                f"Running experiment #%d: %s",  # pylint: disable=f-string-without-interpolation, line-too-long
+                run_id,
+                config.experiment_name,
+            )
+            run_single_experiment(
+                experiment_config,
+                mode,
+                _GPUS.value,
+                _SHOW_CONFIG.value,
+                _VISUALIZE.value,
+            )
+    else:
+        # Run single experiment
+        run_single_experiment(
+            experiment_config,
+            mode,
+            _GPUS.value,
+            _SHOW_CONFIG.value,
+            _VISUALIZE.value,
+            _CKPT.value,
+            _RESUME.value,
+        )
+
+
+def run_single_experiment(
+    config: ConfigDict,
+    mode: str,
+    num_gpus: int = 0,
+    show_config: bool = False,
+    visualize: bool = False,
+    ckpt_path: str = None,
+    resume: bool = False,
+) -> None:
+    """Entry point for running a single experiment.
+
+    Args:
+        config (ConfigDict): Configuration dictionary.
+        mode (str): Mode to run the experiment in. Either `fit` or `test`.
+        num_gpus (int): Number of GPUs to use.
+        show_config (bool): If set, prints the configuration.
+        visualize (bool): If set, activates the visualization callbacks.
+        ckpt_path (str): Path to checkpoint to load.
+        resume (bool): If set, resumes training from the checkpoint.
+
+    Raises:
+        ValueError: If `mode` is not `fit` or `test`.
+    """
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -63,7 +132,7 @@ def main(argv) -> None:  # type:ignore
     set_tf32(False)
 
     # TODO: Update Trainer Args in show config
-    if _SHOW_CONFIG.value:
+    if show_config:
         rank_zero_info(pprints_config(config))
 
     # Setup Trainer kwargs
@@ -81,7 +150,7 @@ def main(argv) -> None:  # type:ignore
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
-    trainer_args_cfg.devices = num_gpus
+    trainer_args_cfg.devices = max(1, num_gpus)
     if num_gpus > 0:
         trainer_args_cfg.accelerator = "gpu"
 
@@ -101,9 +170,6 @@ def main(argv) -> None:  # type:ignore
     data_connector = instantiate_classes(config.data_connector)
     optimizers = instantiate_classes(config.optimizers)
     loss = instantiate_classes(config.loss)
-
-    # Callbacks
-    visualize = _VISUALISZE.value
 
     callbacks: list[Callback] = []
     if "shared_callbacks" in config:
@@ -148,11 +214,6 @@ def main(argv) -> None:  # type:ignore
     )
     data_module = DataModule(config.data)
 
-    # Checkpoint path
-    ckpt_path = _CKPT.value
-
-    # Resume training
-    resume = _RESUME.value
     if resume:
         if ckpt_path is None:
             ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
