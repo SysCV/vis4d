@@ -3,22 +3,21 @@ from __future__ import annotations
 
 from ml_collections.config_dict import ConfigDict
 
+from vis4d.config.dataloader import get_dataloader_config
 from vis4d.config.util import class_config
-from vis4d.config.default import get_dataloader_config
-
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
-from vis4d.data.transforms.base import RandomApply, compose
+from vis4d.data.transforms.base import RandomApply, compose, compose_batch
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
 from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
 )
-
-
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 
 CONN_COCO_BBOX_EVAL = {
@@ -83,9 +82,18 @@ def get_train_dataloader(
         transforms=preprocess_transforms,
     )
 
+    train_batchprocess_cfg = class_config(
+        compose_batch,
+        transforms=[
+            class_config(PadImages),
+            class_config(ToTensor),
+        ],
+    )
+
     return get_dataloader_config(
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
+        batchprocess_cfg=train_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         shuffle=True,
@@ -129,9 +137,18 @@ def get_test_dataloader(
         transforms=preprocess_transforms,
     )
 
+    test_batchprocess_cfg = class_config(
+        compose_batch,
+        transforms=[
+            class_config(PadImages),
+            class_config(ToTensor),
+        ],
+    )
+
     return get_dataloader_config(
         preprocess_cfg=test_preprocess_cfg,
         dataset_cfg=test_dataset_cfg,
+        batchprocess_cfg=test_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         train=False,

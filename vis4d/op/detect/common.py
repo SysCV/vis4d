@@ -4,7 +4,7 @@ from typing import NamedTuple
 from torch import Tensor
 
 
-class DetOut(NamedTuple):  # TODO: decide where to put the class
+class DetOut(NamedTuple):
     """Output of the final detections from RCNN."""
 
     boxes: list[Tensor]  # N, 4

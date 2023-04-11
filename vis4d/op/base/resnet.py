@@ -72,7 +72,7 @@ class ResNet(BaseModel):
     def _freeze_stages(self):
         """Freeze stages."""
         self.bn1.eval()
-        for m in [self.conv1, self.bn1]:
+        for m in (self.conv1, self.bn1):
             for param in m.parameters():
                 param.requires_grad_(False)
 

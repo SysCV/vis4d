@@ -10,7 +10,7 @@ from torch import nn
 from torchvision.ops import batched_nms
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
-
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
 
@@ -127,7 +127,7 @@ class RPN2RoI(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_decoder: nn.Module,
+        box_decoder: DeltaXYWHBBoxDecoder,
         num_proposals_pre_nms_train: int = 2000,
         num_proposals_pre_nms_test: int = 1000,
         max_per_img: int = 1000,
@@ -139,8 +139,8 @@ class RPN2RoI(nn.Module):
         Args:
             anchor_generator (AnchorGenerator): Creates anchor grid serving as
                 for bounding box regression.
-            box_decoder (nn.Module): decodes box energies predicted by the
-                network into 2D bounding box parameters.
+            box_decoder (DeltaXYWHBBoxDecoder): decodes box energies predicted
+                by the network into 2D bounding box parameters.
             num_proposals_pre_nms_train (int, optional): How many boxes are
                 kept prior to NMS during training. Defaults to 2000.
             num_proposals_pre_nms_test (int, optional): How many boxes are
@@ -317,14 +317,16 @@ class RPNLoss(DenseAnchorHeadLoss):
     """Loss of region proposal network."""
 
     def __init__(
-        self, anchor_generator: AnchorGenerator, box_encoder: nn.Module
+        self,
+        anchor_generator: AnchorGenerator,
+        box_encoder: DeltaXYWHBBoxEncoder,
     ):
         """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (nn.Module): Encodes bounding boxes to the desired
-                network output.
+            box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to the
+                desired network output.
         """
         matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.7],
@@ -361,7 +363,6 @@ class RPNLoss(DenseAnchorHeadLoss):
         Returns:
             DenseAnchorHeadLosses: Classification and regression losses.
         """
-        assert target_class_ids is None  # TODO, why is this not used?
         return super().forward(
             cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
         )

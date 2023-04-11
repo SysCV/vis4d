@@ -35,9 +35,6 @@ from vis4d.engine.train import Trainer
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
-# _MODE = flags.DEFINE_string(
-#     "mode", default="train", help="Choice of [train, test]"
-# )
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
@@ -97,6 +94,7 @@ def main(argv) -> None:  # type:ignore
     """
     # Get config
     mode = argv[1]
+    assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config = _CONFIG.value
     num_gpus = _GPUS.value
 

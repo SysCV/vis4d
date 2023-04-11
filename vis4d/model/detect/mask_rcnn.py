@@ -11,6 +11,7 @@ from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
 from vis4d.op.box.encoder.base import BoxEncoder2D
 from vis4d.op.detect.anchor_generator import AnchorGenerator
+from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -20,7 +21,6 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.rcnn import (
     Det2Mask,
-    DetOut,
     MaskOut,
     MaskRCNNHead,
     MaskRCNNHeadOut,

@@ -1,12 +1,11 @@
 """Default runtime configuration for the project."""
+import inspect
 from datetime import datetime
 
-from vis4d.config.util import ConfigDict, class_config
+import pytorch_lightning as pl
 
 from vis4d.common.callbacks import CheckpointCallback, LoggingCallback
-
-import pytorch_lightning as pl
-import inspect
+from vis4d.config.util import ConfigDict, class_config
 
 
 def set_output_dir(config: ConfigDict) -> ConfigDict:
@@ -60,7 +59,7 @@ def get_pl_trainer_args() -> ConfigDict:
 
     # PL Trainer arguments
     for k, v in inspect.signature(pl.Trainer).parameters.items():
-        if not k in ["callbacks", "logger", "devices", "strategy"]:
+        if not k in {"callbacks", "logger", "devices", "strategy"}:
             pl_trainer[k] = v.default
 
     # Default Trainer arguments

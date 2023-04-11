@@ -46,7 +46,7 @@ def main(argv) -> None:  # type:ignore
     """
     # Get config
     mode = argv[1]
-    assert mode in ["fit", "test"], f"Invalid mode: {mode}"
+    assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config = _CONFIG.value
     num_gpus = _GPUS.value
 
@@ -62,6 +62,7 @@ def main(argv) -> None:  # type:ignore
     # PyTorch Setting
     set_tf32(False)
 
+    # TODO: Update Trainer Args in show config
     if _SHOW_CONFIG.value:
         rank_zero_info(pprints_config(config))
 

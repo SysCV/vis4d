@@ -1,26 +1,20 @@
 """Faseter R-CNN base model config."""
 from __future__ import annotations
 
-from torch import nn
-
-from vis4d.config.util import ConfigDict, class_config
 from ml_collections import FieldReference
 
+from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.engine.loss import WeightedMultiLoss
-
+from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
-from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder
-from vis4d.op.detect.rcnn import RCNNHead
 from vis4d.op.detect.anchor_generator import AnchorGenerator
-from vis4d.op.detect.rcnn import RCNNLoss
-from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
-
-from vis4d.model.detect.faster_rcnn import FasterRCNN
-
+from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
+from vis4d.op.detect.rpn import RPNLoss
 
 # Data connectors
 CONN_BBOX_2D_TRAIN = {

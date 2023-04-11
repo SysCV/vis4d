@@ -21,7 +21,7 @@ from vis4d.config.base.models.faster_rcnn import (
     get_model_cfg,
 )
 
-from vis4d.config.default.optimizer import get_optimizer_config
+from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import (
     set_output_dir,
     get_generic_callback_config,

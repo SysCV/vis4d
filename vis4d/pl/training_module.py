@@ -6,17 +6,17 @@ from typing import Any
 
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning import seed_everything
 from torch import nn, optim
 from torchmetrics import MeanMetric
 
+from vis4d.common.distributed import broadcast
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.util import init_random_seed
+from vis4d.config.util import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.opt import Optimizer
-from vis4d.common.util import init_random_seed
-from vis4d.common.logging import rank_zero_info
-from pytorch_lightning import seed_everything
-from vis4d.common.distributed import broadcast
-from vis4d.config.util import instantiate_classes
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -74,7 +74,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         optimizers: list[Optimizer],
         loss: nn.Module,
         data_connector: DataConnector,
-        seed: None | int,
+        seed: None | int = None,
     ):
         """Initialize the TrainingModule.
 
@@ -84,6 +84,8 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
                 optimizer.
             loss: The loss function to use.
             data_connector: The data connector to use.
+            seed (int, optional): The integer value seed for global random
+                state. Defaults to None.
         """
         super().__init__()
         self.model = model

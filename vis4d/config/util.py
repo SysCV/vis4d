@@ -220,7 +220,7 @@ def pprints_config(data: _ConfigDict) -> str:
     Returns:
         str: A string representation of the _ConfigDict
     """
-    return "Config:" + _pprints_config(data)
+    return _pprints_config(data)
 
 
 def _pprints_config(  # type: ignore

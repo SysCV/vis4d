@@ -11,13 +11,13 @@ from torch import Tensor, nn
 from torchvision.ops import roi_align
 
 from vis4d.op.box.box2d import apply_mask, bbox_clip, multiclass_nms
-from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
+from vis4d.op.detect.common import DetOut
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image
-from vis4d.op.detect.common import DetOut
 
 from ..typing import Proposals, Targets
 
@@ -183,8 +183,8 @@ class RoI2Det(nn.Module):
         """Creates an instance of the class.
 
         Args:
-            box_encoder (DeltaXYWHBBoxDecoder): Decodes regression parameters to
-                detected boxes.
+            box_decoder (DeltaXYWHBBoxDecoder): Decodes regression parameters
+                to detected boxes.
             score_threshold (float, optional): Minimum score of a detection.
                 Defaults to 0.05.
             iou_threshold (float, optional): IoU threshold of NMS
@@ -283,12 +283,14 @@ class RCNNLoss(nn.Module):
     corresponding target boxes with the given box encoder.
     """
 
-    def __init__(self, box_encoder: nn.Module, num_classes: int = 80) -> None:
+    def __init__(
+        self, box_encoder: DeltaXYWHBBoxEncoder, num_classes: int = 80
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
-            box_encoder (nn.Module): Decodes box regression parameters into
-                detected boxes.
+            box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression
+                parameters into detected boxes.
             num_classes (int, optional): number of object categories. Defaults
                 to 80.
         """

@@ -14,8 +14,8 @@ from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import PseudoSampler, Sampler
 
 from .anchor_generator import AnchorGenerator
+from .common import DetOut
 from .dense_anchor import DenseAnchorHeadLoss
-from .rcnn import DetOut
 
 
 class RetinaNetOut(NamedTuple):

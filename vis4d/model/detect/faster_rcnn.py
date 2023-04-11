@@ -8,14 +8,13 @@ from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
-
+from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
     get_default_rcnn_box_codec,
 )
 from vis4d.op.detect.rcnn import RoI2Det
-from vis4d.op.detect.common import DetOut
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
