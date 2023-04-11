@@ -69,9 +69,9 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data_root = "tests/vis4d-test-data/coco_test"
-    train_split = "train"
-    test_split = "train"
+    data_root = "data/coco"
+    train_split = "train2017"
+    test_split = "val2017"
 
     data_backend = class_config(HDF5Backend)
 
