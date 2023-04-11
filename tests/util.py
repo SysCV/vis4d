@@ -106,6 +106,49 @@ def generate_features(
     return features_list
 
 
+def generate_features_determ(
+    channels: int,
+    init_height: int,
+    init_width: int,
+    num_features: int,
+    batch_size: int = 1,
+    double_channels: bool = False,
+) -> list[torch.Tensor]:
+    """Create a deterministic list of features maps with decreasing size.
+
+    Uses torch.arange instead of torch.rand so the final features will be
+    fixed no matter the randomness.
+
+    Args:
+        channels (int): Number of feature channels (C).
+        init_height (int): Target feature map height (h).
+        init_width (int): Target feature map width (w).
+        num_features (int): Number of features maps.
+        batch_size (int, optional): Batch size (B)
+        double_channels (bool, optional): If channels should be doubled for
+                                          each feature map.
+
+    Returns:
+        list[torch.Tensor]: List containing feature tensors
+                            shaped [B, C', h/(2^i), w/(2^i)], where i is
+                            the position in de list and C' is either C or
+                            C*(2^i) depending if double_channels is true
+    """
+    features_list = []
+    channel_factor = 1
+    for i in range(num_features):
+        channel = channels * channel_factor
+        height, width = init_height // (2**i), init_width // (2**i)
+        dims = [batch_size, channel, height, width]
+        features_list.append(
+            torch.arange(np.prod(dims)).reshape(*dims) / (np.prod(dims))
+        )
+        if double_channels:
+            channel_factor *= 2
+
+    return features_list
+
+
 def generate_boxes(
     height: int,
     width: int,
