@@ -34,33 +34,6 @@ from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
-def get_sweep() -> ConfigDict:
-    """Returns the config dict for a grid search over learning rate.
-
-    The name of the experiments will also be updated to include the learning
-    rate in the format "lr_{params.lr:.3f}_".
-
-    Returns:
-        ConfigDict: The configuration that can be used to run a grid search.
-            It can be passed to replicate_config to create a list of configs
-            that can be used to run a grid search.
-
-    """
-    # Here we define the parameters that we want to sweep over.
-    # In order to sweep over multiple parameters, we can pass a list of
-    # parameters to the linear_grid_search function.
-    # Example:
-    # >>> linear_grid_search(["params.lr", "params.momentum"], [0.001, 0.9], [0.01, 0.99], [3, 3])
-    # Will sweep over the learning rate and momentum. The learning rate will
-    # be swept over 3 values between 0.001 and 0.01 and the momentum will be
-    # swept over 3 values between 0.9 and 0.99.
-    sweep_config = linear_grid_search("params.lr", 0.001, 0.01, 3)
-
-    # Here we update the name of the experiment to include the learning rate.
-    sweep_config.postfix = "lr_{params.lr:.3f}_"
-    return sweep_config
-
-
 def get_config() -> ConfigDict:
     """Returns the Faster-RCNN config dict for the coco detection task.
 
@@ -96,9 +69,9 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data_root = "data/coco"
-    train_split = "train2017"
-    test_split = "val2017"
+    data_root = "tests/vis4d-test-data/coco_test"
+    train_split = "train"
+    test_split = "train"
 
     data_backend = class_config(HDF5Backend)
 
@@ -220,3 +193,66 @@ def get_config() -> ConfigDict:
     config.pl_callbacks = pl_callbacks
 
     return config.value_mode()
+
+
+def get_slurm() -> ConfigDict:
+    """Returns the slurm configuration dict.
+
+    This config is used to request resources from the slurm scheduler.
+
+    The following example requests 1 GPU with 8 CPUs and 8GB of memory.
+
+    Returns:
+        ConfigDict: The slurm configuration dict in value mode.
+    """
+    # Available options:
+    # slurm_partition (str)
+    # slurm_ntasks_per_node (int)
+    # slurm_cpus_per_task (int)
+    # slurm_cpus_per_gpu (int)
+    # slurm_num_gpus (int)
+    # slurm_gpus_per_node (int)
+    # slurm_gpus_per_task (int)
+    # slurm_qos (str)
+    # slurm_setup (tp.List[str])
+    # slurm_mem (str)
+    # slurm_mem_per_gpu (str)
+    # slurm_mem_per_cpu (str)
+    # slurm_comment (str)
+    # slurm_constraint (str)
+    # slurm_exclude (str)
+    # slurm_account (str)
+    # slurm_gres (str)
+
+    slurm_config = ConfigDict()
+    slurm_config.slurm_num_gpus = 1
+    slurm_config.slurm_cpus_per_gpu = 8
+    slurm_config.slurm_mem_per_gpu = "8G"
+    return slurm_config.value_mode()
+
+
+def get_sweep() -> ConfigDict:
+    """Returns the config dict for a grid search over learning rate.
+
+    The name of the experiments will also be updated to include the learning
+    rate in the format "lr_{params.lr:.3f}_".
+
+    Returns:
+        ConfigDict: The configuration that can be used to run a grid search.
+            It can be passed to replicate_config to create a list of configs
+            that can be used to run a grid search.
+
+    """
+    # Here we define the parameters that we want to sweep over.
+    # In order to sweep over multiple parameters, we can pass a list of
+    # parameters to the linear_grid_search function.
+    # Example:
+    # >>> linear_grid_search(["params.lr", "params.momentum"], [0.001, 0.9], [0.01, 0.99], [3, 3])
+    # Will sweep over the learning rate and momentum. The learning rate will
+    # be swept over 3 values between 0.001 and 0.01 and the momentum will be
+    # swept over 3 values between 0.9 and 0.99.
+    sweep_config = linear_grid_search("params.lr", 0.001, 0.01, 3)
+
+    # Here we update the name of the experiment to include the learning rate.
+    sweep_config.postfix = "lr_{params.lr:.3f}_"
+    return sweep_config

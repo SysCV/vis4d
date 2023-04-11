@@ -41,6 +41,9 @@ TENSORBOARD_AVAILABLE = package_available("tensorboardX") or package_available(
     "tensorboard"
 )
 
+# SLURM support
+SUBMITIT_AVAILABLE = package_available("submitit")
+
 
 def is_torch_tf32_available() -> bool:  # pragma: no cover
     """Check if torch TF32 is available.
