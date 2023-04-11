@@ -19,7 +19,7 @@ from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
 from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import NDArrayFloat, NDArrayF32, NDArrayInt
+from vis4d.common.typing import NDArrayF32, NDArrayFloat, NDArrayInt
 from vis4d.data.typing import DictData
 
 if OPENCV_AVAILABLE:
