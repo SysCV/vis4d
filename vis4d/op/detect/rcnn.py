@@ -33,6 +33,17 @@ class RCNNOut(NamedTuple):
     bbox_pred: torch.Tensor
 
 
+def get_default_rcnn_box_codec(
+    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
+    target_stds: tuple[float, ...] = (0.1, 0.1, 0.2, 0.2),
+) -> tuple[nn.Module, nn.Module]:
+    """Get the default bounding box encoder and decoder for RCNN."""
+    return (
+        DeltaXYWHBBoxEncoder(target_means, target_stds),
+        DeltaXYWHBBoxDecoder(target_means, target_stds),
+    )
+
+
 class RCNNHead(nn.Module):
     """FasterRCNN RoI head.
 
@@ -175,7 +186,7 @@ class RoI2Det(nn.Module):
 
     def __init__(
         self,
-        box_decoder: DeltaXYWHBBoxDecoder,
+        box_decoder: None | DeltaXYWHBBoxDecoder = None,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
@@ -183,8 +194,9 @@ class RoI2Det(nn.Module):
         """Creates an instance of the class.
 
         Args:
-            box_decoder (DeltaXYWHBBoxDecoder): Decodes regression parameters
-                to detected boxes.
+            box_decoder (DeltaXYWHBBoxDecoder, optional): Decodes regression
+                parameters to detected boxes. Defaults to None.
+                if None, it will use the default decoder.
             score_threshold (float, optional): Minimum score of a detection.
                 Defaults to 0.05.
             iou_threshold (float, optional): IoU threshold of NMS
@@ -193,7 +205,10 @@ class RoI2Det(nn.Module):
                 image. Defaults to 100.
         """
         super().__init__()
-        self.bbox_decoder = box_decoder
+        if box_decoder is None:
+            _, self.box_decoder = get_default_rcnn_box_codec()
+        else:
+            self.box_decoder = box_decoder
         self.score_threshold = score_threshold
         self.max_per_img = max_per_img
         self.iou_threshold = iou_threshold
@@ -229,7 +244,7 @@ class RoI2Det(nn.Module):
         ):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = bbox_clip(
-                self.bbox_decoder(boxs[:, :4], reg_out).view(-1, 4),
+                self.box_decoder(boxs[:, :4], reg_out).view(-1, 4),
                 image_hw,
             ).view(reg_out.shape)
             det_bbox, det_scores, det_label, _ = multiclass_nms(

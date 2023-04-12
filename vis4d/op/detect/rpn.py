@@ -33,6 +33,17 @@ class RPNOut(NamedTuple):
     box: list[torch.Tensor]
 
 
+def get_default_rpn_box_codec(
+    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
+    target_stds: tuple[float, ...] = (1.0, 1.0, 1.0, 1.0),
+) -> tuple[nn.Module, nn.Module]:
+    """Get the default bounding box encoder and decoder for RPN."""
+    return (
+        DeltaXYWHBBoxEncoder(target_means, target_stds),
+        DeltaXYWHBBoxDecoder(target_means, target_stds),
+    )
+
+
 class RPNHead(nn.Module):
     """Faster RCNN RPN Head.
 
@@ -127,7 +138,7 @@ class RPN2RoI(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_decoder: DeltaXYWHBBoxDecoder,
+        box_decoder: None | DeltaXYWHBBoxDecoder = None,
         num_proposals_pre_nms_train: int = 2000,
         num_proposals_pre_nms_test: int = 1000,
         max_per_img: int = 1000,
@@ -139,8 +150,9 @@ class RPN2RoI(nn.Module):
         Args:
             anchor_generator (AnchorGenerator): Creates anchor grid serving as
                 for bounding box regression.
-            box_decoder (DeltaXYWHBBoxDecoder): decodes box energies predicted
-                by the network into 2D bounding box parameters.
+            box_decoder (DeltaXYWHBBoxDecoder, optional): decodes box energies
+                predicted by the network into 2D bounding box parameters.
+                Defaults to None. If None, uses the default decoder.
             num_proposals_pre_nms_train (int, optional): How many boxes are
                 kept prior to NMS during training. Defaults to 2000.
             num_proposals_pre_nms_test (int, optional): How many boxes are
@@ -154,7 +166,12 @@ class RPN2RoI(nn.Module):
         """
         super().__init__()
         self.anchor_generator = anchor_generator
-        self.box_decoder = box_decoder
+
+        if box_decoder is None:
+            _, self.box_decoder = get_default_rpn_box_codec()
+        else:
+            self.box_decoder = box_decoder
+
         self.max_per_img = max_per_img
         self.min_proposal_size = min_proposal_size
         self.num_proposals_pre_nms_train = num_proposals_pre_nms_train

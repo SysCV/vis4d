@@ -9,11 +9,7 @@ from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.common import DetOut
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    FRCNNOut,
-    get_default_rcnn_box_codec,
-)
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
@@ -44,13 +40,14 @@ class FasterRCNN(nn.Module):
         Args:
             num_classes (int): Number of object categories.
             backbone (BaseModel, optional): Backbone network. Defaults to None.
+                if None, will use ResNet50.
             faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
-                Defaults to None.
+                Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
                 bounding boxes. Defaults to None.
-            weights (str, optional): Weights to load for model. If
-                set to "mmdet", will load MMDetection pre-trained weights.
-                Defaults to None.
+            weights (str, optional): Weights to load for model. If set to
+                "mmdet", will load MMDetection pre-trained weights. Defaults to
+                None.
         """
         super().__init__()
         if backbone is None:
@@ -67,8 +64,6 @@ class FasterRCNN(nn.Module):
         else:
             self.faster_rcnn_heads = faster_rcnn_head
 
-        if rcnn_box_decoder is None:
-            _, rcnn_box_decoder = get_default_rcnn_box_codec()
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
         if weights == "mmdet":

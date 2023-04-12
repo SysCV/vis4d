@@ -5,8 +5,13 @@ from torch import Tensor
 
 
 class DetOut(NamedTuple):
-    """Output of the final detections from RCNN."""
+    """Output of the detection model.
 
-    boxes: list[Tensor]  # N, 4
+    boxes (list[Tensor]): 2D bounding boxes of shape [N, 4] in xyxy format.
+    scores (list[Tensor]): confidence scores of shape [N,].
+    class_ids (list[Tensor]): class ids of shape [N,].
+    """
+
+    boxes: list[Tensor]
     scores: list[Tensor]
     class_ids: list[Tensor]

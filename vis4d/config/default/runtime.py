@@ -1,4 +1,6 @@
 """Default runtime configuration for the project."""
+import platform
+
 import inspect
 from datetime import datetime
 
@@ -19,11 +21,16 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
     config.timestamp = timestamp
     config.version = timestamp
 
+    if platform.system() == "Windows":
+        path_component = "\\"
+    else:
+        path_component = "/"
+
     config.output_dir = (
         config.get_ref("work_dir")
-        + "/"
+        + path_component
         + config.get_ref("experiment_name")
-        + "/"
+        + path_component
         + config.get_ref("version")
     )
 

@@ -32,28 +32,6 @@ class FRCNNOut(NamedTuple):
     sampled_target_indices: list[torch.Tensor] | None
 
 
-def get_default_rpn_box_codec(
-    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
-    target_stds: tuple[float, ...] = (1.0, 1.0, 1.0, 1.0),
-) -> tuple[nn.Module, nn.Module]:
-    """Get the default bounding box encoder and decoder for RPN."""
-    return (
-        DeltaXYWHBBoxEncoder(target_means, target_stds),
-        DeltaXYWHBBoxDecoder(target_means, target_stds),
-    )
-
-
-def get_default_rcnn_box_codec(
-    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
-    target_stds: tuple[float, ...] = (0.1, 0.1, 0.2, 0.2),
-) -> tuple[nn.Module, nn.Module]:
-    """Get the default bounding box encoder and decoder for RCNN."""
-    return (
-        DeltaXYWHBBoxEncoder(target_means, target_stds),
-        DeltaXYWHBBoxDecoder(target_means, target_stds),
-    )
-
-
 class FasterRCNNHead(nn.Module):
     """This class composes RPN and RCNN head components.
 
@@ -94,9 +72,6 @@ class FasterRCNNHead(nn.Module):
             anchor_generator = AnchorGenerator(
                 scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
             )
-
-        if rpn_box_decoder is None:
-            _, rpn_box_decoder = get_default_rpn_box_codec()
 
         if box_matcher is None:
             self.box_matcher = MaxIoUMatcher(
