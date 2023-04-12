@@ -79,7 +79,7 @@ class RetinaNetHead(nn.Module):  # TODO: Refactor to use the new API
         stacked_convs: int = 4,
         use_sigmoid_cls: bool = True,
         anchor_generator: AnchorGenerator | None = None,
-        box_decoder: DeltaXYWHBBoxEncoder | None = None,
+        box_decoder: DeltaXYWHBBoxDecoder | None = None,
         box_matcher: Matcher | None = None,
         box_sampler: Sampler | None = None,
     ):
