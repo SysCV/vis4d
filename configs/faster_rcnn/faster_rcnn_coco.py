@@ -5,12 +5,10 @@ import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.op.base import ResNet
-
 from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.base.datasets.coco_detection import (
-    CONN_COCO_BBOX_EVAL,
     CONN_BBOX_2D_VIS,
+    CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
 )
 from vis4d.config.base.models.faster_rcnn import (
@@ -20,20 +18,17 @@ from vis4d.config.base.models.faster_rcnn import (
     CONN_RPN_LOSS_2D,
     get_model_cfg,
 )
-
-from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import (
-    set_output_dir,
     get_generic_callback_config,
     get_pl_trainer_args,
+    set_output_dir,
 )
-
+from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
-
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
-
+from vis4d.op.base import ResNet
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
 

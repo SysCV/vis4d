@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.op.box.box2d import apply_mask
-from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import (
     RandomSampler,

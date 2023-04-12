@@ -1,7 +1,6 @@
 """Default runtime configuration for the project."""
-import platform
-
 import inspect
+import platform
 from datetime import datetime
 
 import pytorch_lightning as pl

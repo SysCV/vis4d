@@ -11,13 +11,10 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.op.base import ResNet
+from vis4d.op.base import BaseModel, ResNet
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.anchor_generator import AnchorGenerator
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.detect_3d.filter import bev_3d_nms
 from vis4d.op.detect_3d.qd_3dt import QD3DTBBox3DHead
@@ -34,6 +31,10 @@ from vis4d.op.track_3d.motion.kf3d import (
 )
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 
+REV_KEYS = [
+    (r"^backbone.body\.", "backbone."),
+]
+
 
 class Track3DOut(NamedTuple):
     """Output of track 3D model."""
@@ -42,20 +43,6 @@ class Track3DOut(NamedTuple):
     class_ids: Tensor
     scores_3d: Tensor
     track_ids: Tensor
-
-
-def get_default_anchor_generator() -> AnchorGenerator:
-    """Get default anchor generator."""
-    return AnchorGenerator(
-        scales=[4, 8],
-        ratios=[0.25, 0.5, 1.0, 2.0, 4.0],
-        strides=[4, 8, 16, 32, 64],
-    )
-
-
-def get_default_roi_head(num_classes: int) -> RCNNHead:
-    """Get default ROI head."""
-    return RCNNHead(num_shared_convs=4, num_classes=num_classes)
 
 
 class CC3DTrack(nn.Module):
@@ -457,30 +444,58 @@ class FasterRCNNCC3DT(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        backbone: str,
-        motion_model: str,
-        pure_det: bool,
+        backbone: BaseModel | None = None,
+        faster_rcnn_head: FasterRCNNHead | None = None,
+        rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
+        motion_model: str = "KF3D",
+        pure_det: bool = False,
         class_range_map: None | Tensor = None,
         dataset_fps: int = 2,
         weights: None | str = None,
     ) -> None:
-        """Creates an instance of the class."""
-        super().__init__()
-        anchor_generator = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        roi_head = get_default_roi_head(num_classes)
+        """Creates an instance of the class.
 
-        self.backbone = ResNet(backbone, pretrained=True, trainable_layers=3)
+        Args:
+            num_classes (int): Number of object categories.
+            backbone (BaseModel, optional): Backbone network. Defaults to None.
+                if None, will use ResNet50.
+            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+                Defaults to None. if None, will use default FasterRCNNHead.
+            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+                bounding boxes. Defaults to None.
+            motion_model (str): Motion model. Defaults to "KF3D".
+            pure_det (bool): Whether to save pure detection results. Defaults
+                to False.
+            class_range_map (None | Tensor): Class range map. Defaults to None.
+            dataset_fps (int): Dataset fps. Defaults to 2.
+            weights (None | str): Weights path. Defaults to None.
+        """
+        super().__init__()
+        if backbone is None:
+            self.backbone = ResNet(
+                resnet_name="resnet50", pretrained=True, trainable_layers=3
+            )
+        else:
+            self.backbone = backbone
+
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            num_classes=num_classes,
-            anchor_generator=anchor_generator,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
-            roi_head=roi_head,
-        )
-        self.roi2det = RoI2Det(rcnn_bbox_encoder)
+
+        if faster_rcnn_head is None:
+            anchor_generator = AnchorGenerator(
+                scales=[4, 8],
+                ratios=[0.25, 0.5, 1.0, 2.0, 4.0],
+                strides=[4, 8, 16, 32, 64],
+            )
+            roi_head = RCNNHead(num_shared_convs=4, num_classes=num_classes)
+            self.faster_rcnn_heads = FasterRCNNHead(
+                num_classes=num_classes,
+                anchor_generator=anchor_generator,
+                roi_head=roi_head,
+            )
+        else:
+            self.faster_rcnn_heads = faster_rcnn_head
+
+        self.roi2det = RoI2Det(rcnn_box_decoder)
         self.bbox_3d_head = QD3DTBBox3DHead(num_classes=num_classes)
         self.track = CC3DTrack(motion_model=motion_model, pure_det=pure_det)
 
@@ -488,7 +503,9 @@ class FasterRCNNCC3DT(nn.Module):
         self.dataset_fps = dataset_fps
 
         if weights is not None:
-            load_model_checkpoint(self, weights, map_location="cpu")
+            load_model_checkpoint(
+                self, weights, map_location="cpu", rev_keys=REV_KEYS
+            )
 
     def forward(
         self,

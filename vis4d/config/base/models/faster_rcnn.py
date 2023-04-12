@@ -53,12 +53,8 @@ def get_default_rpn_box_codec_cfg(
 ) -> tuple[ConfigDict, ConfigDict]:
     """Get default config for rpn box encoder and decoder."""
     return tuple(
-        map(
-            lambda x: class_config(
-                x, target_means=target_means, target_stds=target_stds
-            ),
-            (DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder),
-        )
+        class_config(x, target_means=target_means, target_stds=target_stds)
+        for x in (DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder)
     )
 
 
@@ -68,12 +64,8 @@ def get_default_rcnn_box_codec_cfg(
 ) -> tuple[ConfigDict, ConfigDict]:
     """Get default config for rcnn box encoder and decoder."""
     return tuple(
-        map(
-            lambda x: class_config(
-                x, target_means=target_means, target_stds=target_stds
-            ),
-            (DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder),
-        )
+        class_config(x, target_means=target_means, target_stds=target_stds)
+        for x in (DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder)
     )
 
 
