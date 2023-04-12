@@ -175,11 +175,8 @@ class ResizeInstanceMasks:
         return masks_.numpy()
 
 
-@Transform(
-    [K.segmentation_masks, "transforms.resize.target_shape"],
-    K.segmentation_masks,
-)
-class ResizeSegmentationMasks:
+@Transform([K.seg_masks, "transforms.resize.target_shape"], K.seg_masks)
+class ResizeSegMasks:
     """Resize segmentation masks."""
 
     def __call__(

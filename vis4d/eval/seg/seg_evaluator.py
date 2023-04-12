@@ -9,7 +9,7 @@ from vis4d.common.typing import NDArrayI64, NDArrayNumber
 from vis4d.eval.base import Evaluator
 
 
-class SegmentationEvaluator(Evaluator):
+class SegEvaluator(Evaluator):
     """Creates an evaluator that calculates mIoU score and confusion matrix."""
 
     METRIC_MIOU = "mIoU"
@@ -42,10 +42,7 @@ class SegmentationEvaluator(Evaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [
-            SegmentationEvaluator.METRIC_MIOU,
-            SegmentationEvaluator.METRIC_CONFUSION_MATRIX,
-        ]
+        return [SegEvaluator.METRIC_MIOU, SegEvaluator.METRIC_CONFUSION_MATRIX]
 
     # Taken and modified (added static N) from
     # https://stackoverflow.com/questions/59080843/faster-method-of-computing-confusion-matrix
@@ -135,8 +132,8 @@ class SegmentationEvaluator(Evaluator):
 
         metric_data, short_description = {}, ""
         if metric in [
-            SegmentationEvaluator.METRIC_MIOU,
-            SegmentationEvaluator.METRIC_ALL,
+            SegEvaluator.METRIC_MIOU,
+            SegEvaluator.METRIC_ALL,
         ]:
             # Calculate miou from confusion matrix
             tp = np.diag(self._confusion_matrix)
@@ -149,13 +146,13 @@ class SegmentationEvaluator(Evaluator):
                 f"{self._get_class_name_for_idx(idx)}: ({d:.3f}%)"
                 for idx, d in enumerate(iou)
             )
-            metric_data[SegmentationEvaluator.METRIC_MIOU] = m_iou
+            metric_data[SegEvaluator.METRIC_MIOU] = m_iou
             short_description += f"mIoU: {m_iou:.3f}% \n"
             short_description += iou_class_str + "\n"
 
         if metric in [
-            SegmentationEvaluator.METRIC_CONFUSION_MATRIX,
-            SegmentationEvaluator.METRIC_ALL,
+            SegEvaluator.METRIC_CONFUSION_MATRIX,
+            SegEvaluator.METRIC_ALL,
         ]:
             headers = ["Confusion"] + [
                 self._get_class_name_for_idx(i)

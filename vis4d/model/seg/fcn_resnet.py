@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.segment.fcn import FCNHead, FCNOut
+from vis4d.op.seg.fcn import FCNHead, FCNOut
 
 REV_KEYS = [
     (r"^backbone\.", "basemodel.body."),

@@ -202,7 +202,7 @@ class BDD100KSemSegTest(unittest.TestCase):
     dataset = BDD100K(
         data_root,
         annotations,
-        keys_to_load=(K.images, K.segmentation_masks),
+        keys_to_load=(K.images, K.seg_masks),
         config_path=config_path,
         global_instance_ids=True,
     )
@@ -225,11 +225,11 @@ class BDD100KSemSegTest(unittest.TestCase):
                 "frame_ids",
                 "name",
                 "videoName",
-                "segmentation_masks",
+                "seg_masks",
             ),
         )
 
-        self.assertEqual(item[K.segmentation_masks].shape, (720, 1280))
+        self.assertEqual(item[K.seg_masks].shape, (720, 1280))
         self.assertEqual(item["original_hw"], (720, 1280))
         self.assertEqual(item["input_hw"], (720, 1280))
         self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
@@ -241,7 +241,7 @@ class BDD100KSemSegTest(unittest.TestCase):
             IMAGE_VALUES,
         )
         assert isclose_on_all_indices_tensor(
-            item[K.segmentation_masks].reshape(-1),
+            item[K.seg_masks].reshape(-1),
             SEMANTIC_MASK_INDICES,
             SEMANTIC_MASK_VALUES,
         )
@@ -251,12 +251,12 @@ class BDD100KSemSegTest(unittest.TestCase):
         dataset = BDD100K(
             self.data_root,
             self.annotations,
-            keys_to_load=(K.images, K.segmentation_masks),
+            keys_to_load=(K.images, K.seg_masks),
             category_map={"car": 0, "person": 1, "background": 2},
             global_instance_ids=True,
             bg_as_class=True,
         )
         item = dataset[0]
         item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
-        assert 2 in item["segmentation_masks"].unique()
-        assert 255 not in item["segmentation_masks"].unique()
+        assert 2 in item["seg_masks"].unique()
+        assert 255 not in item["seg_masks"].unique()

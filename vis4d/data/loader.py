@@ -44,7 +44,7 @@ def default_collate(batch: list[DictData]) -> DictData:
         try:
             if key in [K.images]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [K.segmentation_masks, K.extrinsics, K.intrinsics]:
+            elif key in [K.seg_masks, K.extrinsics, K.intrinsics]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
                 data[key] = [b[key] for b in batch]

@@ -61,7 +61,7 @@ class SHIFTTest(unittest.TestCase):
             K.input_hw,
             K.intrinsics,
             K.boxes2d,
-            K.segmentation_masks,
+            K.seg_masks,
             K.depth_maps,
             K.optical_flows,
         ],
@@ -80,7 +80,7 @@ class SHIFTTest(unittest.TestCase):
             K.boxes2d_track_ids,
             K.boxes3d,
             K.instance_masks,
-            K.segmentation_masks,
+            K.seg_masks,
             K.depth_maps,
             K.optical_flows,
             K.points3d,
@@ -119,7 +119,7 @@ class SHIFTTest(unittest.TestCase):
                     K.boxes2d_track_ids,
                     K.boxes3d,
                     K.instance_masks,
-                    K.segmentation_masks,
+                    K.seg_masks,
                     K.depth_maps,
                     K.optical_flows,
                 ),
@@ -133,7 +133,7 @@ class SHIFTTest(unittest.TestCase):
                 (2, 800, 1280) if view == "front" else (0, 0, 0),
             )
             self.assertEqual(
-                self.dataset_multiview[0][view][K.segmentation_masks].shape,
+                self.dataset_multiview[0][view][K.seg_masks].shape,
                 (800, 1280),
             )
             self.assertEqual(
@@ -157,7 +157,7 @@ class SHIFTTest(unittest.TestCase):
             INSTANCE_MASK_VALUES,
         )
         assert isclose_on_all_indices_numpy(
-            item[K.segmentation_masks].reshape(-1),
+            item[K.seg_masks].reshape(-1),
             SEMANTIC_MASK_INDICES,
             SEMANTIC_MASK_VALUES,
         )

@@ -2,7 +2,7 @@
 import unittest
 
 from tests.util import generate_features
-from vis4d.op.segment.semantic_fpn import SemanticFPNHead
+from vis4d.op.seg.semantic_fpn import SemanticFPNHead
 
 
 class TestSemanticFPNHead(unittest.TestCase):

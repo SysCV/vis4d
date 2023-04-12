@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from vis4d.common.typing import NDArrayNumber
-from vis4d.eval.segment.segmentation_evaluator import SegmentationEvaluator
+from vis4d.eval.seg.seg_evaluator import SegEvaluator
 
 
 def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
@@ -223,13 +223,13 @@ def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
     return pred, gt
 
 
-class TestSegmentationEvaluator(unittest.TestCase):
-    """Tests for SegmentationyEvaluator."""
+class TestSegEvaluator(unittest.TestCase):
+    """Tests for SegEvaluator."""
 
     batch_size = 4
     n_points = 100
     n_classes = 10
-    evaluator = SegmentationEvaluator(num_classes=n_classes)
+    evaluator = SegEvaluator(num_classes=n_classes)
 
     def test_perfect_prediction(self) -> None:
         """Tests when predictions are correct."""
@@ -239,8 +239,8 @@ class TestSegmentationEvaluator(unittest.TestCase):
         gt = pred.copy()
         self.evaluator.reset()
         self.evaluator.process(pred, gt)
-        data, _ = self.evaluator.evaluate(SegmentationEvaluator.METRIC_ALL)
-        self.assertEqual(data[SegmentationEvaluator.METRIC_MIOU], 100)
+        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
     def test_perfect_prediction_without_amax(self) -> None:
         """Tests when predictions are correct with shape [N,C,*]."""
@@ -250,13 +250,13 @@ class TestSegmentationEvaluator(unittest.TestCase):
         gt = pred_amax.copy()
         self.evaluator.reset()
         self.evaluator.process(pred, gt)
-        data, _ = self.evaluator.evaluate(SegmentationEvaluator.METRIC_ALL)
-        self.assertEqual(data[SegmentationEvaluator.METRIC_MIOU], 100)
+        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
     def test_ignore_label_prediction(self) -> None:
         """Tests when gt is all ones."""
         # All ones
-        evaluator = SegmentationEvaluator(
+        evaluator = SegEvaluator(
             num_classes=self.n_classes, class_to_ignore=255
         )
         pred = np.random.rand(self.batch_size, self.n_classes, self.n_points)
@@ -267,8 +267,8 @@ class TestSegmentationEvaluator(unittest.TestCase):
 
         evaluator.reset()
         evaluator.process(pred, gt)
-        data, _ = evaluator.evaluate(SegmentationEvaluator.METRIC_ALL)
-        self.assertEqual(data[SegmentationEvaluator.METRIC_MIOU], 100)
+        data, _ = evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
     def test_precomputed(self) -> None:
         """Numerical tests with precomputed values."""
@@ -276,7 +276,5 @@ class TestSegmentationEvaluator(unittest.TestCase):
         pred, gt = get_test_data()
         self.evaluator.reset()
         self.evaluator.process(pred, gt)
-        data, _ = self.evaluator.evaluate(SegmentationEvaluator.METRIC_ALL)
-        self.assertEqual(
-            data[SegmentationEvaluator.METRIC_MIOU], 5.230499415482852
-        )
+        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        self.assertEqual(data[SegEvaluator.METRIC_MIOU], 5.230499415482852)

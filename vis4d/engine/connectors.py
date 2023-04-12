@@ -457,7 +457,7 @@ class MultiSensorDataConnector(StaticDataConnector):
                 test_input_dict[v].append(data[sensor][k])
 
         for key in test_input_dict:
-            if key in [CK.images, CK.segmentation_masks]:
+            if key in [CK.images, CK.seg_masks]:
                 test_input_dict[key] = torch.cat(test_input_dict[key])
             elif key in [CK.intrinsics, CK.extrinsics]:
                 test_input_dict[key] = torch.stack(test_input_dict[key])

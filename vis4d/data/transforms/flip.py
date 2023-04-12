@@ -83,8 +83,8 @@ class FlipBoxes2D:
         raise ValueError(f"Direction {self.direction} not known!")
 
 
-@Transform(K.segmentation_masks, K.segmentation_masks)
-class FlipSegmentationMasks:
+@Transform(K.seg_masks, K.seg_masks)
+class FlipSegMasks:
     """Flip segmentation masks."""
 
     def __init__(self, direction: str = "horizontal"):

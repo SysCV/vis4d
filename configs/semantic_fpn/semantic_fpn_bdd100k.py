@@ -9,12 +9,12 @@ from vis4d.common.callbacks import (
     LoggingCallback,
 )
 from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.config.default.data.segment import segment_preprocessing
-from vis4d.config.default.data_connectors.segment import (
-    CONN_BDD100K_SEGMENT_EVAL,
+from vis4d.config.default.data.seg import seg_preprocessing
+from vis4d.config.default.data_connectors.seg import (
+    CONN_BDD100K_SEG_EVAL,
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
-    CONN_SEGMENT_LOSS,
+    CONN_SEG_LOSS,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.runtime import set_output_dir
@@ -23,9 +23,9 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
-from vis4d.eval.segment.bdd100k import BDD100KSemSegEvaluator
-from vis4d.model.segment.semantic_fpn import SemanticFPN
-from vis4d.op.loss import SegmentCrossEntropyLoss
+from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
+from vis4d.model.seg.semantic_fpn import SemanticFPN
+from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.optim import PolyLR
 from vis4d.optim.warmup import LinearLRWarmup
 
@@ -74,10 +74,10 @@ def get_config() -> ConfigDict:
         data_root=f"data/bdd100k/images/10k/train",
         annotation_path=f"data/bdd100k/labels/sem_seg_train_rle.json",
         config_path="sem_seg",
-        keys_to_load=(K.images, K.segmentation_masks),
+        keys_to_load=(K.images, K.seg_masks),
         data_backend=data_backend,
     )
-    preproc = segment_preprocessing(720, 1280, True, params.augment_prob)
+    preproc = seg_preprocessing(720, 1280, True, params.augment_prob)
     dataloader_train_cfg = default_image_dataloader(
         preprocess_cfg=preproc,
         dataset_cfg=dataset_cfg_train,
@@ -93,10 +93,10 @@ def get_config() -> ConfigDict:
         data_root=f"data/bdd100k/images/10k/val",
         annotation_path=f"data/bdd100k/labels/sem_seg_val_rle.json",
         config_path="sem_seg",
-        keys_to_load=(K.images, K.segmentation_masks),
+        keys_to_load=(K.images, K.seg_masks),
         data_backend=data_backend,
     )
-    preprocess_test_cfg = segment_preprocessing(
+    preprocess_test_cfg = seg_preprocessing(
         720, 1280, True, augment_probability=0
     )
     dataloader_cfg_test = default_image_dataloader(
@@ -116,7 +116,7 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.model = class_config(SemanticFPN, num_classes=params.num_classes)
-    config.loss = class_config(SegmentCrossEntropyLoss)
+    config.loss = class_config(SegCrossEntropyLoss)
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -145,8 +145,8 @@ def get_config() -> ConfigDict:
         connections=DataConnectionInfo(
             train=CONN_MASKS_TRAIN,
             test=CONN_MASKS_TEST,
-            loss=CONN_SEGMENT_LOSS,
-            callbacks={"bdd100k_eval": CONN_BDD100K_SEGMENT_EVAL},
+            loss=CONN_SEG_LOSS,
+            callbacks={"bdd100k_eval": CONN_BDD100K_SEG_EVAL},
         ),
     )
 
@@ -158,7 +158,7 @@ def get_config() -> ConfigDict:
         "bdd100k_eval": class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                BDD100KSemSegEvaluator,
+                BDD100KSegEvaluator,
                 annotation_path=f"data/bdd100k/labels/sem_seg_val_rle.json",
             ),
             run_every_nth_epoch=1,

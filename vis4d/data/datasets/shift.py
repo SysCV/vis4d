@@ -165,7 +165,7 @@ class SHIFT(Dataset):
         K.boxes3d_classes,
         K.boxes3d_track_ids,
         # Bit masks
-        K.segmentation_masks,
+        K.seg_masks,
         K.depth_maps,
         K.optical_flows,
     ]
@@ -204,7 +204,7 @@ class SHIFT(Dataset):
             K.instance_masks,
         ],
         "semseg": [
-            K.segmentation_masks,
+            K.seg_masks,
         ],
         "depth": [
             K.depth_maps,
@@ -415,8 +415,8 @@ class SHIFT(Dataset):
                     )
 
                 # Load data from bit masks
-                if K.segmentation_masks in self.keys_to_load:
-                    data_dict_view[K.segmentation_masks] = self._load(
+                if K.seg_masks in self.keys_to_load:
+                    data_dict_view[K.seg_masks] = self._load(
                         view, "semseg", "png", video_name, frame_name
                     )
                 if K.depth_maps in self.keys_to_load:

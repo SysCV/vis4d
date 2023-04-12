@@ -1,22 +1,22 @@
 """FCN-ResNet COCO training example."""
 from __future__ import annotations
 
-from torch import nn, optim
+from torch import optim
 
 from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.config.default.data.segment import segment_preprocessing
-from vis4d.config.default.data_connectors.segment import (
+from vis4d.config.default.data.seg import seg_preprocessing
+from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
-    CONN_MULTI_SEGMENT_LOSS,
+    CONN_MULTI_SEG_LOSS,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
-from vis4d.model.segment.fcn_resnet import FCNResNet
-from vis4d.op.loss import MultiLevelSegmentLoss
+from vis4d.model.seg.fcn_resnet import FCNResNet
+from vis4d.op.loss import MultiLevelSegLoss
 from vis4d.optim import PolyLR
 
 
@@ -78,7 +78,7 @@ def get_config() -> ConfigDict:
         use_pascal_voc_cats=True,
         minimum_box_area=10,
     )
-    preproc = segment_preprocessing(520, 520, False, params.augment_proba)
+    preproc = seg_preprocessing(520, 520, False, params.augment_proba)
     dataloader_train_cfg = default_image_dataloader(
         preproc,
         dataset_cfg_train,
@@ -95,7 +95,7 @@ def get_config() -> ConfigDict:
         split=config.test_split,
         use_pascal_voc_cats=True,
     )
-    preprocess_test_cfg = segment_preprocessing(
+    preprocess_test_cfg = seg_preprocessing(
         520, 520, False, augment_probability=0
     )
     dataloader_cfg_test = default_image_dataloader(
@@ -128,7 +128,7 @@ def get_config() -> ConfigDict:
     # are averaged using a weighted sum.
 
     config.loss = class_config(
-        MultiLevelSegmentLoss, feature_idx=[4, 5], weights=[0.5, 1]
+        MultiLevelSegLoss, feature_idx=[4, 5], weights=[0.5, 1]
     )
 
     ######################################################
@@ -179,7 +179,7 @@ def get_config() -> ConfigDict:
         connections=DataConnectionInfo(
             train=CONN_MASKS_TRAIN,
             test=CONN_MASKS_TEST,
-            loss=CONN_MULTI_SEGMENT_LOSS,
+            loss=CONN_MULTI_SEG_LOSS,
         ),
     )
     return config.value_mode()

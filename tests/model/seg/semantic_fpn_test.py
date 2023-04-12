@@ -9,8 +9,8 @@ from torch import optim
 from tests.util import get_test_file
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.model.segment.semantic_fpn import SemanticFPN
-from vis4d.op.loss import SegmentCrossEntropyLoss
+from vis4d.model.seg.semantic_fpn import SemanticFPN
+from vis4d.op.loss import SegCrossEntropyLoss
 
 from .common import get_test_dataloader, get_train_dataloader
 
@@ -47,7 +47,7 @@ class SemanticFPNTest(unittest.TestCase):
     def test_train(self) -> None:
         """Test SemanticFPN training."""
         model = SemanticFPN(num_classes=21)
-        loss_fn = SegmentCrossEntropyLoss()
+        loss_fn = SegCrossEntropyLoss()
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         train_loader = get_train_dataloader(self.dataset, 2)
         model.train()
@@ -57,15 +57,15 @@ class SemanticFPNTest(unittest.TestCase):
         optimizer.zero_grad()
         out = model(batch[K.images])
         assert out.outputs.shape == (2, 21, 64, 64)
-        loss = loss_fn(out.outputs, batch[K.segmentation_masks])
-        assert "loss_segment" in loss
-        assert not torch.isnan(loss["loss_segment"])
+        loss = loss_fn(out.outputs, batch[K.seg_masks])
+        assert "loss_seg" in loss
+        assert not torch.isnan(loss["loss_seg"])
         total_loss = sum(loss.values())
         total_loss.backward()
         optimizer.step()
 
         out = model(batch[K.images])
         assert out.outputs.shape == (2, 21, 64, 64)
-        loss = loss_fn(out.outputs, batch[K.segmentation_masks])
-        assert "loss_segment" in loss
-        assert not torch.isnan(loss["loss_segment"])
+        loss = loss_fn(out.outputs, batch[K.seg_masks])
+        assert "loss_seg" in loss
+        assert not torch.isnan(loss["loss_seg"])

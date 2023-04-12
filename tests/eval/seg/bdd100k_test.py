@@ -16,7 +16,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.eval.segment.bdd100k import BDD100KSegEvaluator
+from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -30,7 +30,7 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 class TestBDD100KSegEvaluator(unittest.TestCase):
     """BDD100K segmentation evaluator testcase class."""
 
-    CONN_SEGMENT_TEST = {CK.images: CK.images}
+    CONN_SEG_TEST = {CK.images: CK.images}
 
     CONN_BDD100K_EVAL = {
         "data_names": data_key("name"),
@@ -59,7 +59,7 @@ class TestBDD100KSegEvaluator(unittest.TestCase):
         test_loader = get_dataloader(dataset, batch_size)
 
         data_connection_info = DataConnectionInfo(
-            test=self.CONN_SEGMENT_TEST,
+            test=self.CONN_SEG_TEST,
             callbacks={"bdd100k_eval_test": self.CONN_BDD100K_EVAL},
         )
 

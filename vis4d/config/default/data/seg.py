@@ -10,7 +10,7 @@ from vis4d.config.util import class_config
 from vis4d.data.transforms import RandomApply, compose, flip, normalize, resize
 
 
-def segment_augmentations() -> Iterable[ConfigDict]:
+def seg_augmentations() -> Iterable[ConfigDict]:
     """Returns the default image augmentations used for detection tasks.
 
     These augmentations consist of solely of left-right flipping the image and
@@ -19,20 +19,17 @@ def segment_augmentations() -> Iterable[ConfigDict]:
     Returns:
         list[ConfigDict]: List with all transformations encoded as ConfigDict.
     """
-    return (
-        class_config(flip.FlipImage),
-        class_config(flip.FlipSegmentationMasks),
-    )
+    return (class_config(flip.FlipImage), class_config(flip.FlipSegMasks))
 
 
-def segment_preprocessing(
+def seg_preprocessing(
     target_img_height: int | FieldReference,
     target_img_width: int | FieldReference,
     keep_ratio: bool | FieldReference,
     augment_probability: float | FieldReference,
-    augmentation_transforms: Iterable[ConfigDict] = segment_augmentations(),
+    augmentation_transforms: Iterable[ConfigDict] = seg_augmentations(),
 ) -> ConfigDict:
-    """Creates the default image preprocessing pipeling for a segment. tasks.
+    """Creates the default image preprocessing pipeling for segmentation tasks.
 
     The pipeline consists of the following:
     1. Scale image and masks to target size.
@@ -42,7 +39,7 @@ def segment_preprocessing(
     Use this in combination with a dataset config to create a dataloader.
 
     Example:
-    >>> preprocess_cfg = segment_preprocessing(480, 640, 0.5)
+    >>> preprocess_cfg = seg_preprocessing(480, 640, 0.5)
     >>> dataset_cfg = class_config("your.dataset.Dataset", root = "data/set/")
     >>> dataloader = get_dataloader_config(preprocess_cfg, dataset_cfg)
 
@@ -69,7 +66,7 @@ def segment_preprocessing(
             keep_ratio=keep_ratio,
         ),
         class_config(resize.ResizeImage),
-        class_config(resize.ResizeSegmentationMasks),
+        class_config(resize.ResizeSegMasks),
         class_config(
             RandomApply,
             transforms=augmentation_transforms,

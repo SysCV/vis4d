@@ -138,9 +138,9 @@ class DataLoaderTest(unittest.TestCase):
     def test_default_collate(self) -> None:
         """Test the default collate."""
         t1, t2 = torch.rand(2, 3), torch.rand(2, 3)
-        data = [{K.segmentation_masks: t1}, {K.segmentation_masks: t2}]
+        data = [{K.seg_masks: t1}, {K.seg_masks: t2}]
         col_data = default_collate(data)
-        assert (col_data[K.segmentation_masks] == torch.stack([t1, t2])).all()
+        assert (col_data[K.seg_masks] == torch.stack([t1, t2])).all()
 
         col_data = default_collate([{"name": ["a"]}, {"name": ["b"]}])
         assert col_data["name"] == [["a"], ["b"]]
@@ -148,8 +148,8 @@ class DataLoaderTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             default_collate(
                 [
-                    {K.segmentation_masks: torch.rand(1, 3)},
-                    {K.segmentation_masks: torch.rand(2, 3)},
+                    {K.seg_masks: torch.rand(1, 3)},
+                    {K.seg_masks: torch.rand(2, 3)},
                 ]
             )
 
@@ -169,7 +169,7 @@ def test_segment_train_loader() -> None:
             resize.ResizeImage(),
             resize.ResizeInstanceMasks(),
             normalize.NormalizeImage(),
-            mask.ConvertInstanceMaskToSegmentationMask(),
+            mask.ConvertInstanceMaskToSegMask(),
         ]
     )
     batchprocess_fn = compose_batch([to_tensor.ToTensor()])
@@ -180,17 +180,17 @@ def test_segment_train_loader() -> None:
 
     for sample in train_loader:
         images = sample[K.images]
-        segmentation_masks = sample[K.segmentation_masks]
+        seg_masks = sample[K.seg_masks]
 
         assert isinstance(images, torch.Tensor)
-        assert isinstance(segmentation_masks, torch.Tensor)
+        assert isinstance(seg_masks, torch.Tensor)
         assert images.size(0) == 2
-        assert segmentation_masks.size(0) == 2
-        assert segmentation_masks.shape[-2:] == images.shape[-2:]
-        assert segmentation_masks.min() >= 0
-        assert segmentation_masks[segmentation_masks != 255].max() <= 20
+        assert seg_masks.size(0) == 2
+        assert seg_masks.shape[-2:] == images.shape[-2:]
+        assert seg_masks.min() >= 0
+        assert seg_masks[seg_masks != 255].max() <= 20
         assert images.shape == torch.Size([2, 3, 520, 520])
-        assert segmentation_masks.shape == torch.Size([2, 520, 520])
+        assert seg_masks.shape == torch.Size([2, 520, 520])
         break
 
 
@@ -206,7 +206,7 @@ def test_segment_inference_loader() -> None:
     preprocess_fn = compose(
         [
             normalize.NormalizeImage(),
-            mask.ConvertInstanceMaskToSegmentationMask(),
+            mask.ConvertInstanceMaskToSegMask(),
         ]
     )
     batchprocess_fn = compose_batch([to_tensor.ToTensor()])
@@ -217,17 +217,17 @@ def test_segment_inference_loader() -> None:
 
     for sample in test_loader[0]:
         images = sample[K.images]
-        segmentation_masks = sample[K.segmentation_masks]
+        seg_masks = sample[K.seg_masks]
 
         assert isinstance(images, torch.Tensor)
-        assert isinstance(segmentation_masks, torch.Tensor)
+        assert isinstance(seg_masks, torch.Tensor)
         assert batch_size == images.size(0)
-        assert batch_size == segmentation_masks.size(0)
-        assert segmentation_masks.shape[-2:] == images.shape[-2:]
-        assert segmentation_masks.min() >= 0
-        assert segmentation_masks[segmentation_masks != 255].max() <= 20
+        assert batch_size == seg_masks.size(0)
+        assert seg_masks.shape[-2:] == images.shape[-2:]
+        assert seg_masks.min() >= 0
+        assert seg_masks[seg_masks != 255].max() <= 20
         assert images.shape == torch.Size([1, 3, 230, 352])
-        assert segmentation_masks.shape == torch.Size([1, 230, 352])
+        assert seg_masks.shape == torch.Size([1, 230, 352])
         break
 
 

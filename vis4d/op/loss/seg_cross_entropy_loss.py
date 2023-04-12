@@ -1,4 +1,4 @@
-"""Segment cross entropy loss."""
+"""Segmentation cross entropy loss."""
 from __future__ import annotations
 
 import torch
@@ -10,8 +10,8 @@ from .base import Loss
 from .reducer import LossReducer, mean_loss
 
 
-class SegmentCrossEntropyLoss(Loss):
-    """Segment cross entropy loss class.
+class SegCrossEntropyLoss(Loss):
+    """Segmentation cross entropy loss class.
 
     Wrapper for nn.CrossEntropyLoss that additionally clips the output to the
     target size and converts the target mask tensor to long.
@@ -39,16 +39,14 @@ class SegmentCrossEntropyLoss(Loss):
             LossesType: Computed loss.
         """
         losses: LossesType = {}
-        losses["loss_segment"] = self.reducer(
-            segment_cross_entropy(output, target)
-        )
+        losses["loss_seg"] = self.reducer(seg_cross_entropy(output, target))
         return losses
 
 
-def segment_cross_entropy(
+def seg_cross_entropy(
     output: torch.Tensor, target: torch.Tensor
 ) -> torch.Tensor:
-    """Segment cross entropy loss function.
+    """Segmentation cross entropy loss function.
 
     Args:
         output (torch.Tensor): Model output.

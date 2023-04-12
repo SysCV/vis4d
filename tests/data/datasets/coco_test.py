@@ -130,7 +130,7 @@ class COCOSegTest(unittest.TestCase):
             K.boxes2d,
             K.boxes2d_classes,
             K.instance_masks,
-            K.segmentation_masks,
+            K.seg_masks,
         ),
         remove_empty=True,
         minimum_box_area=10,
@@ -153,7 +153,7 @@ class COCOSegTest(unittest.TestCase):
             "boxes2d",
             "boxes2d_classes",
             "instance_masks",
-            "segmentation_masks",
+            "seg_masks",
         )
 
         self.assertEqual(item[K.input_hw], [230, 352])
@@ -163,7 +163,7 @@ class COCOSegTest(unittest.TestCase):
         self.assertEqual(len(item[K.boxes2d]), 5)
         self.assertEqual(len(item[K.boxes2d_classes]), 5)
         self.assertEqual(len(item[K.instance_masks]), 5)
-        self.assertEqual(item[K.segmentation_masks].shape, (1, 230, 352))
+        self.assertEqual(item[K.seg_masks].shape, (1, 230, 352))
 
         assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
@@ -171,7 +171,7 @@ class COCOSegTest(unittest.TestCase):
             IMAGE_VALUES,
         )
         assert isclose_on_all_indices_tensor(
-            item[K.segmentation_masks].reshape(-1),
+            item[K.seg_masks].reshape(-1),
             SEMANTIC_MASK_INDICES,
             SEMANTIC_MASK_VALUES,
         )

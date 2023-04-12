@@ -6,22 +6,22 @@ CONN_MASKS_TRAIN = {K.images: K.images}
 
 CONN_MASKS_TEST = {K.images: K.images, "original_hw": "original_hw"}
 
-CONN_SEGMENT_LOSS = {
+CONN_SEG_LOSS = {
     "output": pred_key("outputs"),
-    "target": data_key(K.segmentation_masks),
+    "target": data_key(K.seg_masks),
 }
 
-CONN_MULTI_SEGMENT_LOSS = {
+CONN_MULTI_SEG_LOSS = {
     "outputs": pred_key("outputs"),
-    "target": data_key(K.segmentation_masks),
+    "target": data_key(K.seg_masks),
 }
 
-CONN_SEGMENT_EVAL = {
+CONN_SEG_EVAL = {
     "prediction": pred_key("masks"),
-    "groundtruth": data_key(K.segmentation_masks),
+    "groundtruth": data_key(K.seg_masks),
 }
 
-CONN_BDD100K_SEGMENT_EVAL = {
+CONN_BDD100K_SEG_EVAL = {
     "data_names": data_key("name"),
     "masks_list": pred_key("masks"),
 }

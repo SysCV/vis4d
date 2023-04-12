@@ -9,10 +9,10 @@ from vis4d.common.typing import LossesType
 
 from .base import Loss
 from .reducer import LossReducer, mean_loss
-from .segment_cross_entropy_loss import segment_cross_entropy
+from .seg_cross_entropy_loss import seg_cross_entropy
 
 
-class MultiLevelSegmentLoss(Loss):
+class MultiLevelSegLoss(Loss):
     """Multi-level segmentation loss class.
 
     Applies the segmentation loss function to multiple levels of predictions to
@@ -26,7 +26,7 @@ class MultiLevelSegmentLoss(Loss):
         feature_idx: tuple[int, ...] = (0,),
         loss_fn: Callable[
             [torch.Tensor, torch.Tensor], torch.Tensor
-        ] = segment_cross_entropy,
+        ] = seg_cross_entropy,
         weights: list[float] | None = None,
     ) -> None:
         """Creates an instance of the class.
@@ -37,7 +37,7 @@ class MultiLevelSegmentLoss(Loss):
             feature_idx (tuple[int]): Indices for the level of features to
                 compute losses. Defaults to (0,).
             loss_fn (Callable, optional): Loss function that computes between
-                predictions and targets. Defaults to segment_cross_entropy.
+                predictions and targets. Defaults to seg_cross_entropy.
             weights (list[float], optional): The weights of each feature level.
                 If None passes, it will set to 1 for all levels. Defaults to
                     None.
@@ -65,6 +65,6 @@ class MultiLevelSegmentLoss(Loss):
         losses: LossesType = {}
         for i, idx in enumerate(self.feature_idx):
             loss = self.reducer(self.loss_fn(outputs[idx], target))
-            losses[f"loss_level{idx}"] = self.weights[i] * loss
+            losses[f"loss_seg_level{idx}"] = self.weights[i] * loss
 
         return losses

@@ -331,12 +331,12 @@ class Scalabel(Dataset, CacheMappingMixin):
             )
             data[K.instance_masks] = instance_masks
 
-        if K.segmentation_masks in self.keys_to_load:
-            sem_map = self.cats_name2id[K.segmentation_masks]
+        if K.seg_masks in self.keys_to_load:
+            sem_map = self.cats_name2id[K.seg_masks]
             semantic_masks = semantic_masks_from_scalabel(
                 labels_used, sem_map, image_size, self.bg_as_class
             )
-            data[K.segmentation_masks] = semantic_masks
+            data[K.seg_masks] = semantic_masks
 
         if K.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(

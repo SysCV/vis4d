@@ -50,7 +50,7 @@ class CommonKeys:
         shape [N,].
     instance_masks (NDArrayUI8): Instance segmentation masks of shape
         [N, H, W].
-    segmentation_masks (NDArrayUI8): Semantic segmentation masks [H, W].
+    seg_masks (NDArrayUI8): Semantic segmentation masks [H, W].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
@@ -81,7 +81,7 @@ class CommonKeys:
     boxes2d_classes = "boxes2d_classes"
     boxes2d_track_ids = "boxes2d_track_ids"
     instance_masks = "instance_masks"
-    segmentation_masks = "segmentation_masks"
+    seg_masks = "seg_masks"
     depth_maps = "depth_maps"
     optical_flows = "optical_flows"
 

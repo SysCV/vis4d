@@ -1,4 +1,4 @@
-"""Common functionality for segment tests."""
+"""Common functionality for seg tests."""
 from vis4d.data.loader import (
     _DATALOADER,
     _DATASET,
@@ -18,7 +18,7 @@ def get_train_dataloader(datasets: _DATASET, batch_size: int) -> _DATALOADER:
             resize.ResizeImage(),
             resize.ResizeInstanceMasks(),
             normalize.NormalizeImage(),
-            mask.ConvertInstanceMaskToSegmentationMask(),
+            mask.ConvertInstanceMaskToSegMask(),
         ]
     )
     datapipe = DataPipe(datasets, preprocess_fn)

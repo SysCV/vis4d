@@ -14,7 +14,7 @@ from vis4d.data.transforms.flip import (
     FlipImage,
     FlipIntrinsics,
     FlipPoints3D,
-    FlipSegmentationMasks,
+    FlipSegMasks,
 )
 from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
@@ -56,16 +56,16 @@ class TestFlip(unittest.TestCase):
         assert (boxes_tr[:, 0::2] == boxes[:, 0::2]).all()
         assert (boxes_tr[:, 1::2] == np.flip(16 - boxes[:, 1::2], 1)).all()
 
-    def test_flip_segmentation_masks(self):
-        """Test the FlipSegmentationMasks transform."""
+    def test_flip_seg_masks(self):
+        """Test the FlipSegMasks transform."""
         image = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])
-        flipper = FlipSegmentationMasks(direction="horizontal")
+        flipper = FlipSegMasks(direction="horizontal")
         flipped_image = flipper(image)
         assert np.all(
             flipped_image == np.array([[2, 1, 0], [5, 4, 3], [8, 7, 6]])
         )
 
-        flipper = FlipSegmentationMasks(direction="vertical")
+        flipper = FlipSegMasks(direction="vertical")
         flipped_image = flipper(image)
         assert np.all(
             flipped_image == np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
@@ -140,7 +140,7 @@ class TestFlip(unittest.TestCase):
                 np.random.rand(16, 4), np.random.rand(1, 16, 16, 3)
             )
         with self.assertRaises(ValueError):
-            FlipSegmentationMasks(direction="wrong")(np.random.rand(16, 16))
+            FlipSegMasks(direction="wrong")(np.random.rand(16, 16))
         with self.assertRaises(ValueError):
             FlipBoxes3D(direction="wrong")(
                 np.random.rand(16, 10), AxisMode.OPENCV

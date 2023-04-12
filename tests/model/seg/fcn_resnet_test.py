@@ -10,8 +10,8 @@ from tests.util import get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.model.segment.fcn_resnet import REV_KEYS, FCNResNet
-from vis4d.op.loss import MultiLevelSegmentLoss
+from vis4d.model.seg.fcn_resnet import REV_KEYS, FCNResNet
+from vis4d.op.loss import MultiLevelSegLoss
 
 from .common import get_test_dataloader, get_train_dataloader
 
@@ -47,7 +47,7 @@ class FCNResNetTest(unittest.TestCase):
     def test_train(self) -> None:
         """Test FCNResNet training."""
         model = FCNResNet(base_model="resnet50", resize=(64, 64))
-        loss_fn = MultiLevelSegmentLoss(feature_idx=(4, 5), weights=[0.5, 1])
+        loss_fn = MultiLevelSegLoss(feature_idx=(4, 5), weights=[0.5, 1])
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         dataset = COCO(
             get_test_file("coco_test"),
@@ -63,8 +63,8 @@ class FCNResNetTest(unittest.TestCase):
         optimizer.zero_grad()
         out = model(batch[K.images])
         assert out.pred.shape == (2, 21, 64, 64)
-        loss = loss_fn(out.outputs, batch[K.segmentation_masks])
-        assert "loss_level4" in loss and "loss_level5" in loss
+        loss = loss_fn(out.outputs, batch[K.seg_masks])
+        assert "loss_seg_level4" in loss and "loss_seg_level5" in loss
         total_loss = sum(loss.values())
         assert not torch.isnan(total_loss)
         total_loss.backward()
@@ -72,6 +72,6 @@ class FCNResNetTest(unittest.TestCase):
 
         out = model(batch[K.images])
         assert out.pred.shape == (2, 21, 64, 64)
-        loss = loss_fn(out.outputs, batch[K.segmentation_masks])
-        assert "loss_level4" in loss and "loss_level5" in loss
+        loss = loss_fn(out.outputs, batch[K.seg_masks])
+        assert "loss_seg_level4" in loss and "loss_seg_level5" in loss
         assert not torch.isnan(sum(loss.values()))

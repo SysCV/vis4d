@@ -15,7 +15,7 @@ from vis4d.data.transforms import normalize, resize
 from vis4d.data.transforms.base import compose
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.test import Tester
-from vis4d.model.segment.semantic_fpn import SemanticFPN
+from vis4d.model.seg.semantic_fpn import SemanticFPN
 
 
 def get_test_dataloader(datasets: Dataset) -> DataLoader:
