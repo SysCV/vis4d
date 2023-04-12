@@ -13,7 +13,7 @@ from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.model.track.qdtrack import FasterRCNNQDTrack, TrackOut, REV_KEYS
+from vis4d.model.track.qdtrack import REV_KEYS, FasterRCNNQDTrack, TrackOut
 
 
 class QDTrackTest(unittest.TestCase):
