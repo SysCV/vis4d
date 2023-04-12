@@ -9,6 +9,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.detect.retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
+from vis4d.op.detect.retinanet import get_default_box_codec
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 
@@ -58,9 +59,12 @@ class RetinaNetTest(unittest.TestCase):
     def test_train(self) -> None:
         """Test RetinaNet training."""
         retina_net = RetinaNet(num_classes=80)
+
+        box_encoder, _ = get_default_box_codec()
+
         retinanet_loss = RetinaNetLoss(
             retina_net.retinanet_head.anchor_generator,
-            retina_net.retinanet_head.box_encoder,
+            box_encoder,
             retina_net.retinanet_head.box_matcher,
             retina_net.retinanet_head.box_sampler,
         )

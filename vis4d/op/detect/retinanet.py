@@ -40,10 +40,17 @@ def get_default_anchor_generator() -> AnchorGenerator:
     )
 
 
-def get_default_box_decoder() -> DeltaXYWHBBoxDecoder:
+def get_default_box_codec() -> (
+    tuple[DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder]
+):
     """Get the default bounding box encoder."""
-    return DeltaXYWHBBoxDecoder(
-        target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
+    return (
+        DeltaXYWHBBoxEncoder(
+            target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
+        ),
+        DeltaXYWHBBoxDecoder(
+            target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
+        ),
     )
 
 
@@ -83,11 +90,10 @@ class RetinaNetHead(nn.Module):  # TODO: Refactor to use the new API
             if anchor_generator is not None
             else get_default_anchor_generator()
         )
-        self.box_decoder = (
-            box_decoder
-            if box_decoder is not None
-            else get_default_box_decoder()
-        )
+        if box_decoder is None:
+            _, self.box_decoder = get_default_box_codec()
+        else:
+            self.box_decoder = box_decoder
         self.box_matcher = (
             box_matcher
             if box_matcher is not None

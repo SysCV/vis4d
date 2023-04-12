@@ -2,7 +2,7 @@
 import torch
 
 from tests.util import generate_boxes, generate_features
-from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.rcnn import Det2Mask, MaskRCNNHead, RCNNHead, RoI2Det
 
 
@@ -39,7 +39,7 @@ def test_roi2det():
     # default setup
     batch_size, num_classes, num_boxes = 2, 5, 10
     max_h, max_w = 256, 512
-    roi2det = RoI2Det(DeltaXYWHBBoxEncoder())
+    roi2det = RoI2Det(DeltaXYWHBBoxDecoder())
     boxes, _, _, _ = generate_boxes(max_h, max_w, num_boxes, batch_size)
     boxes, scores, class_ids = roi2det(
         torch.rand(batch_size * num_boxes, num_classes),

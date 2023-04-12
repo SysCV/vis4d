@@ -45,7 +45,6 @@ REV_KEYS = [
     (r"^conv_logits\.", "mask_head.conv_logits."),
     (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
     (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
-    (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),

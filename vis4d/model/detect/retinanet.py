@@ -22,7 +22,6 @@ from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
 
 REV_KEYS = [
     (r"^bbox_head\.", "retinanet_head."),
-    (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6_conv."),

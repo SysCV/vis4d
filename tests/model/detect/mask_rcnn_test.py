@@ -20,8 +20,9 @@ from vis4d.op.detect.rcnn import (
     RCNNLoss,
     SampledMaskLoss,
     positive_mask_sampler,
+    get_default_rcnn_box_codec,
 )
-from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rpn import RPNLoss, get_default_rpn_box_codec
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 
@@ -83,12 +84,17 @@ class MaskRCNNTest(unittest.TestCase):
         """Test Mask RCNN training."""
         mask_rcnn = MaskRCNN(num_classes=80)
 
+        rpn_box_encoder, _ = get_default_rpn_box_codec()
         rpn_loss = RPNLoss(
-            mask_rcnn.faster_rcnn_heads.anchor_generator,
-            mask_rcnn.faster_rcnn_heads.rpn_box_encoder,
+            mask_rcnn.faster_rcnn_heads.rpn2roi.anchor_generator,
+            rpn_box_encoder,
         )
-        rcnn_loss = RCNNLoss(mask_rcnn.faster_rcnn_heads.rcnn_box_encoder)
+
+        rcnn_box_encoder, _ = get_default_rcnn_box_codec()
+        rcnn_loss = RCNNLoss(rcnn_box_encoder)
+
         mask_loss = SampledMaskLoss(positive_mask_sampler, MaskRCNNHeadLoss())
+
         mask_rcnn_loss = WeightedMultiLoss(
             [
                 {"loss": rpn_loss, "weight": 1.0},
