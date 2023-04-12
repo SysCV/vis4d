@@ -63,7 +63,7 @@ def main(argv) -> None:  # type:ignore
                 experiment_config,
                 method=sweep_config.method,
                 sampling_args=sweep_config.sampling_args,
-                fstring=sweep_config.get("postfix", ""),
+                fstring=sweep_config.get("suffix", ""),
             )
         ):
             rank_zero_info(

@@ -254,5 +254,5 @@ def get_sweep() -> ConfigDict:
     sweep_config = linear_grid_search("params.lr", 0.001, 0.01, 3)
 
     # Here we update the name of the experiment to include the learning rate.
-    sweep_config.postfix = "lr_{params.lr:.3f}_"
+    sweep_config.suffix = "lr_{params.lr:.3f}_"
     return sweep_config
