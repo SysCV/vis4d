@@ -41,7 +41,7 @@ def get_default_anchor_generator() -> AnchorGenerator:
 
 
 def get_default_box_codec() -> (
-    tuple[DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder]
+    tuple[DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder]
 ):
     """Get the default bounding box encoder."""
     return (

@@ -13,7 +13,7 @@ from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.model.track.qdtrack import FasterRCNNQDTrack, TrackOut
+from vis4d.model.track.qdtrack import FasterRCNNQDTrack, TrackOut, REV_KEYS
 
 
 class QDTrackTest(unittest.TestCase):
@@ -31,7 +31,7 @@ class QDTrackTest(unittest.TestCase):
             >>> pytest tests/model/track/qdtrack_test.py::QDTrackTest::test_inference
         """
         qdtrack = FasterRCNNQDTrack(num_classes=8)
-        load_model_checkpoint(qdtrack, self.model_weights)
+        load_model_checkpoint(qdtrack, self.model_weights, rev_keys=REV_KEYS)
         qdtrack.eval()
 
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
