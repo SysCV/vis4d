@@ -19,8 +19,8 @@ from vis4d.op.detect.rcnn import (
     MaskRCNNHeadLoss,
     RCNNLoss,
     SampledMaskLoss,
-    positive_mask_sampler,
     get_default_rcnn_box_codec,
+    positive_mask_sampler,
 )
 from vis4d.op.detect.rpn import RPNLoss, get_default_rpn_box_codec
 
