@@ -17,18 +17,18 @@ python3 -m pip install .
 - To train a model, e.g. Faster-RCNN on COCO
 ```bash
 # vis4d.engine
-python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 - To test a model
 ```bash
 # vis4d.engine
-python -m vis4d.engine.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d.engine.cli test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl.cli test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 ## DDP
@@ -39,7 +39,7 @@ python -m vis4d.pl.cli --mode test --config configs/faster_rcnn/faster_rcnn_coco
 ./scripts/dist_train.sh <config-file> <num-gpus>
 
 # vis4d.pl
-python -m vis4d.pl.cli --config <config-file> --gpus <num-gpus>
+python -m vis4d.pl.cli fit --config <config-file> --gpus <num-gpus>
 ```
 
 - SLURM batch job. Need to config the submission file.
@@ -48,7 +48,7 @@ python -m vis4d.pl.cli --config <config-file> --gpus <num-gpus>
 sbatch scripts/slurm_train.sh
 
 # vis4d.pl
-srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli \
+srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli fit \
     --config <config-file> --gpus <num-gpus>
 ```
 
@@ -59,7 +59,7 @@ srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli \
 ./scripts/dist_test.sh <config-file> <num-gpus>
 
 # vis4d.pl
-python -m vis4d.pl.cli --mode test --config <config-file> --gpus <num-gpus>
+python -m vis4d.pl.cli test --config <config-file> --gpus <num-gpus>
 ```
 
 - SLURM batch job. Need to config the submission file.
@@ -68,7 +68,7 @@ python -m vis4d.pl.cli --mode test --config <config-file> --gpus <num-gpus>
 sbatch scripts/slurm_test.sh
 
 # vis4d.pl
-srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli --mode test \
+srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.cli test \
     --config <config-file> --gpus <num-gpus>
 ```
 
