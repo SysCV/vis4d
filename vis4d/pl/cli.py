@@ -101,7 +101,7 @@ def run_single_experiment(
     num_gpus: int = 0,
     show_config: bool = False,
     visualize: bool = False,
-    ckpt_path: str = None,
+    ckpt_path: str | None = None,
     resume: bool = False,
 ) -> None:
     """Entry point for running a single experiment.
