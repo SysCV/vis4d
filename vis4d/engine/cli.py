@@ -9,6 +9,7 @@ To run a parameter sweep:
 from __future__ import annotations
 
 from absl import app, flags
+from torch.distributed import destroy_process_group
 
 from vis4d.common.imports import SUBMITIT_AVAILABLE
 from vis4d.common.logging import rank_zero_info
@@ -87,6 +88,9 @@ def main(argv) -> None:  # type:ignore
             _SHOW_CONFIG.value,
             _SLURM.value or _SLURM_EXECUTOR.value is not None,
         )
+
+    if _GPUS.value > 1:
+        destroy_process_group()
 
 
 def run_single_experiment(
