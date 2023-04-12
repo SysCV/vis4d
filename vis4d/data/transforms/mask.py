@@ -11,9 +11,9 @@ from .base import Transform
 
 @Transform(
     in_keys=(K.boxes2d_classes, K.instance_masks),
-    out_keys=(K.segmentation_masks,),
+    out_keys=(K.seg_masks,),
 )
-class ConvertInstanceMaskToSegmentationMask:
+class ConvertInstanceMaskToSegMask:
     """Merge all instance masks into a single segmentation map."""
 
     def __call__(self, classes: NDArrayI32, masks: NDArrayUI8) -> NDArrayUI8:

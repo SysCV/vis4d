@@ -35,3 +35,9 @@ class TestDictUtils(unittest.TestCase):
         d = {"a": {"b": {"c": 10, "d": 20}}}
         self.assertEqual(get_dict_nested(d, ["a", "b", "c"]), 10)
         self.assertEqual(get_dict_nested(d, ["a", "b", "d"]), 20)
+
+    def test_wrong_key(self):
+        """Tests the get_dict_nested function with a wrong key."""
+        d = {"a": {"b": {"c": 10}}}
+        with self.assertRaises(ValueError):
+            get_dict_nested(d, "e")

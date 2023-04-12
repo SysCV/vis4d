@@ -6,9 +6,9 @@ from typing import overload
 import torch
 import torch.nn as nn
 
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import LossesType, ModelOutput
 from vis4d.data.const import CommonKeys
-from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.pointnetpp import (
     PointNet2Segmentation,
     PointNet2SegmentationOut,

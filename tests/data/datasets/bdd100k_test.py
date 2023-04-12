@@ -20,6 +20,8 @@ IMAGE_VALUES = torch.tensor(
 )
 INSTANCE_MASK_INDICES = torch.tensor([0, 1, 406208, 1382400, 3173655])
 INSTANCE_MASK_VALUES = torch.tensor([0, 0, 1, 0, 1]).byte()
+SEMANTIC_MASK_INDICES = torch.tensor([10, 1000, 10000, 500000])
+SEMANTIC_MASK_VALUES = torch.tensor([10, 255, 2, 0]).byte()
 
 
 class BDD100KDetTest(unittest.TestCase):
@@ -95,6 +97,15 @@ class BDD100KDetTest(unittest.TestCase):
             item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
+
+    def test_mapping(self):
+        """Test if mapping is generated correctly."""
+        data = (
+            self.dataset._generate_mapping()  # pylint: disable=protected-access,line-too-long
+        )
+        assert len(data.frames) == 1
+        assert len(data.config.categories) == 5
+        assert len(data.frames[0].labels) == 10
 
 
 class BDD100KInsSegTest(unittest.TestCase):
@@ -178,3 +189,74 @@ class BDD100KInsSegTest(unittest.TestCase):
             item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
+
+
+class BDD100KSemSegTest(unittest.TestCase):
+    """Test BDD100K dataloading."""
+
+    bdd_root = get_test_data("bdd100k_test")
+    data_root = os.path.join(bdd_root, "segment/images")
+    annotations = os.path.join(bdd_root, "segment/labels/annotation.json")
+    config_path = "sem_seg"
+
+    dataset = BDD100K(
+        data_root,
+        annotations,
+        keys_to_load=(K.images, K.seg_masks),
+        config_path=config_path,
+        global_instance_ids=True,
+    )
+
+    def test_len(self) -> None:
+        """Test if len of dataset correct."""
+        self.assertEqual(len(self.dataset), 2)
+
+    def test_sample(self) -> None:
+        """Test if sample loaded correctly."""
+        item = self.dataset[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
+        self.assertEqual(
+            tuple(item.keys()),
+            (
+                "images",
+                "original_hw",
+                "input_hw",
+                "axis_mode",
+                "frame_ids",
+                "name",
+                "videoName",
+                "seg_masks",
+            ),
+        )
+
+        self.assertEqual(item[K.seg_masks].shape, (720, 1280))
+        self.assertEqual(item["original_hw"], (720, 1280))
+        self.assertEqual(item["input_hw"], (720, 1280))
+        self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
+        self.assertEqual(item["videoName"], None)
+
+        assert isclose_on_all_indices_tensor(
+            item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
+            IMAGE_INDICES,
+            IMAGE_VALUES,
+        )
+        assert isclose_on_all_indices_tensor(
+            item[K.seg_masks].reshape(-1),
+            SEMANTIC_MASK_INDICES,
+            SEMANTIC_MASK_VALUES,
+        )
+
+    def test_bg_as_class(self):
+        """Test if background class is added."""
+        dataset = BDD100K(
+            self.data_root,
+            self.annotations,
+            keys_to_load=(K.images, K.seg_masks),
+            category_map={"car": 0, "person": 1, "background": 2},
+            global_instance_ids=True,
+            bg_as_class=True,
+        )
+        item = dataset[0]
+        item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
+        assert 2 in item["seg_masks"].unique()
+        assert 255 not in item["seg_masks"].unique()

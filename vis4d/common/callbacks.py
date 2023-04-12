@@ -148,7 +148,7 @@ class EvaluatorCallback(Callback):
         self.evaluator.gather(all_gather_object_cpu)
         if get_rank() == 0:
             log_dict = self.evaluate()
-        else:
+        else:  # pragma: no cover
             log_dict = None
         log_dict = broadcast(log_dict)
         self.evaluator.reset()

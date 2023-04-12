@@ -45,7 +45,7 @@ class ResNet(BaseModel):
         )
 
         # select layers that wont be frozen
-        if trainable_layers < 0 or trainable_layers > 5:
+        if trainable_layers < 0 or trainable_layers > 5:  # pragma: no cover
             raise ValueError(
                 f"Trainable layers should be in the range [0,5], "
                 f"got {trainable_layers}"

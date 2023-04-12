@@ -143,7 +143,7 @@ class COCO(Dataset, CacheMappingMixin):
         K.boxes2d,
         K.boxes2d_classes,
         K.instance_masks,
-        K.segmentation_masks,
+        K.seg_masks,
     ]
 
     def __init__(
@@ -193,7 +193,7 @@ class COCO(Dataset, CacheMappingMixin):
             K.boxes2d_classes in keys_to_load
         )
         self.with_masks = K.instance_masks in keys_to_load
-        self.with_sem_masks = K.segmentation_masks in keys_to_load
+        self.with_sem_masks = K.seg_masks in keys_to_load
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -319,6 +319,6 @@ class COCO(Dataset, CacheMappingMixin):
                 ).max(axis=0)
                 seg_masks = seg_masks.astype(np.int64)
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
-                dict_data[K.segmentation_masks] = seg_masks[None]
+                dict_data[K.seg_masks] = seg_masks[None]
 
         return dict_data

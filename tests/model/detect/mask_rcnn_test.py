@@ -5,9 +5,9 @@ import torch
 from torch import optim
 
 from tests.util import get_test_data, get_test_file
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.model.detect.mask_rcnn import (
     REV_KEYS,

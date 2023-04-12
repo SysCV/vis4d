@@ -1,13 +1,12 @@
-"""Testcases for NuScenes evaluator."""
+"""Testcases for BDD100K tracking evaluator."""
 from __future__ import annotations
 
 import os.path as osp
 import unittest
 
-import torch
 from torch.utils.data import DataLoader, Dataset
 
-from tests.util import get_test_data
+from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
@@ -17,7 +16,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.eval.track.bdd100k import BDD100KEvaluator
+from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -28,7 +27,7 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )[0]
 
 
-class TestBDD100KEvaluator(unittest.TestCase):
+class TestBDD100KTrackingEvaluator(unittest.TestCase):
     """BDD100K tracking evaluator testcase class."""
 
     CONN_BBOX_2D_TEST = {
@@ -49,13 +48,15 @@ class TestBDD100KEvaluator(unittest.TestCase):
 
     def test_bdd_eval(self) -> None:
         """Testcase for BDD100K evaluation."""
-        batch_size = 2
+        batch_size = 1
 
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
 
-        scalabel_eval = BDD100KEvaluator(annotation_path=annotations)
+        scalabel_eval = BDD100KTrackingEvaluator(annotation_path=annotations)
+        assert str(scalabel_eval) == "BDD100K Tracking Evaluator"
+        assert scalabel_eval.metrics == ["track"]
 
         # test gt
         dataset = BDD100K(
@@ -72,16 +73,21 @@ class TestBDD100KEvaluator(unittest.TestCase):
 
         data_connector = StaticDataConnector(connections=data_connection_info)
 
+        boxes, scores, classes, track_ids = generate_boxes(
+            720, 1280, 4, batch_size, True
+        )
         output = {
-            "boxes": [torch.zeros(batch_size, 4)],
-            "class_ids": [torch.zeros(batch_size)],
-            "scores": [torch.zeros(batch_size)],
-            "track_ids": [torch.zeros(batch_size)],
+            "boxes": boxes,
+            "scores": scores,
+            "class_ids": classes,
+            "track_ids": track_ids,
         }
 
-        batch = next(iter(test_loader))
-        clbk_kwargs = data_connector.get_callback_input(
-            "bdd100k_eval", output, batch, "test"
-        )
+        for batch in test_loader:
+            clbk_kwargs = data_connector.get_callback_input(
+                "bdd100k_eval", output, batch, "test"
+            )
+            scalabel_eval.process(**clbk_kwargs)
 
-        scalabel_eval.process(**clbk_kwargs)
+        _, log_str = scalabel_eval.evaluate("track")
+        assert log_str.count("\n") == 18

@@ -130,7 +130,7 @@ def prepare_labels(
     """Add category id and instance id to labels, return class frequencies."""
     instance_ids: dict[str, list[str]] = defaultdict(list)
     for frame_id, ann in enumerate(frames):
-        if ann.labels is None:
+        if ann.labels is None:  # pragma: no cover
             continue
 
         for label in ann.labels:
@@ -171,13 +171,10 @@ class Scalabel(Dataset, CacheMappingMixin):
         self,
         data_root: str,
         annotation_path: str,
-        keys_to_load: Sequence[str] = (
-            K.images,
-            K.boxes2d,
-        ),
+        keys_to_load: Sequence[str] = (K.images, K.boxes2d),
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
-        config_path: None | str = None,
+        config_path: None | str | Config = None,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
     ) -> None:
@@ -194,9 +191,9 @@ class Scalabel(Dataset, CacheMappingMixin):
                 Scalabel category string to an integer index. If None, the
                 standard mapping in the dataset config will be used. Defaults
                 to None.
-            config_path (None | str, optional): Path to the dataset config, can
-                be added if it is not provided together with the labels or
-                should be modified. Defaults to None.
+            config_path (None | str | Config, optional): Path to the dataset
+                config, can be added if it is not provided together with the
+                labels or should be modified. Defaults to None.
             global_instance_ids (bool): Whether to convert tracking IDs of
                 annotations into dataset global IDs or stay with local,
                 per-video IDs. Defaults to false.
@@ -204,6 +201,7 @@ class Scalabel(Dataset, CacheMappingMixin):
                 additional class for masks.
         """
         super().__init__()
+        assert SCALABEL_AVAILABLE, "Scalabel is not installed."
         self.data_root = data_root
         self.annotation_path = annotation_path
         self.keys_to_load = keys_to_load
@@ -265,7 +263,10 @@ class Scalabel(Dataset, CacheMappingMixin):
         """Generate data mapping."""
         data = load(self.annotation_path)
         if self.config_path is not None:
-            data.config = load_label_config(self.config_path)
+            if isinstance(self.config_path, str):
+                data.config = load_label_config(self.config_path)
+            else:
+                data.config = self.config_path
         return data
 
     def _load_inputs(self, frame: Frame) -> DictData:
@@ -326,19 +327,16 @@ class Scalabel(Dataset, CacheMappingMixin):
             # NOTE: instance masks' mapping is consistent with boxes2d
             cats_name2id = self.cats_name2id[K.instance_masks]
             instance_masks = instance_masks_from_scalabel(
-                labels_used,
-                cats_name2id,
-                image_size=image_size,
-                bg_as_class=self.bg_as_class,
+                labels_used, cats_name2id, image_size
             )
             data[K.instance_masks] = instance_masks
 
-        if K.segmentation_masks in self.keys_to_load:
-            sem_map = self.cats_name2id[K.segmentation_masks]
+        if K.seg_masks in self.keys_to_load:
+            sem_map = self.cats_name2id[K.seg_masks]
             semantic_masks = semantic_masks_from_scalabel(
-                labels_used, sem_map, instid_map, image_size, self.bg_as_class
+                labels_used, sem_map, image_size, self.bg_as_class
             )
-            data[K.segmentation_masks] = semantic_masks
+            data[K.seg_masks] = semantic_masks
 
         if K.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(
@@ -394,45 +392,6 @@ class ScalabelVideo(Scalabel, VideoMixin):
         return video_to_indices
 
 
-def boxes3d_from_scalabel(
-    labels: list[Label],
-    class_to_idx: dict[str, int],
-    label_id_to_idx: dict[str, int] | None = None,
-) -> tuple[NDArrayF32, NDArrayI64, NDArrayI64]:
-    """Convert 3D bounding boxes from scalabel format to Vis4D."""
-    box_list, cls_list, idx_list = [], [], []
-    for i, label in enumerate(labels):
-        box, box_cls, l_id = label.box3d, label.category, label.id
-        if box is None:
-            continue
-        if box_cls in class_to_idx:
-            cls_list.append(class_to_idx[box_cls])
-        else:
-            continue
-
-        quaternion = (
-            matrix_to_quaternion(
-                euler_angles_to_matrix(torch.tensor([box.orientation]))
-            )[0]
-            .numpy()
-            .tolist()
-        )
-        box_list.append([*box.location, *box.dimension, *quaternion])
-        idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
-        idx_list.append(idx)
-
-    if len(box_list) == 0:
-        return (
-            np.empty((0, 10), dtype=np.float32),
-            np.empty((0,), dtype=np.int64),
-            np.empty((0,), dtype=np.int64),
-        )
-    box_tensor = np.array(box_list, dtype=np.float32)
-    class_ids = np.array(cls_list, dtype=np.int64)
-    track_ids = np.array(idx_list, dtype=np.int64)
-    return box_tensor, class_ids, track_ids
-
-
 def boxes2d_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
@@ -484,9 +443,67 @@ def instance_masks_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
     image_size: ImageSize | None = None,
+) -> NDArrayUI8:
+    """Convert instance masks from scalabel format to Vis4D.
+
+    Args:
+        labels (list[Label]): list of scalabel labels.
+        class_to_idx (dict[str, int]): mapping from class name to index.
+        image_size (ImageSize, optional): image size. Defaults to None.
+
+    Returns:
+        NDArrayUI8: instance masks.
+    """
+    bitmask_list = []
+    for _, label in enumerate(labels):
+        if label.category not in class_to_idx:  # pragma: no cover
+            continue  # skip unknown classes
+        if label.poly2d is None and label.rle is None:
+            continue
+        if label.rle is not None:
+            bitmask = rle_to_mask(label.rle)
+        elif label.poly2d is not None:
+            assert (
+                image_size is not None
+            ), "image size must be specified for masks with polygons!"
+            bitmask_raw = poly2ds_to_mask(image_size, label.poly2d)
+            bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
+                bitmask_raw.dtype
+            )
+        bitmask_list.append(bitmask)
+    if len(bitmask_list) == 0:  # pragma: no cover
+        return np.empty((0, 0, 0), dtype=np.uint8)
+    mask_array = np.array(bitmask_list, dtype=np.uint8)
+    return mask_array
+
+
+def nhw_to_hwc_mask(
+    masks: NDArrayUI8, class_ids: NDArrayI64, ignore_class: int = 255
+) -> NDArrayUI8:
+    """Convert N binary HxW masks to HxW semantic mask.
+
+    Args:
+        masks (NDArrayUI8): Masks with shape [N, H, W].
+        class_ids (NDArrayI64): Class IDs with shape [N, 1].
+        ignore_class (int, optional): Ignore label. Defaults to 255.
+
+    Returns:
+        NDArrayUI8: Masks with shape [H, W], where each location indicate the
+            class label.
+    """
+    hwc_mask = np.full(masks.shape[1:], ignore_class, dtype=masks.dtype)
+    for mask, cat_id in zip(masks, class_ids):
+        hwc_mask[mask > 0] = cat_id
+    return hwc_mask
+
+
+def semantic_masks_from_scalabel(
+    labels: list[Label],
+    class_to_idx: dict[str, int],
+    image_size: ImageSize | None = None,
     bg_as_class: bool = False,
 ) -> NDArrayUI8:
-    """Convert from scalabel format to Vis4D.
+    """Convert masks from scalabel format to Vis4D.
 
     Args:
         labels (list[Label]): list of scalabel labels.
@@ -498,14 +515,17 @@ def instance_masks_from_scalabel(
     Returns:
         NDArrayUI8: instance masks.
     """
-    bitmask_list = []
+    bitmask_list, cls_list = [], []
     if bg_as_class:
         foreground: NDArrayUI8 | None = None
-    for label in labels:
-        if label.category not in class_to_idx:  # pragma: no cover
-            continue  # skip unknown classes
+    for _, label in enumerate(labels):
         if label.poly2d is None and label.rle is None:
             continue
+        mask_cls = label.category
+        if mask_cls in class_to_idx:
+            cls_list.append(class_to_idx[mask_cls])
+        else:  # pragma: no cover
+            continue  # skip unknown classes
         if label.rle is not None:
             bitmask = rle_to_mask(label.rle)
         elif label.poly2d is not None:
@@ -530,17 +550,52 @@ def instance_masks_from_scalabel(
                 (image_size.height, image_size.width), dtype=np.uint8
             )
         bitmask_list.append(np.logical_not(foreground))
+        assert "background" in class_to_idx, (
+            '"bg_as_class" requires "background" class to be '
+            "in category_mapping"
+        )
+        cls_list.append(class_to_idx["background"])
     if len(bitmask_list) == 0:  # pragma: no cover
-        return np.empty((0, 0, 0), dtype=np.uint8)
-    return np.array(bitmask_list, dtype=np.uint8)
+        return np.empty((0, 0), dtype=np.uint8)
+    mask_array = np.array(bitmask_list, dtype=np.uint8)
+    class_ids = np.array(cls_list, dtype=np.int64)
+    return nhw_to_hwc_mask(mask_array, class_ids)
 
 
-def semantic_masks_from_scalabel(
+def boxes3d_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
     label_id_to_idx: dict[str, int] | None = None,
-    frame_size: ImageSize | None = None,
-    bg_as_class: bool = False,
-) -> NDArrayUI8:
-    """Convert from scalabel format to Vis4D."""
-    raise NotImplementedError  # pragma: no cover
+) -> tuple[NDArrayF32, NDArrayI64, NDArrayI64]:
+    """Convert 3D bounding boxes from scalabel format to Vis4D."""
+    box_list, cls_list, idx_list = [], [], []
+    for i, label in enumerate(labels):
+        box, box_cls, l_id = label.box3d, label.category, label.id
+        if box is None:
+            continue
+        if box_cls in class_to_idx:
+            cls_list.append(class_to_idx[box_cls])
+        else:
+            continue
+
+        quaternion = (
+            matrix_to_quaternion(
+                euler_angles_to_matrix(torch.tensor([box.orientation]))
+            )[0]
+            .numpy()
+            .tolist()
+        )
+        box_list.append([*box.location, *box.dimension, *quaternion])
+        idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
+        idx_list.append(idx)
+
+    if len(box_list) == 0:
+        return (
+            np.empty((0, 10), dtype=np.float32),
+            np.empty((0,), dtype=np.int64),
+            np.empty((0,), dtype=np.int64),
+        )
+    box_tensor = np.array(box_list, dtype=np.float32)
+    class_ids = np.array(cls_list, dtype=np.int64)
+    track_ids = np.array(idx_list, dtype=np.int64)
+    return box_tensor, class_ids, track_ids

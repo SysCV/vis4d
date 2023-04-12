@@ -20,7 +20,7 @@ class TestVGG(unittest.TestCase):
         """Testcase for VGG."""
         vgg = VGG(vgg_name, pretrained=False)
 
-        test_images = generate_features(3, 512, 512, 1, 2)[0]
+        test_images = generate_features(3, 64, 64, 1, 2)[0]
         out = vgg(test_images)
 
         channels = [3, 3, 64, 128, 256, 512, 512]
@@ -29,12 +29,12 @@ class TestVGG(unittest.TestCase):
 
         self.assertEqual(out[0].shape[0], 2)
         self.assertEqual(out[0].shape[1], 3)
-        self.assertEqual(out[0].shape[2], 512)
-        self.assertEqual(out[0].shape[3], 512)
+        self.assertEqual(out[0].shape[2], 64)
+        self.assertEqual(out[0].shape[3], 64)
 
         for i in range(1, 7):
             feat = out[i]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])
-            self.assertEqual(feat.shape[2], 512 / (2 ** (i - 1)))
-            self.assertEqual(feat.shape[3], 512 / (2 ** (i - 1)))
+            self.assertEqual(feat.shape[2], 64 / (2 ** (i - 1)))
+            self.assertEqual(feat.shape[3], 64 / (2 ** (i - 1)))

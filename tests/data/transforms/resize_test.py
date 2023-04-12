@@ -7,6 +7,9 @@ from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
+    ResizeInstanceMasks,
+    ResizeIntrinsics,
+    ResizeSegMasks,
 )
 from vis4d.data.typing import DictData
 
@@ -48,3 +51,78 @@ def test_resize() -> None:
     data = tr(data)["cam"]
     assert tuple(data["img"].shape) == (1, 16, 16, 3)
     assert tuple(data["boxes2d"][0]) == (0.5, 0.5, 0.5, 0.5)
+
+
+def test_resize_instance_masks():
+    """Test resize instance masks."""
+    masks = np.array(
+        [
+            [
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 1, 1, 1],
+                [0, 0, 1, 1, 1],
+                [0, 0, 1, 1, 1],
+            ],
+            [
+                [0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0],
+                [0, 0, 1, 1, 1],
+                [0, 0, 1, 1, 1],
+                [0, 0, 1, 1, 1],
+            ],
+        ]
+    )
+    target_shape = (3, 3)
+    expected = np.array(
+        [
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 1],
+            ],
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 1],
+            ],
+        ]
+    )
+    transform = ResizeInstanceMasks()
+    result = transform(masks, target_shape)
+    assert (result == expected).all()
+
+
+def test_resize_seg_masks():
+    """Test resize segmentation masks."""
+    masks = np.array(
+        [
+            [0, 0, 0, 0, 0],
+            [0, 1, 1, 1, 0],
+            [0, 1, 2, 1, 0],
+            [0, 1, 1, 1, 0],
+            [0, 0, 0, 0, 0],
+        ]
+    )
+    target_shape = (3, 3)
+    expected = np.array(
+        [
+            [0, 0, 0],
+            [0, 1, 1],
+            [0, 1, 1],
+        ]
+    )
+    transform = ResizeSegMasks()
+    result = transform(masks, target_shape)
+    assert (result == expected).all()
+
+
+def test_resize_intrinsics():
+    """Test resize intrinsics."""
+    intrinsics = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    scale_factor = (0.5, 0.5)
+    expected_intrinsics = np.array([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 1]])
+    resize_intrinsics = ResizeIntrinsics()
+    assert np.allclose(
+        resize_intrinsics(intrinsics, scale_factor), expected_intrinsics
+    )

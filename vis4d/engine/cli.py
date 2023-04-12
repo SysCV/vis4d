@@ -63,9 +63,7 @@ def ddp_setup(
         f"GLOBAL_RANK: {global_rank}, MEMBER: {global_rank + 1}/{world_size}"
     )
     init_process_group(
-        torch_distributed_backend,
-        rank=global_rank,
-        world_size=world_size,
+        torch_distributed_backend, rank=global_rank, world_size=world_size
     )
 
     # On rank=0 let everyone know training is starting
@@ -202,7 +200,6 @@ def main(argv) -> None:  # type:ignore
     elif mode == "fit":
         trainer = Trainer(
             num_epochs=config.params.num_epochs,
-            log_step=1,
             dataloaders=train_dataloader,
             data_connector=data_connector,
             train_callbacks=train_callbacks,
