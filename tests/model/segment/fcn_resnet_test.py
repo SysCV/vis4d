@@ -7,7 +7,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from tests.util import get_test_file
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -64,7 +64,7 @@ class FCNResNetTest(unittest.TestCase):
         """Test inference of FCNResNet."""
         model = FCNResNet(base_model="resnet50", resize=(520, 520))
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             split="train",
             use_pascal_voc_cats=True,
             minimum_box_area=10,
@@ -82,7 +82,8 @@ class FCNResNetTest(unittest.TestCase):
             outs = model(batch[K.images])
 
         pred = outs.pred.argmax(1)
-        testcase_gt = torch.load(get_test_file("fcn_resnet.pt"))
+        testcase_gt = torch.load(get_test_file("fcn_resnet_local.pt"))
+
         assert torch.isclose(pred, testcase_gt, atol=1e-4).all().item()
 
     def test_train(self) -> None:
@@ -91,7 +92,7 @@ class FCNResNetTest(unittest.TestCase):
         loss_fn = FCNResNetLoss()
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             split="train",
             use_pascal_voc_cats=True,
             minimum_box_area=10,

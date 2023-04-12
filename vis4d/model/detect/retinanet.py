@@ -56,7 +56,7 @@ class RetinaNet(nn.Module):
         )
         self.transform_outs = Dense2Det(
             self.retinanet_head.anchor_generator,
-            self.retinanet_head.box_decoder,  # type: ignore
+            self.retinanet_head.box_decoder,
             num_pre_nms=1000,
             max_per_img=100,
             nms_threshold=0.5,
