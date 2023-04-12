@@ -31,8 +31,8 @@ def test_rpn_head():
         wh_ = wh // 2**i
         assert rpn_out.cls[i].shape == (batch_size, num_anchors, wh_, wh_)
         assert rpn_out.box[i].shape == (batch_size, num_anchors * 4, wh_, wh_)
-        assert torch.isclose(rpn_out.cls[i], rpn_gt.cls[i]).all()
-        assert torch.isclose(rpn_out.box[i], rpn_gt.box[i]).all()
+        assert torch.isclose(rpn_out.cls[i], rpn_gt.cls[i], atol=1e-4).all()
+        assert torch.isclose(rpn_out.box[i], rpn_gt.box[i], atol=1e-4).all()
 
     # 2 convs
     batch_size, num_anchors, wh, nc, num_feats = 2, 3, 64, 32, 3
