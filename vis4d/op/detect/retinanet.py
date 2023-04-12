@@ -9,7 +9,7 @@ from torch import nn
 from torchvision.ops import batched_nms, sigmoid_focal_loss
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
-from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import PseudoSampler, Sampler
 
@@ -61,7 +61,7 @@ def get_default_box_sampler() -> PseudoSampler:
     return PseudoSampler(0, 0)
 
 
-class RetinaNetHead(nn.Module): # TODO: Refactor to use the new API
+class RetinaNetHead(nn.Module):  # TODO: Refactor to use the new API
     """RetinaNet Head."""
 
     def __init__(
