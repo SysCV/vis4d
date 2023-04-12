@@ -1,4 +1,5 @@
 """Mixup data augmentation."""
+from typing import TypedDict
 
 import numpy as np
 
@@ -8,40 +9,85 @@ from vis4d.data.const import CommonKeys as K
 from .base import BatchTransform
 
 
-@BatchTransform(
-    in_keys=(K.images, K.categories),
-    out_keys=(K.images, K.categories),
-)
-class Mixup:
-    """Mixup data augmentation."""
+class MixupParam(TypedDict):
+    """Parameters for Mixup."""
 
-    def __init__(
-        self,
-        alpha: float = 1.0,
-        label_smoothing: float = 0.1,
-        num_classes: int = 1000,
-    ):
-        """Creates an instance of Mixup.
+    ratio: NDArrayF32  # shape (batch_size,)
+
+
+@BatchTransform(in_keys=(K.images,), out_keys=("transforms.mixup",))
+class GenerateMixupParameters:
+    """Generate the parameters for a mixup operation."""
+
+    def __init__(self, alpha: float = 1.0) -> None:
+        """Creates an instance of GenerateMixupParameters.
 
         Args:
-            alpha (float, optional): Alpha value for beta distribution.
-                Defaults to 1.0.
-            label_smoothing (float, optional): Label smoothing value for the
-                target. Defaults to 0.1.
-            num_classes (int, optional): Number of classes. Defaults to 1000.
+            alpha (float, optional): Parameter for beta distribution used for
+                sampling the mixup ratio (i.e., lambda). Defaults to 1.0.
         """
         self.alpha = alpha
-        self.label_smoothing = label_smoothing
+
+    def __call__(self, images: list[NDArrayF32]) -> list[MixupParam]:
+        """Generate the mixup parameters."""
+        batch_size = len(images)
+        ratio = np.random.beta(self.alpha, self.alpha, batch_size).astype(
+            np.float32
+        )
+        ratio = np.maximum(ratio, 1 - ratio)
+        return [MixupParam(ratio=ratio)] * batch_size
+
+
+@BatchTransform(
+    in_keys=(K.images, "transforms.mixup.ratio"),
+    out_keys=(K.images,),
+)
+class MixupImages:
+    """Mixup a batch of images."""
+
+    def __call__(
+        self,
+        images: list[NDArrayF32],
+        ratios: list[NDArrayF32],
+    ) -> list[NDArrayF32]:
+        """Execute image mixup operation."""
+        batch_size = len(images)
+        assert batch_size % 2 == 0, "Batch size must be even for mixup!"
+
+        ratio = ratios[0]
+        for i in range(batch_size // 2):
+            j = batch_size - i - 1
+            images[i] = images[i] * ratio[i] + images[j] * (1 - ratio[i])
+            images[j] = images[j] * ratio[i] + images[i] * (1 - ratio[i])
+        return images
+
+
+@BatchTransform(
+    in_keys=(K.categories, "transforms.mixup.ratio"),
+    out_keys=(K.categories,),
+)
+class MixupCategories:
+    """Mixup a batch of categories."""
+
+    def __init__(self, num_classes: int, label_smoothing: float = 0.1) -> None:
+        """Creates an instance of MixupCategories.
+
+        Args:
+            num_classes (int): Number of classes.
+            label_smoothing (float, optional): Label smoothing parameter for
+                the mixup of categories. Defaults to 0.1.
+        """
         self.num_classes = num_classes
+        self.label_smoothing = label_smoothing
 
     def _label_smoothing(
         self,
         cat_1: NDArrayF32,
         cat_2: NDArrayF32,
-        lambda_: float,
+        ratio: float,
     ) -> NDArrayF32:
         """Apply label smoothing to two category labels."""
-        lam = np.array(lambda_, dtype=np.float32)
+        ratio = np.array(ratio, dtype=np.float32)
         off_value = np.array(
             self.label_smoothing / self.num_classes, dtype=np.float32
         )
@@ -56,33 +102,26 @@ class Mixup:
         )
         categories_1 = cat_1 * on_value
         categories_2 = cat_2 * on_value
-        smoothed = categories_1 * lam + categories_2 * (1 - lam)
-        return smoothed.astype(np.float32)
-
-    def _get_lambda(self, batch_size: int) -> NDArrayF32:
-        """Get lambda values for mixup."""
-        lam = np.random.beta(self.alpha, self.alpha, batch_size)
-        return np.maximum(lam, 1 - lam)
+        mixed = categories_1 * ratio + categories_2 * (1 - ratio)
+        return mixed.astype(np.float32)
 
     def __call__(
-        self, images: list[NDArrayF32], categories: list[NDArrayF32]
-    ) -> tuple[list[NDArrayF32], list[NDArrayF32]]:
-        """Execute mixup op."""
-        batch_size = len(images)
+        self,
+        categories: list[NDArrayF32],
+        ratios: list[NDArrayF32],
+    ) -> list[NDArrayF32]:
+        """Execute the categories mixup operation."""
+        batch_size = len(categories)
         assert batch_size % 2 == 0, "Batch size must be even for mixup!"
 
+        ratio = ratios[0]
         smooth_categories = [np.empty(0, dtype=np.float32)] * batch_size
-        lam = self._get_lambda(batch_size // 2)
         for i in range(batch_size // 2):
             j = batch_size - i - 1
-            images[i] = images[i] * lam[i] + images[j] * (1 - lam[i])
-            images[j] = images[j] * lam[i] + images[i] * (1 - lam[i])
-            smooth_cat_i = self._label_smoothing(
-                categories[i], categories[j], lam[i]
+            smooth_categories[i] = self._label_smoothing(
+                categories[i], categories[j], ratio[i]
             )
-            smooth_cat_j = self._label_smoothing(
-                categories[j], categories[i], lam[i]
+            smooth_categories[j] = self._label_smoothing(
+                categories[j], categories[i], ratio[i]
             )
-            smooth_categories[i] = smooth_cat_i
-            smooth_categories[j] = smooth_cat_j
-        return images, smooth_categories
+        return smooth_categories
