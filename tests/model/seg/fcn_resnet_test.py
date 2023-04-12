@@ -6,7 +6,7 @@ import unittest
 import torch
 from torch import optim
 
-from tests.util import get_test_file
+from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
@@ -23,7 +23,7 @@ class FCNResNetTest(unittest.TestCase):
         """Test inference of FCNResNet."""
         model = FCNResNet(base_model="resnet50", resize=(64, 64))
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             split="train",
             use_pascal_voc_cats=True,
             minimum_box_area=10,
@@ -50,7 +50,7 @@ class FCNResNetTest(unittest.TestCase):
         loss_fn = MultiLevelSegLoss(feature_idx=(4, 5), weights=[0.5, 1])
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             split="train",
             use_pascal_voc_cats=True,
             minimum_box_area=10,
