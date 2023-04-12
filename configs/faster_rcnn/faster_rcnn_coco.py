@@ -1,6 +1,7 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
 
+import numpy as np
 import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
@@ -23,7 +24,7 @@ from vis4d.config.default.runtime import (
     get_pl_trainer_args,
     set_output_dir,
 )
-from vis4d.config.default.sweep.default import linear_grid_search
+from vis4d.config.default.sweep.default import grid_search
 from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -245,13 +246,8 @@ def get_sweep() -> ConfigDict:
     """
     # Here we define the parameters that we want to sweep over.
     # In order to sweep over multiple parameters, we can pass a list of
-    # parameters to the linear_grid_search function.
-    # Example:
-    # >>> linear_grid_search(["params.lr", "params.momentum"], [0.001, 0.9], [0.01, 0.99], [3, 3])
-    # Will sweep over the learning rate and momentum. The learning rate will
-    # be swept over 3 values between 0.001 and 0.01 and the momentum will be
-    # swept over 3 values between 0.9 and 0.99.
-    sweep_config = linear_grid_search("params.lr", 0.001, 0.01, 3)
+    # parameters to the grid_search function.
+    sweep_config = grid_search("params.lr", list(np.linspace(0.001, 0.01, 3)))
 
     # Here we update the name of the experiment to include the learning rate.
     sweep_config.suffix = "lr_{params.lr:.3f}_"

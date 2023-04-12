@@ -89,7 +89,9 @@ def logspace_sampler(
 
 def replicate_config(  # type: ignore
     configuration: ConfigDict,
-    sampling_args: list[tuple[str, Callable[[], Generator[Any, None, None]]]],
+    sampling_args: list[
+        tuple[str, Callable[[], Generator[Any, None, None]] | Iterable[Any]]
+    ],
     method: str = "grid",
     fstring="",
 ) -> Generator[ConfigDict, None, None]:
@@ -150,6 +152,14 @@ def replicate_config(  # type: ignore
     ] = Queue()
 
     for key, value in sampling_args:
+        # Convert Iterable to a callable generator
+        if isinstance(value, Iterable):
+
+            def _generator() -> Generator[Any, None, None]:  # type: ignore
+                for v in value:  # type: ignore
+                    yield v
+
+            value = _generator
         sampling_queue.put((key, value))
 
     if method == "grid":
