@@ -22,15 +22,15 @@ class TestMixup(unittest.TestCase):
         """Test batch mixup."""
         set_random_seed(0, deterministic=True)
 
-        batch: DictData = [
-            dict(
-                images=np.ones((32, 32, 3)).astype(np.float32),
-                categories=np.array([0.0, 1.0]),
-            ),
-            dict(
-                images=np.zeros((32, 32, 3)).astype(np.float32),
-                categories=np.array([1.0, 0.0]),
-            ),
+        batch: list[DictData] = [
+            {
+                "images": np.ones((32, 32, 3)).astype(np.float32),
+                "categories": np.array([0.0, 1.0]),
+            },
+            {
+                "images": np.zeros((32, 32, 3)).astype(np.float32),
+                "categories": np.array([1.0, 0.0]),
+            },
         ]
 
         tr1 = GenerateMixupParameters(alpha=1.0)

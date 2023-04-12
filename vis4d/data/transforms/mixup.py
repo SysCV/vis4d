@@ -10,7 +10,13 @@ from .base import BatchTransform
 
 
 class MixupParam(TypedDict):
-    """Parameters for Mixup."""
+    """Typed dict for mixup ratio.
+
+    The ratio is a float in the range [0, 1] that is used to mixup a pair of
+    items in a batch. Usually, the pairs are selected as follows:
+        (0, bs - 1), (1, bs - 2), ..., (bs // 2, bs // 2)
+    where bs is the batch size. The batch size must be even for mixup to work.
+    """
 
     ratio: NDArrayF32  # shape (batch_size,)
 
@@ -87,7 +93,7 @@ class MixupCategories:
         ratio: float,
     ) -> NDArrayF32:
         """Apply label smoothing to two category labels."""
-        ratio = np.array(ratio, dtype=np.float32)
+        lam = np.array(ratio, dtype=np.float32)
         off_value = np.array(
             self.label_smoothing / self.num_classes, dtype=np.float32
         )
@@ -102,7 +108,7 @@ class MixupCategories:
         )
         categories_1 = cat_1 * on_value
         categories_2 = cat_2 * on_value
-        mixed = categories_1 * ratio + categories_2 * (1 - ratio)
+        mixed = categories_1 * lam + categories_2 * (1 - lam)
         return mixed.astype(np.float32)
 
     def __call__(
