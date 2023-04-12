@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.op.base.resnet import BaseModel, ResNet
+from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.common import DetOut
@@ -82,12 +82,11 @@ class MaskRCNN(nn.Module):
                 Defaults to None.
         """
         super().__init__()
-        if backbone is None:
-            self.backbone = ResNet(
-                resnet_name="resnet50", pretrained=True, trainable_layers=3
-            )
-        else:
-            self.backbone = backbone
+        self.backbone = (
+            ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
+            if backbone is None
+            else backbone
+        )
 
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
 

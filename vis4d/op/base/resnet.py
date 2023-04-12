@@ -69,7 +69,7 @@ class ResNet(BaseModel):
         if self.trainable_layers < 5:
             self._freeze_stages()
 
-    def _freeze_stages(self):
+    def _freeze_stages(self) -> None:
         """Freeze stages."""
         self.bn1.eval()
         for m in (self.conv1, self.bn1):
@@ -83,7 +83,7 @@ class ResNet(BaseModel):
                 for param in m.parameters():
                     param.requires_grad_(False)
 
-    def train(self, mode: bool = True):
+    def train(self, mode: bool = True) -> ResNet:
         """Override the train mode for the model."""
         super().train(mode)
         if self.trainable_layers < 5:
@@ -93,6 +93,7 @@ class ResNet(BaseModel):
             for m in self.modules():
                 if isinstance(m, _BatchNorm):
                     m.eval()
+        return self
 
     @property
     def out_channels(self) -> list[int]:

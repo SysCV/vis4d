@@ -8,7 +8,7 @@ from vis4d.common import LossesType, ModelOutput
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
-from vis4d.op.box.encoder import BoxEncoder2D
+from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
 from vis4d.op.detect.anchor_generator import AnchorGenerator
@@ -57,7 +57,7 @@ class RetinaNet(nn.Module):
         )
         self.transform_outs = Dense2Det(
             self.retinanet_head.anchor_generator,
-            self.retinanet_head.box_encoder,
+            self.retinanet_head.box_decoder,  # type: ignore
             num_pre_nms=1000,
             max_per_img=100,
             nms_threshold=0.5,
@@ -149,7 +149,7 @@ class RetinaNetLoss(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: BoxEncoder2D,
+        box_encoder: DeltaXYWHBBoxEncoder,
         box_matcher: Matcher,
         box_sampler: Sampler,
     ) -> None:

@@ -37,7 +37,7 @@ def get_train_dataloader(
     data_root: str,
     split: str,
     data_backend: None | DataBackend,
-    image_size: tuple(int, int),
+    image_size: tuple[int, int],
     samples_per_gpu: int,
     workers_per_gpu: int,
 ) -> ConfigDict:
@@ -104,7 +104,7 @@ def get_test_dataloader(
     data_root: str,
     split: str,
     data_backend: None | DataBackend,
-    image_size: tuple(int, int),
+    image_size: tuple[int, int],
     samples_per_gpu: int,
     workers_per_gpu: int,
 ) -> ConfigDict:
@@ -160,7 +160,7 @@ def get_coco_detection_config(
     train_split: str = "train2017",
     test_split: str = "val2017",
     data_backend: None | ConfigDict = None,
-    image_size: tuple(int, int) = (800, 1333),
+    image_size: tuple[int, int] = (800, 1333),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> ConfigDict:

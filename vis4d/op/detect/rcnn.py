@@ -34,9 +34,9 @@ class RCNNOut(NamedTuple):
 
 
 def get_default_rcnn_box_codec(
-    target_means: tuple[float, ...] = (0.0, 0.0, 0.0, 0.0),
-    target_stds: tuple[float, ...] = (0.1, 0.1, 0.2, 0.2),
-) -> tuple[nn.Module, nn.Module]:
+    target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    target_stds:tuple[float, float, float, float]  = (0.1, 0.1, 0.2, 0.2),
+) -> tuple[DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder]:
     """Get the default bounding box encoder and decoder for RCNN."""
     return (
         DeltaXYWHBBoxEncoder(target_means, target_stds),

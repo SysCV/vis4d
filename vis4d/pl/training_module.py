@@ -94,7 +94,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.data_connector = data_connector
         self.seed = seed
 
-    def setup(self, stage) -> None:
+    def setup(self, stage: str) -> None:
         """Setup the model."""
         if stage == "fit":
             if self.seed is None:

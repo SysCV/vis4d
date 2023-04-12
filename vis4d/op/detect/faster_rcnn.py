@@ -73,30 +73,29 @@ class FasterRCNNHead(nn.Module):
                 scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
             )
 
-        if box_matcher is None:
-            self.box_matcher = MaxIoUMatcher(
+        self.box_matcher = (
+            MaxIoUMatcher(
                 thresholds=[0.5],
                 labels=[0, 1],
                 allow_low_quality_matches=False,
             )
-        else:
-            self.box_matcher = box_matcher
+            if box_matcher is None
+            else box_matcher
+        )
 
-        if box_sampler is None:
-            self.box_sampler = RandomSampler(
-                batch_size=512, positive_fraction=0.25
-            )
-        else:
-            self.box_sampler = box_sampler
+        self.box_sampler = (
+            RandomSampler(batch_size=512, positive_fraction=0.25)
+            if box_sampler is None
+            else box_sampler
+        )
 
         self.proposal_append_gt = proposal_append_gt
         self.rpn_head = RPNHead(anchor_generator.num_base_priors[0])
         self.rpn2roi = RPN2RoI(anchor_generator, rpn_box_decoder)
 
-        if roi_head is None:
-            self.roi_head = RCNNHead(num_classes=num_classes)
-        else:
-            self.roi_head = roi_head
+        self.roi_head = (
+            RCNNHead(num_classes=num_classes) if roi_head is None else roi_head
+        )
 
     @torch.no_grad()
     def _sample_proposals(

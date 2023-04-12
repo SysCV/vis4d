@@ -38,7 +38,7 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
 
 def get_generic_callback_config(
     config: ConfigDict, params: ConfigDict
-) -> ConfigDict:
+) -> tuple[dict[str, ConfigDict], dict[str, ConfigDict]]:
     """Get generic callback config.
 
     Here we define general, all purpose callbacks. Note, that these callbacks

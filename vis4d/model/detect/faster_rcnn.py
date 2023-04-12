@@ -50,12 +50,11 @@ class FasterRCNN(nn.Module):
                 None.
         """
         super().__init__()
-        if backbone is None:
-            self.backbone = ResNet(
-                resnet_name="resnet50", pretrained=True, trainable_layers=3
-            )
-        else:
-            self.backbone = backbone
+        self.backbone = (
+            ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
+            if backbone is None
+            else backbone
+        )
 
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
 
