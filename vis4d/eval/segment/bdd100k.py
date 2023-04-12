@@ -1,4 +1,4 @@
-"""BDD100K semantic segmentation evaluator."""
+"""BDD100K segmentation evaluator."""
 from __future__ import annotations
 
 import itertools
@@ -23,8 +23,8 @@ if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from scalabel.label.typing import Frame, Label
 
 
-class BDD100KSemSegEvaluator(Evaluator):
-    """BDD100K semantic segmentation evaluation class."""
+class BDD100KSegEvaluator(Evaluator):
+    """BDD100K segmentation evaluation class."""
 
     inverse_seg_map = {v: k for k, v in bdd100k_seg_map.items()}
 
@@ -43,7 +43,7 @@ class BDD100KSemSegEvaluator(Evaluator):
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
-        return "BDD100K Semantic Segmentation Evaluator"
+        return "BDD100K Segmentation Evaluator"
 
     @property
     def metrics(self) -> list[str]:

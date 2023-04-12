@@ -1,4 +1,4 @@
-"""Testcases for BDD100K semantic segmentation evaluator."""
+"""Testcases for BDD100K segmentation evaluator."""
 from __future__ import annotations
 
 import os.path as osp
@@ -16,7 +16,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.eval.segment.bdd100k import BDD100KSemSegEvaluator
+from vis4d.eval.segment.bdd100k import BDD100KSegEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -27,8 +27,8 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )[0]
 
 
-class TestBDD100KSemSegEvaluator(unittest.TestCase):
-    """BDD100K semantic segmentation evaluator testcase class."""
+class TestBDD100KSegEvaluator(unittest.TestCase):
+    """BDD100K segmentation evaluator testcase class."""
 
     CONN_SEGMENT_TEST = {CK.images: CK.images}
 
@@ -46,8 +46,8 @@ class TestBDD100KSemSegEvaluator(unittest.TestCase):
             get_test_data("bdd100k_test"), "segment/labels/annotation.json"
         )
 
-        scalabel_eval = BDD100KSemSegEvaluator(annotation_path=annotations)
-        assert str(scalabel_eval) == "BDD100K Semantic Segmentation Evaluator"
+        scalabel_eval = BDD100KSegEvaluator(annotation_path=annotations)
+        assert str(scalabel_eval) == "BDD100K Segmentation Evaluator"
         assert scalabel_eval.metrics == ["sem_seg"]
 
         # test gt

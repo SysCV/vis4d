@@ -84,8 +84,8 @@ class FlipBoxes2D:
 
 
 @Transform(K.segmentation_masks, K.segmentation_masks)
-class FlipSemanticMasks:
-    """Flip semantic segmentation masks."""
+class FlipSegmentationMasks:
+    """Flip segmentation masks."""
 
     def __init__(self, direction: str = "horizontal"):
         """Creates an instance of FlipSemanticMasks.

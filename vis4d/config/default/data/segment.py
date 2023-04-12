@@ -21,7 +21,7 @@ def segment_augmentations() -> Iterable[ConfigDict]:
     """
     return (
         class_config(flip.FlipImage),
-        class_config(flip.FlipSemanticMasks),
+        class_config(flip.FlipSegmentationMasks),
     )
 
 
@@ -69,7 +69,7 @@ def segment_preprocessing(
             keep_ratio=keep_ratio,
         ),
         class_config(resize.ResizeImage),
-        class_config(resize.ResizeSemanticMasks),
+        class_config(resize.ResizeSegmentationMasks),
         class_config(
             RandomApply,
             transforms=augmentation_transforms,

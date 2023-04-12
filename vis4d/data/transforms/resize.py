@@ -179,8 +179,8 @@ class ResizeInstanceMasks:
     [K.segmentation_masks, "transforms.resize.target_shape"],
     K.segmentation_masks,
 )
-class ResizeSemanticMasks:
-    """Resize semantic segmentation masks."""
+class ResizeSegmentationMasks:
+    """Resize segmentation masks."""
 
     def __call__(
         self, masks: NDArrayF32, target_shape: tuple[int, int]

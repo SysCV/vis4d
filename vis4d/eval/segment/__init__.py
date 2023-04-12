@@ -1,5 +1,5 @@
 """Segmentation Evaluation."""
-from .bdd100k import BDD100KSemSegEvaluator
+from .bdd100k import BDD100KSegEvaluator
 from .segmentation_evaluator import SegmentationEvaluator
 
-__all__ = ["BDD100KSemSegEvaluator", "SegmentationEvaluator"]
+__all__ = ["BDD100KSegEvaluator", "SegmentationEvaluator"]

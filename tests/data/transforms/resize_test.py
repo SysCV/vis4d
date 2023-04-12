@@ -9,7 +9,7 @@ from vis4d.data.transforms.resize import (
     ResizeImage,
     ResizeInstanceMasks,
     ResizeIntrinsics,
-    ResizeSemanticMasks,
+    ResizeSegmentationMasks,
 )
 from vis4d.data.typing import DictData
 
@@ -93,8 +93,8 @@ def test_resize_instance_masks():
     assert (result == expected).all()
 
 
-def test_resize_semantic_masks():
-    """Test resize semantic masks."""
+def test_resize_segmentation_masks():
+    """Test resize segmentation masks."""
     masks = np.array(
         [
             [0, 0, 0, 0, 0],
@@ -112,7 +112,7 @@ def test_resize_semantic_masks():
             [0, 1, 1],
         ]
     )
-    transform = ResizeSemanticMasks()
+    transform = ResizeSegmentationMasks()
     result = transform(masks, target_shape)
     assert (result == expected).all()
 
