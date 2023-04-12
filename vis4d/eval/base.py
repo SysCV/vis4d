@@ -12,7 +12,7 @@ from vis4d.common import MetricLogs
 from vis4d.data.io import DataBackend, HDF5Backend
 
 
-class Evaluator:
+class Evaluator:  # pragma: no cover
     """Abstract evaluator class."""
 
     @property

@@ -251,7 +251,7 @@ class RPN2RoI(nn.Module):
             )[: self.max_per_img]
             proposals = proposals[keep]
             scores = scores[keep]
-        else:
+        else:  # pragma: no cover
             return proposals.new_zeros(0, 4), scores.new_zeros(0)
         return proposals, scores
 

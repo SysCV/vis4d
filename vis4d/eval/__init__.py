@@ -3,11 +3,12 @@
 from .base import Evaluator
 from .detect.coco import COCOEvaluator
 from .occupancy import OccupancyEvaluator
-from .segment import SegmentationEvaluator
+from .seg import BDD100KSegEvaluator, SegEvaluator
 
 __all__ = [
     "Evaluator",
     "COCOEvaluator",
-    "SegmentationEvaluator",
+    "BDD100KSegEvaluator",
+    "SegEvaluator",
     "OccupancyEvaluator",
 ]

@@ -404,6 +404,9 @@ class StaticDataConnector(DataConnector):
             dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
                 onto the callback.
         """
+        if "callbacks" not in self.connections:
+            return {}  # No data connections registered for callbacks
+
         if f"{mode}_{cb_type}" in self.connections["callbacks"]:
             mode = f"{mode}_{cb_type}"
 
@@ -454,7 +457,7 @@ class MultiSensorDataConnector(StaticDataConnector):
                 test_input_dict[v].append(data[sensor][k])
 
         for key in test_input_dict:
-            if key in [CK.images, CK.segmentation_masks]:
+            if key in [CK.images, CK.seg_masks]:
                 test_input_dict[key] = torch.cat(test_input_dict[key])
             elif key in [CK.intrinsics, CK.extrinsics]:
                 test_input_dict[key] = torch.stack(test_input_dict[key])

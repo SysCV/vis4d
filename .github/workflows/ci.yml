@@ -19,7 +19,7 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: install
         run: |
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9']
+        python-version: ["3.9"]
 
     steps:
       - uses: actions/checkout@v2
@@ -82,12 +82,11 @@ jobs:
           python3 -m pip install -e .
           python3 -m pip freeze
 
-
       - name: test
         run: python3 -m coverage run --source=vis4d -m pytest --pyargs tests
 
       - name: test coverage
-        run: python3 -m coverage report --fail-under=77 -m
+        run: python3 -m coverage report --fail-under=82 -m
 
       - name: build
         run: python3 setup.py sdist bdist_wheel

@@ -10,7 +10,7 @@ from typing import NamedTuple
 import torch
 from torch import Tensor, nn
 
-from vis4d.engine.ckpt import load_model_checkpoint
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import ResNet
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (

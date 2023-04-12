@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from vis4d.common.typing import NDArrayF32
+from vis4d.common.typing import NDArrayF32, NDArrayUI8
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.geometry.rotation import (
@@ -42,13 +42,10 @@ class FlipImage:
             return image_.flip(2).numpy()
         if self.direction == "vertical":
             return image_.flip(1).numpy()
-        raise NotImplementedError(f"Direction {self.direction} not known!")
+        raise ValueError(f"Direction {self.direction} not known!")
 
 
-@Transform(
-    in_keys=(K.boxes2d, K.images),
-    out_keys=(K.boxes2d,),
-)
+@Transform(in_keys=(K.boxes2d, K.images), out_keys=(K.boxes2d,))
 class FlipBoxes2D:
     """Flip 2D bounding boxes."""
 
@@ -83,7 +80,37 @@ class FlipBoxes2D:
             boxes[..., 3::4] = im_height - boxes[..., 1::4]
             boxes[..., 1::4] = tmp
             return boxes
-        raise NotImplementedError(f"Direction {self.direction} not known!")
+        raise ValueError(f"Direction {self.direction} not known!")
+
+
+@Transform(K.seg_masks, K.seg_masks)
+class FlipSegMasks:
+    """Flip segmentation masks."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipSemanticMasks.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(self, masks: NDArrayUI8) -> NDArrayUI8:
+        """Execute flipping op.
+
+        Args:
+            masks (NDArrayUI8): [H, W] array of masks.
+
+        Returns:
+            NDArrayUI8: [H, W] array of flipped masks.
+        """
+        image_ = torch.from_numpy(masks)
+        if self.direction == "horizontal":
+            return image_.flip(1).numpy()
+        if self.direction == "vertical":
+            return image_.flip(0).numpy()
+        raise ValueError(f"Direction {self.direction} not known!")
 
 
 def get_axis(direction: str, axis_mode: AxisMode) -> int:
@@ -96,26 +123,16 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
     Returns:
         int: Number of axis in certain direction.
     """
-    assert direction in {"horizontal", "lateral", "vertical"}
+    if direction not in {"horizontal", "lateral", "vertical"}:
+        raise ValueError(f"Direction {direction} not known!")
     coord_mapping = {
-        AxisMode.ROS: {
-            "horizontal": 0,
-            "lateral": 1,
-            "vertical": 2,
-        },
-        AxisMode.OPENCV: {
-            "horizontal": 0,
-            "vertical": 1,
-            "lateral": 2,
-        },
+        AxisMode.ROS: {"horizontal": 0, "lateral": 1, "vertical": 2},
+        AxisMode.OPENCV: {"horizontal": 0, "vertical": 1, "lateral": 2},
     }
     return coord_mapping[axis_mode][direction]
 
 
-@Transform(
-    in_keys=(K.boxes3d, K.axis_mode),
-    out_keys=(K.boxes3d,),
-)
+@Transform(in_keys=(K.boxes3d, K.axis_mode), out_keys=(K.boxes3d,))
 class FlipBoxes3D:
     """Flip 3D bounding box array."""
 
@@ -144,10 +161,7 @@ class FlipBoxes3D:
         return boxes
 
 
-@Transform(
-    in_keys=(K.points3d, K.axis_mode),
-    out_keys=(K.points3d,),
-)
+@Transform(in_keys=(K.points3d, K.axis_mode), out_keys=(K.points3d,))
 class FlipPoints3D:
     """Flip pointcloud array."""
 
@@ -168,10 +182,7 @@ class FlipPoints3D:
         return points3d
 
 
-@Transform(
-    in_keys=(K.intrinsics, K.images),
-    out_keys=(K.intrinsics,),
-)
+@Transform(in_keys=(K.intrinsics, K.images), out_keys=(K.intrinsics,))
 class FlipIntrinsics:
     """Modify intrinsics for image flip."""
 
@@ -196,4 +207,4 @@ class FlipIntrinsics:
             center = image.shape[1] / 2
             intrinsics[1, 2] = center - intrinsics[1, 2] + center
             return intrinsics
-        raise NotImplementedError(f"Direction {self.direction} not known!")
+        raise ValueError(f"Direction {self.direction} not known!")

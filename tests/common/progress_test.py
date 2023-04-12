@@ -16,9 +16,14 @@ class TestProgressBar(unittest.TestCase):
         num_batches = 10
         for i in range(1, num_batches + 1):
             prefix = "test"
-            metrics = {"accuracy": 0.5, "loss": torch.tensor(0.00001)}
+            metrics = {
+                "accuracy": 0.5,
+                "loss": torch.tensor(0.00001),
+                "num": 5,
+            }
             log_str = compose_log_str(prefix, i, num_batches, timer, metrics)
             self.assertTrue(log_str.startswith(prefix))
             log_list = log_str.split(", ")
-            self.assertEqual(log_list[-2], "loss: 1.000e-05")
-            self.assertEqual(log_list[-1], "accuracy: 0.5000")
+            self.assertEqual(log_list[-3], "loss: 1.000e-05")
+            self.assertEqual(log_list[-2], "accuracy: 0.5000")
+            self.assertEqual(log_list[-1], "num: 5")
