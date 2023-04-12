@@ -82,7 +82,7 @@ class FCNResNetTest(unittest.TestCase):
             outs = model(batch[K.images])
 
         pred = outs.pred.argmax(1)
-        testcase_gt = torch.load(get_test_file("fcn_resnet_local.pt"))
+        testcase_gt = torch.load(get_test_file("fcn_resnet.pt"))
 
         assert torch.isclose(pred, testcase_gt, atol=1e-4).all().item()
 
