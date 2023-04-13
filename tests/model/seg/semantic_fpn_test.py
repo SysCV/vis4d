@@ -6,7 +6,7 @@ import unittest
 import torch
 from torch import optim
 
-from tests.util import get_test_file
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.model.seg.semantic_fpn import SemanticFPN
@@ -19,7 +19,7 @@ class SemanticFPNTest(unittest.TestCase):
     """Semantic FPN test class."""
 
     dataset = COCO(
-        get_test_file("coco_test"),
+        get_test_data("coco_test"),
         split="train",
         use_pascal_voc_cats=True,
         minimum_box_area=10,
