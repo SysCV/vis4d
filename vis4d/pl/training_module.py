@@ -106,7 +106,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
             rank_zero_info(f"Global seed set to {seed}")
 
         self.model = instantiate_classes(self.model)
-        self.optims = set_up_optimizers(self.optims, self.model)
+        self.optims = set_up_optimizers(self.optims, self.model) # type: ignore
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, data: DictData

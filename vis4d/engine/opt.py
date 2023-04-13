@@ -161,10 +161,16 @@ def set_up_optimizers(
         optimizer = instantiate_classes(
             optim_cfg.optimizer, params=model.parameters()
         )
-        lr_scheduler = instantiate_classes(
-            optim_cfg.lr_scheduler, optimizer=optimizer
+        lr_scheduler = (
+            instantiate_classes(optim_cfg.lr_scheduler, optimizer=optimizer)
+            if optim_cfg.lr_scheduler is not None
+            else None
         )
-        lr_warmup = instantiate_classes(optim_cfg.lr_warmup)
+        lr_warmup = (
+            instantiate_classes(optim_cfg.lr_warmup)
+            if optim_cfg.lr_warmup is not None
+            else None
+        )
         optimizers.append(
             Optimizer(
                 optimizer=optimizer,
