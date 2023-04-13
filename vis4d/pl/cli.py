@@ -99,7 +99,6 @@ def main(argv) -> None:  # type:ignore
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
-    optimizers = instantiate_classes(config.optimizers)
     loss = instantiate_classes(config.loss)
 
     # Callbacks
@@ -144,7 +143,7 @@ def main(argv) -> None:  # type:ignore
 
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
     training_module = TrainingModule(
-        config.model, optimizers, loss, data_connector, seed
+        config.model, config.optimizers, loss, data_connector, seed
     )
     data_module = DataModule(config.data)
 

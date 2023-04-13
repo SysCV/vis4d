@@ -16,8 +16,8 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TRAIN,
     CONN_SEG_LOSS,
 )
-from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.runtime import set_output_dir
+from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
@@ -123,7 +123,7 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.optimizers = [
-        optimizer_cfg(
+        get_optimizer_config(
             optimizer=class_config(
                 optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
             ),

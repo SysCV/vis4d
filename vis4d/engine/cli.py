@@ -24,11 +24,12 @@ from vis4d.common.logging import _info, rank_zero_info, setup_logger
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.engine.opt import set_up_optimizers
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 
-# Currently this does not allow to load multpile config files.
+# TODO: Currently this does not allow to load multpile config files.
 # Would be nice to extend functionality to chain multiple config files using
 # e.g. --config=model_1.py --config=loader_args.py
 # or --config=my_config.py --config.train_dl=different_dl.py
@@ -116,7 +117,7 @@ def main(argv) -> None:  # type:ignore
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
     model = instantiate_classes(config.model)
-    optimizers = instantiate_classes(config.optimizers)
+    optimizers = set_up_optimizers(config.optimizers, model)
     loss = instantiate_classes(config.loss)
 
     if "shared_callbacks" in config:

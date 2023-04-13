@@ -13,16 +13,16 @@ from torchmetrics import MeanMetric
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.util import init_random_seed
-from vis4d.config.util import instantiate_classes
+from vis4d.config.util import ConfigDict, instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
-from vis4d.engine.opt import Optimizer
+from vis4d.engine.opt import Optimizer, set_up_optimizers
 
 
 class TorchOptimizer(optim.Optimizer):
     """Wrapper around vis4d optimizer to make it compatible with pl."""
 
-    def __init__(self, optimizer: Optimizer, model: nn.Module) -> None:
+    def __init__(self, optimizer: Optimizer) -> None:
         """Creates a new Optimizer.
 
         Args:
@@ -30,9 +30,8 @@ class TorchOptimizer(optim.Optimizer):
             model: The model to optimize.
         """
         self.optim = optimizer
-        self.optim.setup(model)
         assert self.optim.optimizer is not None
-        self._step = 0
+        self._step = 0  # TODO: Check resume from checkpoint
 
         super().__init__(
             params=self.optim.optimizer.param_groups,
@@ -70,8 +69,8 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
     def __init__(
         self,
-        model: nn.Module,
-        optimizers: list[Optimizer],
+        model: ConfigDict,
+        optimizers: list[ConfigDict],
         loss: nn.Module,
         data_connector: DataConnector,
         seed: None | int = None,
@@ -107,6 +106,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
             rank_zero_info(f"Global seed set to {seed}")
 
         self.model = instantiate_classes(self.model)
+        self.optims = set_up_optimizers(self.optims, self.model)
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, data: DictData
@@ -170,4 +170,4 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
     def configure_optimizers(self) -> list[TorchOptimizer]:
         """Return the optimizer to use."""
-        return [TorchOptimizer(o, self.model) for o in self.optims]
+        return [TorchOptimizer(o) for o in self.optims]

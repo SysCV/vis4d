@@ -10,8 +10,8 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TRAIN,
     CONN_MULTI_SEG_LOSS,
 )
-from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
+from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
@@ -148,7 +148,7 @@ def get_config() -> ConfigDict:
     #     return fun([p for p in params if "encoder" in p.name])
     #
     # config.optimizers = [
-    #    optimizer_cfg(
+    #    get_optimizer_config(
     #        optimizer=class_config(only_encoder_params,
     #           fun=class_config(optim.SGD, lr=params.lr"))
     #        )
@@ -156,7 +156,7 @@ def get_config() -> ConfigDict:
     # ]
 
     config.optimizers = [
-        optimizer_cfg(
+        get_optimizer_config(
             optimizer=class_config(optim.Adam, lr=params.lr),
             lr_scheduler=class_config(
                 PolyLR, max_steps=config.num_epochs, power=0.9

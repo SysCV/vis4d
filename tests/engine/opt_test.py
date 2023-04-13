@@ -1,16 +1,39 @@
 """Test cases for optimizer."""
+from __future__ import annotations
+
 import unittest
 
 import torch
+from torch import nn
 
 from tests.util import MockModel
-from vis4d.config.util import (
-    class_config,
-    delay_instantiation,
-    instantiate_classes,
-)
-from vis4d.engine.opt import Optimizer
+from vis4d.config.optimizer import get_optimizer_config
+from vis4d.config.util import ConfigDict, class_config
+from vis4d.engine.opt import Optimizer, set_up_optimizers
 from vis4d.optim import LinearLRWarmup, PolyLR
+
+
+def get_optimizer(
+    model: nn.Module = MockModel(0),
+    optimizer: ConfigDict = class_config(torch.optim.SGD, lr=0.01),
+    lr_scheduler: None
+    | ConfigDict = class_config(PolyLR, max_steps=10, power=1.0),
+    lr_warmup: None
+    | ConfigDict = class_config(
+        LinearLRWarmup, warmup_steps=10, warmup_ratio=0.1
+    ),
+    epoch_based_lr: bool = True,
+    epoch_based_warmup: bool = True,
+) -> Optimizer:
+    """Get an optimizer for testing."""
+    optimizer_cfg = get_optimizer_config(
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        lr_warmup=lr_warmup,
+        epoch_based_lr=epoch_based_lr,
+        epoch_based_warmup=epoch_based_warmup,
+    )
+    return set_up_optimizers([optimizer_cfg], model)[0]
 
 
 class TestOptimizer(unittest.TestCase):
@@ -36,21 +59,7 @@ class TestOptimizer(unittest.TestCase):
 
     def test_optimizer_epoch_based(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
-        opt = class_config(torch.optim.SGD, lr=0.01)
-        scheduler = class_config(PolyLR, max_steps=10, power=1.0)
-        warmup = class_config(
-            LinearLRWarmup, warmup_steps=10, warmup_ratio=0.1
-        )
-        optimizer_cfg = class_config(
-            Optimizer,
-            optimizer_cb=delay_instantiation(instantiable=opt),
-            lr_scheduler_cb=delay_instantiation(instantiable=scheduler),
-            lr_warmup=warmup,
-            epoch_based_lr=True,
-            epoch_based_warmup=True,
-        )
-        optimizer = instantiate_classes(optimizer_cfg)
-        optimizer.setup(MockModel(0))
+        optimizer = get_optimizer()
 
         step = 0
         for epoch in range(20):
@@ -68,18 +77,10 @@ class TestOptimizer(unittest.TestCase):
 
     def test_optimizer_epoch_based_no_warmup(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
-        opt = class_config(torch.optim.SGD, lr=0.01)
-        scheduler = class_config(PolyLR, max_steps=20, power=1.0)
-
-        optimizer_cfg = class_config(
-            Optimizer,
-            optimizer_cb=delay_instantiation(instantiable=opt),
-            lr_scheduler_cb=delay_instantiation(instantiable=scheduler),
-            epoch_based_lr=True,
-            epoch_based_warmup=True,
+        optimizer = get_optimizer(
+            lr_scheduler=class_config(PolyLR, max_steps=20, power=1.0),
+            lr_warmup=None,
         )
-        optimizer = instantiate_classes(optimizer_cfg)
-        optimizer.setup(MockModel(0))
 
         step = 0
         for epoch in range(20):
@@ -97,21 +98,9 @@ class TestOptimizer(unittest.TestCase):
 
     def test_optimizer_batch_based(self) -> None:
         """Test the optimizer with batch-based LR scheduling."""
-        opt = class_config(torch.optim.SGD, lr=0.01)
-        scheduler = class_config(PolyLR, max_steps=10, power=1.0)
-        warmup = class_config(
-            LinearLRWarmup, warmup_steps=10, warmup_ratio=0.1
+        optimizer = get_optimizer(
+            epoch_based_lr=False, epoch_based_warmup=False
         )
-        optimizer_cfg = class_config(
-            Optimizer,
-            optimizer_cb=delay_instantiation(instantiable=opt),
-            lr_scheduler_cb=delay_instantiation(instantiable=scheduler),
-            lr_warmup=warmup,
-            epoch_based_lr=False,
-            epoch_based_warmup=False,
-        )
-        optimizer = instantiate_classes(optimizer_cfg)
-        optimizer.setup(MockModel(0))
 
         step = 0
         for epoch in range(10):

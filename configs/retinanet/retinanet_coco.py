@@ -23,7 +23,7 @@ from vis4d.config.default.data_connectors.detection import (
     CONN_IMAGES_TEST,
     CONN_IMAGES_TRAIN,
 )
-from vis4d.config.default.optimizer.default import optimizer_cfg
+from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
@@ -164,7 +164,7 @@ def get_config() -> ConfigDict:
     #     return fun([p for p in params if "encoder" in p.name])
     #
     # config.optimizers = [
-    #    optimizer_cfg(
+    #    get_optimizer_config(
     #        optimizer=class_config(only_encoder_params,
     #           fun=class_config(optim.SGD, lr=params.lr"))
     #        )
@@ -172,7 +172,7 @@ def get_config() -> ConfigDict:
     # ]
 
     config.optimizers = [
-        optimizer_cfg(
+        get_optimizer_config(
             optimizer=class_config(optim.SGD, lr=params.lr),
             lr_scheduler=class_config(StepLR, step_size=3, gamma=0.1),
             lr_warmup=None,
