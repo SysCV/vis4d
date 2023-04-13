@@ -99,7 +99,7 @@ class DefaultTrainer(pl.Trainer):
         # add distributed strategy
         if kwargs["devices"] == 0:
             kwargs["accelerator"] = "cpu"
-            kwargs.pop("devices")
+            kwargs["devices"] = "auto"
         elif kwargs["devices"] > 1:  # pragma: no cover
             if kwargs["accelerator"] == "gpu":
                 ddp_plugin: Strategy = DDPStrategy(
