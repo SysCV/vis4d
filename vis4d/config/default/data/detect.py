@@ -11,7 +11,7 @@ from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
 )
@@ -66,7 +66,7 @@ def det_preprocessing(
     """
     transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(target_img_height, target_img_width),
             keep_ratio=True,
         ),

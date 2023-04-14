@@ -42,7 +42,7 @@ from vis4d.data.transforms.normalize import BatchNormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeImage,
     ResizeIntrinsics,
 )
@@ -118,7 +118,7 @@ def get_config() -> ConfigDict:
         compose,
         transforms=[
             class_config(
-                GenerateResizeParameters,
+                GenResizeParameters,
                 shape=(900, 1600),
                 keep_ratio=True,
                 sensors=NuScenes._CAMERAS,

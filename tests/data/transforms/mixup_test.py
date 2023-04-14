@@ -8,7 +8,7 @@ import numpy as np
 from vis4d.common.util import set_random_seed
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.mixup import (
-    GenerateMixupParameters,
+    GenMixupParameters,
     MixupCategories,
     MixupImages,
 )
@@ -33,7 +33,7 @@ class TestMixup(unittest.TestCase):
             },
         ]
 
-        tr1 = GenerateMixupParameters(alpha=1.0)
+        tr1 = GenMixupParameters(alpha=1.0)
         tr2 = MixupImages()
         tr3 = MixupCategories(num_classes=2, label_smoothing=0.1)
 
@@ -74,7 +74,7 @@ class TestMixup(unittest.TestCase):
             },
         ]
 
-        tr1 = GenerateMixupParameters(alpha=1.0)
+        tr1 = GenMixupParameters(alpha=1.0)
         tr2 = MixupImages()
         tr3 = MixupCategories(num_classes=2, label_smoothing=0.1)
         tr = compose([tr1, tr2, tr3])

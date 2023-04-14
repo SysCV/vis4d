@@ -24,7 +24,7 @@ class ResizeParam(TypedDict):
 
 
 @Transform(K.images, ["transforms.resize", K.input_hw])
-class GenerateResizeParameters:
+class GenResizeParameters:
     """Generate the parameters for a resize operation."""
 
     def __init__(

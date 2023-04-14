@@ -22,11 +22,11 @@ class MixupParam(TypedDict):
 
 
 @BatchTransform(in_keys=(K.images,), out_keys=("transforms.mixup",))
-class GenerateMixupParameters:
+class GenMixupParameters:
     """Generate the parameters for a mixup operation."""
 
     def __init__(self, alpha: float = 1.0) -> None:
-        """Creates an instance of GenerateMixupParameters.
+        """Creates an instance of GenMixupParameters.
 
         Args:
             alpha (float, optional): Parameter for beta distribution used for

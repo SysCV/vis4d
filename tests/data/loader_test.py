@@ -40,7 +40,7 @@ def test_train_loader() -> None:
     batch_size = 2
     preprocess_fn = compose(
         [
-            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+            resize.GenResizeParameters((256, 256), keep_ratio=True),
             resize.ResizeImage(),
             normalize.NormalizeImage(),
         ]
@@ -66,7 +66,7 @@ def test_inference_loader() -> None:
     coco = COCO(data_root=get_test_data("coco_test"), split="train")
     preprocess_fn = compose(
         [
-            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+            resize.GenResizeParameters((256, 256), keep_ratio=True),
             resize.ResizeImage(),
             normalize.NormalizeImage(),
         ]
@@ -98,7 +98,7 @@ def test_segment_train_loader() -> None:
     batch_size = 4
     preprocess_fn = compose(
         [
-            resize.GenerateResizeParameters((520, 520)),
+            resize.GenResizeParameters((520, 520)),
             resize.ResizeImage(),
             resize.ResizeInstanceMasks(),
             normalize.NormalizeImage(),
