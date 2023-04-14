@@ -1,16 +1,15 @@
-"""Residual networks for classification."""
+"""Residual networks base model."""
 from __future__ import annotations
 
 import torch
 import torchvision.models.resnet as _resnet
-from torchvision.models._utils import IntermediateLayerGetter
-from torchvision.ops import misc as misc_nn_ops
+from torch.nn.modules.batchnorm import _BatchNorm
 
 from .base import BaseModel
 
 
 class ResNet(BaseModel):
-    """Wrapper for torch vision resnet backbones."""
+    """Wrapper for torch vision resnet."""
 
     def __init__(
         self,
@@ -36,38 +35,65 @@ class ResNet(BaseModel):
             ValueError: trainable_layers should be between 0 and 5
         """
         super().__init__()
+        self.name = resnet_name
+        self.norm_freezed = norm_freezed
+
         weights = "IMAGENET1K_V1" if pretrained else None
         resnet = _resnet.__dict__[resnet_name](
             weights=weights,
-            norm_layer=misc_nn_ops.FrozenBatchNorm2d if norm_freezed else None,
             replace_stride_with_dilation=replace_stride_with_dilation,
         )
 
-        # The code for setting up parametor frozen and layer getter is from
-        # torchvision
         # select layers that wont be frozen
         if trainable_layers < 0 or trainable_layers > 5:  # pragma: no cover
             raise ValueError(
                 f"Trainable layers should be in the range [0,5], "
                 f"got {trainable_layers}"
             )
-        layers_to_train = ["layer4", "layer3", "layer2", "layer1", "conv1"][
-            :trainable_layers
-        ]
-        if trainable_layers == 5:
-            layers_to_train.append("bn1")
-        for name, parameter in resnet.named_parameters():
-            if all(not name.startswith(layer) for layer in layers_to_train):
-                parameter.requires_grad_(False)
+        self.trainable_layers = trainable_layers
 
         returned_layers = [1, 2, 3, 4]
-        return_layers = {
+        self.return_layers = {
             f"layer{k}": str(v) for v, k in enumerate(returned_layers)
         }
-        self.body = IntermediateLayerGetter(
-            resnet, return_layers=return_layers
-        )
-        self.name = resnet_name
+
+        self.conv1 = resnet.conv1
+        self.bn1 = resnet.bn1
+        self.relu = resnet.relu
+        self.maxpool = resnet.maxpool
+        self.layer1 = resnet.layer1
+        self.layer2 = resnet.layer2
+        self.layer3 = resnet.layer3
+        self.layer4 = resnet.layer4
+
+        if self.trainable_layers < 5:
+            self._freeze_stages()
+
+    def _freeze_stages(self) -> None:
+        """Freeze stages."""
+        self.bn1.eval()
+        for m in (self.conv1, self.bn1):
+            for param in m.parameters():
+                param.requires_grad_(False)
+
+        if self.trainable_layers < 4:
+            for i in range(1, 5 - self.trainable_layers):
+                m = getattr(self, f"layer{i}")
+                m.eval()
+                for param in m.parameters():
+                    param.requires_grad_(False)
+
+    def train(self, mode: bool = True) -> ResNet:
+        """Override the train mode for the model."""
+        super().train(mode)
+        if self.trainable_layers < 5:
+            self._freeze_stages()
+
+        if mode and self.norm_freezed:
+            for m in self.modules():
+                if isinstance(m, _BatchNorm):
+                    m.eval()
+        return self
 
     @property
     def out_channels(self) -> list[int]:
@@ -88,8 +114,6 @@ class ResNet(BaseModel):
     def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """Torchvision ResNet forward.
 
-        # TODO(tobiasfshr) Add tests
-
         Args:
             images (Tensor[N, C, H, W]): Image input to process. Expected to
                 type float32 with values ranging 0..255.
@@ -102,4 +126,13 @@ class ResNet(BaseModel):
             map downsamples the input image by 64 with a pooling layer on the
             second last map.
         """
-        return [images, images, *self.body(images).values()]
+        x = self.conv1(images)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        outs = [images, images]
+        for _, layer_name in enumerate(self.return_layers):
+            res_layer = getattr(self, layer_name)
+            x = res_layer(x)
+            outs.append(x)
+        return outs

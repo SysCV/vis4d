@@ -84,11 +84,6 @@ class Trainer:
         """
         step = 0
 
-        # Set up optimizers and schedulers. This is done here because the
-        # optimizers require the model parameters.
-        for opt in optimizers:
-            opt.setup(model)
-
         device = next(model.parameters()).device  # model device
 
         for epoch in range(self.num_epochs):

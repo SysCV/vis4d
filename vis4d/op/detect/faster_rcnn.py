@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.op.box.box2d import apply_mask
-from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import (
     RandomSampler,
@@ -32,46 +32,6 @@ class FRCNNOut(NamedTuple):
     sampled_target_indices: list[torch.Tensor] | None
 
 
-def get_default_anchor_generator() -> AnchorGenerator:
-    """Get default anchor generator."""
-    return AnchorGenerator(
-        scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
-    )
-
-
-def get_default_rpn_box_encoder() -> DeltaXYWHBBoxEncoder:
-    """Get the default bounding box encoder for RPN."""
-    return DeltaXYWHBBoxEncoder(
-        target_means=(0.0, 0.0, 0.0, 0.0),
-        target_stds=(1.0, 1.0, 1.0, 1.0),
-    )
-
-
-def get_default_rcnn_box_encoder() -> DeltaXYWHBBoxEncoder:
-    """Get the default bounding box encoder for RCNN."""
-    return DeltaXYWHBBoxEncoder(
-        target_means=(0.0, 0.0, 0.0, 0.0),
-        target_stds=(0.1, 0.1, 0.2, 0.2),
-    )
-
-
-def get_default_box_matcher() -> MaxIoUMatcher:
-    """Get default bounding box matcher."""
-    return MaxIoUMatcher(
-        thresholds=[0.5], labels=[0, 1], allow_low_quality_matches=False
-    )
-
-
-def get_default_box_sampler() -> RandomSampler:
-    """Get default bounding box sampler."""
-    return RandomSampler(batch_size=512, positive_fraction=0.25)
-
-
-def get_default_roi_head(num_classes: int) -> RCNNHead:
-    """Get default ROI head."""
-    return RCNNHead(num_classes=num_classes)
-
-
 class FasterRCNNHead(nn.Module):
     """This class composes RPN and RCNN head components.
 
@@ -83,68 +43,58 @@ class FasterRCNNHead(nn.Module):
 
     def __init__(
         self,
-        num_classes: int = 80,
+        num_classes: int,
         anchor_generator: None | AnchorGenerator = None,
-        rpn_box_encoder: None | BoxEncoder2D = None,
-        rcnn_box_encoder: None | BoxEncoder2D = None,
+        rpn_box_decoder: None | DeltaXYWHBBoxDecoder = None,
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
+        roi_head: None | RCNNHead = None,
         proposal_append_gt: bool = True,
-        roi_head: None | nn.Module = None,
-    ):
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
-            num_classes (int, optional): Number of object categories. Defaults
-                to 80.
-            anchor_generator (Optional[AnchorGenerator], optional): Custom
-                anchor generator for RPN. Defaults to None.
-            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box
-                encoder. Defaults to None.
-            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn
-                box encoder. Defaults to None.
-            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher
-                for RCNN stage. Defaults to None.
-            box_sampler (Optional[RandomSampler], optional): Custom box sampler
-                for RCNN stage. Defaults to None.
+            num_classes (int): Number of object categories.
+            anchor_generator (AnchorGenerator, optional): Custom generator for
+                RPN. Defaults to None.
+            rpn_box_decoder (DeltaXYWHBBoxDecoder, optional): Custom rpn box
+                decoder. Defaults to None.
+            box_matcher (Matcher, optional): Custom box matcher for RCNN stage.
+                Defaults to None.
+            box_sampler (Sampler, optional): Custom box sampler for RCNN stage.
+                Defaults to None.
+            roi_head (RCNNHead, optional): Custom ROI head. Defaults to None.
             proposal_append_gt (bool): If to append the ground truth boxes for
                 proposal sampling during training. Defaults to True.
-            roi_head (Optional[nn.Module], optional): Custom ROI head. Defaults
-                to None.
         """
         super().__init__()
-        self.anchor_generator = (
-            anchor_generator
-            if anchor_generator is not None
-            else get_default_anchor_generator()
-        )
-        self.rpn_box_encoder = (
-            rpn_box_encoder
-            if rpn_box_encoder is not None
-            else get_default_rpn_box_encoder()
-        )
-        self.rcnn_box_encoder = (
-            rcnn_box_encoder
-            if rcnn_box_encoder is not None
-            else get_default_rcnn_box_encoder()
-        )
+        if anchor_generator is None:
+            anchor_generator = AnchorGenerator(
+                scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
+            )
+
         self.box_matcher = (
-            box_matcher
-            if box_matcher is not None
-            else get_default_box_matcher()
+            MaxIoUMatcher(
+                thresholds=[0.5],
+                labels=[0, 1],
+                allow_low_quality_matches=False,
+            )
+            if box_matcher is None
+            else box_matcher
         )
+
         self.box_sampler = (
-            box_sampler
-            if box_sampler is not None
-            else get_default_box_sampler()
+            RandomSampler(batch_size=512, positive_fraction=0.25)
+            if box_sampler is None
+            else box_sampler
         )
+
         self.proposal_append_gt = proposal_append_gt
-        self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
-        self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
+        self.rpn_head = RPNHead(anchor_generator.num_base_priors[0])
+        self.rpn2roi = RPN2RoI(anchor_generator, rpn_box_decoder)
+
         self.roi_head = (
-            roi_head
-            if roi_head is not None
-            else get_default_roi_head(num_classes)
+            RCNNHead(num_classes=num_classes) if roi_head is None else roi_head
         )
 
     @torch.no_grad()

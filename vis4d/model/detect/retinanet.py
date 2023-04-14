@@ -8,7 +8,7 @@ from vis4d.common import LossesType, ModelOutput
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
-from vis4d.op.box.encoder import BoxEncoder2D
+from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
 from vis4d.op.detect.anchor_generator import AnchorGenerator
@@ -21,8 +21,8 @@ from vis4d.op.detect.retinanet import (
 from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
 
 REV_KEYS = [
+    (r"^backbone\.", "basemodel."),
     (r"^bbox_head\.", "retinanet_head."),
-    (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6_conv."),
@@ -45,9 +45,11 @@ class RetinaNet(nn.Module):
                 Defaults to None.
         """
         super().__init__()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.basemodel = ResNet(
+            "resnet50", pretrained=True, trainable_layers=3
+        )
         self.fpn = FPN(
-            self.backbone.out_channels[3:],
+            self.basemodel.out_channels[3:],
             256,
             LastLevelP6P7(2048, 256),
             start_index=3,
@@ -57,7 +59,7 @@ class RetinaNet(nn.Module):
         )
         self.transform_outs = Dense2Det(
             self.retinanet_head.anchor_generator,
-            self.retinanet_head.box_encoder,
+            self.retinanet_head.box_decoder,
             num_pre_nms=1000,
             max_per_img=100,
             nms_threshold=0.5,
@@ -107,7 +109,7 @@ class RetinaNet(nn.Module):
         Returns:
             RetinaNetOut: Raw model outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         return self.retinanet_head(features[-5:])
 
     def forward_test(
@@ -127,7 +129,7 @@ class RetinaNet(nn.Module):
         Returns:
             ModelOutput: Predicted outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         outs = self.retinanet_head(features[-5:])
         boxes, scores, class_ids = self.transform_outs(
             cls_outs=outs.cls_score,
@@ -149,7 +151,7 @@ class RetinaNetLoss(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: BoxEncoder2D,
+        box_encoder: DeltaXYWHBBoxEncoder,
         box_matcher: Matcher,
         box_sampler: Sampler,
     ) -> None:

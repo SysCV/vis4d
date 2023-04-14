@@ -1,4 +1,4 @@
-"""DLA backbone."""
+"""DLA base model."""
 from __future__ import annotations
 
 import torch

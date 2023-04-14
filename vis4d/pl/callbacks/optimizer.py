@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 
-class OptimEpochCallback(pl.Callback):
+class OptimEpochCallback(pl.Callback):  # type: ignore
     """Callback to step optimizer at the end of each epoch."""
 
     def on_train_epoch_end(
@@ -18,4 +18,4 @@ class OptimEpochCallback(pl.Callback):
             optimizers = [optimizers]
 
         for optimizer in optimizers:
-            optimizer.step_on_epoch(pl_module.current_epoch)  # type: ignore
+            optimizer.step_on_epoch(pl_module.current_epoch)

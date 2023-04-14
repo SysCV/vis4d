@@ -7,15 +7,11 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.op.base import ResNet
+from vis4d.op.base import BaseModel, ResNet
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp import FPN
 from vis4d.op.track.assignment import TrackIDCounter
@@ -28,20 +24,21 @@ from vis4d.op.track.qdtrack import (
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 
 REV_KEYS = [
-    (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
-    (r"\.rpn_reg\.", ".rpn_box."),
-    (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
-    (r"^detector.backbone.mm_backbone\.", "body."),
-    (
-        r"^detector.backbone.neck.mm_neck.lateral_convs\.",
-        "inner_blocks.",
-    ),
-    (
-        r"^detector.backbone.neck.mm_neck.fpn_convs\.",
-        "layer_blocks.",
-    ),
-    (r"\.conv.weight", ".weight"),
-    (r"\.conv.bias", ".bias"),
+    # (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
+    # (r"\.rpn_reg\.", ".rpn_box."),
+    # (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
+    # (r"^detector.backbone.mm_backbone\.", "body."),
+    # (
+    #     r"^detector.backbone.neck.mm_neck.lateral_convs\.",
+    #     "inner_blocks.",
+    # ),
+    # (
+    #     r"^detector.backbone.neck.mm_neck.fpn_convs\.",
+    #     "layer_blocks.",
+    # ),
+    # (r"\.conv.weight", ".weight"),
+    # (r"\.conv.bias", ".bias"),
+    (r"^backbone.body\.", "basemodel."),
 ]
 
 
@@ -264,26 +261,48 @@ class QDTrack(nn.Module):
 class FasterRCNNQDTrack(nn.Module):
     """Wrap qdtrack with detector."""
 
-    def __init__(self, num_classes: int, weights: None | str = None) -> None:
-        """Creates an instance of the class."""
-        super().__init__()
-        self.anchor_gen = get_default_anchor_generator()
-        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
-        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+    def __init__(
+        self,
+        num_classes: int,
+        basemodel: BaseModel | None = None,
+        faster_rcnn_head: FasterRCNNHead | None = None,
+        rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
+        weights: None | str = None,
+    ) -> None:
+        """Creates an instance of the class.
 
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            num_classes=num_classes,
-            anchor_generator=self.anchor_gen,
-            rpn_box_encoder=self.rpn_bbox_encoder,
-            rcnn_box_encoder=self.rcnn_bbox_encoder,
+        Args:
+            num_classes (int): Number of object categories.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
+            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+                Defaults to None. if None, will use default FasterRCNNHead.
+            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+                bounding boxes. Defaults to None.
+            weights (str, optional): Weights to load for model.
+        """
+        super().__init__()
+        self.basemodel = (
+            ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
+            if basemodel is None
+            else basemodel
         )
-        self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
+
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
+
+        if faster_rcnn_head is None:
+            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+        else:
+            self.faster_rcnn_heads = faster_rcnn_head
+
+        self.roi2det = RoI2Det(rcnn_box_decoder)
+
         self.qdtrack = QDTrack()
 
         if weights is not None:
-            load_model_checkpoint(self, weights, map_location="cpu")
+            load_model_checkpoint(
+                self, weights, map_location="cpu", rev_keys=REV_KEYS
+            )
 
     def forward(
         self,
@@ -302,7 +321,7 @@ class FasterRCNNQDTrack(nn.Module):
         frame_ids: list[int],
     ) -> TrackOut:
         """Forward inference stage."""
-        features = self.backbone(images)
+        features = self.basemodel(images)
         features = self.fpn(features)
         detector_out = self.faster_rcnn_heads(features, images_hw)
 

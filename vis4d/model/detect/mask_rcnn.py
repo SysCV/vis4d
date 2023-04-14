@@ -7,20 +7,13 @@ import torch
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.op.base.resnet import ResNet
+from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
-from vis4d.op.box.encoder.base import BoxEncoder2D
-from vis4d.op.detect.anchor_generator import AnchorGenerator
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    FRCNNOut,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+from vis4d.op.detect.common import DetOut
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import (
     Det2Mask,
-    DetOut,
     MaskOut,
     MaskRCNNHead,
     MaskRCNNHeadOut,
@@ -44,6 +37,7 @@ class MaskRCNNOut(NamedTuple):
 
 
 REV_KEYS = [
+    (r"^backbone\.", "basemodel."),
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
     (r"^roi_head.bbox_head\.", "roi_head."),
     (r"^roi_head.mask_head\.", "mask_head."),
@@ -52,7 +46,6 @@ REV_KEYS = [
     (r"^conv_logits\.", "mask_head.conv_logits."),
     (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
     (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
-    (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),
@@ -66,36 +59,48 @@ class MaskRCNN(nn.Module):
     def __init__(
         self,
         num_classes: int,
+        basemodel: BaseModel | None = None,
+        faster_rcnn_head: FasterRCNNHead | None = None,
+        mask_head: MaskRCNNHead | None = None,
+        rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         weights: None | str = None,
-        anchor_generator: AnchorGenerator = get_default_anchor_generator(),
-        rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
-        rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
     ) -> None:
         """Creates an instance of the class.
 
         Args:
             num_classes (int): Number of classes.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
+            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+                Defaults to None. if None, will use default FasterRCNNHead.
+            mask_head (MaskRCNNHead, optional): Mask RCNN head. Defaults to
+                None. if None, will use default MaskRCNNHead.
+            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+                bounding boxes. Defaults to None.
             weights (None | str, optional): Weights to load for model. If set
                 to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
-            anchor_generator (AnchorGenerator, optional): Anchor generator.
-                Defaults to get_default_anchor_generator().
-            rpn_box_encoder (BoxEncoder2D, optional): RPN box encoder.
-                Defaults to get_default_rpn_box_encoder().
-            rcnn_box_encoder (BoxEncoder2D, optional): RCNN box encoder.
-                Defaults to get_default_rcnn_box_encoder().
         """
         super().__init__()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            num_classes=num_classes,
-            anchor_generator=anchor_generator,
-            rpn_box_encoder=rpn_box_encoder,
-            rcnn_box_encoder=rcnn_box_encoder,
+        self.basemodel = (
+            ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
+            if basemodel is None
+            else basemodel
         )
-        self.mask_head = MaskRCNNHead()
-        self.transform_outs = RoI2Det(rcnn_box_encoder)
+
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
+
+        if faster_rcnn_head is None:
+            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+        else:
+            self.faster_rcnn_heads = faster_rcnn_head
+
+        if mask_head is None:
+            self.mask_head = MaskRCNNHead(num_classes=num_classes)
+        else:
+            self.mask_head = mask_head
+
+        self.transform_outs = RoI2Det(rcnn_box_decoder)
         self.det2mask = Det2Mask()
 
         if weights == "mmdet":
@@ -161,7 +166,7 @@ class MaskRCNN(nn.Module):
         Returns:
             MaskRCNNOut: Raw model outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
@@ -191,7 +196,7 @@ class MaskRCNN(nn.Module):
         Returns:
             MaskDetectionOut: Predicted outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         boxes, scores, class_ids = self.transform_outs(
             *outs.roi, outs.proposals.boxes, images_hw

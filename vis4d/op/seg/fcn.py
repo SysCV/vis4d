@@ -16,7 +16,7 @@ class FCNOut(NamedTuple):
 
 
 class FCNHead(nn.Module):
-    """FCN Head made with ResNet backbone.
+    """FCN Head made with ResNet base model.
 
     This is based on the implementation in `torchvision
     <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/

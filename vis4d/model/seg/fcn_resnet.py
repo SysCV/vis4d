@@ -8,7 +8,7 @@ from vis4d.op.base.resnet import ResNet
 from vis4d.op.seg.fcn import FCNHead, FCNOut
 
 REV_KEYS = [
-    (r"^backbone\.", "basemodel.body."),
+    (r"^backbone\.", "basemodel."),
     (r"^aux_classifier\.", "fcn.heads.0."),
     (r"^classifier\.", "fcn.heads.1."),
 ]

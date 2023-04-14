@@ -25,7 +25,7 @@ from vis4d.data.transforms.resize import (
 )
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.faster_rcnn import FasterRCNN
-from vis4d.op.detect.rcnn import DetOut
+from vis4d.op.detect.common import DetOut
 
 
 def get_train_dataloader(

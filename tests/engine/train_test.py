@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import unittest
 
-from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
@@ -27,10 +26,11 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.engine.opt import Optimizer
 from vis4d.engine.train import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
+
+from .opt_test import get_optimizer
 
 
 def seg_pipeline(data: list[DictData]) -> DictData:
@@ -67,9 +67,7 @@ class EngineTrainTest(unittest.TestCase):
         """Test engine training."""
         model = SemanticFPN(num_classes=80)
         loss_fn = SegCrossEntropyLoss()
-        optimizer = Optimizer(
-            lambda params: optim.SGD(params, lr=0.01, momentum=0.9)
-        )
+        optimizer = get_optimizer()
         dataset = COCO(get_test_data("coco_test"), split="train")
         train_loader = get_train_dataloader(dataset, 2)
         data_connector = StaticDataConnector(

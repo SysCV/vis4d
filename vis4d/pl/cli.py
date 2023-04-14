@@ -9,13 +9,13 @@ import logging
 import os.path as osp
 
 from absl import app, flags
+from lightning.pytorch import Callback
+from lightning.pytorch.utilities.exceptions import MisconfigurationException
 from ml_collections import ConfigDict
-from pytorch_lightning import Callback, seed_everything
-from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
-    MisconfigurationException,
-)
 from torch.utils.collect_env import get_pretty_env_info
 
+from vis4d.common import ArgsType
+from vis4d.common.callbacks import VisualizerCallback
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
@@ -26,26 +26,28 @@ from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
-_MODE = flags.DEFINE_string(
-    "mode", default="train", help="Choice of [train, test]"
-)
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+_CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
+_RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
+_VISUALISZE = flags.DEFINE_bool(
+    "visualize", default=False, help="visualize the results"
+)
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
 
 
-def main(  # type:ignore # pylint: disable=unused-argument
-    *args, **kwargs
-) -> None:
+def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.pl.cli --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    mode = argv[1]
+    assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config = _CONFIG.value
-    config.n_gpus = _GPUS.value
+    num_gpus = _GPUS.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -59,10 +61,9 @@ def main(  # type:ignore # pylint: disable=unused-argument
     # PyTorch Setting
     set_tf32(False)
 
+    # TODO: Update Trainer Args in show config
     if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
 
     # Setup Trainer kwargs
     trainer_args_cfg = ConfigDict()
@@ -76,12 +77,11 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     if "benchmark" in config:
         trainer_args_cfg.benchmark = config.benchmark
-    trainer_args_cfg.max_epochs = config.params.num_epochs
     trainer_args_cfg.num_sanity_val_steps = 0
 
     # Setup GPU
-    trainer_args_cfg.devices = config.n_gpus
-    if config.n_gpus > 0:
+    trainer_args_cfg.devices = num_gpus
+    if num_gpus > 0:
         trainer_args_cfg.accelerator = "gpu"
 
     # Setup logger
@@ -92,16 +92,17 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Seed
     seed = config.get("seed", None)
-    if _MODE.value == "train":
-        seed_everything(seed, workers=True)
+
+    # Setup sampler
+    trainer_args.use_distributed_sampler = False
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
-    model = instantiate_classes(config.model)
-    optimizers = instantiate_classes(config.optimizers)
     loss = instantiate_classes(config.loss)
 
     # Callbacks
+    visualize = _VISUALISZE.value
+
     callbacks: list[Callback] = []
     if "shared_callbacks" in config:
         shared_callbacks = instantiate_classes(config.shared_callbacks)
@@ -109,7 +110,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-    if "train_callbacks" in config and _MODE.value == "train":
+    if "train_callbacks" in config and mode == "fit":
         train_callbacks = instantiate_classes(config.train_callbacks)
         for key, cb in train_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
@@ -118,6 +119,8 @@ def main(  # type:ignore # pylint: disable=unused-argument
     if "test_callbacks" in config:
         test_callbacks = instantiate_classes(config.test_callbacks)
         for key, cb in test_callbacks.items():
+            if isinstance(cb, VisualizerCallback) and not visualize:
+                continue
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
@@ -129,37 +132,38 @@ def main(  # type:ignore # pylint: disable=unused-argument
     for cb in pl_callbacks:
         if not isinstance(cb, Callback):
             raise MisconfigurationException(
-                "Callback must be a subclass of "
-                "pytorch_lightning.Callback. Provided "
-                f"callback: {cb} is not a subclass of "
-                "pytorch_lightning.Callback."
+                "Callback must be a subclass of pytorch_lightning Callback. "
+                f"Provided callback: {cb} is not!"
             )
-
         callbacks.append(cb)
 
     # Add needed callbacks
     callbacks.append(OptimEpochCallback())
 
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
+    training_module = TrainingModule(
+        config.model, config.optimizers, loss, data_connector, seed
+    )
     data_module = DataModule(config.data)
 
     # Checkpoint path
-    ckpt_path = config.get("pl_ckpt", None)
+    ckpt_path = _CKPT.value
 
     # Resume training
-    if config.get("resume", False):
+    resume = _RESUME.value
+    if resume:
         if ckpt_path is None:
             ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
 
-    if _MODE.value == "train":
+    if mode == "fit":
         trainer.fit(
-            TrainingModule(model, optimizers, loss, data_connector),
+            training_module,
             datamodule=data_module,
             ckpt_path=ckpt_path,
         )
-    elif _MODE.value == "test":
+    elif mode == "test":
         trainer.test(
-            TrainingModule(model, optimizers, loss, data_connector),
+            training_module,
             datamodule=data_module,
             verbose=False,
             ckpt_path=ckpt_path,

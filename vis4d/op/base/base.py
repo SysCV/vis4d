@@ -1,4 +1,4 @@
-"""Backbone interface for Vis4D."""
+"""Base model interface."""
 from __future__ import annotations
 
 import abc

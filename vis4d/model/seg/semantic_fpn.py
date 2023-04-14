@@ -16,7 +16,7 @@ from vis4d.op.seg.semantic_fpn import SemanticFPNHead, SemanticFPNOut
 REV_KEYS = [
     (r"^decode_head\.", "seg_head."),
     (r"^classifier\.", "fcn.heads.1."),
-    (r"^backbone\.", "basemodel.body."),
+    (r"^backbone\.", "basemodel."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),

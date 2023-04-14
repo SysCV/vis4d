@@ -340,7 +340,7 @@ class DelayedInstantiator:
         return ins
 
 
-def instantiate_classes(data: _ConfigDict) -> _ConfigDict | Any:  # type: ignore # pylint: disable=line-too-long
+def instantiate_classes(data: _ConfigDict, **kwargs: Any) -> _ConfigDict | Any:  # type: ignore # pylint: disable=line-too-long
     """Instantiates all classes in a given ConfigDict.
 
     This function iterates over the configuration data and instantiates
@@ -359,12 +359,16 @@ def instantiate_classes(data: _ConfigDict) -> _ConfigDict | Any:  # type: ignore
 
     Args:
         data (_ConfigDict): The general configuration object.
+        **kwargs: Additional arguments to pass to the class constructor.
 
     Returns:
         _ConfigDict | Any: The _ConfigDict with all classes intialized. If the
         top level element is a class config, the returned element will be
         the instantiated class.
     """
+    for k, v in kwargs.items():
+        data["init_args"][k] = v
+
     resolved = copy_and_resolve_references(data)
     instantiated_objects = _instantiate_classes(resolved)
     return instantiated_objects
@@ -491,7 +495,7 @@ def _instantiate_classes(data: _ConfigDict | Any) -> ConfigDict | Any:  # type: 
     if isinstance(data, FieldReference):
         data = data.get()
 
-    if not isinstance(data, (_ConfigDict, list, tuple)):
+    if not isinstance(data, (_ConfigDict, list, tuple, dict)):
         return data
 
     for key in _get_index(data):

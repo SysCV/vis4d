@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch import nn
 
 from vis4d.common.callbacks import Callback
@@ -18,7 +18,7 @@ def get_model(model: pl.LightningModule) -> nn.Module:
     return model
 
 
-class CallbackWrapper(pl.Callback):
+class CallbackWrapper(pl.Callback):  # type: ignore
     """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
 
     def __init__(
@@ -98,7 +98,7 @@ class CallbackWrapper(pl.Callback):
         outputs: Any,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
@@ -144,7 +144,7 @@ class CallbackWrapper(pl.Callback):
         outputs: Any,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         shared_clbk_kwargs = {

@@ -4,19 +4,25 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
+import torch
+from lightning.pytorch import seed_everything
 from torch import nn, optim
 from torchmetrics import MeanMetric
 
+from vis4d.common.distributed import broadcast
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.util import init_random_seed
+from vis4d.config.util import ConfigDict, instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
-from vis4d.engine.opt import Optimizer
+from vis4d.engine.opt import Optimizer, set_up_optimizers
 
 
 class TorchOptimizer(optim.Optimizer):
     """Wrapper around vis4d optimizer to make it compatible with pl."""
 
-    def __init__(self, optimizer: Optimizer, model: nn.Module) -> None:
+    def __init__(self, optimizer: Optimizer) -> None:
         """Creates a new Optimizer.
 
         Args:
@@ -24,9 +30,8 @@ class TorchOptimizer(optim.Optimizer):
             model: The model to optimize.
         """
         self.optim = optimizer
-        self.optim.setup(model)
         assert self.optim.optimizer is not None
-        self._step = 0
+        self._step = 0  # TODO: Check resume from checkpoint
 
         super().__init__(
             params=self.optim.optimizer.param_groups,
@@ -55,7 +60,7 @@ class TorchOptimizer(optim.Optimizer):
         self.optim.zero_grad()
 
 
-class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
+class TrainingModule(pl.LightningModule):  # type: ignore
     """LightningModule that wraps around the vis4d implementations.
 
     This is a wrapper around the vis4d implementations that allows to use
@@ -64,11 +69,12 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
     def __init__(
         self,
-        model: nn.Module,
-        optimizers: list[Optimizer],
+        model: ConfigDict,
+        optimizers: list[ConfigDict],
         loss: nn.Module,
         data_connector: DataConnector,
-    ):
+        seed: None | int = None,
+    ) -> None:
         """Initialize the TrainingModule.
 
         Args:
@@ -77,12 +83,30 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
                 optimizer.
             loss: The loss function to use.
             data_connector: The data connector to use.
+            seed (int, optional): The integer value seed for global random
+                state. Defaults to None.
         """
         super().__init__()
         self.model = model
         self.optims = optimizers
         self.loss_fn = loss
         self.data_connector = data_connector
+        self.seed = seed
+
+    def setup(self, stage: str) -> None:
+        """Setup the model."""
+        if stage == "fit":
+            if self.seed is None:
+                seed = init_random_seed()
+                seed = broadcast(seed)
+            else:
+                seed = self.seed
+
+            seed_everything(seed, workers=True)
+            rank_zero_info(f"Global seed set to {seed}")
+
+        self.model = instantiate_classes(self.model)
+        self.optims = set_up_optimizers(self.optims, self.model)  # type: ignore # pylint: disable=line-too-long
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, data: DictData
@@ -96,14 +120,17 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         """Perform a single training step."""
         out = self.model(**self.data_connector.get_train_input(batch))
         losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
-        losses["loss"] = sum(list(losses.values()))
+        if isinstance(losses, torch.Tensor):
+            losses = {"loss": losses}
+        else:
+            losses["loss"] = sum(list(losses.values()))
 
         log_dict = {}
         metric_attributes = []
         for k, v in losses.items():
             if not hasattr(self, k):
                 metric = MeanMetric()
-                metric.to(self.device)  # type: ignore
+                metric.to(self.device)
                 setattr(self, k, metric)
 
             metric = getattr(self, k)
@@ -143,4 +170,4 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
     def configure_optimizers(self) -> list[TorchOptimizer]:
         """Return the optimizer to use."""
-        return [TorchOptimizer(o, self.model) for o in self.optims]
+        return [TorchOptimizer(o) for o in self.optims]

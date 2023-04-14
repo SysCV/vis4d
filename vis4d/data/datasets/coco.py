@@ -201,7 +201,8 @@ class COCO(Dataset, CacheMappingMixin):
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats}), "
+            f"remove_empty={self.remove_empty}"
         )
 
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
@@ -295,8 +296,8 @@ class COCO(Dataset, CacheMappingMixin):
                         # RLE
                         rle = mask_ann
                     masks.append(maskUtils.decode(rle))
-                else:
-                    masks.append(np.empty((img_h, img_w)))  # pragma: no cover
+                else:  # pragma: no cover
+                    masks.append(np.empty((img_h, img_w), dtype=np.uint8))
             if not boxes:  # pragma: no cover
                 box_tensor = np.empty((0, 4), dtype=np.float32)
                 mask_tensor = np.empty((0, img_h, img_w), dtype=np.uint8)

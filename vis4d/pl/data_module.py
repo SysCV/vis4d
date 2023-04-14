@@ -2,7 +2,7 @@
 """Data module composing the data loading pipeline."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from ml_collections import ConfigDict
 from torch.utils import data
 
@@ -10,7 +10,7 @@ from vis4d.config.util import instantiate_classes
 from vis4d.data.typing import DictData
 
 
-class DataModule(pl.LightningDataModule):  # pylint: disable=too-many-ancestors
+class DataModule(pl.LightningDataModule):  # type: ignore
     """DataModule that wraps around the vis4d implementations.
 
     This is a wrapper around the vis4d implementations that allows to use
@@ -31,7 +31,7 @@ class DataModule(pl.LightningDataModule):  # pylint: disable=too-many-ancestors
 
     def test_dataloader(self) -> list[data.DataLoader[DictData]]:
         """Return dataloaders for testing."""
-        return instantiate_classes(self.data_cfg.test_dataloader).values()[0]
+        return instantiate_classes(self.data_cfg.test_dataloader)
 
     def val_dataloader(self) -> list[data.DataLoader[DictData]]:
         """Return dataloaders for validation."""

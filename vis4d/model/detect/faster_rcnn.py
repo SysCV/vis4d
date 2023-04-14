@@ -7,23 +7,17 @@ from torch import nn
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
-from vis4d.op.box.encoder.base import BoxEncoder2D
-from vis4d.op.detect.anchor_generator import AnchorGenerator
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    FRCNNOut,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
-from vis4d.op.detect.rcnn import DetOut, RoI2Det
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+from vis4d.op.detect.common import DetOut
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
+from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
+    (r"^backbone\.", "basemodel."),
     (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
     (r"^rpn_head.rpn_", "faster_rcnn_heads.rpn_head.rpn_"),
     (r"^roi_head.bbox_head\.", "faster_rcnn_heads.roi_head."),
-    (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),
@@ -37,43 +31,40 @@ class FasterRCNN(nn.Module):
     def __init__(
         self,
         num_classes: int,
+        basemodel: BaseModel | None = None,
+        faster_rcnn_head: FasterRCNNHead | None = None,
+        rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         weights: None | str = None,
-        anchor_generator: AnchorGenerator = get_default_anchor_generator(),
-        rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
-        rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
-        backbone: BaseModel = ResNet(
-            "resnet50", pretrained=True, trainable_layers=3
-        ),
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            num_classes (int): Number of classes.
-            weights (None | str, optional): Weights to load for model. If
-                set to "mmdet", will load MMDetection pre-trained weights.
-                Defaults to None.
-            anchor_generator (AnchorGenerator, optional): Generator for anchors
-                for detection. Defaults to get_default_anchor_generator().
-            rpn_box_encoder (BoxEncoder2D, optional): Encoder for RPN bounding
-                boxes. Defaults to get_default_rpn_box_encoder().
-            rcnn_box_encoder (BoxEncoder2D, optional): Encoder for RCNN
-                bounding boxes. Defaults to get_default_rcnn_box_encoder().
-            backbone (nn.Module, optional): Backbone network. Defaults to
-                ResNet( "resnet50", pretrained=True, trainable_layers=3 ).
+            num_classes (int): Number of object categories.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
+            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+                Defaults to None. if None, will use default FasterRCNNHead.
+            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+                bounding boxes. Defaults to None.
+            weights (str, optional): Weights to load for model. If set to
+                "mmdet", will load MMDetection pre-trained weights. Defaults to
+                None.
         """
         super().__init__()
-        self.anchor_gen = anchor_generator
-        self.rpn_bbox_encoder = rpn_box_encoder
-        self.rcnn_bbox_encoder = rcnn_box_encoder
-        self.backbone = backbone
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            num_classes=num_classes,
-            anchor_generator=self.anchor_gen,
-            rpn_box_encoder=self.rpn_bbox_encoder,
-            rcnn_box_encoder=self.rcnn_bbox_encoder,
+        self.basemodel = (
+            ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
+            if basemodel is None
+            else basemodel
         )
-        self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
+
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
+
+        if faster_rcnn_head is None:
+            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+        else:
+            self.faster_rcnn_heads = faster_rcnn_head
+
+        self.roi2det = RoI2Det(rcnn_box_decoder)
 
         if weights == "mmdet":
             weights = (
@@ -92,9 +83,6 @@ class FasterRCNN(nn.Module):
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
     ) -> FRCNNOut | DetOut:
-        # TODO, why do we have both.
-        #  Why not just model output with different
-        #  keys for training outs e.g. class_logits?
         """Forward pass.
 
         Args:
@@ -151,7 +139,7 @@ class FasterRCNN(nn.Module):
         Returns:
             FRCNNOut: Raw model outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         return self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
@@ -173,7 +161,7 @@ class FasterRCNN(nn.Module):
         Returns:
             DetOut: Predicted outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         boxes, scores, class_ids = self.roi2det(
             *outs.roi, outs.proposals.boxes, images_hw
