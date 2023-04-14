@@ -8,6 +8,7 @@ from typing import Any
 
 from torch import nn
 
+from vis4d.config.util import ConfigDict, instantiate_classes
 from vis4d.engine.connectors import StaticDataConnector
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.eval.base import Evaluator
@@ -359,6 +360,7 @@ def prints_datagraph_for_config(
     model: nn.Module,
     data_connector: StaticDataConnector,
     loss: nn.Module,
+    callbacks: dict[str, ConfigDict],
 ) -> str:
     """Shows the setup of the configuration objects.
 
@@ -373,6 +375,7 @@ def prints_datagraph_for_config(
         model(nn.Module): Model to plot.
         data_connector(StaticDataConnector): DataConnector to plot.
         loss(nn.Module): Loss to plot.
+        callbacks(dict[str, ConfigDict]): Callbacks to plot.
 
     Returns:
         str: The datagraph as a string, that can be printed to the console.
@@ -472,34 +475,37 @@ def prints_datagraph_for_config(
     for inp, out in zip(train_components[:-1], train_components[1:]):
         connect_components(inp, out)
 
-    # TODO: Add evaluators and visualizers from the callbacks
-    # optional_components: list[DataConnectionInfo] = []
+    # evaluator and visualizer
+    optional_components: list[DataConnectionInfo] = []
 
-    # if "evaluators" in instantiated_config:
-    #     for name, evaluator in instantiated_config.evaluators.items():
-    #         print("found eavluater:", evaluator)
-    #         connect_info = _get_evaluator_connection_infos(evaluator)
+    for k, cb in callbacks.items():
+        if "eval" in k:
+            evaluator = instantiate_classes(cb).evaluator
+            print("found evaluator:", evaluator)
 
-    #         for component in data_connection_info["evaluators"]:
-    #             if component["name"] == name:
-    #                 # found matching connector
-    #                 connect_components(component, connect_info)
-    #                 if component not in optional_components:
-    #                     optional_components.append(component)
-    #         optional_components.append(connect_info)
+            connect_info = _get_evaluator_connection_infos(evaluator)
 
-    # if "visualizers" in instantiated_config:
-    #     for name, vis in instantiated_config.visualizers.items():
-    #         connect_info = _get_vis_connection_infos(vis)
-    #         for component in data_connection_info["visualizers"]:
-    #             if component["name"] == name:
-    #                 # found matching connector
-    #                 connect_components(component, connect_info)
-    #                 if component not in optional_components:
-    #                     optional_components.append(component)
-    #         optional_components.append(connect_info)
+            for component in data_connection_info["callbacks"]:
+                if component["name"] == f"{k}_test":
+                    # found matching connector
+                    connect_components(component, connect_info)
+                    if component not in optional_components:
+                        optional_components.append(component)
 
-    # train_components.extend(optional_components)
+        if "vis" in k:
+            visualizer = instantiate_classes(cb).visualizer
+            print("found visualizer:", visualizer)
+
+            connect_info = _get_vis_connection_infos(visualizer)
+
+            for component in data_connection_info["callbacks"]:
+                if component["name"] == f"{k}_test":
+                    # found matching connector
+                    connect_components(component, connect_info)
+                    if component not in optional_components:
+                        optional_components.append(component)
+
+    train_components.extend(optional_components)
 
     for e in train_components:
         log_str += print_box(e["name"], e["in_keys"], e["out_keys"])

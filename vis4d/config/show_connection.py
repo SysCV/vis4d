@@ -22,7 +22,13 @@ def main(
     loss = instantiate_classes(config.loss)
     model = instantiate_classes(config.model)
 
-    dg = prints_datagraph_for_config(model, data_connector, loss)
+    call_backs = {
+        **config.shared_callbacks,
+        **config.train_callbacks,
+        **config.test_callbacks,
+    }
+
+    dg = prints_datagraph_for_config(model, data_connector, loss, call_backs)
     print(dg)
 
 
