@@ -21,6 +21,6 @@ class TestConfigInstantiation(unittest.TestCase):
     def test_instantiate_transforms_with_param(self) -> None:
         """Test if instantiation of a transform with parameters works."""
         conf = class_config(GenerateResizeParameters, shape=(10, 10))
-        instance = instantiate_classes(conf)
+        instance = instantiate_classes(conf, keep_ratio=False)
         self.assertTrue(isinstance(instance, GenerateResizeParameters))
         self.assertTrue(instance.shape == (10, 10))

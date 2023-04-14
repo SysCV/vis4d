@@ -9,11 +9,9 @@ import logging
 import os.path as osp
 
 from absl import app, flags
+from lightning.pytorch import Callback
+from lightning.pytorch.utilities.exceptions import MisconfigurationException
 from ml_collections import ConfigDict
-from pytorch_lightning import Callback
-from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
-    MisconfigurationException,
-)
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common.callbacks import VisualizerCallback
@@ -95,7 +93,7 @@ def main(argv) -> None:  # type:ignore
     seed = config.get("seed", None)
 
     # Setup sampler
-    trainer_args.replace_sampler_ddp = False
+    trainer_args.use_distributed_sampler = False
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
@@ -133,7 +131,7 @@ def main(argv) -> None:  # type:ignore
     for cb in pl_callbacks:
         if not isinstance(cb, Callback):
             raise MisconfigurationException(
-                "Callback must be a subclass of pytorch_lightning.Callback. "
+                "Callback must be a subclass of pytorch_lightning Callback. "
                 f"Provided callback: {cb} is not!"
             )
         callbacks.append(cb)

@@ -12,7 +12,6 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_VIS,
@@ -23,6 +22,7 @@ from vis4d.config.default.data_connectors.detection import (
     CONN_IMAGES_TEST,
     CONN_IMAGES_TRAIN,
 )
+from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
@@ -96,8 +96,11 @@ def get_config() -> ConfigDict:
         split=config.train_split,
     )
     preproc = det_preprocessing(512, 512, params.augment_proba)
-    dataloader_train_cfg = default_image_dataloader(
-        preproc, dataset_cfg_train, params.batch_size, shuffle=True
+    dataloader_train_cfg = get_dataloader_config(
+        preproc,
+        dataset_cfg_train,
+        samples_per_gpu=params.batch_size,
+        shuffle=True,
     )
     config.train_dl = dataloader_train_cfg
 
@@ -109,11 +112,11 @@ def get_config() -> ConfigDict:
         split=config.test_split,
     )
     preprocess_test_cfg = det_preprocessing(512, 512, augment_probability=0)
-    dataloader_cfg_test = default_image_dataloader(
+    dataloader_cfg_test = get_dataloader_config(
         preprocess_test_cfg,
         dataset_test_cfg,
-        num_samples_per_gpu=1,
-        num_workers_per_gpu=1,
+        samples_per_gpu=1,
+        workers_per_gpu=1,
         shuffle=False,
     )
     config.test_dl = {"coco_eval": dataloader_cfg_test}

@@ -7,8 +7,8 @@ from ml_collections import ConfigDict
 from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
-from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
+from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.util import class_config, instantiate_classes
 from vis4d.data.datasets.coco import COCO
 
@@ -60,8 +60,11 @@ class TestDataloaderConfig(unittest.TestCase):
         )
 
         preprocess_cfg_train = det_preprocessing(800, 1333, 0.5)
-        dataloader_train_cfg = default_image_dataloader(
-            preprocess_cfg_train, dataset_cfg_train, 2, 2
+        dataloader_train_cfg = get_dataloader_config(
+            preprocess_cfg_train,
+            dataset_cfg_train,
+            samples_per_gpu=2,
+            workers_per_gpu=2,
         )
         self.assertTrue(isinstance(dataloader_train_cfg, ConfigDict))
         dl = instantiate_classes(dataloader_train_cfg)

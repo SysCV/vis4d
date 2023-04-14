@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch import nn
 
 from vis4d.common.callbacks import Callback
@@ -18,7 +18,7 @@ def get_model(model: pl.LightningModule) -> nn.Module:
     return model
 
 
-class CallbackWrapper(pl.Callback):
+class CallbackWrapper(pl.Callback):  # type: ignore
     """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
 
     def __init__(

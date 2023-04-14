@@ -14,7 +14,12 @@ def main(argv) -> None:  # type:ignore # pylint: disable=unused-argument
     >>> python -m vis4d.config.show_connection --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     config = _CONFIG.value
-    dg = prints_datagraph_for_config(instantiate_classes(config))
+
+    data_connector = instantiate_classes(config.data_connector)
+    loss = instantiate_classes(config.loss)
+    model = instantiate_classes(config.model)
+
+    dg = prints_datagraph_for_config(model, data_connector, loss)
     print(dg)
 
 

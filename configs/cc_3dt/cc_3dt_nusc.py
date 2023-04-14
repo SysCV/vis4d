@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import torch
 
 from vis4d.common.callbacks import EvaluatorCallback
-from vis4d.config.dataloader import get_dataloader_config
+from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.default.runtime import (
     get_generic_callback_config,
     get_pl_trainer_args,

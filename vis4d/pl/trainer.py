@@ -4,18 +4,15 @@ from __future__ import annotations
 
 import os.path as osp
 
-import pytorch_lightning as pl
-from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
-    DDPStrategy,
-)
-from pytorch_lightning.strategies.strategy import Strategy
+import lightning.pytorch as pl
+from lightning.pytorch.strategies import DDPStrategy, Strategy
 
 from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 
 
-class DefaultTrainer(pl.Trainer):
+class DefaultTrainer(pl.Trainer):  # type: ignore
     """DefaultTrainer for PyTorch-Lightning."""
 
     def __init__(
@@ -54,7 +51,7 @@ class DefaultTrainer(pl.Trainer):
             isinstance(kwargs["logger"], bool) and kwargs["logger"]
         ):
             if wandb:  # pragma: no cover
-                exp_logger = pl.loggers.WandbLogger(  # type: ignore[attr-defined] # pylint: disable=line-too-long
+                exp_logger = pl.loggers.WandbLogger(
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,

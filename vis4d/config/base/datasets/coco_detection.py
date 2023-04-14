@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ml_collections.config_dict import ConfigDict
 
-from vis4d.config.dataloader import get_dataloader_config
+from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO

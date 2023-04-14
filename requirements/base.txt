@@ -4,13 +4,13 @@ cloudpickle
 cython
 devtools
 jsonargparse[signatures]
+lightning
 ml_collections==0.1.1 # Config interface. Need exact version since we overwrite internal functions
 numpy>=1.21.0
 pandas
 pillow
 plyfile
 pycocotools
-pytorch-lightning>=1.9.0
 setuptools
 termcolor
 terminaltables

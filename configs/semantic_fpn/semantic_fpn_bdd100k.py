@@ -8,7 +8,6 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     LoggingCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.seg import seg_preprocessing
 from vis4d.config.default.data_connectors.seg import (
     CONN_BDD100K_SEG_EVAL,
@@ -16,6 +15,7 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TRAIN,
     CONN_SEG_LOSS,
 )
+from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
@@ -78,11 +78,11 @@ def get_config() -> ConfigDict:
         data_backend=data_backend,
     )
     preproc = seg_preprocessing(720, 1280, True, params.augment_prob)
-    dataloader_train_cfg = default_image_dataloader(
+    dataloader_train_cfg = get_dataloader_config(
         preprocess_cfg=preproc,
         dataset_cfg=dataset_cfg_train,
-        num_samples_per_gpu=params.samples_per_gpu,
-        num_workers_per_gpu=params.workers_per_gpu,
+        samples_per_gpu=params.samples_per_gpu,
+        workers_per_gpu=params.workers_per_gpu,
         shuffle=True,
     )
     data.train_dataloader = dataloader_train_cfg
@@ -99,11 +99,11 @@ def get_config() -> ConfigDict:
     preprocess_test_cfg = seg_preprocessing(
         720, 1280, True, augment_probability=0
     )
-    dataloader_cfg_test = default_image_dataloader(
+    dataloader_cfg_test = get_dataloader_config(
         preprocess_cfg=preprocess_test_cfg,
         dataset_cfg=dataset_test_cfg,
-        num_samples_per_gpu=1,
-        num_workers_per_gpu=1,
+        samples_per_gpu=1,
+        workers_per_gpu=1,
         shuffle=False,
         train=False,
     )

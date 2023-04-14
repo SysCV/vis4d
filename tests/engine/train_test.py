@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import unittest
 
-from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
@@ -27,7 +26,6 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-
 from vis4d.engine.train import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss

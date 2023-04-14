@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from torch import optim
 
-from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.seg import seg_preprocessing
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
     CONN_MULTI_SEG_LOSS,
 )
-from vis4d.config.default.sweep.default import linear_grid_search
+from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.sweep import linear_grid_search
 from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
@@ -79,11 +79,11 @@ def get_config() -> ConfigDict:
         minimum_box_area=10,
     )
     preproc = seg_preprocessing(520, 520, False, params.augment_proba)
-    dataloader_train_cfg = default_image_dataloader(
+    dataloader_train_cfg = get_dataloader_config(
         preproc,
         dataset_cfg_train,
-        params.batch_size,
-        num_workers_per_gpu=0,
+        samples_per_gpu=params.batch_size,
+        workers_per_gpu=0,
         shuffle=True,
     )
     config.train_dl = dataloader_train_cfg
@@ -98,11 +98,11 @@ def get_config() -> ConfigDict:
     preprocess_test_cfg = seg_preprocessing(
         520, 520, False, augment_probability=0
     )
-    dataloader_cfg_test = default_image_dataloader(
+    dataloader_cfg_test = get_dataloader_config(
         preprocess_test_cfg,
         dataset_test_cfg,
-        batch_size=1,
-        num_workers_per_gpu=0,
+        samples_per_gpu=1,
+        workers_per_gpu=0,
         shuffle=False,
     )
     config.test_dl = {"coco_eval": dataloader_cfg_test}

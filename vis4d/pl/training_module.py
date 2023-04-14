@@ -4,9 +4,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
-from pytorch_lightning import seed_everything
+from lightning.pytorch import seed_everything
 from torch import nn, optim
 from torchmetrics import MeanMetric
 
@@ -60,7 +60,7 @@ class TorchOptimizer(optim.Optimizer):
         self.optim.zero_grad()
 
 
-class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
+class TrainingModule(pl.LightningModule):  # type: ignore
     """LightningModule that wraps around the vis4d implementations.
 
     This is a wrapper around the vis4d implementations that allows to use
@@ -74,7 +74,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         loss: nn.Module,
         data_connector: DataConnector,
         seed: None | int = None,
-    ):
+    ) -> None:
         """Initialize the TrainingModule.
 
         Args:
@@ -106,7 +106,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
             rank_zero_info(f"Global seed set to {seed}")
 
         self.model = instantiate_classes(self.model)
-        self.optims = set_up_optimizers(self.optims, self.model) # type: ignore
+        self.optims = set_up_optimizers(self.optims, self.model)  # type: ignore # pylint: disable=line-too-long
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, data: DictData
@@ -130,7 +130,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         for k, v in losses.items():
             if not hasattr(self, k):
                 metric = MeanMetric()
-                metric.to(self.device)  # type: ignore
+                metric.to(self.device)
                 setattr(self, k, metric)
 
             metric = getattr(self, k)
