@@ -10,8 +10,8 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_MULTI_SEG_LOSS,
 )
 from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.sweep import linear_grid_search
-from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector

@@ -16,8 +16,8 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_SEG_LOSS,
 )
 from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import set_output_dir
-from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K

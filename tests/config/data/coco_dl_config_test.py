@@ -7,8 +7,7 @@ from ml_collections import ConfigDict
 from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
-from vis4d.config.default.data.detect import det_preprocessing
-from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.base.datasets.coco_detection import get_coco_detection_config
 from vis4d.config.util import class_config, instantiate_classes
 from vis4d.data.datasets.coco import COCO
 
@@ -21,13 +20,13 @@ class TestDataloaderConfig(unittest.TestCase):
     def test_dataset_config_str(self) -> None:
         """Test case to instantiate a dataset from a string."""
         # Check full path imports
-        dataset_cfg_train = class_config(
+        train_dataset_cfg = class_config(
             "vis4d.data.datasets.coco.COCO",
             data_root=self.COCO_DATA_ROOT,
             split="train",
         )
-        self.assertTrue(isinstance(dataset_cfg_train, ConfigDict))
-        coco = instantiate_classes(dataset_cfg_train)
+        self.assertTrue(isinstance(train_dataset_cfg, ConfigDict))
+        coco = instantiate_classes(train_dataset_cfg)
         self.assertTrue(isinstance(coco, COCO))
         self.assertEqual(coco.data_root, self.COCO_DATA_ROOT)
         # Make sure it is callable. I.e. does not crash
@@ -35,14 +34,13 @@ class TestDataloaderConfig(unittest.TestCase):
 
     def test_dataset_config_clazz(self) -> None:
         """Test case to instantiate a dataset from a class."""
-        # Check full path imports
-        dataset_cfg_train = class_config(
+        train_dataset_cfg = class_config(
             COCO,
             data_root=self.COCO_DATA_ROOT,
             split="train",
         )
-        self.assertTrue(isinstance(dataset_cfg_train, ConfigDict))
-        coco = instantiate_classes(dataset_cfg_train)
+        self.assertTrue(isinstance(train_dataset_cfg, ConfigDict))
+        coco = instantiate_classes(train_dataset_cfg)
         self.assertTrue(isinstance(coco, COCO))
         self.assertEqual(coco.data_root, self.COCO_DATA_ROOT)
         # Make sure it is callable. I.e. does not crash
@@ -53,21 +51,13 @@ class TestDataloaderConfig(unittest.TestCase):
 
         This also checks that the detection preprocessing works.
         """
-        dataset_cfg_train = class_config(
-            COCO,
-            data_root=self.COCO_DATA_ROOT,
-            split="train",
+        dataloader_cfg = get_coco_detection_config(
+            self.COCO_DATA_ROOT,
+            train_split="train",
+            test_split="train",
         )
-
-        preprocess_cfg_train = det_preprocessing(800, 1333, 0.5)
-        dataloader_train_cfg = get_dataloader_config(
-            preprocess_cfg_train,
-            dataset_cfg_train,
-            samples_per_gpu=2,
-            workers_per_gpu=2,
-        )
-        self.assertTrue(isinstance(dataloader_train_cfg, ConfigDict))
-        dl = instantiate_classes(dataloader_train_cfg)
-        self.assertTrue(isinstance(dl, DataLoader))
-        entries = next(iter(dl))
+        self.assertTrue(isinstance(dataloader_cfg, ConfigDict))
+        train_dl = instantiate_classes(dataloader_cfg.train_dataloader)
+        self.assertTrue(isinstance(train_dl, DataLoader))
+        entries = next(iter(train_dl))
         self.assertEqual(entries["images"].shape[0], 2)

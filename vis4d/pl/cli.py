@@ -14,6 +14,7 @@ from lightning.pytorch.utilities.exceptions import MisconfigurationException
 from ml_collections import ConfigDict
 from torch.utils.collect_env import get_pretty_env_info
 
+from vis4d.common import ArgsType
 from vis4d.common.callbacks import VisualizerCallback
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
@@ -36,7 +37,7 @@ _SHOW_CONFIG = flags.DEFINE_bool(
 )
 
 
-def main(argv) -> None:  # type:ignore
+def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:

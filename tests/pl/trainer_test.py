@@ -7,7 +7,7 @@ import unittest
 from pytorch_lightning import Callback
 from torch import nn, optim
 
-from vis4d.config.optimizer import get_optimizer_config
+from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.util import class_config
 from vis4d.pl import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule

@@ -4,7 +4,6 @@ from __future__ import annotations
 from ml_collections import FieldReference
 
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.model.detect.faster_rcnn import FasterRCNN
@@ -17,18 +16,6 @@ from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
 
 # Data connectors
-CONN_BBOX_2D_TRAIN = {
-    K.images: K.images,
-    K.input_hw: K.input_hw,
-    K.boxes2d: K.boxes2d,
-    K.boxes2d_classes: K.boxes2d_classes,
-}
-
-CONN_BBOX_2D_TEST = {
-    **CONN_BBOX_2D_TRAIN,
-    "original_hw": "original_hw",
-}
-
 CONN_RPN_LOSS_2D = {
     "cls_outs": pred_key("rpn.cls"),
     "reg_outs": pred_key("rpn.box"),

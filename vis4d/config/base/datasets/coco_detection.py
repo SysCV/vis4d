@@ -1,6 +1,8 @@
 """COCO data loading config for object detection."""
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.default.dataloader import get_dataloader_config
@@ -27,15 +29,11 @@ CONN_COCO_BBOX_EVAL = {
     "pred_classes": pred_key("class_ids"),
 }
 
-CONN_BBOX_2D_VIS = {
-    K.images: data_key(K.images),
-    "boxes": pred_key("boxes"),
-}
-
 
 def get_train_dataloader(
     data_root: str,
     split: str,
+    keys_to_load: Sequence[str],
     data_backend: None | DataBackend,
     image_size: tuple[int, int],
     samples_per_gpu: int,
@@ -45,7 +43,7 @@ def get_train_dataloader(
     # Train Dataset
     train_dataset_cfg = class_config(
         COCO,
-        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
+        keys_to_load=keys_to_load,
         data_root=data_root,
         split=split,
         remove_empty=True,
@@ -103,6 +101,7 @@ def get_train_dataloader(
 def get_test_dataloader(
     data_root: str,
     split: str,
+    keys_to_load: Sequence[str],
     data_backend: None | DataBackend,
     image_size: tuple[int, int],
     samples_per_gpu: int,
@@ -112,7 +111,7 @@ def get_test_dataloader(
     # Test Dataset
     test_dataset_cfg = class_config(
         COCO,
-        keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
+        keys_to_load=keys_to_load,
         data_root=data_root,
         split=split,
         data_backend=data_backend,
@@ -158,7 +157,17 @@ def get_test_dataloader(
 def get_coco_detection_config(
     data_root: str = "data/coco",
     train_split: str = "train2017",
+    train_keys_to_load: Sequence[str] = (
+        K.images,
+        K.boxes2d,
+        K.boxes2d_classes,
+    ),
     test_split: str = "val2017",
+    test_keys_to_load: Sequence[str] = (
+        K.images,
+        K.boxes2d,
+        K.boxes2d_classes,
+    ),
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (800, 1333),
     samples_per_gpu: int = 2,
@@ -170,6 +179,7 @@ def get_coco_detection_config(
     data.train_dataloader = get_train_dataloader(
         data_root=data_root,
         split=train_split,
+        keys_to_load=train_keys_to_load,
         data_backend=data_backend,
         image_size=image_size,
         samples_per_gpu=samples_per_gpu,
@@ -179,6 +189,7 @@ def get_coco_detection_config(
     data.test_dataloader = get_test_dataloader(
         data_root=data_root,
         split=test_split,
+        keys_to_load=test_keys_to_load,
         data_backend=data_backend,
         image_size=image_size,
         samples_per_gpu=1,

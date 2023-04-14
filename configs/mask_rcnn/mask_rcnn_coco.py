@@ -9,25 +9,29 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.detect import det_preprocessing
+from vis4d.config.base.datasets.coco_detection import (
+    CONN_COCO_BBOX_EVAL,
+    get_coco_detection_config,
+)
+from vis4d.config.base.models.faster_rcnn import (
+    CONN_ROI_LOSS_2D,
+    CONN_RPN_LOSS_2D,
+)
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
-    CONN_COCO_BBOX_EVAL,
-    CONN_MASK_HEAD_LOSS_2D,
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
 )
-from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.optimizer import get_optimizer_config
+from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.default.sweep import linear_grid_search
-from vis4d.config.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     StaticDataConnector,
+    data_key,
+    pred_key,
     remap_pred_keys,
 )
 from vis4d.engine.loss import WeightedMultiLoss
@@ -47,6 +51,14 @@ from vis4d.op.detect.rcnn import (
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.vis.image import BoundingBoxVisualizer
 
+CONN_MASK_HEAD_LOSS_2D = {
+    "mask_preds": pred_key("masks.mask_pred"),
+    "target_masks": data_key("masks"),
+    "sampled_target_indices": pred_key("boxes.sampled_target_indices"),
+    "sampled_targets": pred_key("boxes.sampled_targets"),
+    "sampled_proposals": pred_key("boxes.sampled_proposals"),
+}
+
 
 def get_config() -> ConfigDict:
     """Returns the config dict for the coco detection task.
@@ -57,7 +69,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/mask_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
+    >>> python -m vis4d.engine.cli fit --config configs/mask_rcnn/mask_rcnn_coco.py --config.params.lr 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -65,81 +77,47 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-
-    # Here we define the general config for the experiment.
-    # This includes the experiment name, the dataset root, the splits
-    # and the high level hyper parameters.
-
     config = ConfigDict()
-    config.experiment_name = "mask_rcnn_coco"
-    config.save_prefix = "vis4d-workspace/test/" + config.get_ref(
-        "experiment_name"
-    )
 
-    config.dataset_root = "data/coco"
-    config.train_split = "train2017"
-    config.test_split = "val2017"
-    config.n_gpus = 1
-    config.num_epochs = 10
+    config.work_dir = "vis4d-workspace"
+    config.experiment_name = "mask_rcnn_coco"
+    config = set_output_dir(config)
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.batch_size = 16
+    params.samples_per_gpu = 2
+    params.workers_per_gpu = 2
     params.lr = 0.01
-    params.augment_proba = 0.5
+    params.num_epochs = 10
     params.num_classes = 80
     config.params = params
 
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
+    data_root = "data/coco"
+    train_split = "train2017"
+    test_split = "val2017"
 
-    # Here we define the training and test datasets.
-    # We use the COCO dataset and the default data augmentation
-    # provided by vis4d.
-
-    # Training Datasets
-    dataset_cfg_train = class_config(
-        COCO,
-        keys_to_load=(
+    config.data = get_coco_detection_config(
+        data_root=data_root,
+        train_split=train_split,
+        train_keys_to_load=(
             K.images,
             K.boxes2d,
             K.boxes2d_classes,
             K.instance_masks,
         ),
-        data_root=config.dataset_root,
-        split=config.train_split,
-    )
-    preproc = det_preprocessing(800, 1333, params.augment_proba)
-    dataloader_train_cfg = get_dataloader_config(
-        preproc,
-        dataset_cfg_train,
-        samples_per_gpu=params.batch_size,
-        shuffle=True,
-    )
-    config.train_dl = dataloader_train_cfg
-
-    # Test
-    dataset_test_cfg = class_config(
-        COCO,
-        keys_to_load=(
+        test_split=test_split,
+        test_keys_to_load=(
             K.images,
             K.boxes2d,
             K.boxes2d_classes,
             K.instance_masks,
         ),
-        data_root=config.dataset_root,
-        split=config.test_split,
+        samples_per_gpu=params.samples_per_gpu,
+        workers_per_gpu=params.workers_per_gpu,
     )
-    preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    dataloader_cfg_test = get_dataloader_config(
-        preprocess_test_cfg,
-        dataset_test_cfg,
-        samples_per_gpu=1,
-        workers_per_gpu=1,
-        shuffle=False,
-    )
-    config.test_dl = {"coco_eval": dataloader_cfg_test}
 
     ######################################################
     ##                        MODEL                     ##
@@ -267,7 +245,7 @@ def get_config() -> ConfigDict:
                 split=config.test_split,
             ),
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
+            num_epochs=params.num_epochs,
         )
     }
 
@@ -285,7 +263,7 @@ def get_config() -> ConfigDict:
             visualizer=class_config(BoundingBoxVisualizer),
             output_dir=config.save_prefix + "/vis",
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
+            num_epochs=params.num_epochs,
         )
     }
     ######################################################
@@ -299,7 +277,7 @@ def get_config() -> ConfigDict:
             CheckpointCallback,
             save_prefix=config.save_prefix,
             run_every_nth_epoch=1,
-            num_epochs=config.num_epochs,
+            num_epochs=params.num_epochs,
         )
     }
 

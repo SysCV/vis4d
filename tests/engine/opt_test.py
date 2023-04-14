@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from tests.util import MockModel
-from vis4d.config.optimizer import get_optimizer_config
+from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.engine.opt import Optimizer, set_up_optimizers
 from vis4d.optim import LinearLRWarmup, PolyLR

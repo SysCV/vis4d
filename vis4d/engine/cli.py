@@ -14,6 +14,7 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
+from vis4d.common import ArgsType
 from vis4d.common.distributed import (
     broadcast,
     get_local_rank,
@@ -85,7 +86,7 @@ def ddp_setup(
     _info(f"LOCAL_RANK: {local_rank} - CUDA_VISIBLE_DEVICES: [{devices}]")
 
 
-def main(argv) -> None:  # type:ignore
+def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
