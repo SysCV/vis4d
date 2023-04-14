@@ -21,6 +21,7 @@ from vis4d.op.detect.retinanet import (
 from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
 
 REV_KEYS = [
+    (r"^backbone\.", "basemodel."),
     (r"^bbox_head\.", "retinanet_head."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
@@ -44,9 +45,11 @@ class RetinaNet(nn.Module):
                 Defaults to None.
         """
         super().__init__()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.basemodel = ResNet(
+            "resnet50", pretrained=True, trainable_layers=3
+        )
         self.fpn = FPN(
-            self.backbone.out_channels[3:],
+            self.basemodel.out_channels[3:],
             256,
             LastLevelP6P7(2048, 256),
             start_index=3,
@@ -106,7 +109,7 @@ class RetinaNet(nn.Module):
         Returns:
             RetinaNetOut: Raw model outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         return self.retinanet_head(features[-5:])
 
     def forward_test(
@@ -126,7 +129,7 @@ class RetinaNet(nn.Module):
         Returns:
             ModelOutput: Predicted outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         outs = self.retinanet_head(features[-5:])
         boxes, scores, class_ids = self.transform_outs(
             cls_outs=outs.cls_score,

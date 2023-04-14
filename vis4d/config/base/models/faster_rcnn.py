@@ -58,7 +58,7 @@ def get_default_rcnn_box_codec_cfg(
 
 def get_model_cfg(
     num_classes: FieldReference | int,
-    backbone: ConfigDict,
+    basemodel: ConfigDict,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Return default config for faster_rcnn model and loss.
 
@@ -67,7 +67,7 @@ def get_model_cfg(
 
     Args:
         num_classes (FieldReference | int): Number of classes.
-        backbone (ConfigDict): Backbone config.
+        basemodel (ConfigDict): Base model config.
     """
     ######################################################
     ##                        MODEL                     ##
@@ -108,7 +108,7 @@ def get_model_cfg(
     model = class_config(
         FasterRCNN,
         num_classes=num_classes,
-        backbone=backbone,
+        basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         rcnn_box_decoder=rcnn_box_decoder,
         # weights="mmdet",

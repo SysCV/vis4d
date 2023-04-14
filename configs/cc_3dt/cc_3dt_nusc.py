@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import pytorch_lightning as pl
 import torch
+from torch.optim import SGD
+from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.common.callbacks import EvaluatorCallback
 from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import (
     get_generic_callback_config,
     get_pl_trainer_args,
@@ -37,6 +40,7 @@ from vis4d.engine.connectors import (
 )
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
+from vis4d.optim.warmup import LinearLRWarmup
 
 CONN_BBOX_3D_TEST = {
     CK.images: CK.images,
@@ -175,7 +179,21 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = None  # TODO: implement optimizer
+    config.optimizers = [
+        get_optimizer_config(
+            optimizer=class_config(
+                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
+            ),
+            lr_scheduler=class_config(
+                MultiStepLR, milestones=[8, 11], gamma=0.1
+            ),
+            lr_warmup=class_config(
+                LinearLRWarmup, warmup_ratio=0.1, warmup_steps=1000
+            ),
+            epoch_based_lr=True,
+            epoch_based_warmup=False,
+        )
+    ]
 
     ######################################################
     ##                  DATA CONNECTOR                  ##

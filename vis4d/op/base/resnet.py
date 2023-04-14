@@ -1,4 +1,4 @@
-"""Residual networks for classification."""
+"""Residual networks base model."""
 from __future__ import annotations
 
 import torch
@@ -9,7 +9,7 @@ from .base import BaseModel
 
 
 class ResNet(BaseModel):
-    """Wrapper for torch vision resnet backbones."""
+    """Wrapper for torch vision resnet."""
 
     def __init__(
         self,

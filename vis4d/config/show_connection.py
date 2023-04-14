@@ -9,7 +9,9 @@ from vis4d.engine.parser import DEFINE_config_file
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 
 
-def main(argv: ArgsType) -> None:  # pylint: disable=unused-argument
+def main(
+    argv: ArgsType,  # pylint: disable=unused-argument
+) -> None:  # pragma: no cover
     """Main entry point to show connected components in the config.
 
     >>> python -m vis4d.config.show_connection --config configs/faster_rcnn/faster_rcnn_coco.py

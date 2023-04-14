@@ -9,7 +9,7 @@ from .base import BaseModel
 
 
 class VGG(BaseModel):
-    """Wrapper for torch vision resnet backbones."""
+    """Wrapper for torch vision VGG."""
 
     def __init__(
         self,
@@ -44,7 +44,8 @@ class VGG(BaseModel):
         ]:
             raise ValueError("The VGG name is not supported!")
 
-        vgg = _vgg.__dict__[vgg_name](pretrained=pretrained)
+        weights = "IMAGENET1K_V1" if pretrained else None
+        vgg = _vgg.__dict__[vgg_name](weights=weights)
         use_bn = vgg_name[-3:] == "_bn"
         self._out_channels: list[int] = []
         returned_layers = []

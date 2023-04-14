@@ -8,7 +8,7 @@ from vis4d.op.base.vgg import VGG
 
 
 class TestVGG(unittest.TestCase):
-    """Testcases for VGG backbone."""
+    """Testcases for VGG base model."""
 
     def test_vgg(self) -> None:
         """Testcase for VGG."""

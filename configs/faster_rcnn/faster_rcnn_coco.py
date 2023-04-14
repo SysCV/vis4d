@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch import optim
+from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
@@ -88,12 +88,12 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  MODEL & LOSS                    ##
     ######################################################
-    backbone = class_config(
+    basemodel = class_config(
         ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
     )
 
     config.model, config.loss = get_model_cfg(
-        num_classes=params.num_classes, backbone=backbone
+        num_classes=params.num_classes, basemodel=basemodel
     )
 
     ######################################################
@@ -102,7 +102,7 @@ def get_config() -> ConfigDict:
     config.optimizers = [
         get_optimizer_config(
             optimizer=class_config(
-                optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
+                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
             lr_scheduler=class_config(
                 MultiStepLR, milestones=[8, 11], gamma=0.1

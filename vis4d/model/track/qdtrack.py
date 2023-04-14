@@ -38,7 +38,7 @@ REV_KEYS = [
     # ),
     # (r"\.conv.weight", ".weight"),
     # (r"\.conv.bias", ".bias"),
-    (r"^backbone.body\.", "backbone."),
+    (r"^backbone.body\.", "basemodel."),
 ]
 
 
@@ -264,7 +264,7 @@ class FasterRCNNQDTrack(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        backbone: BaseModel | None = None,
+        basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         weights: None | str = None,
@@ -273,8 +273,8 @@ class FasterRCNNQDTrack(nn.Module):
 
         Args:
             num_classes (int): Number of object categories.
-            backbone (BaseModel, optional): Backbone network. Defaults to None.
-                if None, will use ResNet50.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
             faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
@@ -282,13 +282,13 @@ class FasterRCNNQDTrack(nn.Module):
             weights (str, optional): Weights to load for model.
         """
         super().__init__()
-        self.backbone = (
+        self.basemodel = (
             ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
-            if backbone is None
-            else backbone
+            if basemodel is None
+            else basemodel
         )
 
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
 
         if faster_rcnn_head is None:
             self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
@@ -321,7 +321,7 @@ class FasterRCNNQDTrack(nn.Module):
         frame_ids: list[int],
     ) -> TrackOut:
         """Forward inference stage."""
-        features = self.backbone(images)
+        features = self.basemodel(images)
         features = self.fpn(features)
         detector_out = self.faster_rcnn_heads(features, images_hw)
 

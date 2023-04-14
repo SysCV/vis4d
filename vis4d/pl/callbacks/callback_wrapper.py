@@ -98,7 +98,7 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         outputs: Any,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
@@ -144,7 +144,7 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         outputs: Any,
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         shared_clbk_kwargs = {

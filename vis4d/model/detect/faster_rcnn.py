@@ -14,6 +14,7 @@ from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
+    (r"^backbone\.", "basemodel."),
     (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
     (r"^rpn_head.rpn_", "faster_rcnn_heads.rpn_head.rpn_"),
     (r"^roi_head.bbox_head\.", "faster_rcnn_heads.roi_head."),
@@ -30,7 +31,7 @@ class FasterRCNN(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        backbone: BaseModel | None = None,
+        basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         weights: None | str = None,
@@ -39,8 +40,8 @@ class FasterRCNN(nn.Module):
 
         Args:
             num_classes (int): Number of object categories.
-            backbone (BaseModel, optional): Backbone network. Defaults to None.
-                if None, will use ResNet50.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
             faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
@@ -50,13 +51,13 @@ class FasterRCNN(nn.Module):
                 None.
         """
         super().__init__()
-        self.backbone = (
+        self.basemodel = (
             ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
-            if backbone is None
-            else backbone
+            if basemodel is None
+            else basemodel
         )
 
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
 
         if faster_rcnn_head is None:
             self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
@@ -138,7 +139,7 @@ class FasterRCNN(nn.Module):
         Returns:
             FRCNNOut: Raw model outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         return self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
@@ -160,7 +161,7 @@ class FasterRCNN(nn.Module):
         Returns:
             DetOut: Predicted outputs.
         """
-        features = self.fpn(self.backbone(images))
+        features = self.fpn(self.basemodel(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         boxes, scores, class_ids = self.roi2det(
             *outs.roi, outs.proposals.boxes, images_hw

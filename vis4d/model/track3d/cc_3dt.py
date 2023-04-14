@@ -32,7 +32,7 @@ from vis4d.op.track_3d.motion.kf3d import (
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 
 REV_KEYS = [
-    (r"^backbone.body\.", "backbone."),
+    (r"^backbone.body\.", "basemodel."),
 ]
 
 
@@ -444,7 +444,7 @@ class FasterRCNNCC3DT(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        backbone: BaseModel | None = None,
+        basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         motion_model: str = "KF3D",
@@ -457,8 +457,8 @@ class FasterRCNNCC3DT(nn.Module):
 
         Args:
             num_classes (int): Number of object categories.
-            backbone (BaseModel, optional): Backbone network. Defaults to None.
-                if None, will use ResNet50.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
             faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
@@ -471,13 +471,13 @@ class FasterRCNNCC3DT(nn.Module):
             weights (None | str): Weights path. Defaults to None.
         """
         super().__init__()
-        self.backbone = (
+        self.basemodel = (
             ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
-            if backbone is None
-            else backbone
+            if basemodel is None
+            else basemodel
         )
 
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
 
         if faster_rcnn_head is None:
             anchor_generator = AnchorGenerator(
@@ -533,7 +533,7 @@ class FasterRCNNCC3DT(nn.Module):
         intrinsics = intrinsics.squeeze(1)
         extrinsics = extrinsics.squeeze(1)
 
-        features = self.backbone(images)
+        features = self.basemodel(images)
         features = self.fpn(features)
         _, roi, proposals, _, _, _ = self.faster_rcnn_heads(
             features, images_hw
