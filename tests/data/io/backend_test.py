@@ -40,6 +40,21 @@ class TestBackends(unittest.TestCase):
         self.assertFalse(backend_zip.exists(invalid_inzip))
         self.assertTrue(backend_zip.exists(zip_path))
 
+        # check isfile
+        self.assertTrue(backend_file.isfile(sample_path))
+        self.assertFalse(backend_file.isfile(os.path.dirname(sample_path)))
+        self.assertTrue(backend_hdf5.isfile(hdf5_path))
+        self.assertFalse(backend_hdf5.isfile(os.path.dirname(hdf5_path)))
+        self.assertTrue(backend_zip.isfile(zip_path))
+        self.assertFalse(backend_zip.isfile(os.path.dirname(zip_path)))
+
+        # check listdir
+        list_file = backend_file.listdir(os.path.dirname(sample_path))
+        list_hdf5 = backend_hdf5.listdir(os.path.dirname(hdf5_path))
+        list_zip = backend_zip.listdir(os.path.dirname(zip_path))
+        self.assertTrue(len(list_file) == len(list_hdf5) == len(list_zip))
+        self.assertTrue(set(list_file) == set(list_hdf5) == set(list_zip))
+
         # check set
         os.makedirs("./unittests/", exist_ok=True)
         backend_file.set("./unittests/test_file.bin", bytes())

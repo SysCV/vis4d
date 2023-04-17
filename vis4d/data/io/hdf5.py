@@ -1,7 +1,7 @@
 """Hdf5 data backend.
 
-This backend works with filepaths pointing to valid HDF5 files. We assume the
-key structure of the HDF5 files resembles the folder structure of the dataset.
+This backend works with filepaths pointing to valid HDF5 files. We assume that
+the given HDF5 file contains the whole dataset associated to this backend.
 """
 from __future__ import annotations
 
@@ -18,8 +18,6 @@ from .base import DataBackend
 if H5PY_AVAILABLE:
     import h5py
     from h5py import File
-
-    t_vlen_uint8 = h5py.special_dtype(vlen=np.uint8)
 else:
     File = None  # pylint: disable=invalid-name
 
@@ -31,9 +29,8 @@ class HDF5Backend(DataBackend):
     that the given HDF5 file contains the whole dataset associated to this
     backend.
 
-    You can use the provided conversion function:
-    `python -m vis4d.data.io.hdf5 --path <path/to/dataset>`
-    This converts your dataset to the expected hdf5 format.
+    You can use the provided script at vis4d/data/datasets/to_hdf5.py to
+    convert your dataset to the expected hdf5 format before using this backend.
     """
 
     def __init__(self) -> None:
@@ -165,6 +162,61 @@ class HDF5Backend(DataBackend):
                 raise ValueError(f"Value {url} not found in {hdf5_path}!")
 
         return bytes(value_buf[()])
+
+    def isfile(self, filepath: str) -> bool:
+        """Check if filepath is a file.
+
+        Args:
+            filepath (str): Path to file.
+
+        Raises:
+            FileNotFoundError: If no suitable file exists.
+            ValueError: If key not found inside hdf5 file.
+
+        Returns:
+            bool: True if file exists, False otherwise.
+        """
+        hdf5_path, keys = self._get_hdf5_path(filepath)
+        if not os.path.exists(hdf5_path):
+            raise FileNotFoundError(
+                f"Corresponding HDF5 file not found:" f" {filepath}"
+            )
+        value_buf = self._get_client(hdf5_path, "r")
+        url = "/".join(reversed(keys))
+        while keys:
+            value_buf = value_buf.get(keys.pop())
+            if value_buf is None:
+                raise ValueError(f"Value {url} not found in {hdf5_path}!")
+        return not isinstance(value_buf, h5py.Group)
+
+    def listdir(self, filepath: str) -> list[str]:
+        """List all files in the given directory.
+
+        Args:
+            filepath (str): Path to directory.
+
+        Raises:
+            FileNotFoundError: If no suitable file exists.
+            ValueError: If key not found inside hdf5 file.
+
+        Returns:
+            list[str]: List of files in the given directory.
+        """
+        hdf5_path, keys = self._get_hdf5_path(filepath)
+        if not os.path.exists(hdf5_path):
+            raise FileNotFoundError(
+                f"Corresponding HDF5 file not found:" f" {filepath}"
+            )
+        value_buf = self._get_client(hdf5_path, "r")
+        url = "/".join(reversed(keys))
+        while keys:
+            value_buf = value_buf.get(keys.pop())
+            if value_buf is None:
+                raise ValueError(f"Value {url} not found in {hdf5_path}!")
+        if not isinstance(value_buf, h5py.Group):
+            raise ValueError(f"Value {url} is not a group in {hdf5_path}!")
+
+        return list(value_buf.keys())
 
 
 def convert_dataset(source_dir: str) -> None:

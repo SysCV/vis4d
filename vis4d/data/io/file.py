@@ -10,6 +10,28 @@ from .base import DataBackend
 class FileBackend(DataBackend):
     """Raw file from hard disk data backend."""
 
+    def isfile(self, filepath: str) -> bool:
+        """Check if filepath is a file.
+
+        Args:
+            filepath (str): Path to file.
+
+        Returns:
+            bool: True if file exists, False otherwise.
+        """
+        return os.path.isfile(filepath)
+
+    def listdir(self, filepath: str) -> list[str]:
+        """List all files in the directory.
+
+        Args:
+            filepath (str): Path to file.
+
+        Returns:
+            list[str]: List of all files in the directory.
+        """
+        return os.listdir(filepath)
+
     def exists(self, filepath: str) -> bool:
         """Check if filepath exists.
 
