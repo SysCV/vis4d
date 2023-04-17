@@ -2,6 +2,7 @@
 from .typing import (
     ArgsType,
     DictStrAny,
+    DictStrArrNested,
     LossesType,
     MetricLogs,
     ModelOutput,
@@ -15,6 +16,7 @@ from .typing import (
 
 __all__ = [
     "DictStrAny",
+    "DictStrArrNested",
     "ModelOutput",
     "ArgsType",
     "NDArrayF32",
