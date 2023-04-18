@@ -14,7 +14,7 @@ from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.sweep import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.engine.connectors import DataConnector
 from vis4d.model.seg.fcn_resnet import FCNResNet
 from vis4d.op.loss import MultiLevelSegLoss
 from vis4d.optim import PolyLR
@@ -175,12 +175,10 @@ def get_config() -> ConfigDict:
     # We use the default connections provided for faster_rcnn.
 
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            train=CONN_MASKS_TRAIN,
-            test=CONN_MASKS_TEST,
-            loss=CONN_MULTI_SEG_LOSS,
-        ),
+        DataConnector,
+        train=CONN_MASKS_TRAIN,
+        test=CONN_MASKS_TEST,
+        loss=CONN_MULTI_SEG_LOSS,
     )
     return config.value_mode()
 

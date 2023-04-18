@@ -24,12 +24,7 @@ from vis4d.data.transforms.resize import (
     ResizeImage,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
-    data_key,
-    pred_key,
-)
+from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
@@ -160,11 +155,9 @@ def get_config() -> ConfigDict:
     ##                  DATA CONNECTOR                  ##
     ######################################################
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            test=CONN_BBOX_2D_TEST,
-            callbacks={"bdd100k_eval_test": CONN_BDD100K_EVAL},
-        ),
+        DataConnector,
+        test=CONN_BBOX_2D_TEST,
+        callbacks={"bdd100k_eval_test": CONN_BDD100K_EVAL},
     )
 
     ######################################################

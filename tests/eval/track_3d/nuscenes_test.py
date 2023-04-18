@@ -15,7 +15,6 @@ from vis4d.data.loader import (
     multi_sensor_collate,
 )
 from vis4d.engine.connectors import (
-    DataConnectionInfo,
     MultiSensorDataConnector,
     data_key,
     pred_key,
@@ -76,13 +75,9 @@ class TestNuScenesEvaluator(unittest.TestCase):
         )
         test_loader = get_dataloader(dataset, batch_size)
 
-        data_connection_info = DataConnectionInfo(
+        data_connector = MultiSensorDataConnector(
             test=self.CONN_BBOX_3D_TEST,
             callbacks={"nusc_eval_test": self.CONN_NUSC_EVAL},
-        )
-
-        data_connector = MultiSensorDataConnector(
-            connections=data_connection_info,
             default_sensor="CAM_FRONT",
             sensors=self.CAMERAS,
         )

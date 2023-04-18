@@ -20,12 +20,7 @@ from vis4d.data.transforms import (
 )
 from vis4d.data.transforms.base import compose
 from vis4d.data.typing import DictData
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
-    data_key,
-    pred_key,
-)
+from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.engine.train import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
@@ -70,15 +65,13 @@ class EngineTrainTest(unittest.TestCase):
         optimizer = get_optimizer()
         dataset = COCO(get_test_data("coco_test"), split="train")
         train_loader = get_train_dataloader(dataset, 2)
-        data_connector = StaticDataConnector(
-            connections=DataConnectionInfo(
-                train={K.images: K.images},
-                test={K.images: K.images},
-                loss={
-                    "output": pred_key("outputs"),
-                    "target": data_key(K.seg_masks),
-                },
-            )
+        data_connector = DataConnector(
+            train={K.images: K.images},
+            test={K.images: K.images},
+            loss={
+                "output": pred_key("outputs"),
+                "target": data_key(K.seg_masks),
+            },
         )
         callback = {"logger": LoggingCallback(1)}
         trainer = Trainer(2, train_loader, data_connector, callback)

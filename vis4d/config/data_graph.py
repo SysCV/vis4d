@@ -9,7 +9,7 @@ from typing import Any
 from torch import nn
 
 from vis4d.config.util import ConfigDict, instantiate_classes
-from vis4d.engine.connectors import StaticDataConnector
+from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.eval.base import Evaluator
 
@@ -144,10 +144,10 @@ def _get_evaluator_connection_infos(
     )
 
 
-def _get_static_connector_infos(
-    data_connector: StaticDataConnector,
+def _get_data_connector_infos(
+    data_connector: DataConnector,
 ) -> dict[str, list[DataConnectionInfo]]:
-    """Returns the connection infos for a StaticDataConnector.
+    """Returns the connection infos for a DataConnector.
 
     Args:
         data_connector: DataConnector to extract data from
@@ -156,55 +156,66 @@ def _get_static_connector_infos(
         Dict containing train, test, loss, visualizer and evaluator connections
     """
     # train
-    train_connection_info = DataConnectionInfo(
-        in_keys=[
-            "<d>-" + e
-            for e in list(data_connector.connections["train"].keys())
-        ],
-        out_keys=list(data_connector.connections["train"].values()),
-        name="Train Data",
-    )
+    train_connection_info: list[DataConnectionInfo] = []
+    if data_connector.train is not None:
+        train_connection_info.append(
+            DataConnectionInfo(
+                in_keys=[
+                    "<d>-" + e for e in list(data_connector.train.keys())
+                ],
+                out_keys=list(data_connector.train.values()),
+                name="Train Data",
+            )
+        )
+
     # test
-    test_connection_info = DataConnectionInfo(
-        in_keys=[
-            "<d>-" + e for e in list(data_connector.connections["test"].keys())
-        ],
-        out_keys=list(data_connector.connections["test"].values()),
-        name="Test Data",
-    )
+    test_connection_info: list[DataConnectionInfo] = []
+    if data_connector.test is not None:
+        test_connection_info.append(
+            DataConnectionInfo(
+                in_keys=["<d>-" + e for e in list(data_connector.test.keys())],
+                out_keys=list(data_connector.test.values()),
+                name="Test Data",
+            )
+        )
 
     # loss
-    loss_out = []
-    loss_in = []
-    for entry, value in data_connector.connections["loss"].items():
-        loss_out.append(f"{entry}")
-        loss_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
+    loss_connection_info: list[DataConnectionInfo] = []
+    if data_connector.loss is not None:
+        loss_out = []
+        loss_in = []
+        for entry, value in data_connector.loss.items():
+            loss_out.append(f"{entry}")
+            loss_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
 
-    loss_connection_info = DataConnectionInfo(
-        in_keys=loss_in, out_keys=loss_out, name="Loss Connector"
-    )
+        loss_connection_info.append(
+            DataConnectionInfo(
+                in_keys=loss_in, out_keys=loss_out, name="Loss Connector"
+            )
+        )
 
     # callbacks
-    callbacks: list[DataConnectionInfo] = []
-    for name, evaluator in data_connector.connections.get(
-        "callbacks", {}
-    ).items():
-        # evaluator
-        eval_out = []
-        eval_in = []
-        for entry, value in evaluator.items():
-            eval_out.append(f"{entry}")
-            eval_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
-        connection_info = DataConnectionInfo(
-            in_keys=eval_in, out_keys=eval_out, name=name
-        )
-        callbacks.append(connection_info)
+    callbacks_connection_info: list[DataConnectionInfo] = []
+    if data_connector.callbacks is not None:
+        for name, evaluator in data_connector.callbacks.items():
+            # evaluator
+            eval_out = []
+            eval_in = []
+            for entry, value in evaluator.items():
+                eval_out.append(f"{entry}")
+                eval_in.append(
+                    f"<{_rename_ds(value['source'])}>-" + value["key"]
+                )
+            connection_info = DataConnectionInfo(
+                in_keys=eval_in, out_keys=eval_out, name=name
+            )
+            callbacks_connection_info.append(connection_info)
 
     return {
-        "train": [train_connection_info],
-        "test": [test_connection_info],
-        "loss": [loss_connection_info],
-        "callbacks": callbacks,
+        "train": train_connection_info,
+        "test": test_connection_info,
+        "loss": loss_connection_info,
+        "callbacks": callbacks_connection_info,
     }
 
 
@@ -358,7 +369,7 @@ def connect_components(
 
 def prints_datagraph_for_config(
     model: nn.Module,
-    data_connector: StaticDataConnector,
+    data_connector: DataConnector,
     loss: nn.Module,
     callbacks: dict[str, ConfigDict],
 ) -> str:
@@ -373,7 +384,7 @@ def prints_datagraph_for_config(
 
     Args:
         model(nn.Module): Model to plot.
-        data_connector(StaticDataConnector): DataConnector to plot.
+        data_connector(DataConnector): DataConnector to plot.
         loss(nn.Module): Loss to plot.
         callbacks(dict[str, ConfigDict]): Callbacks to plot.
 
@@ -437,8 +448,9 @@ def prints_datagraph_for_config(
 
     """
     model_connection_info = _get_model_conn_infos(model)
-    assert isinstance(data_connector, StaticDataConnector)
-    data_connection_info = _get_static_connector_infos(data_connector)
+    # TODO: support MultiSensorDataConnector
+    assert isinstance(data_connector, DataConnector)
+    data_connection_info = _get_data_connector_infos(data_connector)
 
     loss_info = _get_loss_connection_infos(loss)
     # TODO: needs more safety checks. I.e. does config.loss exists, ...

@@ -16,7 +16,6 @@ from vis4d.config.base.models.faster_rcnn import (
     get_model_cfg,
 )
 from vis4d.config.default.data_connectors import (
-    get_static_data_connector_config,
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
@@ -29,7 +28,7 @@ from vis4d.config.default.runtime import (
 )
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
-
+from vis4d.engine.connectors import DataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.op.base import ResNet
 from vis4d.optim.warmup import LinearLRWarmup
@@ -119,11 +118,12 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-    config.data_connector = get_static_data_connector_config(
-        train_connector=CONN_BBOX_2D_TRAIN,
-        test_connector=CONN_BBOX_2D_TEST,
-        loss_connector={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
-        callbacks_connector={
+    config.data_connector = class_config(
+        DataConnector,
+        train=CONN_BBOX_2D_TRAIN,
+        test=CONN_BBOX_2D_TEST,
+        loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
+        callbacks={
             "coco_eval_test": CONN_COCO_BBOX_EVAL,
             "bbox_vis_test": CONN_BBOX_2D_VIS,
         },

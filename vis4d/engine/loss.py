@@ -14,8 +14,8 @@ import torch
 from torch import Tensor, nn
 from typing_extensions import NotRequired
 
+from vis4d.common.named_tuple import is_namedtuple
 from vis4d.common.typing import LossesType
-from vis4d.engine.util import is_namedtuple
 from vis4d.op.loss.base import Loss
 
 

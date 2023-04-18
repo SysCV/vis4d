@@ -10,12 +10,7 @@ from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
-    data_key,
-    pred_key,
-)
+from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
 
 
@@ -66,12 +61,10 @@ class TestBDD100KTrackingEvaluator(unittest.TestCase):
         )
         test_loader = get_dataloader(dataset, batch_size)
 
-        data_connection_info = DataConnectionInfo(
+        data_connector = DataConnector(
             test=self.CONN_BBOX_2D_TEST,
             callbacks={"bdd100k_eval_test": self.CONN_BDD100K_EVAL},
         )
-
-        data_connector = StaticDataConnector(connections=data_connection_info)
 
         boxes, scores, classes, track_ids = generate_boxes(
             720, 1280, 4, batch_size, True

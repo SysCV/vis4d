@@ -1,20 +1,20 @@
-"""Static data connector for multi-sensor dataset."""
+"""Data connector for multi-sensor dataset."""
 from __future__ import annotations
-
-import torch
 
 from typing import NamedTuple
 
+import torch
 from torch import Tensor
 
 from vis4d.common import ArgsType, DictStrArrNested
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
-from .static import StaticDataConnector
+from .connector import DataConnector
+from .util import get_inputs_for_pred_and_data
 
 
-class MultiSensorDataConnector(StaticDataConnector):
+class MultiSensorDataConnector(DataConnector):
     """Data connector for multi-sensor dataset."""
 
     def __init__(
@@ -38,11 +38,12 @@ class MultiSensorDataConnector(StaticDataConnector):
 
     def get_test_input(self, data: DictData) -> DictData:
         """Returns the test input for the model."""
-        test_input_dict: DictData = {
-            v: [] for _, v in self.connections["test"].items()
-        }
+        if self.test is None:
+            return {}  # No data connections registered for testing
+
+        test_input_dict: DictData = {v: [] for _, v in self.test.items()}
         for sensor in self.sensors:
-            for k, v in self.connections["test"].items():
+            for k, v in self.test.items():
                 test_input_dict[v].append(data[sensor][k])
 
         for key in test_input_dict:
@@ -55,6 +56,7 @@ class MultiSensorDataConnector(StaticDataConnector):
 
         return test_input_dict
 
+    # TODO: Refactor this into a separate class for train / test
     def get_callback_input(
         self,
         mode: str,
@@ -81,15 +83,18 @@ class MultiSensorDataConnector(StaticDataConnector):
             dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
                 onto the callback.
         """
-        if f"{mode}_{cb_type}" in self.connections["callbacks"]:
+        if self.callbacks is None:
+            return {}  # No data connections registered for callbacks
+
+        if f"{mode}_{cb_type}" in self.callbacks:
             mode = f"{mode}_{cb_type}"
         else:
             return {}  # No inputs registered for this callback cb_type
 
-        clbk_dict = self.connections["callbacks"][mode]
+        clbk_dict = self.callbacks[mode]
 
         try:
-            return self._get_inputs_for_pred_and_data(
+            return get_inputs_for_pred_and_data(
                 clbk_dict, prediction, data[self.default_sensor]
             )
 
@@ -97,3 +102,5 @@ class MultiSensorDataConnector(StaticDataConnector):
             raise ValueError(
                 f"Error while loading callback input for mode {mode}.", e
             ) from e
+
+    # TODO: Add train and loss

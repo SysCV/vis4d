@@ -33,7 +33,6 @@ from vis4d.data.transforms.resize import (
 )
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import (
-    DataConnectionInfo,
     MultiSensorDataConnector,
     data_key,
     pred_key,
@@ -200,10 +199,8 @@ def get_config() -> ConfigDict:
     ######################################################
     config.data_connector = class_config(
         MultiSensorDataConnector,
-        connections=DataConnectionInfo(
-            test=CONN_BBOX_3D_TEST,
-            callbacks={"nusc_eval_test": CONN_NUSC_EVAL},
-        ),
+        test=CONN_BBOX_3D_TEST,
+        callbacks={"nusc_eval_test": CONN_NUSC_EVAL},
         default_sensor=NuScenes._CAMERAS[0],
         sensors=NuScenes._CAMERAS,
     )

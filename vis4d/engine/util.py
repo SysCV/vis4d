@@ -11,6 +11,8 @@ from typing import Any
 import torch
 from torch import Tensor
 
+from vis4d.common.named_tuple import is_namedtuple
+
 _BLOCKING_DEVICE_TYPES = ("cpu", "mps")
 
 
@@ -39,18 +41,6 @@ class TransferableDataType(ABC):
             to = getattr(subclass, "to", None)
             return callable(to)
         return NotImplemented  # pragma: no cover
-
-
-def is_namedtuple(obj: object) -> bool:
-    """Check if obj is namedtuple.
-
-    https://github.com/pytorch/pytorch/blob/v1.8.1/torch/nn/parallel/scatter_gather.py#L4-L8
-    """
-    return (
-        isinstance(obj, tuple)
-        and hasattr(obj, "_asdict")
-        and hasattr(obj, "_fields")
-    )
 
 
 def is_dataclass_instance(obj: object) -> bool:

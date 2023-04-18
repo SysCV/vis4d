@@ -25,10 +25,7 @@ from vis4d.data.transforms.resize import (
     ResizeIntrinsics,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    MultiSensorDataConnector,
-)
+from vis4d.engine.connectors import MultiSensorDataConnector
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT, Track3DOut
 
 
@@ -100,12 +97,8 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
             collate_fn=multi_sensor_collate,
         )[0]
 
-        data_connection_info = DataConnectionInfo(
-            test=self.CONN_BBOX_3D_TEST,
-        )
-
         data_connector = MultiSensorDataConnector(
-            connections=data_connection_info,
+            test=self.CONN_BBOX_3D_TEST,
             default_sensor="CAM_FRONT",
             sensors=self.CAMERAS,
         )

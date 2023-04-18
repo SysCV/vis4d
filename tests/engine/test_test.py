@@ -13,7 +13,7 @@ from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms import normalize, resize
 from vis4d.data.transforms.base import compose
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.engine.connectors import DataConnector
 from vis4d.engine.test import Tester
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 
@@ -44,10 +44,8 @@ class EngineTestTest(unittest.TestCase):
         model = SemanticFPN(num_classes=80)
         dataset = COCO(get_test_data("coco_test"), split="train")
         test_loader = get_test_dataloader(dataset)
-        data_connector = StaticDataConnector(
-            connections=DataConnectionInfo(
-                test={K.images: K.images, "original_hw": "original_hw"}
-            )
+        data_connector = DataConnector(
+            test={K.images: K.images, "original_hw": "original_hw"}
         )
         callback = {"logger": LoggingCallback(1)}
         tester = Tester([test_loader], data_connector, callback)

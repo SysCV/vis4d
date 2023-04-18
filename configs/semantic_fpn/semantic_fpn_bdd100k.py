@@ -22,7 +22,7 @@ from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.engine.connectors import DataConnector
 from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
@@ -141,13 +141,11 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            train=CONN_MASKS_TRAIN,
-            test=CONN_MASKS_TEST,
-            loss=CONN_SEG_LOSS,
-            callbacks={"bdd100k_eval": CONN_BDD100K_SEG_EVAL},
-        ),
+        DataConnector,
+        train=CONN_MASKS_TRAIN,
+        test=CONN_MASKS_TEST,
+        loss=CONN_SEG_LOSS,
+        callbacks={"bdd100k_eval": CONN_BDD100K_SEG_EVAL},
     )
 
     ######################################################
