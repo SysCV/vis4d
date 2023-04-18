@@ -25,7 +25,7 @@ from vis4d.engine.train import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
 
-from .opt_test import get_optimizer
+from .optim.optimizer_test import get_optimizer
 
 
 def seg_pipeline(data: list[DictData]) -> DictData:
