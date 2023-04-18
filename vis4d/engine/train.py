@@ -9,7 +9,7 @@ from vis4d.common.callbacks import Callback
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
-from .opt import Optimizer
+from .optim import Optimizer
 from .test import Tester
 from .util import move_data_to_device
 

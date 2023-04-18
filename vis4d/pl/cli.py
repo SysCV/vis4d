@@ -18,8 +18,8 @@ from vis4d.common import ArgsType
 from vis4d.common.callbacks import VisualizerCallback
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
+from vis4d.config.parser import DEFINE_config_file
 from vis4d.config.util import instantiate_classes, pprints_config
-from vis4d.engine.parser import DEFINE_config_file
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer

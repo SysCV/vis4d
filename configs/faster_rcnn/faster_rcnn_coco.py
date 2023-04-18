@@ -29,9 +29,9 @@ from vis4d.config.default.runtime import (
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnector
+from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.op.base import ResNet
-from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
 
 

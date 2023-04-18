@@ -37,9 +37,9 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
+from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
-from vis4d.optim.warmup import LinearLRWarmup
 
 CONN_BBOX_3D_TEST = {
     CK.images: CK.images,

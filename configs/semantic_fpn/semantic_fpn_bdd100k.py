@@ -23,11 +23,11 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnector
+from vis4d.engine.optim import PolyLR
+from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
-from vis4d.optim import PolyLR
-from vis4d.optim.warmup import LinearLRWarmup
 
 
 def get_config() -> ConfigDict:

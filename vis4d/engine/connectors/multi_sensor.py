@@ -10,7 +10,7 @@ from vis4d.common import ArgsType, DictStrArrNested
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
-from .connector import DataConnector
+from .data_connector import DataConnector
 from .util import get_inputs_for_pred_and_data
 
 

@@ -15,9 +15,9 @@ from vis4d.config.default.sweep import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnector
+from vis4d.engine.optim import PolyLR
 from vis4d.model.seg.fcn_resnet import FCNResNet
 from vis4d.op.loss import MultiLevelSegLoss
-from vis4d.optim import PolyLR
 
 
 def get_config() -> ConfigDict:

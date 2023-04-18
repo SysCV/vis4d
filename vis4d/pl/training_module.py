@@ -16,7 +16,7 @@ from vis4d.common.util import init_random_seed
 from vis4d.config.util import ConfigDict, instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
-from vis4d.engine.opt import Optimizer, set_up_optimizers
+from vis4d.engine.optim import Optimizer, set_up_optimizers
 
 
 class TorchOptimizer(optim.Optimizer):
