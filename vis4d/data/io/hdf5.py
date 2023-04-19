@@ -216,7 +216,7 @@ class HDF5Backend(DataBackend):
         if not isinstance(value_buf, h5py.Group):
             raise ValueError(f"Value {url} is not a group in {hdf5_path}!")
 
-        return list(value_buf.keys())
+        return sorted(list(value_buf.keys()))
 
 
 def convert_dataset(source_dir: str) -> None:

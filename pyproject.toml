@@ -27,3 +27,74 @@ include = ["vis4d"]
             # Don't complain about overloads
             '@overload',
         ]
+        omit = [
+            # Omit files related to distributed setting
+            "vis4d/common/slurm.py",
+            "vis4d/common/util.py",
+            "vis4d/common/distributed.py",
+        ]
+
+[tool.flake8]
+# Ignore only the import related errors because isort handles them.
+ignore = "I100, I201"
+
+[tool.mypy]
+strict = true
+warn_return_any = false
+allow_untyped_calls = true
+exclude = [
+    "_test\\.py$",
+]
+
+# Disallow using Any
+disallow_any_explicit = true
+disallow_any_generics = true
+
+plugins = ["numpy.typing.mypy_plugin"]
+
+
+[[tool.mypy.overrides]]
+    module = [
+        "plyfile",
+        "tensorflow",
+        "skimage",
+        "PIL",
+        "tqdm",
+        "pycocotools",
+        "matplotlib",
+        "h5py",
+        "bdd100k",
+        "devtools",
+        "nuscenes",
+        "dash",
+        "dash_core_components",
+        "dash_html_components",
+        "plotly",
+        "pandas",
+        "cv2",
+        "cloudpickle",
+        "scalabel",
+        "appdirs",
+        "open3d",
+        "ml_collections",
+        "lightning"
+    ]
+    ignore_missing_imports = true
+
+
+[[tool.mypy.overrides]]
+    module = [
+        "torch",
+        "torchvision"
+    ]
+    follow_imports = "normal"
+    follow_imports_for_stubs = true
+    ignore_missing_imports = true
+
+
+# WARNING: TROUBLE ZONE! REMOVE THE FOLLOWING PART BEFORE MERGING
+# TODO: Remove following after refactoring data loader
+# Ignore mypy issues in loader
+[[tool.mypy.overrides]]
+    module = "mypy-vis4d.data.loader.*"
+    ignore_errors = true

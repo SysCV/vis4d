@@ -160,7 +160,7 @@ class ZipBackend(DataBackend):
             for key in zip_file.namelist()
             if key.startswith(url) and os.path.basename(key) != ""
         ]
-        return files
+        return sorted(files)
 
     def isfile(self, filepath: str) -> bool:
         """Check if filepath is a file.

@@ -30,7 +30,7 @@ class FileBackend(DataBackend):
         Returns:
             list[str]: List of all files in the directory.
         """
-        return os.listdir(filepath)
+        return sorted(os.listdir(filepath))
 
     def exists(self, filepath: str) -> bool:
         """Check if filepath exists.

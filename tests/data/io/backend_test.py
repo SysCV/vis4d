@@ -53,7 +53,7 @@ class TestBackends(unittest.TestCase):
         list_hdf5 = backend_hdf5.listdir(os.path.dirname(hdf5_path))
         list_zip = backend_zip.listdir(os.path.dirname(zip_path))
         self.assertTrue(len(list_file) == len(list_hdf5) == len(list_zip))
-        self.assertTrue(set(list_file) == set(list_hdf5) == set(list_zip))
+        self.assertTrue(list_file == list_hdf5 == list_zip)
 
         # check set
         os.makedirs("./unittests/", exist_ok=True)
