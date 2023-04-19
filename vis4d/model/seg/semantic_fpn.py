@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.op.base import BaseModel, ResNet
+from vis4d.op.base import BaseModel, ResNetV1c
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.mask.util import clip_mask
 from vis4d.op.seg.semantic_fpn import SemanticFPNHead, SemanticFPNOut
@@ -46,7 +46,7 @@ class SemanticFPN(nn.Module):
         num_classes: int,
         resize: bool = True,
         weights: None | str = None,
-        basemodel: BaseModel = ResNet(
+        basemodel: BaseModel = ResNetV1c(
             "resnet50", pretrained=True, trainable_layers=3
         ),
     ) -> None:

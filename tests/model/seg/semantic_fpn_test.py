@@ -29,7 +29,7 @@ class SemanticFPNTest(unittest.TestCase):
         """Test inference of SemanticFPN."""
         state = torch.random.get_rng_state()
         torch.random.set_rng_state(torch.manual_seed(0).get_state())
-        model = SemanticFPN(num_classes=21, weights="bdd100k")
+        model = SemanticFPN(num_classes=19, weights="bdd100k")
         test_loader = get_test_dataloader(self.dataset, 2)
         batch = next(iter(test_loader))
 

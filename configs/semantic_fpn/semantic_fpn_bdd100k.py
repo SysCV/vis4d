@@ -107,7 +107,7 @@ def get_config() -> ConfigDict:
         shuffle=False,
         train=False,
     )
-    data.test_dataloader = {"bdd100k_eval": dataloader_cfg_test}
+    data.test_dataloader = dataloader_cfg_test
 
     config.data = data
 
@@ -115,7 +115,9 @@ def get_config() -> ConfigDict:
     ##                   MODEL & LOSS                   ##
     ######################################################
 
-    config.model = class_config(SemanticFPN, num_classes=params.num_classes)
+    config.model = class_config(
+        SemanticFPN, num_classes=params.num_classes, weights="bdd100k"
+    )
     config.loss = class_config(SegCrossEntropyLoss)
 
     ######################################################
