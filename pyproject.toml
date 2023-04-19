@@ -79,6 +79,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "open3d.*",
         "ml_collections.*",
         "lightning.*",
+        "detectron2.*",
         "absl.*"
     ]
     ignore_missing_imports = true
