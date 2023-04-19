@@ -55,37 +55,39 @@ plugins = ["numpy.typing.mypy_plugin"]
 
 [[tool.mypy.overrides]]
     module = [
-        "plyfile",
-        "tensorflow",
-        "skimage",
-        "PIL",
-        "tqdm",
-        "pycocotools",
-        "matplotlib",
-        "h5py",
-        "bdd100k",
-        "devtools",
-        "nuscenes",
-        "dash",
-        "dash_core_components",
-        "dash_html_components",
-        "plotly",
-        "pandas",
-        "cv2",
-        "cloudpickle",
-        "scalabel",
-        "appdirs",
-        "open3d",
-        "ml_collections",
-        "lightning"
+        "plyfile.*",
+        "tensorflow.*",
+        "skimage.*",
+        "PIL.*",
+        "tqdm.*",
+        "pycocotools.*",
+        "matplotlib.*",
+        "h5py.*",
+        "bdd100k.*",
+        "devtools.*",
+        "nuscenes.*",
+        "dash.*",
+        "dash_core_components.*",
+        "dash_html_components.*",
+        "plotly.*",
+        "pandas.*",
+        "cv2.*",
+        "cloudpickle.*",
+        "scalabel.*",
+        "scipy.spatial.transform",
+        "appdirs.*",
+        "open3d.*",
+        "ml_collections.*",
+        "lightning.*",
+        "absl.*"
     ]
     ignore_missing_imports = true
 
 
 [[tool.mypy.overrides]]
     module = [
-        "torch",
-        "torchvision"
+        "torch.*",
+        "torchvision.*"
     ]
     follow_imports = "normal"
     follow_imports_for_stubs = true
@@ -96,5 +98,5 @@ plugins = ["numpy.typing.mypy_plugin"]
 # TODO: Remove following after refactoring data loader
 # Ignore mypy issues in loader
 [[tool.mypy.overrides]]
-    module = "mypy-vis4d.data.loader.*"
+    module = "vis4d.data.loader.*"
     ignore_errors = true
