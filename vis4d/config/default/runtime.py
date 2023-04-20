@@ -51,7 +51,7 @@ def get_generic_callback_config(
         "ckpt": class_config(
             CheckpointCallback,
             save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
+            every_n_epochs=1,
             num_epochs=params.num_epochs,
         )
     }

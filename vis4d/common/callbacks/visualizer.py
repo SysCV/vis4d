@@ -5,11 +5,13 @@ import os
 
 from torch import nn
 
-from vis4d.common import DictStrAny
+from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, get_rank
+from vis4d.data.typing import DictData
+from vis4d.engine.connectors.util import get_inputs_for_pred_and_data
 from vis4d.vis.base import Visualizer
 
-from .base import Callback
+from .base import Callback, CallbackInputs
 
 
 class VisualizerCallback(Callback):
@@ -17,11 +19,11 @@ class VisualizerCallback(Callback):
 
     def __init__(
         self,
+        *args: ArgsType,
         visualizer: Visualizer,
         save_prefix: None | str = None,
         collect: str = "cpu",
-        run_every_nth_epoch: int = 1,
-        num_epochs: int = -1,
+        **kwargs: ArgsType,
     ) -> None:
         """Init callback.
 
@@ -36,7 +38,8 @@ class VisualizerCallback(Callback):
             num_epochs (int): Number of total epochs, used for determining
                 whether to visualize at the final epoch. Defaults to -1.
         """
-        super().__init__(run_every_nth_epoch, num_epochs)
+        super().__init__(*args, **kwargs)
+        # TODO: Check whether collect is used here
         assert collect in set(
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
@@ -54,7 +57,7 @@ class VisualizerCallback(Callback):
             os.makedirs(self.output_dir, exist_ok=True)
 
     def on_test_epoch_end(
-        self, model: nn.Module, epoch: None | int = None
+        self, callback_inputs: CallbackInputs, model: nn.Module
     ) -> None:
         """Hook to run at the end of a testing epoch."""
         if get_rank() == 0:
@@ -63,7 +66,17 @@ class VisualizerCallback(Callback):
         self.visualizer.reset()
 
     def on_test_batch_end(
-        self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
+        self,
+        callback_inputs: CallbackInputs,
+        model: nn.Module,
+        predictions: DictData,
+        data: DictData,
     ) -> None:
         """Hook to run at the end of a testing batch."""
-        self.visualizer.process(**inputs)
+        self.visualizer.process(
+            **get_inputs_for_pred_and_data(
+                self.connector,
+                predictions,
+                data,
+            )
+        )

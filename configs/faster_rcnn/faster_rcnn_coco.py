@@ -123,10 +123,6 @@ def get_config() -> ConfigDict:
         train=CONN_BBOX_2D_TRAIN,
         test=CONN_BBOX_2D_TEST,
         loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
-        callbacks={
-            "coco_eval_test": CONN_COCO_BBOX_EVAL,
-            "bbox_vis_test": CONN_BBOX_2D_VIS,
-        },
     )
 
     ######################################################
@@ -140,8 +136,9 @@ def get_config() -> ConfigDict:
                 data_root=data_root,
                 split=test_split,
             ),
-            run_every_nth_epoch=1,
+            every_n_epochs=1,
             num_epochs=params.num_epochs,
+            connector=CONN_COCO_BBOX_EVAL,
         )
     }
 
@@ -153,8 +150,9 @@ def get_config() -> ConfigDict:
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
             save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
+            every_n_epochs=1,
             num_epochs=params.num_epochs,
+            connector=CONN_BBOX_2D_VIS,
         )
     }
 
