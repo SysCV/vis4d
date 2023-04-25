@@ -11,7 +11,7 @@ def get_pl_trainer_config(config: ConfigDict) -> ConfigDict:
 
     # PL Trainer arguments
     for k, v in inspect.signature(pl.Trainer).parameters.items():
-        if not k in {"callbacks", "devices", "strategy"}:
+        if not k in {"callbacks", "devices", "logger", "strategy"}:
             pl_trainer[k] = v.default
 
     # PL Trainer settings

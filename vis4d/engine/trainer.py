@@ -7,7 +7,7 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.callbacks import Callback, CallbackInputs
+from vis4d.common.callbacks import Callback
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
@@ -22,10 +22,14 @@ class Trainer:
         self,
         num_epochs: int,
         data_connector: DataConnector,
-        callbacks: list[Callback],
         train_dataloader: DataLoader[DictData] | None = None,
         test_dataloader: list[DataLoader[DictData]] | None = None,
+        callbacks: list[Callback] = [],
+        epoch: int = 0,
+        global_steps: int = 0,
         check_val_every_n_epoch: int = 1,
+        num_train_batches: int | None = None,
+        num_test_batches: list[int | None] = None,
     ) -> None:
         """Initialize the trainer.
 
@@ -34,23 +38,37 @@ class Trainer:
             dataloaders (DataLoader[DictData]): Dataloader for training.
             data_connector (DataConnector): Data connector used for generating
                 training inputs from a batch of data.
-            callbacks (dict[str, Callback]): Callback functions used during
-                training and testing.
             train_dataloader (DataLoader[DictData] | None, optional):
                 Dataloader for training. Defaults to None.
             test_dataloader (list[DataLoader[DictData]] | None, optional):
                 Dataloaders for testing. Defaults to None.
+            callbacks (list[Callback], optional): Callbacks that should be
+                used during training. Defaults to [].
+            epoch (int, optional): Starting epoch. Defaults to 0.
+            global_steps (int, optional): Starting steps. Defaults to 0.
             check_val_every_n_epoch (int, optional): Interval for evaluating
                 the model during training. Defaults to 1.
         """
         self.num_epochs = num_epochs
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.data_connector = data_connector
-        self.callbacks = callbacks
         self.train_dataloader = train_dataloader
+        self.num_train_batches = (
+            len(train_dataloader)
+            if num_train_batches is None
+            else num_train_batches
+        )
         self.test_dataloader = test_dataloader
+        self.num_test_batches = (
+            [len(dataloader) for dataloader in test_dataloader]
+            if num_test_batches is None
+            else num_test_batches
+        )
+        self.callbacks = callbacks
 
-        self.step = 0
+        self.epoch = epoch
+        self.global_steps = global_steps
+        self.metrics: dict[str, Tensor] = {}
 
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
@@ -85,12 +103,13 @@ class Trainer:
 
         device = next(model.parameters()).device  # model device
 
-        for epoch in range(self.num_epochs):
+        for epoch in range(self.epoch, self.num_epochs):
+            self.epoch = epoch
+
             # Run callbacks for epoch begin
             for callback in self.callbacks:
                 if callback.run_on_epoch(epoch):
-                    callback_inputs = CallbackInputs(epoch=epoch)
-                    callback.on_train_epoch_start(callback_inputs, model)
+                    callback.on_train_epoch_start(self, model)
 
             # Set model to train mode
             model.train()
@@ -102,7 +121,7 @@ class Trainer:
                 self.train_dataloader.sampler.set_epoch(epoch)
 
             # Training loop for one epoch
-            for cur_iter, data in enumerate(self.train_dataloader):
+            for batch_idx, data in enumerate(self.train_dataloader):
                 # Zero grad optimizers
                 for opt in optimizers:
                     opt.zero_grad()
@@ -118,10 +137,11 @@ class Trainer:
                 losses = loss(**loss_input)
                 if isinstance(losses, Tensor):
                     total_loss = losses
-                    metrics = {"loss": losses}
+                    self.metrics["loss"] = total_loss
                 elif isinstance(losses, dict):
                     total_loss = sum(losses.values())  # type: ignore
-                    metrics = {"loss": total_loss, **losses}
+                    self.metrics["loss"] = total_loss
+                    self.metrics.update(losses)
                 else:
                     raise TypeError(
                         "Loss function must return a Tensor or a dict of "
@@ -130,23 +150,19 @@ class Trainer:
                 total_loss.backward()
 
                 for opt in optimizers:
-                    opt.step_on_batch(self.step)
+                    opt.step_on_batch(self.global_steps)
 
                 for callback in self.callbacks:
                     if callback.run_on_epoch(epoch):
-                        callback_inputs = CallbackInputs(
-                            epoch=epoch,
-                            num_epochs=self.num_epochs,
-                            cur_iter=cur_iter,
-                            total_iters=len(self.train_dataloader),
-                            metrics=metrics,
-                        )
-
                         callback.on_train_batch_end(
-                            callback_inputs, model, output, data
+                            trainer=self,
+                            model=model,
+                            outputs=output,
+                            batch=data,
+                            batch_idx=batch_idx,
                         )
 
-                self.step += 1
+                self.global_steps += 1
 
             # Update learning rate on epoch
             for opt in optimizers:
@@ -155,8 +171,7 @@ class Trainer:
             # Run callbacks for epoch end
             for callback in self.callbacks:
                 if callback.run_on_epoch(epoch):
-                    callback_inputs = CallbackInputs(epoch=epoch)
-                    callback.on_train_epoch_end(callback_inputs, model)
+                    callback.on_train_epoch_end(self, model)
 
             # Testing
             if (
@@ -183,12 +198,10 @@ class Trainer:
         # run callbacks on test epoch begin
         for callback in self.callbacks:
             if callback.run_on_epoch(epoch):
-                callback_inputs = CallbackInputs(epoch=epoch)
+                callback.on_test_epoch_start(self, model)
 
-                callback.on_test_epoch_start(callback_inputs, model)
-
-        for test_loader in self.test_dataloader:
-            for cur_iter, data in enumerate(test_loader):
+        for i, test_loader in enumerate(self.test_dataloader):
+            for batch_idx, data in enumerate(test_loader):
                 # input data
                 device = next(model.parameters()).device
                 data = move_data_to_device(data, device)
@@ -199,18 +212,16 @@ class Trainer:
 
                 for callback in self.callbacks:
                     if callback.run_on_epoch(epoch):
-                        callback_inputs = CallbackInputs(
-                            epoch=epoch,
-                            cur_iter=cur_iter,
-                            total_iters=len(test_loader),
-                        )
                         callback.on_test_batch_end(
-                            callback_inputs, model, output, data
+                            trainer=self,
+                            model=model,
+                            outputs=output,
+                            batch=data,
+                            batch_idx=batch_idx,
+                            dataloader_idx=i,
                         )
 
         # run callbacks on test epoch end
         for callback in self.callbacks:
             if callback.run_on_epoch(epoch):
-                callback_inputs = CallbackInputs(epoch=epoch)
-
-                callback.on_test_epoch_end(callback_inputs, model)
+                callback.on_test_epoch_end(self, model)

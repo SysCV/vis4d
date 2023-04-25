@@ -6,10 +6,10 @@ import os
 import torch
 from torch import nn
 
-from vis4d.common import ArgsType
+from vis4d.common import ArgsType, TrainerType
 from vis4d.common.distributed import broadcast, get_rank
 
-from .base import Callback, CallbackInputs
+from .base import Callback
 
 
 class CheckpointCallback(Callback):
@@ -34,7 +34,7 @@ class CheckpointCallback(Callback):
         self.output_dir = broadcast(self.output_dir)
 
     def on_train_epoch_end(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None:
         """Hook to run at the end of a training epoch."""
         # TODO, save full state dict with optimizer, scheduler, etc.
@@ -42,5 +42,5 @@ class CheckpointCallback(Callback):
             os.makedirs(self.output_dir, exist_ok=True)
             torch.save(
                 model.state_dict(),
-                f"{self.output_dir}/model_e{callback_inputs['epoch'] + 1}.pt",
+                f"{self.output_dir}/model_e{trainer.epoch + 1}.pt",
             )

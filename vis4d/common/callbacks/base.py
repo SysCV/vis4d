@@ -1,32 +1,11 @@
 """Base module for callbacks."""
 from __future__ import annotations
 
-from typing import TypedDict
-from typing_extensions import NotRequired
+from torch import nn
 
-from torch import nn, Tensor
-
-from vis4d.common import MetricLogs
+from vis4d.common import MetricLogs, TrainerType
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import SourceKeyDescription
-
-
-class CallbackInputs(TypedDict):
-    """General inputs to callback.
-
-    Args:
-        epoch (int): Current epoch.
-        num_epochs (int, optional): Total number of epochs.
-        cur_iter (int, optional): Current iteration.
-        total_iters (int, optional): Total number of iterations.
-        metrics (dict[str, Tensor], optional): Metrics to use for callbacks.
-    """
-
-    epoch: int
-    num_epochs: NotRequired[int]
-    cur_iter: NotRequired[int]
-    total_iters: NotRequired[int]
-    metrics: NotRequired[dict[str, Tensor]]
 
 
 class Callback:
@@ -66,7 +45,7 @@ class Callback:
         return False
 
     def on_train_epoch_start(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None:
         """Hook to run at the beginning of a training epoch.
 
@@ -77,10 +56,11 @@ class Callback:
 
     def on_train_batch_end(
         self,
-        callback_inputs: CallbackInputs,
+        trainer: TrainerType,
         model: nn.Module,
-        predictions: DictData,
-        data: DictData,
+        outputs: DictData,
+        batch: DictData,
+        batch_idx: int,
     ) -> None:
         """Hook to run at the end of a training batch.
 
@@ -92,7 +72,7 @@ class Callback:
         """
 
     def on_train_epoch_end(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None:
         """Hook to run at the end of a training epoch.
 
@@ -102,7 +82,7 @@ class Callback:
         """
 
     def on_test_epoch_start(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None:
         """Hook to run at the beginning of a testing epoch.
 
@@ -113,10 +93,12 @@ class Callback:
 
     def on_test_batch_end(
         self,
-        callback_inputs: CallbackInputs,
+        trainer: TrainerType,
         model: nn.Module,
-        predictions: DictData,
-        data: DictData,
+        outputs: DictData,
+        batch: DictData,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Hook to run at the end of a testing batch.
 
@@ -128,7 +110,7 @@ class Callback:
         """
 
     def on_test_epoch_end(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch.
 

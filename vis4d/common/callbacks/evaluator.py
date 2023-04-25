@@ -5,7 +5,7 @@ import os
 
 from torch import nn
 
-from vis4d.common import ArgsType, MetricLogs
+from vis4d.common import ArgsType, MetricLogs, TrainerType
 from vis4d.common.distributed import all_gather_object_cpu, broadcast, get_rank
 from vis4d.common.logging import rank_zero_info
 
@@ -15,7 +15,7 @@ from vis4d.eval.base import Evaluator
 
 from vis4d.engine.connectors.util import get_inputs_for_pred_and_data
 
-from .base import Callback, CallbackInputs
+from .base import Callback
 
 
 class EvaluatorCallback(Callback):
@@ -44,8 +44,22 @@ class EvaluatorCallback(Callback):
         self.output_dir = broadcast(self.output_dir)
         self.evaluator.reset()
 
+    def on_test_batch_end(
+        self,
+        trainer: TrainerType,
+        model: nn.Module,
+        outputs: DictData,
+        batch: DictData,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        """Hook to run at the end of a testing batch."""
+        self.evaluator.process(
+            **get_inputs_for_pred_and_data(self.connector, outputs, batch)
+        )
+
     def on_test_epoch_end(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)
@@ -56,18 +70,6 @@ class EvaluatorCallback(Callback):
         log_dict = broadcast(log_dict)
         self.evaluator.reset()
         return log_dict
-
-    def on_test_batch_end(
-        self,
-        callback_inputs: CallbackInputs,
-        model: nn.Module,
-        predictions: DictData,
-        data: DictData,
-    ) -> None:
-        """Hook to run at the end of a testing batch."""
-        self.evaluator.process(
-            **get_inputs_for_pred_and_data(self.connector, predictions, data)
-        )
 
     def evaluate(self) -> MetricLogs:
         """Evaluate the performance after processing all input/output pairs."""

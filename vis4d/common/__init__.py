@@ -12,6 +12,7 @@ from .typing import (
     NDArrayUI8,
     TorchCheckpoint,
     TorchLossFunc,
+    TrainerType,
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "TorchCheckpoint",
     "LossesType",
     "TorchLossFunc",
+    "TrainerType"
 ]

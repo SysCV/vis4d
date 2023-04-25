@@ -5,13 +5,13 @@ import os
 
 from torch import nn
 
-from vis4d.common import ArgsType
+from vis4d.common import ArgsType, TrainerType
 from vis4d.common.distributed import broadcast, get_rank
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors.util import get_inputs_for_pred_and_data
 from vis4d.vis.base import Visualizer
 
-from .base import Callback, CallbackInputs
+from .base import Callback
 
 
 # TODO: Refactor this to save per batch
@@ -44,8 +44,26 @@ class VisualizerCallback(Callback):
         if self.save_prefix is not None:
             self.output_dir = broadcast(self.output_dir)
 
+    def on_test_batch_end(
+        self,
+        trainer: TrainerType,
+        model: nn.Module,
+        outputs: DictData,
+        batch: DictData,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        """Hook to run at the end of a testing batch."""
+        self.visualizer.process(
+            **get_inputs_for_pred_and_data(
+                self.connector,
+                outputs,
+                batch,
+            )
+        )
+
     def on_test_epoch_end(
-        self, callback_inputs: CallbackInputs, model: nn.Module
+        self, trainer: TrainerType, model: nn.Module
     ) -> None:
         """Hook to run at the end of a testing epoch."""
         if get_rank() == 0:
@@ -53,19 +71,3 @@ class VisualizerCallback(Callback):
             if self.save_prefix is not None:
                 self.visualizer.save_to_disk(self.output_dir)
         self.visualizer.reset()
-
-    def on_test_batch_end(
-        self,
-        callback_inputs: CallbackInputs,
-        model: nn.Module,
-        predictions: DictData,
-        data: DictData,
-    ) -> None:
-        """Hook to run at the end of a testing batch."""
-        self.visualizer.process(
-            **get_inputs_for_pred_and_data(
-                self.connector,
-                predictions,
-                data,
-            )
-        )

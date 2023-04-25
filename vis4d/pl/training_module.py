@@ -125,6 +125,7 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         else:
             losses["loss"] = sum(list(losses.values()))
 
+        # Log average loss metrics
         log_dict = {}
         metric_attributes = []
         for k, v in losses.items():
