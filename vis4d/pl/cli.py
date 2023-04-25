@@ -104,19 +104,23 @@ def main(argv: ArgsType) -> None:
     visualize = _VISUALISZE.value
 
     callbacks: list[Callback] = []
-    if "shared_callbacks" in config:
+    if "shared_callbacks" in config and config.shared_callbacks is not None:
         shared_callbacks = instantiate_classes(config.shared_callbacks)
         for key, cb in shared_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-    if "train_callbacks" in config and mode == "fit":
+    if (
+        "train_callbacks" in config
+        and mode == "fit"
+        and config.train_callbacks is not None
+    ):
         train_callbacks = instantiate_classes(config.train_callbacks)
         for key, cb in train_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-    if "test_callbacks" in config:
+    if "test_callbacks" in config and config.test_callbacks is not None:
         test_callbacks = instantiate_classes(config.test_callbacks)
         for key, cb in test_callbacks.items():
             if isinstance(cb, VisualizerCallback) and not visualize:
@@ -172,3 +176,5 @@ def main(argv: ArgsType) -> None:
 
 if __name__ == "__main__":
     app.run(main)
+
+    data_connector: ConfigDictOrRef

@@ -26,7 +26,8 @@ from vis4d.config.default.runtime import (
     get_pl_trainer_args,
     set_output_dir,
 )
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config.types import ExperimentConfig, ExperimentParameters
+from vis4d.config.util import class_config
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
@@ -35,7 +36,7 @@ from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
-def get_config() -> ConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the Faster-RCNN config dict for the coco detection task.
 
     This is an example that shows how to set up a training experiment for the
@@ -52,14 +53,14 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = ConfigDict()
+    config = ExperimentConfig()
 
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "faster_rcnn_r50_fpn_coco"
     config = set_output_dir(config)
 
     # High level hyper parameters
-    params = ConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02

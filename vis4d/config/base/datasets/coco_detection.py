@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.types import DataConfig
 from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
@@ -38,7 +39,7 @@ def get_train_dataloader(
     image_size: tuple[int, int],
     samples_per_gpu: int,
     workers_per_gpu: int,
-) -> ConfigDict:
+) -> DataConfig:
     """Get the default train dataloader for COCO detection."""
     # Train Dataset
     train_dataset_cfg = class_config(
@@ -172,10 +173,9 @@ def get_coco_detection_config(
     image_size: tuple[int, int] = (800, 1333),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
-) -> ConfigDict:
+) -> DataConfig:
     """Get the default config for COCO detection."""
-    data = ConfigDict()
-
+    data = DataConfig()
     data.train_dataloader = get_train_dataloader(
         data_root=data_root,
         split=train_split,
