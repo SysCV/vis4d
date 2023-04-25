@@ -26,7 +26,7 @@ from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config.parser import DEFINE_config_file
 from vis4d.config.types import ExperimentConfig
-from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.config.util import instantiate_attribute, pprints_config
 from vis4d.engine.optim import set_up_optimizers
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
@@ -117,20 +117,20 @@ def main(argv: ArgsType) -> None:
         rank_zero_info("*" * 80)
 
     # Instantiate classes
-    data_connector = instantiate_classes(config.data_connector)
-    model = instantiate_classes(config.model)
+    data_connector = instantiate_attribute(config, "data_connector")
+    model = instantiate_attribute(config, "model")
     optimizers = set_up_optimizers(config.optimizers, model)
-    loss = instantiate_classes(config.loss)
+    loss = instantiate_attribute(config, "loss")
 
     if "shared_callbacks" in config:
-        shared_callbacks = instantiate_classes(config.shared_callbacks)
+        shared_callbacks = instantiate_attribute(config, "shared_callbacks")
     else:
         shared_callbacks = {}
 
     if "train_callbacks" in config and mode == "fit":
         train_callbacks = {
             **shared_callbacks,
-            **(instantiate_classes(config.train_callbacks)),
+            **(instantiate_attribute(config, "train_callbacks)")),
         }
     else:
         train_callbacks = shared_callbacks
@@ -138,7 +138,7 @@ def main(argv: ArgsType) -> None:
     if "test_callbacks" in config:
         test_callbacks = {
             **shared_callbacks,
-            **(instantiate_classes(config.test_callbacks)),
+            **(instantiate_attribute(config, "test_callbacks)")),
         }
     else:
         test_callbacks = shared_callbacks
@@ -155,9 +155,11 @@ def main(argv: ArgsType) -> None:
     if mode == "fit":
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
-        train_dataloader = instantiate_classes(config.data.train_dataloader)
+        train_dataloader = instantiate_attribute(
+            config.data, "train_dataloader"
+        )
 
-    test_dataloader = instantiate_classes(config.data.test_dataloader)
+    test_dataloader = instantiate_attribute(config.data, "test_dataloader")
 
     # Setup Model
     if num_gpus == 0:
@@ -189,7 +191,7 @@ def main(argv: ArgsType) -> None:
     # TODO: Parameter sweep. Where to save the results? What name for the run?
     if _SWEEP.value is not None:
         # config = _CONFIG.value
-        # sweep_obj = instantiate_classes(_SWEEP.value)
+        # sweep_obj = instantiate_attribute(_SWEEP,"value")
 
         # from vis4d.config.replicator import replicate_config
 

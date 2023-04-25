@@ -374,6 +374,35 @@ def instantiate_classes(data: _ConfigDict, **kwargs: Any) -> _ConfigDict | Any: 
     return instantiated_objects
 
 
+def instantiate_attribute(data: _ConfigDict, attribute: str, **kwargs: Any) -> _ConfigDict | Any:  # type: ignore # pylint: disable=line-too-long
+    """Instantiates a single attribute of a given ConfigDict.
+
+    This function instantiates a single attribute of a given ConfigDict.
+    It raises a ValueError if the attribute is not present in the ConfigDict.
+    Check out the documentation of `instantiate_classes` for more details.
+
+    Args:
+        data (_ConfigDict): The general configuration object.
+        attribute (str): The attribute to instantiate.
+        **kwargs: Additional arguments to pass to the class constructor.
+
+    Raises:
+        ValueError: If the attribute is not present in the ConfigDict.
+
+    Returns:
+        _ConfigDict | Any: The _ConfigDict with all classes intialized. If the
+        top level element is a class config, the returned element will be
+        the instantiated class.
+    """
+    if attribute not in data:
+        raise ValueError(
+            f"Attribute {attribute} missing in experiment config."
+            f"Please check your config file."
+            f" The available attributes are: {data.keys()}"
+        )
+    return instantiate_classes(data[attribute], **kwargs)
+
+
 def copy_and_resolve_references(  # type: ignore
     config: _ConfigDict | Any, visit_map: dict[int, Any] | None = None
 ):

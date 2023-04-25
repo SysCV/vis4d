@@ -19,7 +19,12 @@ from vis4d.common.callbacks import VisualizerCallback
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.parser import DEFINE_config_file
-from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.config.types import ExperimentConfig
+from vis4d.config.util import (
+    instantiate_attribute,
+    instantiate_classes,
+    pprints_config,
+)
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer
@@ -46,7 +51,7 @@ def main(argv: ArgsType) -> None:
     # Get config
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config = _CONFIG.value
+    config: ExperimentConfig = _CONFIG.value
     num_gpus = _GPUS.value
 
     # Setup logging
@@ -67,9 +72,10 @@ def main(argv: ArgsType) -> None:
 
     # Setup Trainer kwargs
     trainer_args_cfg = ConfigDict()
-    pl_trainer = instantiate_classes(config.pl_trainer)
-    for key, value in pl_trainer.items():
-        trainer_args_cfg[key] = value
+    if "pl_trainer" in config:
+        pl_trainer = instantiate_attribute(config, "pl_trainer")
+        for key, value in pl_trainer.items():
+            trainer_args_cfg[key] = value
 
     trainer_args_cfg.work_dir = config.work_dir
     trainer_args_cfg.exp_name = config.experiment_name
@@ -97,15 +103,15 @@ def main(argv: ArgsType) -> None:
     trainer_args.use_distributed_sampler = False
 
     # Instantiate classes
-    data_connector = instantiate_classes(config.data_connector)
-    loss = instantiate_classes(config.loss)
+    data_connector = instantiate_attribute(config, "data_connector")
+    loss = instantiate_attribute(config, "loss")
 
     # Callbacks
     visualize = _VISUALISZE.value
 
     callbacks: list[Callback] = []
     if "shared_callbacks" in config and config.shared_callbacks is not None:
-        shared_callbacks = instantiate_classes(config.shared_callbacks)
+        shared_callbacks = instantiate_attribute(config, "shared_callbacks")
         for key, cb in shared_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
@@ -115,13 +121,13 @@ def main(argv: ArgsType) -> None:
         and mode == "fit"
         and config.train_callbacks is not None
     ):
-        train_callbacks = instantiate_classes(config.train_callbacks)
+        train_callbacks = instantiate_attribute(config, "train_callbacks")
         for key, cb in train_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
     if "test_callbacks" in config and config.test_callbacks is not None:
-        test_callbacks = instantiate_classes(config.test_callbacks)
+        test_callbacks = instantiate_attribute(config, "test_callbacks")
         for key, cb in test_callbacks.items():
             if isinstance(cb, VisualizerCallback) and not visualize:
                 continue
@@ -129,7 +135,7 @@ def main(argv: ArgsType) -> None:
             callbacks.append(CallbackWrapper(cb, data_connector, key))
 
     if "pl_callbacks" in config:
-        pl_callbacks = instantiate_classes(config.pl_callbacks)
+        pl_callbacks = instantiate_attribute(config, "pl_callbacks")
     else:
         pl_callbacks = []
 
@@ -176,5 +182,3 @@ def main(argv: ArgsType) -> None:
 
 if __name__ == "__main__":
     app.run(main)
-
-    data_connector: ConfigDictOrRef
