@@ -48,3 +48,27 @@ class DataBackend:
             bool: True if the filepath exists, False otherwise.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def isfile(self, filepath: str) -> bool:
+        """Check if filepath is a file.
+
+        Args:
+            filepath (str): The filepath to check.
+
+        Returns:
+            bool: True if the filepath is a file, False otherwise.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def listdir(self, filepath: str) -> list[str]:
+        """List all files in a directory.
+
+        Args:
+            filepath (str): The directory to list.
+
+        Returns:
+            list[str]: A list of all files in the directory.
+        """
+        raise NotImplementedError

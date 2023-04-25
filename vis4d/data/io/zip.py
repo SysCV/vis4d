@@ -142,3 +142,38 @@ class ZipBackend(DataBackend):
         except KeyError as e:
             raise ValueError(f"Value '{url}' not found in {zip_path}!") from e
         return bytes(content)
+
+    def listdir(self, filepath: str) -> list[str]:
+        """List all files in the given directory.
+
+        Args:
+            filepath (str): The path to the directory.
+
+        Returns:
+            list[str]: List of all files in the given directory.
+        """
+        zip_path, keys = self._get_zip_path(filepath)
+        zip_file = self._get_client(zip_path, "r")
+        url = "/".join(reversed(keys))
+        files = [
+            os.path.basename(key)
+            for key in zip_file.namelist()
+            if key.startswith(url) and os.path.basename(key) != ""
+        ]
+        return sorted(files)
+
+    def isfile(self, filepath: str) -> bool:
+        """Check if filepath is a file.
+
+        Args:
+            filepath (str): Path to file.
+
+        Returns:
+            bool: True if file exists, False otherwise.
+        """
+        zip_path, keys = self._get_zip_path(filepath)
+        if not os.path.exists(zip_path):
+            return False
+        zip_file = self._get_client(zip_path, "r")
+        url = "/".join(reversed(keys))
+        return url in zip_file.namelist()
