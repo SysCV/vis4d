@@ -15,6 +15,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
+from vis4d.common.callbacks import instantiate_callbacks
 from vis4d.common.distributed import (
     broadcast,
     get_local_rank,
@@ -27,8 +28,7 @@ from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config.parser import DEFINE_config_file
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.optim import set_up_optimizers
-from vis4d.engine.test import Tester
-from vis4d.engine.train import Trainer
+from vis4d.engine.trainer import Trainer
 
 # TODO: Currently this does not allow to load multpile config files.
 # Would be nice to extend functionality to chain multiple config files using
@@ -38,6 +38,9 @@ from vis4d.engine.train import Trainer
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+_VISUALISZE = flags.DEFINE_bool(
+    "visualize", default=False, help="visualize the results"
+)
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -110,10 +113,9 @@ def main(argv: ArgsType) -> None:
     if "benchmark" in config:
         torch.backends.cudnn.benchmark = config.benchmark
 
+    # TODO: Add random seed and DDP
     if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
@@ -121,26 +123,10 @@ def main(argv: ArgsType) -> None:
     optimizers = set_up_optimizers(config.optimizers, model)
     loss = instantiate_classes(config.loss)
 
-    if "shared_callbacks" in config:
-        shared_callbacks = instantiate_classes(config.shared_callbacks)
-    else:
-        shared_callbacks = {}
-
-    if "train_callbacks" in config and mode == "fit":
-        train_callbacks = {
-            **shared_callbacks,
-            **(instantiate_classes(config.train_callbacks)),
-        }
-    else:
-        train_callbacks = shared_callbacks
-
-    if "test_callbacks" in config:
-        test_callbacks = {
-            **shared_callbacks,
-            **(instantiate_classes(config.test_callbacks)),
-        }
-    else:
-        test_callbacks = shared_callbacks
+    # Callbacks
+    callbacks = instantiate_callbacks(
+        config.callbacks, visualize=_VISUALISZE.value
+    )
 
     # Setup DDP & seed
     seed = config.get("seed", init_random_seed())
@@ -155,6 +141,8 @@ def main(argv: ArgsType) -> None:
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
+    else:
+        train_dataloader = None
 
     test_dataloader = instantiate_classes(config.data.test_dataloader)
 
@@ -173,16 +161,15 @@ def main(argv: ArgsType) -> None:
         )
 
     # Setup Callbacks
-    for _, cb in train_callbacks.items():
+    for cb in callbacks:
         cb.setup()
 
-    for _, cb in test_callbacks.items():
-        cb.setup()
-
-    tester = Tester(
-        dataloaders=test_dataloader,
+    trainer = Trainer(
+        num_epochs=config.params.num_epochs,
         data_connector=data_connector,
-        test_callbacks=test_callbacks,
+        callbacks=callbacks,
+        train_dataloader=train_dataloader,
+        test_dataloader=test_dataloader,
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?
@@ -200,16 +187,9 @@ def main(argv: ArgsType) -> None:
         #     train(config.value)
         pass
     elif mode == "fit":
-        trainer = Trainer(
-            num_epochs=config.params.num_epochs,
-            dataloaders=train_dataloader,
-            data_connector=data_connector,
-            train_callbacks=train_callbacks,
-        )
-
-        trainer.train(model, optimizers, loss, tester)
+        trainer.fit(model, optimizers, loss)
     elif mode == "test":
-        tester.test(model)
+        trainer.test(model)
 
     if num_gpus > 1:
         destroy_process_group()

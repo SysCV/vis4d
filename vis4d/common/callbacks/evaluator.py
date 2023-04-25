@@ -26,7 +26,6 @@ class EvaluatorCallback(Callback):
         *args: ArgsType,
         evaluator: Evaluator,
         save_prefix: None | str = None,
-        collect: str = "cpu",
         **kwargs: ArgsType,
     ) -> None:
         """Init callback.
@@ -35,19 +34,8 @@ class EvaluatorCallback(Callback):
             evaluator (Evaluator): Evaluator.
             save_prefix (str, Optional): Output directory for saving the
                 evaluation results. Defaults to None (no save).
-            collect (str): Which device to collect results across GPUs on.
-                Defaults to "cpu".
-            run_every_nth_epoch (int): Evaluate model every nth epoch.
-                Defaults to 1.
-            num_epochs (int): Number of total epochs, used for determining
-                whether to evaluate at the final epoch. Defaults to -1.
         """
         super().__init__(*args, **kwargs)
-        # TODO: Checkout support of gpu
-        assert collect in set(
-            ("cpu", "gpu")
-        ), f"Collect device {collect} unknown."
-        self.collect = collect
         self.output_dir = save_prefix
         self.evaluator = evaluator
 

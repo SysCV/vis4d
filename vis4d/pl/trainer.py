@@ -1,5 +1,4 @@
-# pylint: disable=consider-using-alias,consider-alternative-union-syntax
-"""Vis4D Trainer."""
+"""DefaultTrainer for PyTorch-Lightning."""
 from __future__ import annotations
 
 import os.path as osp

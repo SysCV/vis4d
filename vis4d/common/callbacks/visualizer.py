@@ -14,6 +14,7 @@ from vis4d.vis.base import Visualizer
 from .base import Callback, CallbackInputs
 
 
+# TODO: Refactor this to save per batch
 class VisualizerCallback(Callback):
     """Callback for model visualization."""
 
@@ -22,28 +23,16 @@ class VisualizerCallback(Callback):
         *args: ArgsType,
         visualizer: Visualizer,
         save_prefix: None | str = None,
-        collect: str = "cpu",
         **kwargs: ArgsType,
     ) -> None:
         """Init callback.
 
         Args:
             visualizer (Visualizer): Visualizer.
-            save_prefix (str, Optional): Output directory for saving the
+            save_prefix (str | None, optional): Output directory for saving the
                 visualizations. Defaults to None (no save).
-            collect (str): Which device to collect results across GPUs on.
-                Defaults to "cpu".
-            run_every_nth_epoch (int): Visualize results every nth epoch.
-                Defaults to 1.
-            num_epochs (int): Number of total epochs, used for determining
-                whether to visualize at the final epoch. Defaults to -1.
         """
         super().__init__(*args, **kwargs)
-        # TODO: Check whether collect is used here
-        assert collect in set(
-            ("cpu", "gpu")
-        ), f"Collect device {collect} unknown."
-        self.collect = collect
         self.visualizer = visualizer
         self.save_prefix = save_prefix
 
@@ -54,13 +43,13 @@ class VisualizerCallback(Callback):
         """Setup callback."""
         if self.save_prefix is not None:
             self.output_dir = broadcast(self.output_dir)
-            os.makedirs(self.output_dir, exist_ok=True)
 
     def on_test_epoch_end(
         self, callback_inputs: CallbackInputs, model: nn.Module
     ) -> None:
         """Hook to run at the end of a testing epoch."""
         if get_rank() == 0:
+            os.makedirs(self.output_dir, exist_ok=True)
             if self.save_prefix is not None:
                 self.visualizer.save_to_disk(self.output_dir)
         self.visualizer.reset()

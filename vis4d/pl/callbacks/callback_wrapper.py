@@ -21,16 +21,9 @@ def get_model(model: pl.LightningModule) -> nn.Module:
 class CallbackWrapper(pl.Callback):  # type: ignore
     """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
 
-    def __init__(
-        self,
-        callback: Callback,
-        data_connector: DataConnector,
-        callback_key: str,
-    ) -> None:
+    def __init__(self, callback: Callback) -> None:
         """Init class."""
         self.callback = callback
-        self.data_connector = data_connector
-        self.callback_key = callback_key
 
     def setup(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str

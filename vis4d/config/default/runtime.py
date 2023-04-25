@@ -1,9 +1,6 @@
 """Default runtime configuration for the project."""
-import inspect
 import platform
 from datetime import datetime
-
-import pytorch_lightning as pl
 
 from vis4d.common.callbacks import CheckpointCallback, LoggingCallback
 from vis4d.config.util import ConfigDict, class_config
@@ -36,41 +33,23 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
     return config
 
 
-def get_generic_callback_config(
+def get_callback_config(
     config: ConfigDict, params: ConfigDict
-) -> tuple[dict[str, ConfigDict], dict[str, ConfigDict]]:
-    """Get generic callback config.
+) -> list[ConfigDict]:
+    """Get default callback config."""
+    callbacks = []
 
-    Here we define general, all purpose callbacks. Note, that these callbacks
-    do not need to be registered with the data connector.
-    """
-    logger_callback = {
-        "logger": class_config(LoggingCallback, refresh_rate=50)
-    }
-    ckpt_callback = {
-        "ckpt": class_config(
+    # Logger
+    callbacks.append(class_config(LoggingCallback, refresh_rate=50))
+
+    # Checkpoint
+    callbacks.append(
+        class_config(
             CheckpointCallback,
             save_prefix=config.output_dir,
             every_n_epochs=1,
             num_epochs=params.num_epochs,
         )
-    }
+    )
 
-    return logger_callback, ckpt_callback
-
-
-def get_pl_trainer_args() -> ConfigDict:
-    """Get PyTorch Lightning Trainer arguments."""
-    pl_trainer = ConfigDict()
-
-    # PL Trainer arguments
-    for k, v in inspect.signature(pl.Trainer).parameters.items():
-        if not k in {"callbacks", "logger", "devices", "strategy"}:
-            pl_trainer[k] = v.default
-
-    # Default Trainer arguments
-    pl_trainer.find_unused_parameters = False
-    pl_trainer.checkpoint_period = 1
-    pl_trainer.wandb = False
-
-    return pl_trainer
+    return callbacks

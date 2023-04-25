@@ -20,10 +20,10 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default.runtime import (
-    get_generic_callback_config,
-    get_pl_trainer_args,
+from vis4d.config.default import (
+    get_callback_config,
+    get_optimizer_config,
+    get_pl_trainer_config,
     set_output_dir,
 )
 from vis4d.config.util import ConfigDict, class_config
@@ -126,10 +126,14 @@ def get_config() -> ConfigDict:
     )
 
     ######################################################
-    ##                     EVALUATOR                    ##
+    ##                     CALLBACKS                    ##
     ######################################################
-    eval_callbacks = {
-        "coco_eval": class_config(
+    # Logger and Checkpoint
+    callbacks = get_callback_config(config, params)
+
+    # Evaluator
+    callbacks.append(
+        class_config(
             EvaluatorCallback,
             evaluator=class_config(
                 COCOEvaluator,
@@ -140,13 +144,11 @@ def get_config() -> ConfigDict:
             num_epochs=params.num_epochs,
             connector=CONN_COCO_BBOX_EVAL,
         )
-    }
+    )
 
-    ######################################################
-    ##                    VISUALIZER                    ##
-    ######################################################
-    vis_callbacks = {
-        "bbox_vis": class_config(
+    # Visualizer
+    callbacks.append(
+        class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
             save_prefix=config.output_dir,
@@ -154,34 +156,15 @@ def get_config() -> ConfigDict:
             num_epochs=params.num_epochs,
             connector=CONN_BBOX_2D_VIS,
         )
-    }
-
-    ######################################################
-    ##                     CALLBACKS                    ##
-    ######################################################
-    # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
     )
 
-    # Assign the defined callbacks to the config
-    config.shared_callbacks = {
-        **logger_callback,
-        **eval_callbacks,
-    }
-
-    config.train_callbacks = {
-        **ckpt_callback,
-    }
-    config.test_callbacks = {
-        **vis_callbacks,
-    }
+    config.callbacks = callbacks
 
     ######################################################
     ##                     PL CLI                       ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_args()
+    pl_trainer = get_pl_trainer_config(config)
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 
