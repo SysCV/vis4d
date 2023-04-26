@@ -75,7 +75,7 @@ class BDD100KSegEvaluator(Evaluator):
             labels = []
             for i, class_id in enumerate(np.unique(masks)):
                 label = Label(
-                    rle=mask_to_rle(masks == class_id),
+                    rle=mask_to_rle((masks == class_id).astype(np.uint8)),
                     category=self.inverse_seg_map[int(class_id)],
                     id=str(i),
                 )

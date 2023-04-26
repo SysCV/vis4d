@@ -61,7 +61,7 @@ class SemanticFPN(nn.Module):
         super().__init__()
         self.resize = resize
         self.basemodel = basemodel
-        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256, extra_blocks=None)
         self.seg_head = SemanticFPNHead(num_classes, 256)
 
         if weights == "mmseg":

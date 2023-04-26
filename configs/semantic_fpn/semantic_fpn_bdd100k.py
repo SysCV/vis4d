@@ -71,8 +71,8 @@ def get_config() -> ConfigDict:
     # Training Datasets
     dataset_cfg_train = class_config(
         BDD100K,
-        data_root=f"data/bdd100k/images/10k/train",
-        annotation_path=f"data/bdd100k/labels/sem_seg_train_rle.json",
+        data_root="data/bdd100k/images/10k/train",
+        annotation_path="data/bdd100k/labels/sem_seg_train_rle.json",
         config_path="sem_seg",
         keys_to_load=(K.images, K.seg_masks),
         data_backend=data_backend,
@@ -90,8 +90,8 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         BDD100K,
-        data_root=f"data/bdd100k/images/10k/val",
-        annotation_path=f"data/bdd100k/labels/sem_seg_val_rle.json",
+        data_root="data/bdd100k/images/10k/val",
+        annotation_path="data/bdd100k/labels/sem_seg_val_rle.json",
         config_path="sem_seg",
         keys_to_load=(K.images, K.seg_masks),
         data_backend=data_backend,
@@ -161,7 +161,7 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             evaluator=class_config(
                 BDD100KSegEvaluator,
-                annotation_path=f"data/bdd100k/labels/sem_seg_val_rle.json",
+                annotation_path="data/bdd100k/labels/sem_seg_val_rle.json",
             ),
             run_every_nth_epoch=1,
             num_epochs=params.num_epochs,

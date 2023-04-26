@@ -6,6 +6,8 @@ import torchvision.models.resnet as _resnet
 from torch import nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from vis4d.common.typing import ArgsType
+
 from .base import BaseModel
 
 
@@ -179,7 +181,7 @@ class ResNetV1c(ResNet):
     <https://arxiv.org/abs/1812.01187>`.
     """
 
-    def __init__(self, resnet_name: str, **kwargs):
+    def __init__(self, resnet_name: str, **kwargs: ArgsType):
         """Initialize ResNetV1c.
 
         Args:
