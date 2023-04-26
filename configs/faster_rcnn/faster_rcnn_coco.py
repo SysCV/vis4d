@@ -140,8 +140,6 @@ def get_config() -> ConfigDict:
                 data_root=data_root,
                 split=test_split,
             ),
-            every_n_epochs=1,
-            num_epochs=params.num_epochs,
             connector=CONN_COCO_BBOX_EVAL,
         )
     )
@@ -152,8 +150,6 @@ def get_config() -> ConfigDict:
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
             save_prefix=config.output_dir,
-            every_n_epochs=1,
-            num_epochs=params.num_epochs,
             connector=CONN_BBOX_2D_VIS,
         )
     )

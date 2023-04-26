@@ -7,7 +7,7 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.callbacks import Callback
+from vis4d.common.callbacks import Callback, TrainerState
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
@@ -28,8 +28,6 @@ class Trainer:
         epoch: int = 0,
         global_steps: int = 0,
         check_val_every_n_epoch: int = 1,
-        num_train_batches: int | None = None,
-        num_test_batches: list[int | None] = None,
     ) -> None:
         """Initialize the trainer.
 
@@ -53,22 +51,11 @@ class Trainer:
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.data_connector = data_connector
         self.train_dataloader = train_dataloader
-        self.num_train_batches = (
-            len(train_dataloader)
-            if num_train_batches is None
-            else num_train_batches
-        )
         self.test_dataloader = test_dataloader
-        self.num_test_batches = (
-            [len(dataloader) for dataloader in test_dataloader]
-            if num_test_batches is None
-            else num_test_batches
-        )
         self.callbacks = callbacks
 
         self.epoch = epoch
         self.global_steps = global_steps
-        self.metrics: dict[str, Tensor] = {}
 
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
@@ -108,8 +95,7 @@ class Trainer:
 
             # Run callbacks for epoch begin
             for callback in self.callbacks:
-                if callback.run_on_epoch(epoch):
-                    callback.on_train_epoch_start(self, model)
+                callback.on_train_epoch_start(self.get_state(), model)
 
             # Set model to train mode
             model.train()
@@ -135,13 +121,15 @@ class Trainer:
 
                 loss_input = self.data_connector.get_loss_input(output, data)
                 losses = loss(**loss_input)
+
+                metrics: dict[str, Tensor] = {}
                 if isinstance(losses, Tensor):
                     total_loss = losses
-                    self.metrics["loss"] = total_loss
+                    metrics["loss"] = total_loss
                 elif isinstance(losses, dict):
                     total_loss = sum(losses.values())  # type: ignore
-                    self.metrics["loss"] = total_loss
-                    self.metrics.update(losses)
+                    metrics["loss"] = total_loss
+                    metrics.update(losses)
                 else:
                     raise TypeError(
                         "Loss function must return a Tensor or a dict of "
@@ -153,14 +141,13 @@ class Trainer:
                     opt.step_on_batch(self.global_steps)
 
                 for callback in self.callbacks:
-                    if callback.run_on_epoch(epoch):
-                        callback.on_train_batch_end(
-                            trainer=self,
-                            model=model,
-                            outputs=output,
-                            batch=data,
-                            batch_idx=batch_idx,
-                        )
+                    callback.on_train_batch_end(
+                        trainer_state=self.get_state(metrics),
+                        model=model,
+                        outputs=output,
+                        batch=data,
+                        batch_idx=batch_idx,
+                    )
 
                 self.global_steps += 1
 
@@ -170,8 +157,7 @@ class Trainer:
 
             # Run callbacks for epoch end
             for callback in self.callbacks:
-                if callback.run_on_epoch(epoch):
-                    callback.on_train_epoch_end(self, model)
+                callback.on_train_epoch_end(self.get_state(), model)
 
             # Testing
             if (
@@ -197,8 +183,7 @@ class Trainer:
 
         # run callbacks on test epoch begin
         for callback in self.callbacks:
-            if callback.run_on_epoch(epoch):
-                callback.on_test_epoch_start(self, model)
+            callback.on_test_epoch_start(self.get_state(), model)
 
         for i, test_loader in enumerate(self.test_dataloader):
             for batch_idx, data in enumerate(test_loader):
@@ -211,17 +196,47 @@ class Trainer:
                 output = model(**test_input)
 
                 for callback in self.callbacks:
-                    if callback.run_on_epoch(epoch):
-                        callback.on_test_batch_end(
-                            trainer=self,
-                            model=model,
-                            outputs=output,
-                            batch=data,
-                            batch_idx=batch_idx,
-                            dataloader_idx=i,
-                        )
+                    callback.on_test_batch_end(
+                        trainer_state=self.get_state(),
+                        model=model,
+                        outputs=output,
+                        batch=data,
+                        batch_idx=batch_idx,
+                        dataloader_idx=i,
+                    )
 
         # run callbacks on test epoch end
         for callback in self.callbacks:
-            if callback.run_on_epoch(epoch):
-                callback.on_test_epoch_end(self, model)
+            callback.on_test_epoch_end(self.get_state(), model)
+
+    def get_state(
+        self, metrics: dict[str, Tensor] | None = None
+    ) -> TrainerState:
+        """Get the state of the trainer."""
+        num_train_batches = (
+            len(self.train_dataloader)
+            if self.train_dataloader is not None
+            else None
+        )
+
+        num_test_batches = (
+            [len(test_loader) for test_loader in self.test_dataloader]
+            if self.test_dataloader is not None
+            else None
+        )
+
+        trainer_state = TrainerState(
+            current_epoch=self.epoch,
+            num_epochs=self.num_epochs,
+            global_steps=self.global_steps,
+            data_connector=self.data_connector,
+            train_dataloader=self.train_dataloader,
+            num_train_batches=num_train_batches,
+            test_dataloader=self.test_dataloader,
+            num_test_batches=num_test_batches,
+        )
+
+        if metrics is not None:
+            trainer_state["metrics"] = metrics
+
+        return trainer_state

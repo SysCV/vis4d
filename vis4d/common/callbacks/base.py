@@ -3,9 +3,11 @@ from __future__ import annotations
 
 from torch import nn
 
-from vis4d.common import MetricLogs, TrainerType
+from vis4d.common import MetricLogs
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import SourceKeyDescription
+
+from .trainer_state import TrainerState
 
 
 class Callback:
@@ -13,50 +15,32 @@ class Callback:
 
     def __init__(
         self,
-        every_n_epochs: int = 1,
-        run_last: bool = True,
-        num_epochs: int = -1,
         connector: None | dict[str, dict[str, SourceKeyDescription]] = None,
     ) -> None:
         """Init callback.
 
         Args:
-            run_every_nth_epoch (int): Evaluate model every nth epoch.
-                Defaults to 1.
-            num_epochs (int): Number of total epochs, used for determining
-                whether to evaluate at the final epoch. Defaults to -1.
             connector (None | dict[str, dict[str, SourceKeyDescription]],
                 optional): Defines which kwargs to use for different callbacks.
         """
-        self.every_n_epochs = every_n_epochs
-        self.run_last = run_last
-        self.num_epochs = num_epochs
         self.connector = connector
 
     def setup(self) -> None:
         """Setup callback."""
 
-    def run_on_epoch(self, epoch: int) -> bool:
-        """Returns whether to run callback for current epoch."""
-        if epoch == self.num_epochs - 1 and self.run_last:
-            return True
-        elif epoch % self.every_n_epochs == self.every_n_epochs - 1:
-            return True
-        return False
-
     def on_train_epoch_start(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the beginning of a training epoch.
 
         Args:
-            callback_inputs (CallbackInputs): General inputs to callback.
+            trainer_state (TrainerState): Trainer state.
             model (nn.Module): Model that is being trained.
         """
 
     def on_train_batch_end(
         self,
-        trainer: TrainerType,
+        trainer_state: TrainerState,
         model: nn.Module,
         outputs: DictData,
         batch: DictData,
@@ -65,35 +49,36 @@ class Callback:
         """Hook to run at the end of a training batch.
 
         Args:
-            callback_inputs (CallbackInputs): General inputs to callback.
+            trainer_state (TrainerState): Trainer state.
             model: Model that is being trained.
-            predictions (DictData): Model prediction output.
-            data (DictData): Dataloader output.
+            outputs (DictData): Model prediction output.
+            batch (DictData): Dataloader output data batch.
+            batch_idx (int): Index of the batch.
         """
 
     def on_train_epoch_end(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the end of a training epoch.
 
         Args:
-            callback_inputs (CallbackInputs): General inputs to callback.
+            trainer_state (TrainerState): Trainer state.
             model (nn.Module): Model that is being trained.
         """
 
     def on_test_epoch_start(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the beginning of a testing epoch.
 
         Args:
-            callback_inputs (CallbackInputs): General inputs to callback.
+            trainer_state (TrainerState): Trainer state.
             model (nn.Module): Model that is being trained.
         """
 
     def on_test_batch_end(
         self,
-        trainer: TrainerType,
+        trainer_state: TrainerState,
         model: nn.Module,
         outputs: DictData,
         batch: DictData,
@@ -103,18 +88,21 @@ class Callback:
         """Hook to run at the end of a testing batch.
 
         Args:
-            callback_inputs (CallbackInputs): General inputs to callback.
+            trainer_state (TrainerState): Trainer state.
             model: Model that is being trained.
-            predictions (DictData): Model prediction output.
-            data (DictData): Dataloader output.
+            outputs (DictData): Model prediction output.
+            batch (DictData): Dataloader output data batch.
+            batch_idx (int): Index of the batch.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults
+                to 0.
         """
 
     def on_test_epoch_end(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch.
 
         Args:
-            callback_inputs (CallbackInputs): General inputs to callback.
+            trainer_state (TrainerState): Trainer state.
             model (nn.Module): Model that is being trained.
         """

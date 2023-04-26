@@ -37,9 +37,8 @@ def init_dist_slurm() -> None:
     num_gpus = torch.cuda.device_count()
     torch.cuda.set_device(proc_id % num_gpus)
 
+    # WORLD_SIZE
     os.environ["WORLD_SIZE"] = str(ntasks)
-    os.environ["LOCAL_RANK"] = str(proc_id % num_gpus)
-    os.environ["RANK"] = str(proc_id)
 
     # use MASTER_ADDR in the environment variable if it already exists
     if "MASTER_ADDR" not in os.environ:
@@ -57,3 +56,9 @@ def init_dist_slurm() -> None:
             os.environ["MASTER_PORT"] = "29500"
         else:
             os.environ["MASTER_PORT"] = str(_find_free_port())
+
+    # LOCAL RANK
+    os.environ["LOCAL_RANK"] = str(proc_id % num_gpus)
+
+    # GLOBAL RANK
+    os.environ["RANK"] = str(proc_id)

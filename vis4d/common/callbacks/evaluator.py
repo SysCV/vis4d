@@ -5,7 +5,7 @@ import os
 
 from torch import nn
 
-from vis4d.common import ArgsType, MetricLogs, TrainerType
+from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import all_gather_object_cpu, broadcast, get_rank
 from vis4d.common.logging import rank_zero_info
 
@@ -16,6 +16,7 @@ from vis4d.eval.base import Evaluator
 from vis4d.engine.connectors.util import get_inputs_for_pred_and_data
 
 from .base import Callback
+from .trainer_state import TrainerState
 
 
 class EvaluatorCallback(Callback):
@@ -46,7 +47,7 @@ class EvaluatorCallback(Callback):
 
     def on_test_batch_end(
         self,
-        trainer: TrainerType,
+        trainer_state: TrainerState,
         model: nn.Module,
         outputs: DictData,
         batch: DictData,
@@ -59,7 +60,7 @@ class EvaluatorCallback(Callback):
         )
 
     def on_test_epoch_end(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)

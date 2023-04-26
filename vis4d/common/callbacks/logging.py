@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from torch import nn, Tensor
 
-from vis4d.common import ArgsType, TrainerType
+from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
@@ -13,6 +13,7 @@ from vis4d.common.time import Timer
 from vis4d.data.typing import DictData
 
 from .base import Callback
+from .trainer_state import TrainerState
 
 
 class LoggingCallback(Callback):
@@ -31,14 +32,14 @@ class LoggingCallback(Callback):
         self.timer = Timer()
 
     def on_train_epoch_start(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the start of a training epoch."""
         self.timer.reset()
 
     def on_train_batch_end(
         self,
-        trainer: TrainerType,
+        trainer_state: TrainerState,
         model: nn.Module,
         outputs: DictData,
         batch: DictData,
@@ -46,14 +47,15 @@ class LoggingCallback(Callback):
     ) -> None:
         """Hook to run at the end of a training batch."""
         # TODO: Check this mismatch with PL logger
-        for k, v in trainer.metrics.items():
-            self._metrics[k].append(v)
+        if "metrics" in trainer_state:
+            for k, v in trainer_state["metrics"].items():
+                self._metrics[k].append(v)
         if batch_idx % self._refresh_rate == 0:
             rank_zero_info(
                 compose_log_str(
-                    f"Epoch {trainer.epoch + 1}",
+                    f"Epoch {trainer_state['current_epoch'] + 1}",
                     batch_idx + 1,
-                    trainer.num_train_batches,
+                    trainer_state["num_train_batches"],
                     self.timer,
                     {
                         k: sum(v) / len(v) if len(v) > 0 else float("NaN")
@@ -64,14 +66,14 @@ class LoggingCallback(Callback):
             self._metrics = defaultdict(list)
 
     def on_test_epoch_start(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the start of a training epoch."""
         self.timer.reset()
 
     def on_test_batch_end(
         self,
-        trainer: TrainerType,
+        trainer_state: TrainerState,
         model: nn.Module,
         outputs: DictData,
         batch: DictData,
@@ -84,7 +86,7 @@ class LoggingCallback(Callback):
                 compose_log_str(
                     "Testing",
                     batch_idx + 1,
-                    trainer.num_test_batches[dataloader_idx],
+                    trainer_state["num_test_batches"][dataloader_idx],
                     self.timer,
                 )
             )

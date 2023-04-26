@@ -5,13 +5,14 @@ import os
 
 from torch import nn
 
-from vis4d.common import ArgsType, TrainerType
+from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, get_rank
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors.util import get_inputs_for_pred_and_data
 from vis4d.vis.base import Visualizer
 
 from .base import Callback
+from .trainer_state import TrainerState
 
 
 # TODO: Refactor this to save per batch
@@ -46,7 +47,7 @@ class VisualizerCallback(Callback):
 
     def on_test_batch_end(
         self,
-        trainer: TrainerType,
+        trainer_state: TrainerState,
         model: nn.Module,
         outputs: DictData,
         batch: DictData,
@@ -63,7 +64,7 @@ class VisualizerCallback(Callback):
         )
 
     def on_test_epoch_end(
-        self, trainer: TrainerType, model: nn.Module
+        self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the end of a testing epoch."""
         if get_rank() == 0:

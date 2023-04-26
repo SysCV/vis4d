@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import copy
 import inspect
-import typing
-from typing import Any
+
+from typing import Any, TypedDict, get_type_hints
 
 from torch import nn
 
@@ -15,7 +15,7 @@ from vis4d.eval.base import Evaluator
 
 
 # Types
-class DataConnectionInfo(typing.TypedDict):
+class DataConnectionInfo(TypedDict):
     """Internal type def for visualization.
 
     This defines a block component
@@ -55,8 +55,8 @@ def _get_model_conn_infos(
     Returns:
         train_connections, test_connections
     """
-    train_t = typing.get_type_hints(model.forward_train)["return"]
-    test_t = typing.get_type_hints(model.forward_test)["return"]
+    train_t = get_type_hints(model.forward_train)["return"]
+    test_t = get_type_hints(model.forward_test)["return"]
 
     train_connection_info = DataConnectionInfo(
         in_keys=sorted(

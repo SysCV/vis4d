@@ -44,12 +44,7 @@ def get_callback_config(
 
     # Checkpoint
     callbacks.append(
-        class_config(
-            CheckpointCallback,
-            save_prefix=config.output_dir,
-            every_n_epochs=1,
-            num_epochs=params.num_epochs,
-        )
+        class_config(CheckpointCallback, save_prefix=config.output_dir)
     )
 
     return callbacks
