@@ -7,7 +7,7 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.callbacks import Callback, TrainerState
+from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 

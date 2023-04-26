@@ -10,7 +10,7 @@ from lightning.pytorch.utilities.exceptions import MisconfigurationException
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
-from vis4d.common.callbacks import instantiate_callbacks
+from vis4d.engine.callbacks import instantiate_callbacks
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.parser import DEFINE_config_file

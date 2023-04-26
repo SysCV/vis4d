@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,

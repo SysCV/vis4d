@@ -2,7 +2,7 @@
 import platform
 from datetime import datetime
 
-from vis4d.common.callbacks import CheckpointCallback, LoggingCallback
+from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 from vis4d.config.util import ConfigDict, class_config
 
 

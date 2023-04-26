@@ -6,7 +6,7 @@ from typing import Any
 import lightning.pytorch as pl
 from torch import nn
 
-from vis4d.common.callbacks import Callback, TrainerState
+from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.pl.training_module import TrainingModule
 
 

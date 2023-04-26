@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from vis4d.common.callbacks import (
+from vis4d.engine.callbacks import (
     CheckpointCallback,
     EvaluatorCallback,
     LoggingCallback,

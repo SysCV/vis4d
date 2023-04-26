@@ -41,7 +41,7 @@ def get_optimizer(
 
 
 class TestOptimizer(unittest.TestCase):
-    """Test cases for callback functions."""
+    """Test cases for Optimizer."""
 
     learning_rates = {
         0: 0.001,

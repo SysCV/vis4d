@@ -15,7 +15,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
-from vis4d.common.callbacks import instantiate_callbacks
+from vis4d.engine.callbacks import instantiate_callbacks
 from vis4d.common.distributed import (
     broadcast,
     get_local_rank,
