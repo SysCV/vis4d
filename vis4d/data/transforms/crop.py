@@ -120,6 +120,18 @@ class GenCropParameters:
         self.allow_empty_crops = allow_empty_crops
         self.recompute_boxes2d = recompute_boxes2d
 
+    def _get_crop(
+        self, im_h: int, im_w: int, boxes: NDArrayF32 | None = None
+    ) -> tuple[NDArrayI32, NDArrayBool]:
+        crop_size = self.crop_func(im_h, im_w, self.shape)
+        crop_box = _sample_crop(im_h, im_w, crop_size)
+        keep_mask = (
+            _get_keep_mask(boxes, crop_box)
+            if boxes is not None
+            else np.array([])
+        )
+        return crop_box, keep_mask
+
     def __call__(
         self,
         input_hw: tuple[int, int],
@@ -128,9 +140,7 @@ class GenCropParameters:
     ) -> CropParam:
         """Compute the parameters and put them in the data dict."""
         im_h, im_w = input_hw
-        crop_size = self.crop_func(im_h, im_w, self.shape)
-        crop_box = _sample_crop(im_h, im_w, crop_size)
-        keep_mask = _get_keep_mask(boxes, crop_box)
+        crop_box, keep_mask = self._get_crop(im_h, im_w, boxes)
         if (boxes is not None and len(boxes) > 0) or self.cat_max_ratio != 1.0:
             # resample crop if conditions not satisfied
             found_crop = False
@@ -142,10 +152,7 @@ class GenCropParameters:
                 ):
                     found_crop = True
                     break
-
-                crop_size = self.crop_func(im_h, im_w, self.shape)
-                crop_box = _sample_crop(im_h, im_w, crop_size)
-                keep_mask = _get_keep_mask(boxes, crop_box)
+                crop_box, keep_mask = self._get_crop(im_h, im_w, boxes)
             if not found_crop:
                 rank_zero_warn("Random crop not found within 10 resamples.")
 
