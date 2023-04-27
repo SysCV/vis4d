@@ -7,19 +7,30 @@ from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
-from vis4d.data.transforms import RandomApply, compose, flip, normalize, resize
+from vis4d.data.transforms import (
+    RandomApply,
+    compose,
+    flip,
+    normalize,
+    photometric,
+    resize,
+)
 
 
 def seg_augmentations() -> Iterable[ConfigDict]:
     """Returns the default image augmentations used for detection tasks.
 
-    These augmentations consist of solely of left-right flipping the image and
-    boxes.
+    These augmentations consist of solely of horizontal flipping and color
+    jittering.
 
     Returns:
         list[ConfigDict]: List with all transformations encoded as ConfigDict.
     """
-    return (class_config(flip.FlipImage), class_config(flip.FlipSegMasks))
+    return (
+        class_config(flip.FlipImage),
+        class_config(flip.FlipSegMasks),
+        class_config(photometric.ColorJitter),
+    )
 
 
 def seg_preprocessing(

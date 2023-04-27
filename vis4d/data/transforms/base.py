@@ -98,22 +98,40 @@ class Transform:
 
             def _transform_fn(data: DictData) -> DictData:
                 in_data = []
+                opt_in_data = {}
                 for key in self_.in_keys:
-                    try:
-                        # Optionally allow the function to get the full data
-                        # dict as aux input.
-                        in_data += [
-                            get_dict_nested(data, key.split("."))
-                            if key != "data"
-                            else data
-                        ]
-                    except ValueError:
-                        # if a key does not exist in the input data, do not
-                        # apply the transformation.
-                        # TODO might need to raise a warning
-                        return data
+                    if isinstance(key, tuple):
+                        # optional keyword arguments
+                        # TODO: make the change for batch transform after
+                        # implementation is fixed
+                        assert len(key) == 2
+                        try:
+                            opt_in_data[key[1]] = (
+                                get_dict_nested(data, key[0].split("."))
+                                if key != "data"
+                                else data
+                            )
+                        except ValueError:
+                            opt_in_data[key[1]] = None
+                    else:
+                        # positional arguments
+                        try:
+                            # Optionally allow the function to get the full
+                            # data dict as aux input.
+                            in_data += [
+                                (
+                                    get_dict_nested(data, key.split("."))
+                                    if key != "data"
+                                    else data
+                                )
+                            ]
+                        except ValueError:
+                            # if a key does not exist in the input data, do not
+                            # apply the transformation.
+                            # TODO might need to raise a warning
+                            return data
 
-                result = self_(*in_data)
+                result = self_(*in_data, **opt_in_data)
                 if len(self_.out_keys) == 1:
                     if self_.out_keys[0] == "data":
                         return result
