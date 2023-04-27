@@ -73,13 +73,17 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         trainer_state = get_trainer_state(trainer, pl_module)
         trainer_state["metrics"] = outputs["metrics"]
 
-        self.callback.on_train_batch_end(
+        log_dict = self.callback.on_train_batch_end(
             trainer_state=trainer_state,
             model=get_model(pl_module),
             outputs=outputs["predictions"],
             batch=batch,
             batch_idx=batch_idx,
         )
+
+        if log_dict is not None:
+            for k, v in log_dict.items():
+                pl_module.log(f"train/{k}", v, rank_zero_only=True)
 
     def on_train_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -128,9 +132,7 @@ class CallbackWrapper(pl.Callback):  # type: ignore
 
         if log_dict is not None:
             for k, v in log_dict.items():
-                pl_module.log(
-                    f"val/{k}", v, rank_zero_only=True, sync_dist=True
-                )
+                pl_module.log(f"val/{k}", v, sync_dist=True)
 
     def on_test_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -151,7 +153,7 @@ class CallbackWrapper(pl.Callback):  # type: ignore
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         self.callback.on_test_batch_end(
-            trainer=get_trainer_state(trainer, pl_module),
+            trainer_state=get_trainer_state(trainer, pl_module),
             model=get_model(pl_module),
             outputs=outputs,
             batch=batch,
@@ -169,6 +171,4 @@ class CallbackWrapper(pl.Callback):  # type: ignore
 
         if log_dict is not None:
             for k, v in log_dict.items():
-                pl_module.log(
-                    f"test/{k}", v, rank_zero_only=True, sync_dist=True
-                )
+                pl_module.log(f"test/{k}", v, sync_dist=True)

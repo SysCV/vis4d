@@ -29,7 +29,7 @@ NDArrayFloat = Union[NDArrayF32, NDArrayF64]
 NDArrayInt = Union[NDArrayI64, NDArrayI32]
 
 NDArrayNumber = Union[NDArrayFloat, NDArrayInt, NDArrayBool]
-MetricLogs = Dict[str, Union[float, int]]
+MetricLogs = Dict[str, Union[float, int, Tensor]]
 DictStrAny = Dict[str, Any]  # type: ignore
 DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]
 ArgsType = Any  # type: ignore

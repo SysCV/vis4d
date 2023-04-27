@@ -21,7 +21,6 @@ def get_pl_trainer_config(config: ConfigDict) -> ConfigDict:
 
     # logger
     pl_trainer.enable_progress_bar = False
-    pl_trainer.log_every_n_steps = 50
 
     # Default Trainer arguments
     pl_trainer.work_dir = config.work_dir

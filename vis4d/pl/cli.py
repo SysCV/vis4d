@@ -17,7 +17,7 @@ from vis4d.config.parser import DEFINE_config_file
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
-from vis4d.pl.trainer import DefaultTrainer
+from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
@@ -100,7 +100,7 @@ def main(argv: ArgsType) -> None:
     # Add needed callbacks
     callbacks.append(OptimEpochCallback())
 
-    trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
+    trainer = PLTrainer(callbacks=callbacks, **trainer_args)
     training_module = TrainingModule(
         config.model, config.optimizers, loss, data_connector, seed
     )

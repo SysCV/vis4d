@@ -141,7 +141,7 @@ class Trainer:
                     opt.step_on_batch(self.global_steps)
 
                 for callback in self.callbacks:
-                    callback.on_train_batch_end(
+                    _ = callback.on_train_batch_end(
                         trainer_state=self.get_state(metrics),
                         model=model,
                         outputs=output,

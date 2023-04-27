@@ -45,7 +45,7 @@ class Callback:
         outputs: DictData,
         batch: DictData,
         batch_idx: int,
-    ) -> None:
+    ) -> None | MetricLogs:
         """Hook to run at the end of a training batch.
 
         Args:

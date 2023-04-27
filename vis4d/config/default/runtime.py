@@ -34,13 +34,13 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
 
 
 def get_callback_config(
-    config: ConfigDict, params: ConfigDict
+    config: ConfigDict, params: ConfigDict, refresh_rate: int = 50
 ) -> list[ConfigDict]:
     """Get default callback config."""
     callbacks = []
 
     # Logger
-    callbacks.append(class_config(LoggingCallback, refresh_rate=50))
+    callbacks.append(class_config(LoggingCallback, refresh_rate=refresh_rate))
 
     # Checkpoint
     callbacks.append(
