@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TypedDict
 
 import numpy as np
 import torch
@@ -56,14 +57,14 @@ class RandomBrightness:
 
 @Transform(K.images, K.images)
 class RandomContrast:
-    """Apply Contrast transformation to image.
-
-    Args:
-        contrast_range (tuple[float, float]): Range of contrast values.
-    """
+    """Apply Contrast transformation to image."""
 
     def __init__(self, contrast_range: tuple[float, float] = (1.0, 1.0)):
-        """Init function for Contrast."""
+        """Init function for Contrast.
+
+        Args:
+            contrast_range (tuple[float, float]): Range of contrast values.
+        """
         self.contrast_range = contrast_range
 
     def __call__(self, image: NDArrayF32) -> NDArrayF32:
@@ -76,14 +77,14 @@ class RandomContrast:
 
 @Transform(K.images, K.images)
 class RandomSaturation:
-    """Apply saturation transformation to image.
-
-    Args:
-        saturation_range (tuple[float, float]): Range of saturation values.
-    """
+    """Apply saturation transformation to image."""
 
     def __init__(self, saturation_range: tuple[float, float] = (1.0, 1.0)):
-        """Init function for saturation."""
+        """Init function for saturation.
+
+        Args:
+            saturation_range (tuple[float, float]): Range of saturation values.
+        """
         self.saturation_range = saturation_range
 
     def __call__(self, image: NDArrayF32) -> NDArrayF32:
@@ -112,7 +113,16 @@ class RandomHue:
         return _adjust_image(image, TF.adjust_hue, factor)
 
 
-@Transform(K.images, K.images)
+class ColorJitterParam(TypedDict):
+    """Parameters for ColorJitter."""
+
+    brightness_range: float
+    contrast_range: float
+    saturation_range: float
+    hue_range: float
+
+
+@Transform(K.images, ["transforms.color_jitter", K.images])
 class ColorJitter:
     """Apply color jitter to image."""
 
@@ -123,7 +133,14 @@ class ColorJitter:
         saturation_range: tuple[float, float] = (0.5, 1.5),
         hue_range: tuple[float, float] = (-0.05, 0.05),
     ):
-        """Init function for hue."""
+        """Init function for color jitter.
+
+        Args:
+            brightness_range (tuple[float, float]): Range of brightness values.
+            contrast_range (tuple[float, float]): Range of contrast values.
+            saturation_range (tuple[float, float]): Range of saturation values.
+            hue_range (tuple[float, float]): Range of hue values.
+        """
         self.brightness_range = brightness_range
         self.contrast_range = contrast_range
         self.saturation_range = saturation_range
@@ -136,29 +153,37 @@ class ColorJitter:
             # apply photometric transforms in a random order
             if transform == 0:
                 # random brightness
-                factor = np.random.uniform(
+                bfactor = np.random.uniform(
                     self.brightness_range[0], self.brightness_range[1]
                 )
-                image = _adjust_image(image, TF.adjust_brightness, factor)
+                image = _adjust_image(image, TF.adjust_brightness, bfactor)
             elif transform == 1:
                 # random contrast
-                factor = np.random.uniform(
+                cfactor = np.random.uniform(
                     self.contrast_range[0], self.contrast_range[1]
                 )
-                image = _adjust_image(image, TF.adjust_contrast, factor)
+                image = _adjust_image(image, TF.adjust_contrast, cfactor)
             elif transform == 2:
                 # random saturation
-                factor = np.random.uniform(
+                sfactor = np.random.uniform(
                     self.saturation_range[0], self.saturation_range[1]
                 )
-                image = _adjust_image(image, TF.adjust_saturation, factor)
+                image = _adjust_image(image, TF.adjust_saturation, sfactor)
             elif transform == 3:
                 # random hue
-                factor = np.random.uniform(
+                hfactor = np.random.uniform(
                     self.hue_range[0], self.hue_range[1]
                 )
-                image = _adjust_image(image, TF.adjust_hue, factor)
-        return image
+                image = _adjust_image(image, TF.adjust_hue, hfactor)
+        return (
+            ColorJitterParam(
+                brightness_range=bfactor,
+                contrast_range=cfactor,
+                saturation_range=sfactor,
+                hue_range=hfactor,
+            ),
+            image,
+        )
 
 
 def _adjust_image(
@@ -166,7 +191,16 @@ def _adjust_image(
     adjust_func: Callable[[Tensor, float], Tensor],
     adj_factor: float,
 ) -> NDArrayF32:
-    """Apply color transformation to image."""
-    image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
-    image_ = adjust_func(image_, adj_factor).to(image_.dtype)
+    """Apply color transformation to image.
+
+    Args:
+        image (NDArrayF32): Image to be transformed.
+        adjust_func (Callable[[Tensor, float], Tensor]): Function to apply.
+        adj_factor (float): Adjustment factor.
+
+    Returns:
+        NDArrayF32: Transformed image.
+    """
+    image_ = torch.from_numpy(image).permute(0, 3, 1, 2) / 255.0
+    image_ = adjust_func(image_, adj_factor) * 255.0
     return image_.permute(0, 2, 3, 1).numpy()

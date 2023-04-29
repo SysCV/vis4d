@@ -89,4 +89,3 @@ class TestPhotometric(unittest.TestCase):
         tr1 = ColorJitter()
         data = tr1.apply_to_data(data)
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))
-        # Image.fromarray(data['images'][0]).save("test.jpg")

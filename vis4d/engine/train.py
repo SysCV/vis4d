@@ -138,6 +138,12 @@ class Trainer:
                 else:
                     losses = {}
 
+                # Log learning rate
+                if len(optimizers) == 1:
+                    cur_lr = optimizers[0].optimizer.param_groups[0]["lr"]
+                else:
+                    cur_lr = None
+
                 for opt in optimizers:
                     opt.step_on_batch(step)
 
@@ -150,6 +156,8 @@ class Trainer:
                             "cur_iter": cur_iter,
                             "total_iters": total_iters,
                         }
+                        if cur_lr is not None:
+                            shared_clbk_kwargs["lr"] = cur_lr
                         clbk_kwargs = self.data_connector.get_callback_input(
                             k, output, data, "train"
                         )

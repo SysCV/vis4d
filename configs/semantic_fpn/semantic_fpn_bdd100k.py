@@ -3,28 +3,22 @@ from __future__ import annotations
 
 from torch import optim
 
-from vis4d.common.callbacks import (
-    CheckpointCallback,
-    EvaluatorCallback,
-    LoggingCallback,
-)
-from vis4d.config.default.data.seg import (
-    seg_batch_preprocessing,
-    seg_test_preprocessing,
-    seg_train_preprocessing,
+from vis4d.common.callbacks import EvaluatorCallback
+from vis4d.config.base.datasets.bdd100k_segmentation import (
+    CONN_BDD100K_SEG_EVAL,
+    get_bdd100k_segmentation_config,
 )
 from vis4d.config.default.data_connectors.seg import (
-    CONN_BDD100K_SEG_EVAL,
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
     CONN_SEG_LOSS,
 )
-from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default.runtime import set_output_dir
+from vis4d.config.default.runtime import (
+    get_generic_callback_config,
+    set_output_dir,
+)
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
@@ -43,16 +37,11 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-
     config = ConfigDict()
-    config.n_gpus = 1
+
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "test/semantic_fpn_bdd100k"
     config = set_output_dir(config)
-
-    config.dataset_root = "./data/bdd100k/images/10k"
-    config.train_split = "train"
-    config.test_split = "val"
 
     ## High level hyper parameters
     params = ConfigDict()
@@ -68,62 +57,26 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
+    data_root = "data/bdd100k/images/10k"
+    train_split = "train"
+    test_split = "val"
 
-    data = ConfigDict()
-    data_backend = HDF5Backend()
+    data_backend = class_config(HDF5Backend)
 
-    # Training Datasets
-    dataset_cfg_train = class_config(
-        BDD100K,
-        data_root="data/bdd100k/images/10k/train",
-        annotation_path="data/bdd100k/labels/sem_seg_train_rle.json",
-        config_path="sem_seg",
-        keys_to_load=(K.images, K.seg_masks),
+    config.data = get_bdd100k_segmentation_config(
+        data_root=data_root,
+        train_split=train_split,
+        test_split=test_split,
         data_backend=data_backend,
-    )
-    preproc = seg_train_preprocessing(
-        720, 1280, 512, 1024, True, params.augment_prob
-    )
-    dataloader_train_cfg = get_dataloader_config(
-        preprocess_cfg=preproc,
-        batchprocess_cfg=seg_batch_preprocessing(),
-        dataset_cfg=dataset_cfg_train,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
-        shuffle=True,
     )
-    data.train_dataloader = dataloader_train_cfg
-
-    # Test
-    dataset_test_cfg = class_config(
-        BDD100K,
-        data_root="data/bdd100k/images/10k/val",
-        annotation_path="data/bdd100k/labels/sem_seg_val_rle.json",
-        config_path="sem_seg",
-        keys_to_load=(K.images, K.seg_masks),
-        data_backend=data_backend,
-    )
-    preprocess_test_cfg = seg_test_preprocessing(720, 1280, True)
-    dataloader_cfg_test = get_dataloader_config(
-        preprocess_cfg=preprocess_test_cfg,
-        batchprocess_cfg=seg_batch_preprocessing(),
-        dataset_cfg=dataset_test_cfg,
-        samples_per_gpu=1,
-        workers_per_gpu=1,
-        shuffle=False,
-        train=False,
-    )
-    data.test_dataloader = dataloader_cfg_test
-
-    config.data = data
 
     ######################################################
     ##                   MODEL & LOSS                   ##
     ######################################################
 
-    config.model = class_config(
-        SemanticFPN, num_classes=params.num_classes, weights="bdd100k"
-    )
+    config.model = class_config(SemanticFPN, num_classes=params.num_classes)
     config.loss = class_config(SegCrossEntropyLoss)
 
     ######################################################
@@ -141,6 +94,7 @@ def get_config() -> ConfigDict:
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
             ),
+            epoch_based_lr=False,
         )
     ]
 
@@ -175,21 +129,12 @@ def get_config() -> ConfigDict:
     }
 
     ######################################################
-    ##                GENERIC CALLBACKS                 ##
+    ##                     CALLBACKS                    ##
     ######################################################
-    # Here we define general, all purpose callbacks. Note, that these callbacks
-    # do not need to be registered with the data connector.
-    logger_callback = {
-        "logger": class_config(LoggingCallback, refresh_rate=50)
-    }
-    ckpt_callback = {
-        "ckpt": class_config(
-            CheckpointCallback,
-            save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        )
-    }
+    # Generic callbacks
+    logger_callback, ckpt_callback = get_generic_callback_config(
+        config, params
+    )
 
     # Assign the defined callbacks to the config
     config.shared_callbacks = {**logger_callback}

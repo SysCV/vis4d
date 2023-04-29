@@ -123,6 +123,7 @@ class GenCropParameters:
     def _get_crop(
         self, im_h: int, im_w: int, boxes: NDArrayF32 | None = None
     ) -> tuple[NDArrayI32, NDArrayBool]:
+        """Get the crop parameters."""
         crop_size = self.crop_func(im_h, im_w, self.shape)
         crop_box = _sample_crop(im_h, im_w, crop_size)
         keep_mask = (

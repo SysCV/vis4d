@@ -261,16 +261,19 @@ class LoggingCallback(Callback):
         for k, v in shared_inputs["metrics"].items():
             self._metrics[k].append(v)
         if shared_inputs["cur_iter"] % self._refresh_rate == 0:
+            metrics = {
+                k: sum(v) / len(v) if len(v) > 0 else float("NaN")
+                for k, v in self._metrics.items()
+            }
+            if "lr" in shared_inputs:
+                metrics["lr"] = shared_inputs["lr"]
             rank_zero_info(
                 compose_log_str(
                     f"Epoch {shared_inputs['epoch'] + 1}",
                     shared_inputs["cur_iter"] + 1,
                     shared_inputs["total_iters"],
                     self.timer,
-                    {
-                        k: sum(v) / len(v) if len(v) > 0 else float("NaN")
-                        for k, v in self._metrics.items()
-                    },
+                    metrics,
                 )
             )
             self._metrics = defaultdict(list)
