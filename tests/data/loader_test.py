@@ -1,8 +1,7 @@
-# pylint: disable=unexpected-keyword-arg
-# TODO remove this once new transforms are implemented
 """Test loader components."""
 from __future__ import annotations
 
+import numpy as np
 import torch
 
 from tests.util import get_test_data
@@ -15,10 +14,22 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     build_train_dataloader,
 )
-from vis4d.data.transforms import compose, mask, normalize, pad, resize
+from vis4d.data.transforms import (
+    compose,
+    compose_batch,
+    mask,
+    normalize,
+    pad,
+    resize,
+    to_tensor,
+)
 from vis4d.data.transforms.point_sampling import (
-    sample_points_block_full_coverage,
-    sample_points_random,
+    GenerateBlockSamplingIndices,
+    GenFullCovBlockSamplingIndices,
+    SampleColors,
+    SampleInstances,
+    SamplePoints,
+    SampleSemantics,
 )
 from vis4d.data.typing import DictData
 
@@ -29,11 +40,12 @@ def test_train_loader() -> None:
     batch_size = 2
     preprocess_fn = compose(
         [
-            resize.resize_image((256, 256), keep_ratio=True),
-            normalize.normalize_image(),
+            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+            resize.ResizeImage(),
+            normalize.NormalizeImage(),
         ]
     )
-    batchprocess_fn = pad.pad_image()
+    batchprocess_fn = compose_batch([pad.PadImages(), to_tensor.ToTensor()])
 
     datapipe = DataPipe(coco, preprocess_fn)
     train_loader = build_train_dataloader(
@@ -54,11 +66,12 @@ def test_inference_loader() -> None:
     coco = COCO(data_root=get_test_data("coco_test"), split="train")
     preprocess_fn = compose(
         [
-            resize.resize_image((256, 256), keep_ratio=True),
-            normalize.normalize_image(),
+            resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+            resize.ResizeImage(),
+            normalize.NormalizeImage(),
         ]
     )
-    batchprocess_fn = pad.pad_image()
+    batchprocess_fn = compose_batch([pad.PadImages(), to_tensor.ToTensor()])
 
     datapipe = DataPipe(coco, preprocess_fn)
     test_loaders = build_inference_dataloaders(
@@ -85,14 +98,18 @@ def test_segment_train_loader() -> None:
     batch_size = 4
     preprocess_fn = compose(
         [
-            resize.resize_image((520, 520)),
-            resize.resize_masks(),
-            normalize.normalize_image(),
-            mask.convert_to_seg_masks(),
+            resize.GenerateResizeParameters((520, 520)),
+            resize.ResizeImage(),
+            resize.ResizeInstanceMasks(),
+            normalize.NormalizeImage(),
+            mask.ConvertInstanceMaskToSegmentationMask(),
         ]
     )
+    batchprocess_fn = compose_batch([to_tensor.ToTensor()])
     datapipe = DataPipe(coco, preprocess_fn)
-    train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
+    train_loader = build_train_dataloader(
+        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
+    )
 
     for sample in train_loader:
         images = sample[K.images]
@@ -120,10 +137,16 @@ def test_segment_inference_loader() -> None:
     )
     batch_size = 1
     preprocess_fn = compose(
-        [normalize.normalize_image(), mask.convert_to_seg_masks()]
+        [
+            normalize.NormalizeImage(),
+            mask.ConvertInstanceMaskToSegmentationMask(),
+        ]
     )
+    batchprocess_fn = compose_batch([to_tensor.ToTensor()])
     datapipe = DataPipe(coco, preprocess_fn)
-    test_loader = build_inference_dataloaders(datapipe)
+    test_loader = build_inference_dataloaders(
+        datapipe, batchprocess_fn=batchprocess_fn
+    )
 
     for sample in test_loader[0]:
         images = sample[K.images]
@@ -158,7 +181,7 @@ def point_collate(batch: list[DictData]) -> DictData:
             K.instances3d,
             K.semantics3d,
         ):
-            data[key] = torch.stack([b[key] for b in batch], 0)
+            data[key] = np.stack([b[key] for b in batch], 0)
         else:
             data[key] = [b[key] for b in batch]
     return data
@@ -167,16 +190,17 @@ def point_collate(batch: list[DictData]) -> DictData:
 def test_train_loader_3d() -> None:
     """Test the data loading pipeline for 3D Data."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
-
     batch_size = 2
-    keys = (
-        K.points3d,
-        K.colors3d,
-        K.instances3d,
-        K.semantics3d,
-    )
     preprocess_fn = compose(
-        [sample_points_random(in_keys=keys, out_keys=keys, num_pts=1024)]
+        [
+            GenerateBlockSamplingIndices(
+                num_pts=1024, block_dimensions=(1, 1, 4)
+            ),
+            SampleInstances(),
+            SampleSemantics(),
+            SampleColors(),
+            SamplePoints(),
+        ]
     )
 
     datapipe = DataPipe(s3dis, preprocess_fn)
@@ -185,31 +209,35 @@ def test_train_loader_3d() -> None:
     )
 
     for sample in train_loader:
-        assert isinstance(sample[K.colors3d], torch.Tensor)
-        assert isinstance(sample[K.points3d], torch.Tensor)
-        assert isinstance(sample[K.semantics3d], torch.Tensor)
-        assert isinstance(sample[K.instances3d], torch.Tensor)
-        assert batch_size == sample[K.colors3d].size(0)
-        assert batch_size == sample[K.points3d].size(0)
-        assert batch_size == sample[K.semantics3d].size(0)
+        assert isinstance(sample[K.colors3d], np.ndarray)
+        assert isinstance(sample[K.points3d], np.ndarray)
+        assert isinstance(sample[K.semantics3d], np.ndarray)
+        assert isinstance(sample[K.instances3d], np.ndarray)
+        assert batch_size == sample[K.colors3d].shape[0]
+        assert batch_size == sample[K.points3d].shape[0]
+        assert batch_size == sample[K.semantics3d].shape[0]
+
+        assert sample[K.semantics3d].shape[1] == 1024
+        assert sample[K.points3d].shape[1] == 1024
+        assert sample[K.colors3d].shape[1] == 1024
+        assert sample[K.instances3d].shape[1] == 1024
         break
 
 
 def test_train_loader_3d_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
-    keys = (
-        K.points3d,
-        K.colors3d,
-        K.instances3d,
-        K.semantics3d,
-    )
+    keys = (K.points3d, K.colors3d, K.instances3d, K.semantics3d)
     batch_size = 2
     preprocess_fn = compose(
         [
-            sample_points_block_full_coverage(
-                in_keys=keys, out_keys=keys, n_pts_per_block=1024
-            )
+            GenFullCovBlockSamplingIndices(
+                num_pts=1024, block_dimensions=(1, 1, 4)
+            ),
+            SampleInstances(),
+            SampleSemantics(),
+            SampleColors(),
+            SamplePoints(),
         ]
     )
 
@@ -221,13 +249,8 @@ def test_train_loader_3d_batched() -> None:
     )
 
     for sample in inference_loader[0]:
-        assert isinstance(sample[K.colors3d], torch.Tensor)
-        assert isinstance(sample[K.points3d], torch.Tensor)
-        assert isinstance(sample[K.semantics3d], torch.Tensor)
-        assert isinstance(sample[K.instances3d], torch.Tensor)
-
-        assert batch_size == sample[K.colors3d].size(0)
-        assert batch_size == sample[K.points3d].size(0)
-        assert batch_size == sample[K.semantics3d].size(0)
-        assert batch_size == sample[K.instances3d].size(0)
+        for k in keys:
+            assert isinstance(sample[k], np.ndarray)
+            assert batch_size == sample[k].shape[0]
+            assert sample[k].shape[1] == 1024
         break

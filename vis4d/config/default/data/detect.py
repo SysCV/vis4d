@@ -7,6 +7,14 @@ from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
 from vis4d.config.util import class_config
+from vis4d.data.transforms.base import RandomApply, compose
+from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
+from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeBoxes2D,
+    ResizeImage,
+)
 
 
 def det_augmentations() -> Iterable[ConfigDict]:
@@ -18,10 +26,7 @@ def det_augmentations() -> Iterable[ConfigDict]:
     Returns:
         list[ConfigDict]: List with all transformations encoded as ConfigDict.
     """
-    return (
-        class_config("vis4d.data.transforms.flip.flip_image"),
-        class_config("vis4d.data.transforms.flip.flip_boxes2d"),
-    )
+    return class_config(FlipImage), class_config(FlipBoxes2D)
 
 
 def det_preprocessing(
@@ -61,23 +66,18 @@ def det_preprocessing(
     """
     transforms = [
         class_config(
-            "vis4d.data.transforms.resize.resize_image",
-            shape=(
-                target_img_height,
-                target_img_width,
-            ),
+            GenerateResizeParameters,
+            shape=(target_img_height, target_img_width),
             keep_ratio=True,
         ),
-        class_config("vis4d.data.transforms.resize.resize_boxes2d"),
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
         class_config(
-            "vis4d.data.transforms.base.random_apply",
+            RandomApply,
             transforms=augmentation_transforms,
             probability=augment_probability,
         ),
-        class_config("vis4d.data.transforms.normalize.normalize_image"),
+        class_config(NormalizeImage),
     ]
 
-    return class_config(
-        "vis4d.data.transforms.base.compose",
-        transforms=transforms,
-    )
+    return class_config(compose, transforms=transforms)

@@ -24,9 +24,7 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for testing."""
     datapipe = VideoDataPipe(datasets)
     return build_inference_dataloaders(
-        datapipe,
-        samples_per_gpu=batch_size,
-        workers_per_gpu=1,
+        datapipe, samples_per_gpu=batch_size, workers_per_gpu=0
     )[0]
 
 
@@ -49,8 +47,8 @@ class TestBDD100KEvaluator(unittest.TestCase):
         "track_ids_list": pred_key("track_ids"),
     }
 
-    def test_nusc_eval(self) -> None:
-        """Testcase for NuScenes evaluation."""
+    def test_bdd_eval(self) -> None:
+        """Testcase for BDD100K evaluation."""
         batch_size = 2
 
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
@@ -72,9 +70,7 @@ class TestBDD100KEvaluator(unittest.TestCase):
             callbacks={"bdd100k_eval_test": self.CONN_BDD100K_EVAL},
         )
 
-        data_connector = StaticDataConnector(
-            connections=data_connection_info,
-        )
+        data_connector = StaticDataConnector(connections=data_connection_info)
 
         output = {
             "boxes": [torch.zeros(batch_size, 4)],

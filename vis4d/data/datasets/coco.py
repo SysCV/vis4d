@@ -8,7 +8,6 @@ from collections.abc import Sequence
 
 import numpy as np
 import pycocotools.mask as maskUtils
-import torch
 from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.common import DictStrAny
@@ -268,14 +267,11 @@ class COCO(Dataset, CacheMappingMixin):
             )
             im_bytes = self.data_backend.get(img_path)
             img = im_decode(im_bytes)
-            img_tensor = torch.as_tensor(
-                np.ascontiguousarray(img.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0)
-            assert (img_h, img_w) == img_tensor.shape[
-                2:
+            img_ = np.ascontiguousarray(img, dtype=np.float32)[None]
+            assert (img_h, img_w) == img_.shape[
+                1:3
             ], "Image's shape doesn't match annotation."
-            dict_data[K.images] = img_tensor
+            dict_data[K.images] = img_
 
         if self.with_boxes or self.with_masks or self.with_sem_masks:
             boxes = []
@@ -302,28 +298,26 @@ class COCO(Dataset, CacheMappingMixin):
                 else:
                     masks.append(np.empty((img_h, img_w)))  # pragma: no cover
             if not boxes:  # pragma: no cover
-                box_tensor = torch.empty((0, 4), dtype=torch.float32)
-                mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
+                box_tensor = np.empty((0, 4), dtype=np.float32)
+                mask_tensor = np.empty((0, img_h, img_w), dtype=np.uint8)
             else:
-                box_tensor = torch.tensor(boxes, dtype=torch.float32)
-                mask_tensor = torch.as_tensor(
-                    np.ascontiguousarray(masks), dtype=torch.uint8
-                )
+                box_tensor = np.array(boxes, dtype=np.float32)
+                mask_tensor = np.ascontiguousarray(masks, dtype=np.uint8)
 
             if K.boxes2d in self.keys_to_load:
                 dict_data[K.boxes2d] = box_tensor
             if K.boxes2d_classes in self.keys_to_load:
-                dict_data[K.boxes2d_classes] = torch.tensor(
-                    classes, dtype=torch.long
+                dict_data[K.boxes2d_classes] = np.array(
+                    classes, dtype=np.int64
                 )
             if self.with_masks:
                 dict_data[K.instance_masks] = mask_tensor
             if self.with_sem_masks:
-                seg_masks, _ = (
-                    mask_tensor * torch.tensor(classes)[:, None, None]
-                ).max(dim=0)
-                seg_masks = seg_masks.long()
+                seg_masks = (
+                    mask_tensor * np.array(classes)[:, None, None]
+                ).max(axis=0)
+                seg_masks = seg_masks.astype(np.int64)
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
-                dict_data[K.segmentation_masks] = seg_masks.unsqueeze(0)
+                dict_data[K.segmentation_masks] = seg_masks[None]
 
         return dict_data

@@ -61,10 +61,7 @@ class TestDataloaderConfig(unittest.TestCase):
 
         preprocess_cfg_train = det_preprocessing(800, 1333, 0.5)
         dataloader_train_cfg = default_image_dataloader(
-            preprocess_cfg_train,
-            dataset_cfg_train,
-            2,
-            2,
+            preprocess_cfg_train, dataset_cfg_train, 2, 2
         )
         self.assertTrue(isinstance(dataloader_train_cfg, ConfigDict))
         dl = instantiate_classes(dataloader_train_cfg)

@@ -14,14 +14,16 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     build_train_dataloader,
 )
-from vis4d.data.transforms.base import compose
-from vis4d.data.transforms.normalize import normalize_image
-from vis4d.data.transforms.pad import pad_image
+from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
-    resize_boxes2d,
-    resize_image,
-    resize_masks,
+    GenerateResizeParameters,
+    ResizeBoxes2D,
+    ResizeImage,
+    ResizeInstanceMasks,
 )
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.op.detect.rcnn import DetOut
 
@@ -33,11 +35,15 @@ def get_train_dataloader(
     with_mask: bool = False,
 ) -> DataLoader:
     """Get data loader for training."""
-    resize_trans = [resize_image(im_hw, keep_ratio=True), resize_boxes2d()]
+    resize_trans = [
+        GenerateResizeParameters(im_hw, keep_ratio=True),
+        ResizeImage(),
+        ResizeBoxes2D(),
+    ]
     if with_mask:
-        resize_trans += [resize_masks()]
-    preprocess_fn = compose([*resize_trans, normalize_image()])
-    batchprocess_fn = pad_image()
+        resize_trans += [ResizeInstanceMasks()]
+    preprocess_fn = compose([*resize_trans, NormalizeImage()])
+    batchprocess_fn = compose_batch([PadImages(), ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_train_dataloader(
         datapipe,
@@ -51,8 +57,15 @@ def get_test_dataloader(
     datasets: Dataset, batch_size: int, im_hw: tuple[int, int]
 ) -> DataLoader:
     """Get data loader for testing."""
-    preprocess_fn = compose([resize_image(im_hw), normalize_image()])
-    batchprocess_fn = pad_image()
+    preprocess_fn = compose(
+        [
+            GenerateResizeParameters(im_hw),
+            ResizeImage(),
+            ResizeBoxes2D(),
+            NormalizeImage(),
+        ]
+    )
+    batchprocess_fn = compose_batch([PadImages(), ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
         datapipe,

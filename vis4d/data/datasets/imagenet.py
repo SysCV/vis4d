@@ -8,7 +8,6 @@ import tarfile
 from collections.abc import Sequence
 
 import numpy as np
-import torch
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
@@ -131,6 +130,7 @@ class ImageNet(Dataset):
             image = im_decode(im_bytes.read())
 
         data_dict = {}
+<<<<<<< HEAD
         if Keys.images in self.keys_to_load:
             data_dict[Keys.images] = torch.as_tensor(
                 np.ascontiguousarray(image.transpose(2, 0, 1)),
@@ -140,4 +140,12 @@ class ImageNet(Dataset):
             data_dict[Keys.categories] = torch.tensor(
                 class_idx, dtype=torch.long
             ).unsqueeze(0)
+=======
+        if K.images in self.keys_to_load:
+            data_dict[K.images] = np.ascontiguousarray(
+                image, dtype=np.float32
+            )[np.newaxis, ...]
+        if K.categories in self.keys_to_load:
+            data_dict[K.categories] = np.array(class_idx, dtype=np.int64)
+>>>>>>> main
         return data_dict
