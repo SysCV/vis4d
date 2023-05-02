@@ -48,7 +48,7 @@ class Callback:
         """Returns the data connector results."""
         connector = self.train_connector if train else self.test_connector
 
-        assert connector is not None, f"Connector is None."
+        assert connector is not None, "Connector is None."
         if self.sensors is not None:
             return get_multi_sensor_inputs(
                 connector, outputs, batch, self.sensors

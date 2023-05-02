@@ -343,9 +343,7 @@ def resolve_named_tuple(  # type:ignore
 
 
 def connect_components(
-    in_info: DataConnectionInfo,
-    out_info: DataConnectionInfo,
-    break_point: bool = False,
+    in_info: DataConnectionInfo,out_info: DataConnectionInfo
 ) -> None:
     """Marks two components as connected.
 
@@ -356,11 +354,6 @@ def connect_components(
         in_info (DataConnectionInfo): Input DataConnection
         out_info (DataConnectionInfo): Ouput DataConnection
     """
-    if break_point:
-        import pdb
-
-        pdb.set_trace()
-
     out_keys = []
     for out in out_info["in_keys"]:
         out = out.replace("*", "")
