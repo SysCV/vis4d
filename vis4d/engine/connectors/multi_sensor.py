@@ -6,12 +6,11 @@ from typing import NamedTuple
 import torch
 from torch import Tensor
 
-from vis4d.common import ArgsType, DictStrArrNested
-from vis4d.data.const import CommonKeys as K
+from vis4d.common import ArgsType
 from vis4d.data.typing import DictData
 
 from .data_connector import DataConnector
-from .util import get_inputs_for_pred_and_data
+from .util import SourceKeyDescription, get_field_from_prediction
 
 
 class MultiSensorDataConnector(DataConnector):
@@ -20,7 +19,6 @@ class MultiSensorDataConnector(DataConnector):
     def __init__(
         self,
         *args: ArgsType,
-        default_sensor: str,
         sensors: list[str],
         **kwargs: ArgsType,
     ) -> None:
@@ -28,79 +26,114 @@ class MultiSensorDataConnector(DataConnector):
 
         Args:
             *args: Arguments to pass to the parent class.
-            default_sensor (str): The default sensor to use.
             sensors (list[str]): List of all sensors to use.
             **kwargs: Keyword arguments to pass to the parent class.
         """
         super().__init__(*args, **kwargs)
-        self.default_sensor = default_sensor
         self.sensors = sensors
+
+    def get_train_input(self, data: DictData) -> DictData:
+        """Returns the train input for the model."""
+        if self.train is None:
+            return {}  # No data connections registered for training
+
+        train_input_dict: DictData = {k: [] for k in self.train}
+        for sensor in self.sensors:
+            for k, v in self.train.items():
+                train_input_dict[k].append(data[sensor][v])
+
+        for key in train_input_dict:
+            if isinstance(train_input_dict[key][0], Tensor):
+                train_input_dict[key] = torch.stack(train_input_dict[key])
+            else:
+                train_input_dict[key] = sum(train_input_dict[key], [])
+
+        return train_input_dict
 
     def get_test_input(self, data: DictData) -> DictData:
         """Returns the test input for the model."""
         if self.test is None:
             return {}  # No data connections registered for testing
 
-        test_input_dict: DictData = {v: [] for _, v in self.test.items()}
+        test_input_dict: DictData = {k: [] for k in self.test}
         for sensor in self.sensors:
             for k, v in self.test.items():
-                test_input_dict[v].append(data[sensor][k])
+                test_input_dict[k].append(data[sensor][v])
 
         for key in test_input_dict:
-            if key in [K.images, K.seg_masks]:
-                test_input_dict[key] = torch.cat(test_input_dict[key])
-            elif key in [K.intrinsics, K.extrinsics]:
+            if isinstance(test_input_dict[key][0], Tensor):
                 test_input_dict[key] = torch.stack(test_input_dict[key])
             else:
                 test_input_dict[key] = sum(test_input_dict[key], [])
 
         return test_input_dict
 
-    # TODO: Refactor this into a separate class for train / test
-    def get_callback_input(
-        self,
-        mode: str,
-        prediction: NamedTuple | DictData,
-        data: DictData,
-        cb_type: str = "",
-    ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the callback.
+    def get_loss_input(
+        self, prediction: DictData | NamedTuple, data: DictData
+    ) -> DictData:
+        """Returns the kwargs that are passed to the loss during training.
 
         Args:
-            mode (str): Unique string defining which 'mode' to load for
-                visualization. This could be 'semantics', 'bboxes' or similar.
             prediction (DictData): The datadict (e.g. output from model) which
                 contains all the model outputs.
             data (DictData): The datadict (e.g. from the dataloader) which
                 contains all data that was loaded.
-            cb_type (str): Current type of the trainer loop. This can be
-                'train', 'test' or 'val'.
-
-        Raises:
-            ValueError: If the key could not be found in the data dict.
 
         Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
-                onto the callback.
+            DictData: kwargs that are passed onto the loss.
         """
-        if self.callbacks is None:
-            return {}  # No data connections registered for callbacks
+        if self.loss is None:
+            return {}  # No data connections registered for loss
 
-        if f"{mode}_{cb_type}" in self.callbacks:
-            mode = f"{mode}_{cb_type}"
-        else:
-            return {}  # No inputs registered for this callback cb_type
+        return get_multi_sensor_inputs(
+            self.loss, prediction, data, self.sensors
+        )
 
-        clbk_dict = self.callbacks[mode]
 
-        try:
-            return get_inputs_for_pred_and_data(
-                clbk_dict, prediction, data[self.default_sensor]
+def get_multi_sensor_inputs(
+    connection_dict: dict[str, SourceKeyDescription],
+    prediction: DictData | NamedTuple,
+    data: DictData,
+    sensors: list[str],
+) -> DictData:
+    """Extracts multi-sensor input data from the provided SourceKeyDescription.
+
+    Args:
+        connection_dict (dict[str, SourceKeyDescription]): Input Key
+            description which is used to gather and remap data from the
+            two data dicts.
+        prediction (DictData): Dict containing the model prediction output.
+        data (DictData):  Dict containing the dataloader output.
+        sensors (list[str]): List of all sensors to use.
+
+    Raises:
+        ValueError: If the datasource is invalid.
+
+    Returns:
+        out (DictData): Dict containing new kwargs consisting of new key name
+            and data extracted from the data dicts.
+    """
+    out: DictData = {}
+    for new_key_name, old_key_name in connection_dict.items():
+        # Assign field from data
+        if old_key_name["source"] == "data":
+            multi_sensor_data = [
+                data[sensor][old_key_name["key"]] for sensor in sensors
+            ]
+
+            if isinstance(multi_sensor_data[0], Tensor):
+                out[new_key_name] = torch.stack(multi_sensor_data)
+            else:
+                out[new_key_name] = sum(multi_sensor_data, [])
+
+        # Assign field from prediction
+        elif old_key_name["source"] == "prediction":
+            out[new_key_name] = get_field_from_prediction(
+                prediction, old_key_name
             )
-
-        except ValueError as e:
+        else:
             raise ValueError(
-                f"Error while loading callback input for mode {mode}.", e
-            ) from e
-
-    # TODO: Add train and loss
+                f"Unknown data source {old_key_name['source']}."
+                f"Available: [prediction, data]"
+            )
+    return out

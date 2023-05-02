@@ -72,6 +72,29 @@ def pred_key(key: str) -> SourceKeyDescription:
     return SourceKeyDescription(key=key, source="prediction")
 
 
+def get_field_from_prediction(
+    prediction: DictData | NamedTuple,
+    old_key_name: SourceKeyDescription,
+) -> Tensor | DictStrArrNested:
+    """Extracts a field from the prediction dict.
+
+    Args:
+        prediction (DictData): Dict containing the model prediction output.
+        old_key_name (SourceKeyDescription): Description of the data to
+            extract.
+
+    Returns:
+        Tensor | DictStrArrNested: Data extracted from the prediction dict.
+    """
+    if is_namedtuple(prediction):
+        return get_from_namedtuple(
+            prediction, old_key_name["key"]  # type: ignore
+        )
+
+    old_key = old_key_name["key"]
+    return get_dict_nested(prediction, old_key.split("."))  # type: ignore
+
+
 def get_inputs_for_pred_and_data(
     connection_dict: dict[str, SourceKeyDescription],
     prediction: DictData | NamedTuple,
@@ -90,9 +113,8 @@ def get_inputs_for_pred_and_data(
         ValueError: If the datasource is invalid.
 
     Returns:
-        dict[str, Tensor | DictStrArrayNested]: Dict containing new kwargs
-            consisting of new key name and data extracted from
-            the data dicts.
+        out (dict[str, Tensor | DictStrArrNested]): Dict containing new kwargs
+            consisting of new key name and data extracted from the data dicts.
     """
     out = {}
     for new_key_name, old_key_name in connection_dict.items():
@@ -107,15 +129,9 @@ def get_inputs_for_pred_and_data(
 
         # Assign field from model prediction
         elif old_key_name["source"] == "prediction":
-            if is_namedtuple(prediction):
-                out[new_key_name] = get_from_namedtuple(
-                    prediction, old_key_name["key"]  # type: ignore
-                )
-            else:
-                old_key = old_key_name["key"]
-                out[new_key_name] = get_dict_nested(
-                    prediction, old_key.split(".")  # type: ignore
-                )
+            out[new_key_name] = get_field_from_prediction(
+                prediction, old_key_name
+            )
         else:
             raise ValueError(
                 f"Unknown data source {old_key_name['source']}."
