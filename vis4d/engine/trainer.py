@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import torch
-
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.data import DictData
+from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
 
 from .optim import Optimizer
@@ -22,11 +21,11 @@ class Trainer:
         self,
         num_epochs: int,
         data_connector: DataConnector,
+        callbacks: list[Callback],
         train_dataloader: DataLoader[DictData] | None = None,
         test_dataloader: list[DataLoader[DictData]] | None = None,
-        callbacks: list[Callback] = [],
         epoch: int = 0,
-        global_steps: int = 0,
+        global_step: int = 0,
         check_val_every_n_epoch: int = 1,
     ) -> None:
         """Initialize the trainer.
@@ -36,14 +35,14 @@ class Trainer:
             dataloaders (DataLoader[DictData]): Dataloader for training.
             data_connector (DataConnector): Data connector used for generating
                 training inputs from a batch of data.
+            callbacks (list[Callback]): Callbacks that should be used during
+                training.
             train_dataloader (DataLoader[DictData] | None, optional):
                 Dataloader for training. Defaults to None.
             test_dataloader (list[DataLoader[DictData]] | None, optional):
                 Dataloaders for testing. Defaults to None.
-            callbacks (list[Callback], optional): Callbacks that should be
-                used during training. Defaults to [].
             epoch (int, optional): Starting epoch. Defaults to 0.
-            global_steps (int, optional): Starting steps. Defaults to 0.
+            global_step (int, optional): Starting step. Defaults to 0.
             check_val_every_n_epoch (int, optional): Interval for evaluating
                 the model during training. Defaults to 1.
         """
@@ -55,7 +54,7 @@ class Trainer:
         self.callbacks = callbacks
 
         self.epoch = epoch
-        self.global_steps = global_steps
+        self.global_step = global_step
 
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
@@ -138,7 +137,7 @@ class Trainer:
                 total_loss.backward()
 
                 for opt in optimizers:
-                    opt.step_on_batch(self.global_steps)
+                    opt.step_on_batch(self.global_step)
 
                 for callback in self.callbacks:
                     _ = callback.on_train_batch_end(
@@ -149,7 +148,7 @@ class Trainer:
                         batch_idx=batch_idx,
                     )
 
-                self.global_steps += 1
+                self.global_step += 1
 
             # Update learning rate on epoch
             for opt in optimizers:
@@ -164,18 +163,14 @@ class Trainer:
                 self._run_test_on_epoch(epoch)
                 and self.test_dataloader is not None
             ):
-                self.test(model, epoch)
+                self.test(model)
 
     @torch.no_grad()
-    def test(self, model: nn.Module, epoch: int = 0) -> None:
+    def test(self, model: nn.Module) -> None:
         """Testing loop.
 
         Args:
             model (nn.Module): Model that should be tested.
-            test_dataloaders (list[DataLoader[DictData]]): Dataloaders for
-                testing.
-            epoch (int, optional): Epoch for testing. (0 if not used during
-                training). Defaults to 0.
         """
         assert self.test_dataloader is not None, "No test dataloader."
 
@@ -228,7 +223,7 @@ class Trainer:
         trainer_state = TrainerState(
             current_epoch=self.epoch,
             num_epochs=self.num_epochs,
-            global_steps=self.global_steps,
+            global_step=self.global_step,
             data_connector=self.data_connector,
             train_dataloader=self.train_dataloader,
             num_train_batches=num_train_batches,

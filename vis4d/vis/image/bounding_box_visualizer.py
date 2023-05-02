@@ -1,21 +1,21 @@
-"""Vis4D box visualizer."""
+"""Bounding box visualizer."""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 
 from vis4d.common.typing import (
-    NDArrayF64,
-    NDArrayI64,
-    NDArrayNumber,
+    ArrayLike,
+    ArrayLikeFloat,
+    ArrayLikeInt,
     NDArrayUI8,
 )
 from vis4d.vis.base import Visualizer
-from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
-from vis4d.vis.image.canvas import PillowCanvasBackend
-from vis4d.vis.image.util import preprocess_boxes, preprocess_image
-from vis4d.vis.image.viewer import MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map
+
+from .canvas import CanvasBackend, PillowCanvasBackend
+from .util import preprocess_boxes, preprocess_image
+from .viewer import ImageViewerBackend, MatplotlibImageViewer
 
 
 @dataclass
@@ -24,7 +24,7 @@ class DetectionBox2D:
 
     corners: tuple[float, float, float, float]
     label: str
-    color: tuple[float, float, float]
+    color: tuple[int, int, int]
 
 
 @dataclass
@@ -32,11 +32,12 @@ class DataSample:
     """Dataclass storing a data sample that can be visualized."""
 
     image: NDArrayUI8
+    img_name: str
     boxes: list[DetectionBox2D]
 
 
 class BoundingBoxVisualizer(Visualizer):
-    """Base visualizer class."""
+    """Bounding box visualizer class."""
 
     def __init__(
         self,
@@ -71,16 +72,17 @@ class BoundingBoxVisualizer(Visualizer):
         self.viewer = viewer
 
     def reset(self) -> None:
-        """Reset visualizer for new round of evaluation."""
-        self._samples = []
+        """Reset visualizer."""
+        self._samples.clear()
 
-    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self,
-        images: list[NDArrayNumber],
-        boxes: list[NDArrayF64],
-        scores: None | list[NDArrayF64] = None,
-        class_ids: None | list[NDArrayI64] = None,
-        track_ids: None | list[NDArrayI64] = None,
+        images: list[ArrayLike],
+        img_names: list[str],
+        boxes: list[ArrayLikeFloat],
+        scores: None | list[ArrayLikeFloat] = None,
+        class_ids: None | list[ArrayLikeInt] = None,
+        track_ids: None | list[ArrayLikeInt] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -88,21 +90,20 @@ class BoundingBoxVisualizer(Visualizer):
 
         Args:
             images (list[np.array]): Images to show
-            boxes (list[np.array]): Predicted bounding boxe with
-                        shape [N, (x1,y1,x2,y2)], where  N is the number of
-                        boxes.
-            scores (list[np.array]): Predicted box scores each
-                                                 of shape [N]
-            class_ids (list[np.array]): Predicted class ids each of
-                                                    shape [N]
-            track_ids (list[np.array]): Predicted track ids each of
-                                                    shape [N]
-
-
+            img_names (list[str]): Image names
+            boxes (list[ArrayLikeFloat]): List of predicted bounding boxes with
+                shape [N, (x1, y1, x2, y2)], where  N is the number of boxes.
+            scores (None | list[ArrayLikeFloat], optional): List of predicted
+                box scores each of shape [N]. Defaults to None.
+            class_ids (None | list[ArrayLikeInt], optional): List of predicted
+                class ids each of shape [N]. Defaults to None.
+            track_ids (None | list[ArrayLikeInt], optional): List of predicted
+                track ids each of shape [N]. Defaults to None.
         """
         for idx, image in enumerate(images):
             self.process_single_image(
                 image,
+                img_names[idx],
                 boxes[idx],
                 None if scores is None else scores[idx],
                 None if class_ids is None else class_ids[idx],
@@ -111,27 +112,29 @@ class BoundingBoxVisualizer(Visualizer):
 
     def process_single_image(
         self,
-        image: NDArrayNumber,
-        boxes: NDArrayF64,
-        scores: None | NDArrayF64 = None,
-        class_ids: None | NDArrayI64 = None,
-        track_ids: None | NDArrayI64 = None,
+        image: ArrayLike,
+        img_name: str,
+        boxes: ArrayLikeFloat,
+        scores: None | ArrayLikeFloat = None,
+        class_ids: None | ArrayLikeInt = None,
+        track_ids: None | ArrayLikeInt = None,
     ) -> None:
         """Processes a single image entry.
 
-        Use .show() or .save_to_disk() to show or save the predictions.
-
         Args:
-            image (np.array): Image to show
-            boxes (np.array): Predicted bounding boxes with
-                        shape [N, (x1,y1,x2,y2)], where  N is the number of
-                        boxes.
-            scores (np.array): Predicted box scores of shape [N]
-            class_ids (np.array): Predicted class ids of shape [N]
-            track_ids (np.array): Predicted track ids of shape [N]
+            image (ArrayLike): Image to show.
+            img_name (str): Image name
+            boxes (ArrayLikeFloat): Predicted bounding boxes with shape
+                [N, (x1,y1,x2,y2)], where  N is the number of boxes.
+            scores (None | ArrayLikeFloat, optional): Predicted box scores of
+                shape [N]. Defaults to None.
+            class_ids (None | ArrayLikeInt, optional): Predicted class ids of
+                shape [N]. Defaults to None.
+            track_ids (None | ArrayLikeInt, optional): Predicted track ids of
+                shape [N]. Defaults to None.
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
-        data_sample = DataSample(img_normalized, [])
+        data_sample = DataSample(img_normalized, img_name, [])
 
         for corners, label, color in zip(
             *preprocess_boxes(
@@ -157,8 +160,8 @@ class BoundingBoxVisualizer(Visualizer):
         """Shows the processed images in a interactive window.
 
         Args:
-            blocking (bool): If the visualizer should be blocking
-                             i.e. wait for human input for each image
+            blocking (bool): If the visualizer should be blocking i.e. wait for
+                human input for each image. Defaults to True.
         """
         image_data = [self._draw_image(d) for d in self._samples]
         self.viewer.show_images(image_data, blocking=blocking)
@@ -167,10 +170,10 @@ class BoundingBoxVisualizer(Visualizer):
         """Visualizes the datasample and returns is as numpy image.
 
         Args:
-            sample (DataSample): The data sample to visualize
+            sample (DataSample): The data sample to visualize.
 
         Returns:
-            np.array[uint8]: A image with the visualized data sample
+            NDArrayUI8: A image with the visualized data sample.
         """
         self.canvas.create_canvas(sample.image)
         for box in sample.boxes:
@@ -183,17 +186,14 @@ class BoundingBoxVisualizer(Visualizer):
         """Saves the visualization to disk.
 
         Writes all processes samples to the output folder naming each image
-        #####.<filetype> where ##### is the zero padded index of the sample
+        <sample.img_name>.<filetype>.
 
         Args:
-            path_to_out_folder (str): Path to output folder.
-                                      All folders in the path will be created
-                                      if they do not already exist
+            path_to_out_folder (str): Path to output folder. All folders in the
+                path will be created if they do not already exist.
         """
-        os.makedirs(path_to_out_folder, exist_ok=True)
-
-        for idx, sample in enumerate(self._samples):
-            image_name = f"{idx:04d}.{self.file_type}"
+        for sample in self._samples:
+            image_name = f"{sample.img_name}.{self.file_type}"
 
             self.canvas.create_canvas(sample.image)
 

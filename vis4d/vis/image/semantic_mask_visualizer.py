@@ -11,10 +11,9 @@ from vis4d.common.typing import (
     NDArrayUI8,
 )
 from vis4d.vis.base import Visualizer
-from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
-from vis4d.vis.image.canvas import PillowCanvasBackend
+from vis4d.vis.image.canvas import CanvasBackend, PillowCanvasBackend
 from vis4d.vis.image.util import preprocess_image, preprocess_masks
-from vis4d.vis.image.viewer import MatplotlibImageViewer
+from vis4d.vis.image.viewer import ImageViewerBackend, MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map
 
 
@@ -23,7 +22,7 @@ class SemanticMask2D:
     """Dataclass storing box informations."""
 
     mask: NDArrayBool
-    color: tuple[float, float, float]
+    color: tuple[int, int, int]
 
 
 @dataclass
@@ -84,7 +83,8 @@ class SemanticMaskVisualizer(Visualizer):
         Args:
             data_sample (DataSample): Data sample to add mask to
             masks (NDArrayBool): Binary masks shape [N,h,w]
-            class_ids (NdArrayI64, optional): Class ids for each mask shape [N]
+            class_ids (NdArrayI64, optional): Class ids for each mask shape
+                [N]. Defaults to None.
         """
         if class_ids is not None:
             assert (
@@ -110,7 +110,7 @@ class SemanticMaskVisualizer(Visualizer):
             self.canvas.draw_bitmap(mask.mask, mask.color)
         return self.canvas.as_numpy_image()
 
-    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self,
         images: NDArrayNumber,
         masks: list[NDArrayBool],

@@ -138,6 +138,7 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process_single_image(
             self.images[0],
+            img_name="0000.png",
             boxes=self.boxes[0],
             scores=self.scores[0],
             class_ids=self.classes[0],
@@ -156,6 +157,7 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process_single_image(
             self.images[0],
+            img_name="0000.png",
             boxes=self.boxes[0],
             scores=self.scores[0],
             class_ids=self.classes[0],
@@ -174,6 +176,7 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process_single_image(
             self.images[0],
+            img_name="0000.png",
             boxes=self.boxes[0],
             scores=None,
             class_ids=self.classes[0],
@@ -191,6 +194,7 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process(
             self.images,
+            img_names=["0000.png", "0001.png"],
             boxes=self.boxes,
             scores=self.scores,
             class_ids=self.classes,

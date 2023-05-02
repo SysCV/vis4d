@@ -5,11 +5,14 @@ import os
 from typing import TypedDict
 
 import numpy as np
-import open3d as o3d
 
+from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.common.typing import NDArrayF64
 from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
 from vis4d.vis.pointcloud.scene import Scene3D
+
+if OPEN3D_AVAILABLE:
+    import open3d as o3d
 
 
 class PointcloudVisEntry(TypedDict):
@@ -27,19 +30,19 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
 
     def __init__(
         self,
-        class_color_mapping: list[tuple[float, float, float]],
-        instance_color_mapping: list[tuple[float, float, float]] | None = None,
+        class_color_mapping: list[tuple[int, int, int]],
+        instance_color_mapping: list[tuple[int, int, int]] | None = None,
     ) -> None:
         """Creates a new Open3D visualization backend.
 
         Args:
             color_mapping (NDArrayF64): array of size [n_classes, 3] that maps
                 each class index to a unique color.
-            class_color_mapping (list[tuple[float, float, float]]): List of
-                size [n_classes, 3] that maps each class id to a unique color.
-            instance_color_mapping (list[tuple[float, float, float]]): List
-                of size [n_classes, 3] that maps each instance id to unqiue
-                color.
+            class_color_mapping (list[tuple[int, int, int]]): List of length
+                n_classes that assigns each class a unique color.
+            instance_color_mapping (list[tuple[int, int, int]], optional): List
+                of length n_classes that maps each instance id to unqiue color.
+                Defaults to None.
         """
         super().__init__(
             class_color_mapping=class_color_mapping,

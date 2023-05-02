@@ -10,7 +10,7 @@ class Visualizer:
         """Reset visualizer for new round of evaluation."""
         raise NotImplementedError()
 
-    def process(self, *args: ArgsType, **kwargs: ArgsType) -> None:
+    def process(self, *args: ArgsType) -> None:
         """Process data of single sample."""
         raise NotImplementedError()
 

@@ -165,6 +165,7 @@ def get_coco_detection_config(
     test_split: str = "val2017",
     test_keys_to_load: Sequence[str] = (
         K.images,
+        K.original_images,
         K.boxes2d,
         K.boxes2d_classes,
     ),

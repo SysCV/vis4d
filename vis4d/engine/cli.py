@@ -15,7 +15,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
-from vis4d.engine.callbacks import instantiate_callbacks
 from vis4d.common.distributed import (
     broadcast,
     get_local_rank,
@@ -38,9 +37,6 @@ from vis4d.engine.trainer import Trainer
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
-_VISUALISZE = flags.DEFINE_bool(
-    "visualize", default=False, help="visualize the results"
-)
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -124,9 +120,7 @@ def main(argv: ArgsType) -> None:
     loss = instantiate_classes(config.loss)
 
     # Callbacks
-    callbacks = instantiate_callbacks(
-        config.callbacks, visualize=_VISUALISZE.value
-    )
+    callbacks = [instantiate_classes(cb) for cb in config.callbacks]
 
     # Setup DDP & seed
     seed = config.get("seed", init_random_seed())

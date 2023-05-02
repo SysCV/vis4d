@@ -11,16 +11,17 @@ class PointCloudVisualizerBackend:
 
     def __init__(
         self,
-        class_color_mapping: list[tuple[float, float, float]],
-        instance_color_mapping: list[tuple[float, float, float]] | None = None,
+        class_color_mapping: list[tuple[int, int, int]],
+        instance_color_mapping: list[tuple[int, int, int]] | None = None,
     ) -> None:
         """Creates a new Open3D visualization backend.
 
         Args:
-            class_color_mapping (array): Array of size [n_classes, 3] that maps
-                each class index to a unique color.
-            instance_color_mapping (array): Array of size [n_instances, 3] that
-                maps each instance id to a unique color.
+            class_color_mapping (list[tuple[int, int ,int]]): List of length
+                n_classes that maps each class index to a unique color.
+            instance_color_mapping (list[tuple[int, int ,int]], optional): List
+                of length n_instances that maps each instance id to a unique
+                color. Defaults to None.
         """
         self.scenes: list[Scene3D] = []
 

@@ -18,18 +18,22 @@ class PointCloudVisualizer(Visualizer):
     def __init__(
         self,
         backend: str = "open3d",
-        class_color_mapping: list[tuple[float, float, float]] | None = None,
-        instance_color_mapping: list[tuple[float, float, float]] | None = None,
+        class_color_mapping: list[
+            tuple[int, int, int]
+        ] = DEFAULT_COLOR_MAPPING,
+        instance_color_mapping: list[
+            tuple[int, int, int]
+        ] = DEFAULT_COLOR_MAPPING,
     ) -> None:
         """Creates a new Pointcloud visualizer.
 
         Args:
             backend (str): Visualization backend that should be used. Choice
-                of [open3d]
-            class_color_mapping (NDArrayF64): Array of shape [n_classes, 3]
-                that assigns each class a unique color
-            instance_color_mapping (NDArrayF64): Array of shape
-                [n_instances, 3] that assigns each class a unique color
+                of [open3d].
+            class_color_mapping (list[tuple[int, int, int]], optional): List
+                of length n_classes that assigns each class a unique color.
+            instance_color_mapping (list[tuple[int, int, int]], optional): List
+                of length n_classes that assigns each class a unique color.
         """
         if backend == "open3d":
             if not OPEN3D_AVAILABLE:
@@ -39,12 +43,8 @@ class PointCloudVisualizer(Visualizer):
                 )
             self.visualization_backend: PointCloudVisualizerBackend = (
                 Open3DVisualizationBackend(
-                    class_color_mapping=class_color_mapping
-                    if class_color_mapping is not None
-                    else DEFAULT_COLOR_MAPPING,
-                    instance_color_mapping=instance_color_mapping
-                    if instance_color_mapping is not None
-                    else DEFAULT_COLOR_MAPPING,
+                    class_color_mapping=class_color_mapping,
+                    instance_color_mapping=instance_color_mapping,
                 )
             )
         else:
@@ -105,7 +105,7 @@ class PointCloudVisualizer(Visualizer):
             points_xyz, colors=colors, classes=semantics, instances=instances
         )
 
-    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self,
         points_xyz: NDArrayF64,
         semantics: NDArrayI64 | None = None,
