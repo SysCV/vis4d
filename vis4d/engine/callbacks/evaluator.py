@@ -8,12 +8,8 @@ from torch import nn
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import all_gather_object_cpu, broadcast, get_rank
 from vis4d.common.logging import rank_zero_info
-
 from vis4d.data.typing import DictData
-
 from vis4d.eval.base import Evaluator
-
-from vis4d.engine.connectors.util import get_inputs_for_pred_and_data
 
 from .base import Callback
 from .trainer_state import TrainerState
@@ -26,6 +22,7 @@ class EvaluatorCallback(Callback):
         self,
         *args: ArgsType,
         evaluator: Evaluator,
+        save_predictions: bool = False,
         save_prefix: None | str = None,
         **kwargs: ArgsType,
     ) -> None:
@@ -33,17 +30,26 @@ class EvaluatorCallback(Callback):
 
         Args:
             evaluator (Evaluator): Evaluator.
+            save_predictions (bool): If the predictions should be saved.
+                Defaults to False.
             save_prefix (str, Optional): Output directory for saving the
-                evaluation results. Defaults to None (no save).
+                evaluation results. Defaults to None.
         """
         super().__init__(*args, **kwargs)
-        self.output_dir = save_prefix
         self.evaluator = evaluator
+        self.save_predictions = save_predictions
+
+        if self.save_predictions:
+            assert (
+                save_prefix is not None
+            ), "If save_predictions is True, save_prefix must be provided."
+            self.output_dir = save_prefix
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
-        self.output_dir = broadcast(self.output_dir)
-        self.evaluator.reset()
+        if self.save_predictions:
+            self.output_dir = broadcast(self.output_dir)
+            self.evaluator.reset()
 
     def on_test_batch_end(
         self,
@@ -56,7 +62,7 @@ class EvaluatorCallback(Callback):
     ) -> None:
         """Hook to run at the end of a testing batch."""
         self.evaluator.process(
-            **get_inputs_for_pred_and_data(self.connector, outputs, batch)
+            **self.get_data_connector_results(outputs, batch, train=False)
         )
 
     def on_test_epoch_end(
@@ -78,7 +84,7 @@ class EvaluatorCallback(Callback):
 
         for metric in self.evaluator.metrics:
             # Save output
-            if self.output_dir is not None:
+            if self.save_predictions:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
                 self.evaluator.save(metric, output_dir)

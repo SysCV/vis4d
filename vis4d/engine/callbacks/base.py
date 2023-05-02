@@ -5,7 +5,11 @@ from torch import nn
 
 from vis4d.common import MetricLogs
 from vis4d.data.typing import DictData
-from vis4d.engine.connectors import SourceKeyDescription
+from vis4d.engine.connectors import (
+    SourceKeyDescription,
+    get_inputs_for_pred_and_data,
+    get_multi_sensor_inputs,
+)
 
 from .trainer_state import TrainerState
 
@@ -15,18 +19,42 @@ class Callback:
 
     def __init__(
         self,
-        connector: None | dict[str, dict[str, SourceKeyDescription]] = None,
+        train_connector: None | dict[str, SourceKeyDescription] = None,
+        test_connector: None | dict[str, SourceKeyDescription] = None,
+        sensors: None | list[str] = None,
     ) -> None:
         """Init callback.
 
         Args:
-            connector (None | dict[str, dict[str, SourceKeyDescription]],
-                optional): Defines which kwargs to use for different callbacks.
+            train_connector (None | dict[str, SourceKeyDescription], optional):
+                Defines which which kwargs to use during training for different
+                callbacks. Defaults to None.
+            test_connector (None | dict[str, SourceKeyDescription], optional):
+                Defines which kwargs to use during testing for different
+                callbacks. Defaults to None.
+            sensors (None | list[str], optional): List of sensors to use.
+                Defaults to None.
         """
-        self.connector = connector
+        self.train_connector = train_connector
+        self.test_connector = test_connector
+        self.sensors = sensors
 
     def setup(self) -> None:
         """Setup callback."""
+
+    def get_data_connector_results(
+        self, outputs: DictData, batch: DictData, train: bool
+    ) -> DictData:
+        """Returns the data connector results."""
+        connector = self.train_connector if train else self.test_connector
+
+        assert connector is not None, f"Connector is None."
+        if self.sensors is not None:
+            return get_multi_sensor_inputs(
+                connector, outputs, batch, self.sensors
+            )
+
+        return get_inputs_for_pred_and_data(connector, outputs, batch)
 
     def on_train_epoch_start(
         self, trainer_state: TrainerState, model: nn.Module

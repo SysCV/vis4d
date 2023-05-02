@@ -2,6 +2,7 @@
 import inspect
 
 import pytorch_lightning as pl
+
 from vis4d.config.util import ConfigDict
 
 

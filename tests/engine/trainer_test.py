@@ -7,13 +7,12 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
-from vis4d.engine.callbacks import LoggingCallback
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
     DataPipe,
-    build_train_dataloader,
     build_inference_dataloaders,
+    build_train_dataloader,
 )
 from vis4d.data.transforms import (
     compose_batch,
@@ -25,6 +24,7 @@ from vis4d.data.transforms import (
 )
 from vis4d.data.transforms.base import compose
 from vis4d.data.typing import DictData
+from vis4d.engine.callbacks import LoggingCallback
 from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.engine.trainer import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
@@ -100,7 +100,7 @@ class EngineTrainerTest(unittest.TestCase):
         model.train()
         trainer.fit(model, [optimizer], loss_fn)
 
-        # add callback to check loss
+        # TODO: add callback to check loss
 
     def test_test(self) -> None:
         """Test trainer testing."""
@@ -117,6 +117,6 @@ class EngineTrainerTest(unittest.TestCase):
         trainer = Trainer([test_loader], data_connector, callback)
 
         model.eval()
-        trainer.test(model, epoch=0)
+        trainer.test(model)
 
         torch.random.set_rng_state(state)

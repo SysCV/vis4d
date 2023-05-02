@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
-from terminaltables import AsciiTable  # type: ignore
+from terminaltables import AsciiTable
 
 from vis4d.common import MetricLogs
 from vis4d.common.typing import NDArrayI64, NDArrayNumber

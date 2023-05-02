@@ -21,14 +21,9 @@ def main(
     data_connector = instantiate_classes(config.data_connector)
     loss = instantiate_classes(config.loss)
     model = instantiate_classes(config.model)
+    callbacks = instantiate_classes(config.callbacks)
 
-    call_backs = {
-        **config.shared_callbacks,
-        **config.train_callbacks,
-        **config.test_callbacks,
-    }
-
-    dg = prints_datagraph_for_config(model, data_connector, loss, call_backs)
+    dg = prints_datagraph_for_config(model, data_connector, loss, callbacks)
     print(dg)
 
 

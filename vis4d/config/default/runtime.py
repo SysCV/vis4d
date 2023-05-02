@@ -2,8 +2,8 @@
 import platform
 from datetime import datetime
 
-from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 from vis4d.config.util import ConfigDict, class_config
+from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
 def set_output_dir(config: ConfigDict) -> ConfigDict:
@@ -33,10 +33,10 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
     return config
 
 
-def get_callback_config(
-    config: ConfigDict, params: ConfigDict, refresh_rate: int = 50
+def get_callbacks_config(
+    config: ConfigDict, refresh_rate: int = 50
 ) -> list[ConfigDict]:
-    """Get default callback config."""
+    """Get default callbacks config."""
     callbacks = []
 
     # Logger

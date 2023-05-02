@@ -61,12 +61,12 @@ class DataConnector:
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
+            dict[str, Tensor | DictStrArrNested]: kwargs that are passed
                 onto the model.
         """
         if self.train is None:
             return {}  # No data connections registered for training
-        return {v: data[k] for k, v in self.train.items()}
+        return {k: data[v] for k, v in self.train.items()}
 
     def get_test_input(
         self, data: DictData
@@ -78,12 +78,12 @@ class DataConnector:
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
+            dict[str, Tensor | DictStrArrNested]: kwargs that are passed
                 onto the model.
         """
         if self.test is None:
             return {}  # No data connections registered for testing
-        return {v: data[k] for k, v in self.test.items()}
+        return {k: data[v] for k, v in self.test.items()}
 
     def get_loss_input(
         self, prediction: DictData, data: DictData
@@ -97,7 +97,7 @@ class DataConnector:
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
+            dict[str, Tensor | DictStrArrNested]: kwargs that are passed
                 onto the loss.
         """
         if self.loss is None:

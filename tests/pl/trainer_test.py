@@ -27,7 +27,7 @@ from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
-from vis4d.pl import DefaultTrainer
+from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
 
@@ -60,7 +60,7 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 
 def get_trainer(
     exp_name: str, callbacks: None | list[Callback] = None
-) -> DefaultTrainer:
+) -> PLTrainer:
     """Build mockup trainer.
 
     Args:
@@ -71,7 +71,7 @@ def get_trainer(
     if callbacks is None:
         callbacks = []
 
-    return DefaultTrainer(
+    return PLTrainer(
         work_dir="./unittests/",
         exp_name=exp_name,
         version="test",

@@ -5,7 +5,6 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
@@ -15,19 +14,20 @@ from vis4d.config.base.models.faster_rcnn import (
     CONN_RPN_LOSS_2D,
     get_model_cfg,
 )
+from vis4d.config.default import (
+    get_callbacks_config,
+    get_optimizer_config,
+    get_pl_trainer_config,
+    set_output_dir,
+)
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.default import (
-    get_callback_config,
-    get_optimizer_config,
-    get_pl_trainer_config,
-    set_output_dir,
-)
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.detect.coco import COCOEvaluator
@@ -70,9 +70,13 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data_root = "data/coco"
-    train_split = "train2017"
-    test_split = "val2017"
+    # data_root = "data/coco"
+    # train_split = "train2017"
+    # test_split = "val2017"
+
+    data_root = "tests/vis4d-test-data/coco_test"
+    train_split = "train"
+    test_split = "train"
 
     data_backend = class_config(HDF5Backend)
 
@@ -80,7 +84,7 @@ def get_config() -> ConfigDict:
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
-        data_backend=data_backend,
+        # data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )
@@ -129,7 +133,18 @@ def get_config() -> ConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_callback_config(config, params)
+    callbacks = get_callbacks_config(config, params)
+
+    # Visualizer
+    callbacks.append(
+        class_config(
+            VisualizerCallback,
+            visualizer=class_config(BoundingBoxVisualizer),
+            save_prefix=config.output_dir,
+            save_to_disk=True,
+            test_connector=CONN_BBOX_2D_VIS,
+        )
+    )
 
     # Evaluator
     callbacks.append(
@@ -140,17 +155,7 @@ def get_config() -> ConfigDict:
                 data_root=data_root,
                 split=test_split,
             ),
-            connector=CONN_COCO_BBOX_EVAL,
-        )
-    )
-
-    # Visualizer
-    callbacks.append(
-        class_config(
-            VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer),
-            save_prefix=config.output_dir,
-            connector=CONN_BBOX_2D_VIS,
+            test_connector=CONN_COCO_BBOX_EVAL,
         )
     )
 

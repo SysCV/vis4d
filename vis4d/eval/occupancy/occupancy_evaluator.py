@@ -138,7 +138,8 @@ class OccupancyEvaluator(Evaluator):
                 """No data registered to calculate metric.
                    Register data using .process() first!"""
             )
-        metric_data, short_description = {}, ""
+        metric_data: MetricLogs = {}
+        short_description = ""
 
         METRIC_ALL = (  # pylint: disable=invalid-name,line-too-long
             OccupancyEvaluator.METRIC_ALL

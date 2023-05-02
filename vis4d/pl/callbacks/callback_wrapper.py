@@ -24,7 +24,7 @@ def get_trainer_state(
     return TrainerState(
         current_epoch=pl_module.current_epoch,
         num_epochs=trainer.max_epochs,
-        global_steps=trainer.global_step,
+        global_step=trainer.global_step,
         data_connector=pl_module.data_connector,
         train_dataloader=trainer.train_dataloader,
         num_train_batches=trainer.num_training_batches,
@@ -132,7 +132,9 @@ class CallbackWrapper(pl.Callback):  # type: ignore
 
         if log_dict is not None:
             for k, v in log_dict.items():
-                pl_module.log(f"val/{k}", v, sync_dist=True)
+                pl_module.log(
+                    f"val/{k}", v, sync_dist=True, rank_zero_only=True
+                )
 
     def on_test_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -171,4 +173,6 @@ class CallbackWrapper(pl.Callback):  # type: ignore
 
         if log_dict is not None:
             for k, v in log_dict.items():
-                pl_module.log(f"test/{k}", v, sync_dist=True)
+                pl_module.log(
+                    f"test/{k}", v, sync_dist=True, rank_zero_only=True
+                )

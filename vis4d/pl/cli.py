@@ -10,7 +10,6 @@ from lightning.pytorch.utilities.exceptions import MisconfigurationException
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
-from vis4d.engine.callbacks import instantiate_callbacks
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.parser import DEFINE_config_file
@@ -24,9 +23,6 @@ _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
 _RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
-_VISUALISZE = flags.DEFINE_bool(
-    "visualize", default=False, help="visualize the results"
-)
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -78,10 +74,7 @@ def main(argv: ArgsType) -> None:
 
     # Callbacks
     callbacks = [
-        CallbackWrapper(cb)
-        for cb in instantiate_callbacks(
-            config.callbacks, visualize=_VISUALISZE.value
-        )
+        CallbackWrapper(instantiate_classes(cb)) for cb in config.callbacks
     ]
 
     if "pl_callbacks" in config:

@@ -12,7 +12,7 @@ from .typing import MetricLogs
 def compose_log_str(
     prefix: str,
     cur_iter: int,
-    total_iters: int | float,
+    total_iters: int,
     timer: Timer,
     metrics: None | MetricLogs = None,
 ) -> str:

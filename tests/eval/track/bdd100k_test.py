@@ -7,10 +7,13 @@ import unittest
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import generate_boxes, get_test_data
-from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
-from vis4d.engine.connectors import DataConnector, data_key, pred_key
+from vis4d.engine.connectors import (
+    data_key,
+    get_inputs_for_pred_and_data,
+    pred_key,
+)
 from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
 
 
@@ -24,12 +27,6 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 
 class TestBDD100KTrackingEvaluator(unittest.TestCase):
     """BDD100K tracking evaluator testcase class."""
-
-    CONN_BBOX_2D_TEST = {
-        CK.images: CK.images,
-        CK.input_hw: "images_hw",
-        CK.frame_ids: CK.frame_ids,
-    }
 
     CONN_BDD100K_EVAL = {
         "frame_ids": data_key("frame_ids"),
@@ -61,11 +58,6 @@ class TestBDD100KTrackingEvaluator(unittest.TestCase):
         )
         test_loader = get_dataloader(dataset, batch_size)
 
-        data_connector = DataConnector(
-            test=self.CONN_BBOX_2D_TEST,
-            callbacks={"bdd100k_eval_test": self.CONN_BDD100K_EVAL},
-        )
-
         boxes, scores, classes, track_ids = generate_boxes(
             720, 1280, 4, batch_size, True
         )
@@ -77,10 +69,11 @@ class TestBDD100KTrackingEvaluator(unittest.TestCase):
         }
 
         for batch in test_loader:
-            clbk_kwargs = data_connector.get_callback_input(
-                "bdd100k_eval", output, batch, "test"
+            scalabel_eval.process(
+                **get_inputs_for_pred_and_data(
+                    self.CONN_BDD100K_EVAL, output, batch
+                )
             )
-            scalabel_eval.process(**clbk_kwargs)
 
         _, log_str = scalabel_eval.evaluate("track")
         assert log_str.count("\n") == 18
