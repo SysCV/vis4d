@@ -1,10 +1,10 @@
 """Evaluation protocols and metrics for different tasks."""
 
 from .base import Evaluator
+from .classify import ClassificationEvaluator
 from .detect.coco import COCOEvaluator
 from .occupancy import OccupancyEvaluator
 from .segment import SegmentationEvaluator
-from .classify import ClassificationEvaluator
 
 __all__ = [
     "Evaluator",

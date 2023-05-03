@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest
 
 from tests.util import generate_features
-from vis4d.op.base.vit import ViT
+from vis4d.op.base.vit import TorchVisionViT
 
 
 class TestViT(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestViT(unittest.TestCase):
 
     def _test_vit(self, vit_name: str, image_size: int) -> None:
         """Testcase for ViT."""
-        vit = ViT(vit_name, image_size=image_size, pretrained=False)
+        vit = TorchVisionViT(vit_name, image_size=image_size, pretrained=False)
 
         test_images = generate_features(3, image_size, image_size, 1, 2)[0]
         out = vit(test_images)

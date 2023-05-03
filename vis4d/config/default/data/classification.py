@@ -1,7 +1,7 @@
 """Default data loading config for classification."""
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict

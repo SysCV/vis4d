@@ -27,15 +27,15 @@ class ImageNet(Dataset):
     PAPER = "http://www.image-net.org/papers/imagenet_cvpr09.pdf"
     LICENSE = "http://www.image-net.org/terms-of-use"
 
-    KEYS = [Keys.images, Keys.categories]
+    KEYS = [K.images, K.categories]
 
     def __init__(
         self,
         data_root: str,
-        keys_to_load: Sequence[str] = (Keys.images, Keys.categories),
+        keys_to_load: Sequence[str] = (K.images, K.categories),
         split: str = "train",
         num_classes: int = 1000,
-        use_sample_lists: bool = True,
+        use_cached_sample_list: bool = True,
     ) -> None:
         """Initialize ImageNet dataset.
 
@@ -46,9 +46,9 @@ class ImageNet(Dataset):
             split (str, optional): Dataset split to load. Defaults to "train".
             num_classes (int, optional): Number of classes to load. Defaults to
                 1000.
-            use_sample_lists (bool, optional): Whether to load the sample lists
-                from the pickle files. If False, the lists will be generated on
-                the fly, which is much slower. Defaults to True.
+            use_cached_sample_list (bool, optional): Whether to load the sample
+                lists from the pickle files. If False, the lists will be
+                generated on the fly, which is much slower. Defaults to True.
 
         NOTE: The dataset is expected to be in the following format:
             data_root
@@ -70,6 +70,7 @@ class ImageNet(Dataset):
         self.keys_to_load = keys_to_load
         self.split = split
         self.num_classes = num_classes
+        self.use_cached_sample_list = use_cached_sample_list
         self.data_infos = []
         self._classes = []
         self._load_data_infos()
@@ -88,7 +89,7 @@ class ImageNet(Dataset):
         self._classes = sorted(self._classes)
 
         sample_list_path = os.path.join(self.data_root, f"{self.split}.pkl")
-        if self.use_sample_lists and os.path.exists(sample_list_path):
+        if self.use_cached_sample_list and os.path.exists(sample_list_path):
             with open(sample_list_path, "rb") as f:
                 sample_list = pickle.load(f)[0]
                 if sample_list[-1][1] == self.num_classes - 1:
@@ -97,7 +98,7 @@ class ImageNet(Dataset):
                     raise ValueError(
                         "Sample list does not match the number of classes. "
                         "Please regenerate the sample list or set "
-                        "use_sample_lists=False."
+                        "use_cached_sample_list=False."
                     )
         # If sample lists are not available, generate them on the fly.
         else:

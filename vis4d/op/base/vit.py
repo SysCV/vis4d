@@ -15,7 +15,7 @@ class TorchVisionViT(BaseModel):
 
     def __init__(
         self,
-        vit_name: str,
+        variant: str,
         image_size: int = 224,
         patch_size: int | None = None,
         pretrained: bool = False,
@@ -24,7 +24,7 @@ class TorchVisionViT(BaseModel):
         """Initialize the ViT base model from torch vision.
 
         Args:
-            vit_name (str): Name of the ViT variant.
+            variant (str): Name of the ViT variant.
             image_size (int, optional): Size of input image. Defaults to 224.
             patch_size (int, optional): If set, resize the positional embedding
                 to match the new patch size. Defaults to None, which keeps
@@ -35,7 +35,7 @@ class TorchVisionViT(BaseModel):
                 ``torchvision.models.vision_transformer.VisionTransformer``.
         """
         super().__init__()
-        if vit_name not in {
+        assert variant in {
             "vit_t_16",
             "vit_t_32",
             "vit_s_16",
@@ -45,13 +45,11 @@ class TorchVisionViT(BaseModel):
             "vit_l_16",
             "vit_l_32",
             "vit_h_14",
-        }:
-            raise ValueError(f"The ViT name '{vit_name}' is not supported!")
-
-        self.vit_name = vit_name
+        }, f"Unknown ViT variant: {variant}"
+        self.variant = variant
         self.pretrained = pretrained
         if patch_size is None:
-            self.patch_size = int(vit_name.split("_")[-1])
+            self.patch_size = int(variant.split("_")[-1])
         else:
             self.patch_size = patch_size
 
@@ -59,7 +57,7 @@ class TorchVisionViT(BaseModel):
             image_size=image_size, **kwargs
         )
         if self.pretrained:
-            if self.vit_name[:5] in {"vit_t", "vit_s"}:
+            if self.variant[:5] in {"vit_t", "vit_s"}:
                 raise ValueError(
                     "This ViT variant does not have pretrained weights!"
                 )
@@ -75,29 +73,29 @@ class TorchVisionViT(BaseModel):
 
     def _get_vit_variant(self, **kwargs: ArgsType) -> nn.Module:
         """Get the ViT module based on the variant name."""
-        if self.vit_name[:5] in {"vit_t", "vit_s"}:
-            if self.vit_name == "vit_t_16":
+        if self.variant[:5] in {"vit_t", "vit_s"}:
+            if self.variant == "vit_t_16":
                 params = {
                     "patch_size": 16,
                     "hidden_dim": 192,
                     "num_heads": 3,
                     "mlp_dim": 768,
                 }
-            elif self.vit_name == "vit_t_32":
+            elif self.variant == "vit_t_32":
                 params = {
                     "patch_size": 32,
                     "hidden_dim": 192,
                     "num_heads": 3,
                     "mlp_dim": 768,
                 }
-            elif self.vit_name == "vit_s_16":
+            elif self.variant == "vit_s_16":
                 params = {
                     "patch_size": 16,
                     "hidden_dim": 384,
                     "num_heads": 6,
                     "mlp_dim": 1536,
                 }
-            elif self.vit_name == "vit_s_32":
+            elif self.variant == "vit_s_32":
                 params = {
                     "patch_size": 32,
                     "hidden_dim": 384,
@@ -108,15 +106,18 @@ class TorchVisionViT(BaseModel):
                 {"num_layers": 12, "weights": None, "progress": False}
             )
             params.update(kwargs)
-            vit: nn.Module = _vit._vision_transformer(
-                **params
-            )  # pylint: disable=protected-access
+            vit: nn.Module = (
+                _vit._vision_transformer(  # pylint: disable=protected-access
+                    **params
+                )
+            )
         else:
-            vit: nn.Module = _vit.__dict__[self.vit_name](**kwargs)
+            vit: nn.Module = _vit.__dict__[self.variant](**kwargs)
         return vit
 
     def _get_pretrained_weights(self):
-        vit: nn.Module = _vit.__dict__[self.vit_name](
+        """Get the pretrained weights for the ViT variant."""
+        vit: nn.Module = _vit.__dict__[self.variant](
             weights="DEFAULT" if self.pretrained else None
         )
         return vit.state_dict()
@@ -128,13 +129,13 @@ class TorchVisionViT(BaseModel):
         Returns:
             list[int]: number of channels
         """
-        if self.vit_name in {"vit_t_16", "vit_t_32"}:
+        if self.variant in {"vit_t_16", "vit_t_32"}:
             channels = [192, 192]
-        elif self.vit_name in {"vit_s_16", "vit_s_32"}:
+        elif self.variant in {"vit_s_16", "vit_s_32"}:
             channels = [384, 384]
-        elif self.vit_name in {"vit_b_16", "vit_b_32"}:
+        elif self.variant in {"vit_b_16", "vit_b_32"}:
             channels = [768, 768]
-        elif self.vit_name in {"vit_l_16", "vit_l_32"}:
+        elif self.variant in {"vit_l_16", "vit_l_32"}:
             channels = [1024, 1024]
         else:
             channels = [1280, 1280]

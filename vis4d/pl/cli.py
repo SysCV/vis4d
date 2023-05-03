@@ -19,8 +19,8 @@ from torch.utils.collect_env import get_pretty_env_info
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
-from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.ckpt import load_model_checkpoint
+from vis4d.engine.parser import DEFINE_config_file
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer

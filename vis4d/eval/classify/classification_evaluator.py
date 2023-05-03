@@ -36,7 +36,7 @@ class ClassificationEvaluator(Evaluator):
         self.num_classes = num_classes
         self.class_mapping = class_mapping if class_mapping is not None else {}
         self.class_to_ignore = class_to_ignore
-        self._records = []
+        self._records: list[tuple[NDArrayNumber, NDArrayI64]] = []
 
         self.reset()
 
@@ -81,6 +81,9 @@ class ClassificationEvaluator(Evaluator):
 
         Returns:
             tuple[MetricLogs, str]: Metric logs and metric name.
+
+        Raises:
+            ValueError: If the metric is not supported.
         """
         assert len(self._records) > 0, (
             "Evaluate() needs to process samples first. Please call the "
@@ -88,9 +91,9 @@ class ClassificationEvaluator(Evaluator):
         )
 
         metric_data, short_description = {}, ""
-        top5_pred_classes, labels = zip(*self._records)
-        top5_pred_classes = np.concatenate(top5_pred_classes, axis=0)
-        labels = np.concatenate(labels, axis=0)
+        top5_pred_list, labels_list = zip(*self._records)
+        top5_pred_classes = np.concatenate(top5_pred_list, axis=0)
+        labels = np.concatenate(labels_list, axis=0)
 
         if metric == self.METRIC_ACCURACY:
             accuracy = np.mean(top5_pred_classes[:, -1] == labels)

@@ -137,7 +137,7 @@ def inverse_sigmoid(inputs: torch.Tensor, eps: float = 1e-5) -> torch.Tensor:
     inv_sigmoid(x) := log(x / (1 - x))
 
     Args:
-        x (torch.Tensor): Input tensor
+        inputs (torch.Tensor): Input tensor
         eps (float, optional): Epsilon value. Defaults to 1e-5.
 
     Returns:

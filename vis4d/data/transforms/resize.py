@@ -131,6 +131,7 @@ class ResizeImage:
         image: NDArrayF32,
         target_shape: tuple[int, int],
         interpolation: str = "bilinear",
+        antialias: bool = False,
     ) -> tuple[NDArrayF32, tuple[int, int]]:
         """Resize an image of dimensions [N, H, W, C].
 
@@ -139,13 +140,18 @@ class ResizeImage:
             target_shape (tuple[int, int]): The target shape after resizing.
             interpolation (str): One of nearest, bilinear, bicubic. Defaults to
                 bilinear.
+            antialias (bool): Whether to use antialiasing when downsampling an
+                image. Defaults to False.
 
         Returns:
             Tensor: Resized image according to parameters in resize.
         """
         image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
         image_ = resize_tensor(
-            image_, target_shape, interpolation=interpolation
+            image_,
+            target_shape,
+            interpolation=interpolation,
+            antialias=antialias,
         )
         return image_.permute(0, 2, 3, 1).numpy()
 
@@ -192,12 +198,17 @@ def resize_tensor(
     inputs: Tensor,
     shape: tuple[int, int],
     interpolation: str = "bilinear",
+    antialias: bool = False,
 ) -> Tensor:
     """Resize Tensor."""
     assert interpolation in {"nearest", "bilinear", "bicubic"}
     align_corners = None if interpolation == "nearest" else False
     output = F.interpolate(
-        inputs, shape, mode=interpolation, align_corners=align_corners
+        inputs,
+        shape,
+        mode=interpolation,
+        align_corners=align_corners,
+        antialias=antialias,
     )
     return output
 
