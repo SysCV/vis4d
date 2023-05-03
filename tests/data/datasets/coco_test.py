@@ -48,10 +48,10 @@ class COCOTest(unittest.TestCase):
         self.assertEqual(
             tuple(item.keys()),
             (
-                "original_hw",
-                "input_hw",
                 "coco_image_id",
+                "sample_names",
                 "images",
+                "input_hw",
                 "boxes2d",
                 "boxes2d_classes",
                 "instance_masks",
@@ -59,7 +59,6 @@ class COCOTest(unittest.TestCase):
         )
 
         self.assertEqual(item[K.input_hw], [230, 352])
-        self.assertEqual(item[K.original_hw], [230, 352])
         self.assertEqual(item["coco_image_id"], 37777)
 
         self.assertEqual(len(item[K.boxes2d]), 14)
@@ -127,7 +126,6 @@ class COCOSegTest(unittest.TestCase):
         split="train",
         keys_to_load=(
             K.images,
-            K.boxes2d,
             K.boxes2d_classes,
             K.instance_masks,
             K.seg_masks,
@@ -146,21 +144,18 @@ class COCOSegTest(unittest.TestCase):
         item = self.coco[0]
         item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
         assert tuple(item.keys()) == (
-            "original_hw",
-            "input_hw",
             "coco_image_id",
+            "sample_names",
             "images",
-            "boxes2d",
+            "input_hw",
             "boxes2d_classes",
             "instance_masks",
             "seg_masks",
         )
 
         self.assertEqual(item[K.input_hw], [230, 352])
-        self.assertEqual(item[K.original_hw], [230, 352])
         self.assertEqual(item["coco_image_id"], 37777)
 
-        self.assertEqual(len(item[K.boxes2d]), 5)
         self.assertEqual(len(item[K.boxes2d_classes]), 5)
         self.assertEqual(len(item[K.instance_masks]), 5)
         self.assertEqual(item[K.seg_masks].shape, (1, 230, 352))
@@ -175,10 +170,6 @@ class COCOSegTest(unittest.TestCase):
             SEMANTIC_MASK_INDICES,
             SEMANTIC_MASK_VALUES,
         )
-        assert torch.isclose(
-            item[K.boxes2d][0],
-            torch.tensor([102.4900, 118.4700, 110.3900, 135.7800]),
-        ).all()
         assert torch.isclose(
             item[K.boxes2d_classes],
             torch.tensor([16, 9, 9, 11, 9]).long(),
