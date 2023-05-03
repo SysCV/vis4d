@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from vis4d.common.typing import ArrayLikeFloat, ArrayLikeInt
-from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
 from vis4d.vis.pointcloud.scene import Scene3D
-from vis4d.vis.pointcloud.viewer.open3d_viewer import (
+from vis4d.vis.pointcloud.viewer import (
     Open3DVisualizationBackend,
+    PointCloudVisualizerBackend,
 )
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 

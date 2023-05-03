@@ -8,8 +8,9 @@ import numpy as np
 
 from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.common.typing import NDArrayF64
-from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
 from vis4d.vis.pointcloud.scene import Scene3D
+
+from .base import PointCloudVisualizerBackend
 
 if OPEN3D_AVAILABLE:
     import open3d as o3d
@@ -79,7 +80,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
         for scene in self.scenes:
             vis_data = []
             vis_data += self._get_pc_data_for_scene(scene)
-            g = [d["geometry"] for d in vis_data]
+
             o3d.visualization.draw(
                 vis_data, non_blocking_and_return_uid=not blocking
             )

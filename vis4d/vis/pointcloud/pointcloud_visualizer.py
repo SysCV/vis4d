@@ -2,21 +2,23 @@
 from __future__ import annotations
 
 from vis4d.common.imports import OPEN3D_AVAILABLE
-from vis4d.common.typing import NDArrayF64, NDArrayI64
+from vis4d.common.typing import ArgsType, NDArrayF64, NDArrayI64
 from vis4d.vis.base import Visualizer
-from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
 from vis4d.vis.pointcloud.scene import Scene3D
+from vis4d.vis.pointcloud.viewer import PointCloudVisualizerBackend
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 if OPEN3D_AVAILABLE:
     from .viewer.open3d_viewer import Open3DVisualizationBackend
 
 
+# TODO: Check typing
 class PointCloudVisualizer(Visualizer):
     """Visualizer that visualizes pointclouds."""
 
     def __init__(
         self,
+        *args: ArgsType,
         backend: str = "open3d",
         class_color_mapping: list[
             tuple[int, int, int]
@@ -24,6 +26,7 @@ class PointCloudVisualizer(Visualizer):
         instance_color_mapping: list[
             tuple[int, int, int]
         ] = DEFAULT_COLOR_MAPPING,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates a new Pointcloud visualizer.
 
@@ -35,6 +38,7 @@ class PointCloudVisualizer(Visualizer):
             instance_color_mapping (list[tuple[int, int, int]], optional): List
                 of length n_classes that assigns each class a unique color.
         """
+        super().__init__(*args, **kwargs)
         if backend == "open3d":
             if not OPEN3D_AVAILABLE:
                 raise ValueError(
@@ -107,6 +111,7 @@ class PointCloudVisualizer(Visualizer):
 
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
+        cur_iter: int,
         points_xyz: NDArrayF64,
         semantics: NDArrayI64 | None = None,
         instances: NDArrayI64 | None = None,
@@ -116,6 +121,7 @@ class PointCloudVisualizer(Visualizer):
         """Processes a batch of data and adds it to the visualizer.
 
         Args:
+            cur_iter: Current iteration.
             points_xyz: xyz coordinates of the points shape [N, 3]
             semantics: semantic ids of the points shape [N, 1]
             instances: instance ids of the points shape [N, 1]
@@ -128,32 +134,35 @@ class PointCloudVisualizer(Visualizer):
         Raises:
             ValueError: If shapes of the arrays missmatch.
         """
-        idx = 0
-        if len(points_xyz.shape) == 2:  # Data is not batched
-            self.process_single(
-                points_xyz, semantics, instances, colors, scene_index
-            )
-        elif len(points_xyz.shape) == 3:
-            for idx in range(points_xyz.shape[0]):
+        if self._run_on_batch(cur_iter):
+            if len(points_xyz.shape) == 2:  # Data is not batched
                 self.process_single(
-                    points_xyz[idx, ...],
-                    semantics[idx, ...] if semantics is not None else None,
-                    instances[idx, ...] if instances is not None else None,
-                    colors[idx, ...] if colors is not None else None,
-                    scene_index[idx, ...] if scene_index is not None else None,
+                    points_xyz, semantics, instances, colors, scene_index
+                )
+            elif len(points_xyz.shape) == 3:
+                for idx in range(points_xyz.shape[0]):
+                    self.process_single(
+                        points_xyz[idx, ...],
+                        semantics[idx, ...] if semantics is not None else None,
+                        instances[idx, ...] if instances is not None else None,
+                        colors[idx, ...] if colors is not None else None,
+                        scene_index[idx, ...]
+                        if scene_index is not None
+                        else None,
+                    )
+
+            else:
+                raise ValueError(
+                    f"Invalid shape for point data: {points_xyz.shape}"
                 )
 
-        else:
-            raise ValueError(
-                f"Invalid shape for point data: {points_xyz.shape}"
-            )
-
-    def show(self, blocking: bool = True) -> None:
+    def show(self, cur_iter: int, blocking: bool = True) -> None:
         """Shows the visualization.
 
         Args:
-            blocking (bool): If the visualization should be blocking
-                             and wait for human input
+            cur_iter (int): Current iteration.
+            blocking (bool): If the visualization should be blocking and wait
+                for human input
         """
         self.visualization_backend.show(blocking)
 
@@ -163,6 +172,7 @@ class PointCloudVisualizer(Visualizer):
         self.current_scene_idx = None
         self.current_scene = None
 
-    def save_to_disk(self, path_to_out_folder: str) -> None:
+    def save_to_disk(self, cur_iter: int, output_folder: str) -> None:
         """Saves the visualization to disk."""
-        self.visualization_backend.save_to_disk(path_to_out_folder)
+        if self._run_on_batch(cur_iter):
+            self.visualization_backend.save_to_disk(output_folder)

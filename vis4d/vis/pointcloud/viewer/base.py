@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .scene import Scene3D
+from ..scene import Scene3D
 
 
 class PointCloudVisualizerBackend:
