@@ -343,7 +343,7 @@ def resolve_named_tuple(  # type:ignore
 
 
 def connect_components(
-    in_info: DataConnectionInfo,out_info: DataConnectionInfo
+    in_info: DataConnectionInfo, out_info: DataConnectionInfo
 ) -> None:
     """Marks two components as connected.
 

@@ -5,7 +5,7 @@ import unittest
 import torch
 
 from tests.util import get_test_data, get_test_file
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
     nuscenes_class_range_map,
@@ -35,11 +35,11 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
     model_weights = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
 
     CONN_BBOX_3D_TEST = {
-        CK.images: CK.images,
-        CK.original_hw: "images_hw",
-        CK.intrinsics: CK.intrinsics,
-        CK.extrinsics: CK.extrinsics,
-        CK.frame_ids: CK.frame_ids,
+        "images": K.images,
+        "images_hw": K.original_hw,
+        "intrinsics": K.intrinsics,
+        "extrinsics": K.extrinsics,
+        "frame_ids": K.frame_ids,
     }
 
     CAMERAS = [
@@ -99,7 +99,6 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
 
         data_connector = MultiSensorDataConnector(
             test=self.CONN_BBOX_3D_TEST,
-            default_sensor="CAM_FRONT",
             sensors=self.CAMERAS,
         )
 

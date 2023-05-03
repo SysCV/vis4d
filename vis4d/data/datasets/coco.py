@@ -297,6 +297,7 @@ class COCO(Dataset, CacheMappingMixin):
                     boxes.append((x1, y1, x2, y2))
                 if (
                     K.boxes2d in self.keys_to_load
+                    or K.boxes2d_classes in self.keys_to_load
                     or K.seg_masks in self.keys_to_load
                 ):
                     classes.append(ann["category_id"])

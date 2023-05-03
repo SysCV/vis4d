@@ -217,6 +217,7 @@ class NuScenesEvaluator(Evaluator):
         track_ids: Tensor,
     ) -> None:
         """Process the results."""
+        # Currently only support batch size of 1.
         token = tokens[0]
         assert all(token == t for t in tokens), "Tokens should be the same."
 

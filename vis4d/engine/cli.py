@@ -159,6 +159,7 @@ def main(argv: ArgsType) -> None:
         cb.setup()
 
     trainer = Trainer(
+        device=device,
         num_epochs=config.params.num_epochs,
         data_connector=data_connector,
         callbacks=callbacks,

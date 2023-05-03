@@ -60,7 +60,7 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )
 
 
-def get_test_dataloader(datasets: Dataset) -> DataLoader:
+def get_test_dataloader(datasets: Dataset) -> list[DataLoader]:
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
@@ -72,33 +72,49 @@ def get_test_dataloader(datasets: Dataset) -> DataLoader:
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
         datapipe, samples_per_gpu=1, workers_per_gpu=1
-    )[0]
+    )
 
 
-# TODO: Refactor this
 class EngineTrainerTest(unittest.TestCase):
     """Engine trainer test class."""
 
+    model = SemanticFPN(num_classes=80)
+    dataset = COCO(
+        get_test_data("coco_test"),
+        keys_to_load=[
+            K.images,
+            K.original_images,
+            K.boxes2d_classes,
+            K.instance_masks,
+        ],
+        split="train",
+    )
+    train_dataloader = get_train_dataloader(dataset, 2)
+    test_dataloader = get_test_dataloader(dataset)
+    data_connector = DataConnector(
+        train={"images": K.images},
+        test={"images": K.images, "original_hw": K.original_hw},
+        loss={
+            "output": pred_key("outputs"),
+            "target": data_key(K.seg_masks),
+        },
+    )
+
+    trainer = Trainer(
+        device=torch.device("cpu"),
+        num_epochs=2,
+        data_connector=data_connector,
+        callbacks=[LoggingCallback(refresh_rate=1)],
+        train_dataloader=train_dataloader,
+        test_dataloader=test_dataloader,
+    )
+
     def test_fit(self) -> None:
         """Test trainer training."""
-        model = SemanticFPN(num_classes=80)
-        loss_fn = SegCrossEntropyLoss()
-        optimizer = get_optimizer()
-        dataset = COCO(get_test_data("coco_test"), split="train")
-        train_loader = get_train_dataloader(dataset, 2)
-        data_connector = DataConnector(
-            train={K.images: K.images},
-            test={K.images: K.images},
-            loss={
-                "output": pred_key("outputs"),
-                "target": data_key(K.seg_masks),
-            },
-        )
-        callback = {"logger": LoggingCallback(1)}
-        trainer = Trainer(2, train_loader, data_connector, callback)
+        optimizers = get_optimizer()
+        loss = SegCrossEntropyLoss()
 
-        model.train()
-        trainer.fit(model, [optimizer], loss_fn)
+        self.trainer.fit(self.model, optimizers, loss)
 
         # TODO: add callback to check loss
 
@@ -107,16 +123,6 @@ class EngineTrainerTest(unittest.TestCase):
         state = torch.random.get_rng_state()
         torch.random.set_rng_state(torch.manual_seed(0).get_state())
 
-        model = SemanticFPN(num_classes=80)
-        dataset = COCO(get_test_data("coco_test"), split="train")
-        test_loader = get_test_dataloader(dataset)
-        data_connector = DataConnector(
-            test={K.images: K.images, "original_hw": "original_hw"}
-        )
-        callback = {"logger": LoggingCallback(1)}
-        trainer = Trainer([test_loader], data_connector, callback)
-
-        model.eval()
-        trainer.test(model)
+        self.trainer.test(self.model)
 
         torch.random.set_rng_state(state)

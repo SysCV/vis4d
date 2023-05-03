@@ -37,7 +37,7 @@ def get_optimizer(
         epoch_based_lr=epoch_based_lr,
         epoch_based_warmup=epoch_based_warmup,
     )
-    return set_up_optimizers([optimizer_cfg], model)[0]
+    return set_up_optimizers([optimizer_cfg], model)
 
 
 class TestOptimizer(unittest.TestCase):
@@ -63,7 +63,7 @@ class TestOptimizer(unittest.TestCase):
 
     def test_optimizer_epoch_based(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
-        optimizer = get_optimizer()
+        optimizer = get_optimizer()[0]
 
         step = 0
         for epoch in range(20):
@@ -84,7 +84,7 @@ class TestOptimizer(unittest.TestCase):
         optimizer = get_optimizer(
             lr_scheduler=class_config(PolyLR, max_steps=20, power=1.0),
             lr_warmup=None,
-        )
+        )[0]
 
         step = 0
         for epoch in range(20):
@@ -104,7 +104,7 @@ class TestOptimizer(unittest.TestCase):
         """Test the optimizer with batch-based LR scheduling."""
         optimizer = get_optimizer(
             epoch_based_lr=False, epoch_based_warmup=False
-        )
+        )[0]
 
         step = 0
         for epoch in range(10):

@@ -19,6 +19,7 @@ class Trainer:
 
     def __init__(
         self,
+        device: torch.device,
         num_epochs: int,
         data_connector: DataConnector,
         callbacks: list[Callback],
@@ -31,6 +32,7 @@ class Trainer:
         """Initialize the trainer.
 
         Args:
+            device (torch.device): Device that should be used for training.
             num_epochs (int): Number of training epochs.
             dataloaders (DataLoader[DictData]): Dataloader for training.
             data_connector (DataConnector): Data connector used for generating
@@ -46,6 +48,7 @@ class Trainer:
             check_val_every_n_epoch (int, optional): Interval for evaluating
                 the model during training. Defaults to 1.
         """
+        self.device = device
         self.num_epochs = num_epochs
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.data_connector = data_connector
@@ -87,8 +90,6 @@ class Trainer:
         """
         assert self.train_dataloader is not None, "No train dataloader."
 
-        device = next(model.parameters()).device  # model device
-
         for epoch in range(self.epoch, self.num_epochs):
             self.epoch = epoch
 
@@ -112,7 +113,7 @@ class Trainer:
                     opt.zero_grad()
 
                 # Input data
-                data = move_data_to_device(data, device)
+                data = move_data_to_device(data, self.device)
                 train_input = self.data_connector.get_train_input(data)
 
                 # Forward + backward + optimize
@@ -182,9 +183,7 @@ class Trainer:
 
         for i, test_loader in enumerate(self.test_dataloader):
             for batch_idx, data in enumerate(test_loader):
-                # input data
-                device = next(model.parameters()).device
-                data = move_data_to_device(data, device)
+                data = move_data_to_device(data, self.device)
                 test_input = self.data_connector.get_test_input(data)
 
                 # forward

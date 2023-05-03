@@ -7,6 +7,7 @@ from typing import TypeVar, no_type_check
 import torch
 
 from vis4d.common.dict import get_dict_nested, set_dict_nested
+from vis4d.common.logging import rank_zero_warn
 from vis4d.data.typing import DictData
 
 TFunctor = TypeVar("TFunctor", bound=object)  # pylint: disable=invalid-name
@@ -108,9 +109,10 @@ class Transform:
                             else data
                         ]
                     except ValueError:
-                        # if a key does not exist in the input data, do not
-                        # apply the transformation.
-                        # TODO might need to raise a warning
+                        rank_zero_warn(
+                            f"Could not find key {key} in data dictionary."
+                            + f"Skipping transform {self_.__class__.__name__}."
+                        )
                         return data
 
                 result = self_(*in_data)

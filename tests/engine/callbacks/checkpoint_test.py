@@ -21,9 +21,7 @@ class TestCheckpointCallback(unittest.TestCase):
         data_connector=DataConnector(),
     )
 
-    def test_setup(self):
-        """Test setup function."""
-        self.callback.setup()
+    callback.setup()
 
     def test_on_train_epoch_end(self) -> None:
         """Test on_train_epoch_end function."""

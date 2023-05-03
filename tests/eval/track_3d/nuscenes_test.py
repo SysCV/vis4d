@@ -59,7 +59,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
 
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
-        batch_size = 2
+        batch_size = 1
         nusc_eval = NuScenesEvaluator()
 
         # test gt
