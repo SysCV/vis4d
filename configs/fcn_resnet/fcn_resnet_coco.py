@@ -1,22 +1,22 @@
 """FCN-ResNet COCO training example."""
 from __future__ import annotations
 
-from torch import nn, optim
+from torch import optim
 
-from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.config.default.data.segment import segment_preprocessing
-from vis4d.config.default.data_connectors.segment import (
-    CONN_FCN_LOSS,
+from vis4d.config.default.data.seg import seg_preprocessing
+from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
+    CONN_MULTI_SEG_LOSS,
 )
-from vis4d.config.default.optimizer.default import optimizer_cfg
-from vis4d.config.default.sweep.default import linear_grid_search
+from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.optimizer import get_optimizer_config
+from vis4d.config.default.sweep import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
-from vis4d.model.segment.fcn_resnet import FCNResNet
-from vis4d.op.segment.fcn import FCNLoss
+from vis4d.model.seg.fcn_resnet import FCNResNet
+from vis4d.op.loss import MultiLevelSegLoss
 from vis4d.optim import PolyLR
 
 
@@ -78,12 +78,12 @@ def get_config() -> ConfigDict:
         use_pascal_voc_cats=True,
         minimum_box_area=10,
     )
-    preproc = segment_preprocessing(520, 520, params.augment_proba)
-    dataloader_train_cfg = default_image_dataloader(
+    preproc = seg_preprocessing(520, 520, False, params.augment_proba)
+    dataloader_train_cfg = get_dataloader_config(
         preproc,
         dataset_cfg_train,
-        params.batch_size,
-        num_workers_per_gpu=0,
+        samples_per_gpu=params.batch_size,
+        workers_per_gpu=0,
         shuffle=True,
     )
     config.train_dl = dataloader_train_cfg
@@ -95,14 +95,14 @@ def get_config() -> ConfigDict:
         split=config.test_split,
         use_pascal_voc_cats=True,
     )
-    preprocess_test_cfg = segment_preprocessing(
-        520, 520, augment_probability=0
+    preprocess_test_cfg = seg_preprocessing(
+        520, 520, False, augment_probability=0
     )
-    dataloader_cfg_test = default_image_dataloader(
+    dataloader_cfg_test = get_dataloader_config(
         preprocess_test_cfg,
         dataset_test_cfg,
-        batch_size=1,
-        num_workers_per_gpu=0,
+        samples_per_gpu=1,
+        workers_per_gpu=0,
         shuffle=False,
     )
     config.test_dl = {"coco_eval": dataloader_cfg_test}
@@ -128,10 +128,7 @@ def get_config() -> ConfigDict:
     # are averaged using a weighted sum.
 
     config.loss = class_config(
-        FCNLoss,
-        feature_idx=[4, 5],
-        loss_fn=class_config(nn.CrossEntropyLoss, ignore_index=255),
-        weights=[0.5, 1],
+        MultiLevelSegLoss, feature_idx=[4, 5], weights=[0.5, 1]
     )
 
     ######################################################
@@ -151,7 +148,7 @@ def get_config() -> ConfigDict:
     #     return fun([p for p in params if "encoder" in p.name])
     #
     # config.optimizers = [
-    #    optimizer_cfg(
+    #    get_optimizer_config(
     #        optimizer=class_config(only_encoder_params,
     #           fun=class_config(optim.SGD, lr=params.lr"))
     #        )
@@ -159,7 +156,7 @@ def get_config() -> ConfigDict:
     # ]
 
     config.optimizers = [
-        optimizer_cfg(
+        get_optimizer_config(
             optimizer=class_config(optim.Adam, lr=params.lr),
             lr_scheduler=class_config(
                 PolyLR, max_steps=config.num_epochs, power=0.9
@@ -182,7 +179,7 @@ def get_config() -> ConfigDict:
         connections=DataConnectionInfo(
             train=CONN_MASKS_TRAIN,
             test=CONN_MASKS_TEST,
-            loss=CONN_FCN_LOSS,
+            loss=CONN_MULTI_SEG_LOSS,
         ),
     )
     return config.value_mode()

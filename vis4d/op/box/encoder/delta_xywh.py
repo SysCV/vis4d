@@ -9,16 +9,54 @@ import math
 import torch
 from torch import Tensor
 
-from .base import BoxEncoder2D
 
-
-# TODO: Refactor this to functors with a single forward
-class DeltaXYWHBBoxEncoder(BoxEncoder2D):
+class DeltaXYWHBBoxEncoder:
     """Delta XYWH BBox encoder.
 
     Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,
-    it encodes bbox (x1, y1, x2, y2) into delta (dx, dy, dw, dh) and decodes
-    delta (dx, dy, dw, dh) back to original bbox (x1, y1, x2, y2).
+    it encodes bbox (x1, y1, x2, y2) into delta (dx, dy, dw, dh).
+    """
+
+    def __init__(
+        self,
+        target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+        target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            target_means (tuple, optional): Denormalizing means of target for
+                delta coordinates. Defaults to (0.0, 0.0, 0.0, 0.0).
+            target_stds (tuple, optional): Denormalizing standard deviation of
+                target for delta coordinates. Defaults to (1.0, 1.0, 1.0, 1.0).
+        """
+        self.means = target_means
+        self.stds = target_stds
+
+    def __call__(self, boxes: Tensor, targets: Tensor) -> Tensor:
+        """Get box regression transformation deltas.
+
+        Used to transform target boxes into target regression parameters.
+
+        Args:
+            boxes (Tensor): Source boxes, e.g., object proposals.
+            targets (Tensor): Target of the transformation, e.g.,
+                ground-truth boxes.
+
+        Returns:
+            Tensor: Box transformation deltas
+        """
+        assert boxes.size(0) == targets.size(0)
+        assert boxes.size(-1) == targets.size(-1) == 4
+        encoded_bboxes = bbox2delta(boxes, targets, self.means, self.stds)
+        return encoded_bboxes
+
+
+class DeltaXYWHBBoxDecoder:
+    """Delta XYWH BBox decoder.
+
+    Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,
+    it decodes delta (dx, dy, dw, dh) back to original bbox (x1, y1, x2, y2).
     """
 
     def __init__(
@@ -41,38 +79,18 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         self.stds = target_stds
         self.wh_ratio_clip = wh_ratio_clip
 
-    def encode(
-        self, boxes: torch.Tensor, targets: torch.Tensor
-    ) -> torch.Tensor:
-        """Get box regression transformation deltas.
-
-        Used to transform target boxes into target regression parameters.
-
-        Args:
-            boxes (torch.Tensor): Source boxes, e.g., object proposals.
-            targets (torch.Tensor): Target of the transformation, e.g.,
-                ground-truth boxes.
-
-        Returns:
-            torch.Tensor: Box transformation deltas
-        """
-        assert boxes.size(0) == targets.size(0)
-        assert boxes.size(-1) == targets.size(-1) == 4
-        encoded_bboxes = bbox2delta(boxes, targets, self.means, self.stds)
-        return encoded_bboxes
-
-    def decode(self, boxes: torch.Tensor, box_deltas: torch.Tensor) -> Tensor:
+    def __call__(self, boxes: Tensor, box_deltas: Tensor) -> Tensor:
         """Apply box offset energies box_deltas to boxes.
 
         Args:
-            boxes (torch.Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
+            boxes (Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
             box_deltas (Tensor): Encoded offsets with respect to each roi.
                Has shape (B, N, num_classes * 4) or (B, N, 4) or
                (N, num_classes * 4) or (N, 4). Note N = num_anchors * W * H
                when rois is a grid of anchors.Offset encoding follows [1]_.
 
         Returns:
-            torch.Tensor: Decoded boxes.
+            Tensor: Decoded boxes.
         """
         assert box_deltas.size(0) == boxes.size(0)
         decoded_boxes = delta2bbox(

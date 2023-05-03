@@ -156,19 +156,6 @@ class ResizeImage:
         return image_.permute(0, 2, 3, 1).numpy()
 
 
-@Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
-class ResizeIntrinsics:
-    """Resize Intrinsics."""
-
-    def __call__(
-        self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
-    ) -> NDArrayF32:
-        """Scale camera intrinsics when resizing."""
-        intrinsics[0, 0] *= scale_factor[0]
-        intrinsics[1, 1] *= scale_factor[1]
-        return intrinsics
-
-
 @Transform(
     [K.instance_masks, "transforms.resize.target_shape"], K.instance_masks
 )
@@ -183,18 +170,55 @@ class ResizeInstanceMasks:
             return masks
         masks_ = torch.from_numpy(masks)
         masks_ = (
-            resize_tensor(
-                masks_.float().unsqueeze(0),
+            _resize_tensor(
+                masks_.float().unsqueeze(1),
+                target_shape,
+                interpolation="nearest",
+            )
+            .type(masks_.dtype)
+            .squeeze(1)
+        )
+        return masks_.numpy()
+
+
+@Transform([K.seg_masks, "transforms.resize.target_shape"], K.seg_masks)
+class ResizeSegMasks:
+    """Resize segmentation masks."""
+
+    def __call__(
+        self, masks: NDArrayF32, target_shape: tuple[int, int]
+    ) -> NDArrayF32:
+        """Resize masks."""
+        if len(masks) == 0:  # handle empty masks
+            return masks
+        masks_ = torch.from_numpy(masks)
+        masks_ = (
+            _resize_tensor(
+                masks_.float().unsqueeze(0).unsqueeze(0),
                 target_shape,
                 interpolation="nearest",
             )
             .type(masks_.dtype)
             .squeeze(0)
+            .squeeze(0)
         )
         return masks_.numpy()
 
 
-def resize_tensor(
+@Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
+class ResizeIntrinsics:
+    """Resize Intrinsics."""
+
+    def __call__(
+        self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
+    ) -> NDArrayF32:
+        """Scale camera intrinsics when resizing."""
+        intrinsics[0, 0] *= scale_factor[0]
+        intrinsics[1, 1] *= scale_factor[1]
+        return intrinsics
+
+
+def _resize_tensor(
     inputs: Tensor,
     shape: tuple[int, int],
     interpolation: str = "bilinear",

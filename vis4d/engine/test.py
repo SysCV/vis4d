@@ -83,9 +83,7 @@ class Tester:
                             k, output, data, "test"
                         )
                         callback.on_test_batch_end(
-                            model,
-                            shared_clbk_kwargs,
-                            clbk_kwargs,
+                            model, shared_clbk_kwargs, clbk_kwargs
                         )
             del test_loader
 

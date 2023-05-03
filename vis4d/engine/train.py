@@ -53,7 +53,6 @@ class Trainer:
     def __init__(
         self,
         num_epochs: int,
-        log_step: int,
         dataloaders: DataLoader[DictData],
         data_connector: DataConnector,
         train_callbacks: dict[str, Callback] | None,
@@ -64,7 +63,6 @@ class Trainer:
 
         Args:
             num_epochs (int): Number of training epochs.
-            log_step (int): Interval for logging losses.
             dataloaders (DataLoader[DictData]): Dataloader for training.
             data_connector (DataConnector): Data connector used for generating
                 training inputs from a batch of data.
@@ -74,7 +72,6 @@ class Trainer:
                 model during training. Defaults to 1.
         """
         self.num_epochs = num_epochs
-        self.log_step = log_step
         self.test_every_nth_epoch = test_every_nth_epoch
         self.train_dataloader = dataloaders
         self.data_connector = data_connector
@@ -121,11 +118,6 @@ class Trainer:
                 torch.Tensor.
         """
         step = 0
-
-        # Set up optimizers and schedulers. This is done here because the
-        # optimizers require the model parameters.
-        for opt in optimizers:
-            opt.setup(model)
 
         device = next(model.parameters()).device  # model device
 
@@ -209,9 +201,7 @@ class Trainer:
                         )
 
                         callback.on_train_batch_end(
-                            model,
-                            shared_clbk_kwargs,
-                            clbk_kwargs,
+                            model, shared_clbk_kwargs, clbk_kwargs
                         )
                 if step % 1000 == 0:
                     log_memory_usage()

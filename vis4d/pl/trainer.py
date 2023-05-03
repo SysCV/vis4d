@@ -4,18 +4,15 @@ from __future__ import annotations
 
 import os.path as osp
 
-import pytorch_lightning as pl
-from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
-    DDPStrategy,
-)
-from pytorch_lightning.strategies.strategy import Strategy
+import lightning.pytorch as pl
+from lightning.pytorch.strategies import DDPStrategy, Strategy
 
 from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 
 
-class DefaultTrainer(pl.Trainer):
+class DefaultTrainer(pl.Trainer):  # type: ignore
     """DefaultTrainer for PyTorch-Lightning."""
 
     def __init__(
@@ -54,7 +51,7 @@ class DefaultTrainer(pl.Trainer):
             isinstance(kwargs["logger"], bool) and kwargs["logger"]
         ):
             if wandb:  # pragma: no cover
-                exp_logger = pl.loggers.WandbLogger(  # type: ignore[attr-defined] # pylint: disable=line-too-long
+                exp_logger = pl.loggers.WandbLogger(
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,
@@ -98,8 +95,11 @@ class DefaultTrainer(pl.Trainer):
         kwargs["callbacks"] += callbacks
 
         # add distributed strategy
-        if kwargs["devices"] is not None and kwargs["devices"] > 1:
-            if kwargs["accelerator"] == "gpu":  # pragma: no cover
+        if kwargs["devices"] == 0:
+            kwargs["accelerator"] = "cpu"
+            kwargs["devices"] = "auto"
+        elif kwargs["devices"] > 1:  # pragma: no cover
+            if kwargs["accelerator"] == "gpu":
                 ddp_plugin: Strategy = DDPStrategy(
                     find_unused_parameters=find_unused_parameters
                 )

@@ -1,37 +1,42 @@
 """QDTrack BDD100K inference example."""
 from __future__ import annotations
 
-from torch import optim
-from torch.optim.lr_scheduler import MultiStepLR
 import pytorch_lightning as pl
-from vis4d.common.callbacks import (
-    CheckpointCallback,
-    EvaluatorCallback,
-    LoggingCallback,
+
+from vis4d.common.callbacks import EvaluatorCallback
+from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.runtime import (
+    get_generic_callback_config,
+    get_pl_trainer_args,
+    set_output_dir,
 )
-from vis4d.config.default.data.dataloader import default_image_dataloader
-from vis4d.model.track.qdtrack import FasterRCNNQDTrack
-from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.data.loader import VideoDataPipe
+from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeBoxes2D,
+    ResizeImage,
+)
+from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     StaticDataConnector,
     data_key,
     pred_key,
 )
-
-from vis4d.eval.track.bdd100k import BDD100KEvaluator
-
-from vis4d.data.loader import VideoDataPipe
-from vis4d.config.default.runtime import set_output_dir
+from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
+from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
 CONN_BBOX_2D_TEST = {
-    CK.images: CK.images,
-    CK.input_hw: "images_hw",
-    CK.frame_ids: CK.frame_ids,
+    K.images: K.images,
+    K.input_hw: "images_hw",
+    K.frame_ids: K.frame_ids,
 }
 
 CONN_BDD100K_EVAL = {
@@ -55,7 +60,6 @@ def get_config() -> ConfigDict:
     ##                    General Config                ##
     ######################################################
     config = ConfigDict()
-    config.n_gpus = 8
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "qdtrack_bdd100k"
     config = set_output_dir(config)
@@ -67,6 +71,7 @@ def get_config() -> ConfigDict:
     # Hyper Parameters
     params = ConfigDict()
     params.samples_per_gpu = 4
+    params.workers_per_gpu = 4
     params.lr = 0.01
     params.num_epochs = 12
     config.params = params
@@ -78,56 +83,56 @@ def get_config() -> ConfigDict:
     dataset_root = "data/bdd100k/images/track/val/"
     annotation_path = "data/bdd100k/labels/box_track_20/val/"
     config_path = "box_track"
-    data_backend = HDF5Backend()
+    data_backend = class_config(HDF5Backend)
 
     # TODO: Add train dataset
-    train_dataset_cfg = None
-    train_dataloader_cfg = None
-    data.train_dataloader = {"bdd100k_train": train_dataloader_cfg}
+    data.train_dataloader = None
 
     # Test
     test_dataset_cfg = class_config(
         BDD100K,
         data_root=dataset_root,
-        targets_to_load=(),
+        keys_to_load=(K.images),
         annotation_path=annotation_path,
         config_path=config_path,
         data_backend=data_backend,
     )
 
+    preprocess_transforms = [
+        class_config(
+            GenerateResizeParameters,
+            shape=(720, 1280),
+            keep_ratio=True,
+        ),
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
+    ]
+
+    preprocess_transforms.append(class_config(NormalizeImage))
+
     test_preprocess_cfg = class_config(
-        "vis4d.data.transforms.compose",
-        transforms=[
-            class_config(
-                "vis4d.data.transforms.resize.resize_image",
-                shape=(720, 1280),
-                keep_ratio=True,
-                align_long_edge=True,
-            ),
-            class_config(
-                "vis4d.data.transforms.normalize.normalize_image",
-            ),
-        ],
+        compose,
+        transforms=preprocess_transforms,
     )
 
     test_batchprocess_cfg = class_config(
-        "vis4d.data.transforms.compose",
+        compose_batch,
         transforms=[
-            class_config(
-                "vis4d.data.transforms.pad.pad_image",
-            ),
+            class_config(PadImages),
+            class_config(ToTensor),
         ],
     )
 
-    test_dataloader_cfg = default_image_dataloader(
-        test_preprocess_cfg,
-        test_dataset_cfg,
-        num_samples_per_gpu=1,
-        batchprocess_cfg=test_batchprocess_cfg,
+    data.test_dataloader = get_dataloader_config(
+        preprocess_cfg=test_preprocess_cfg,
+        dataset_cfg=test_dataset_cfg,
         data_pipe=VideoDataPipe,
+        batchprocess_cfg=test_batchprocess_cfg,
+        samples_per_gpu=1,
+        workers_per_gpu=params.workers_per_gpu,
         train=False,
     )
-    data.test_dataloader = {"bdd100k_eval": test_dataloader_cfg}
+
     config.data = data
 
     ######################################################
@@ -149,23 +154,11 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = [
-        optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
-            lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
-            ),
-            lr_warmup=None,
-        )
-    ]
+    config.optimizers = None  # TODO: implement optimizer
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-    # This defines how the output of each component is connected to the next
-    # component. This is a very important part of the config. It defines the
-    # data flow of the pipeline.
-    # We use the default connections provided for faster_rcnn.
     config.data_connector = class_config(
         StaticDataConnector,
         connections=DataConnectionInfo(
@@ -177,15 +170,12 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                     EVALUATOR                    ##
     ######################################################
-    # Here we define the evaluator. We need to define the connections
-    # between the evaluator and the data connector in the data connector
-    # section. And use the same name here.
     eval_callbacks = {
         "bdd100k_eval": class_config(
             EvaluatorCallback,
             save_prefix=config.output_dir,
             evaluator=class_config(
-                BDD100KEvaluator,
+                BDD100KTrackingEvaluator,
                 annotation_path=annotation_path,
             ),
             run_every_nth_epoch=1,
@@ -196,19 +186,10 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
-    # Here we define general, all purpose callbacks. Note, that these callbacks
-    # do not need to be registered with the data connector.
-    logger_callback = {
-        "logger": class_config(LoggingCallback, refresh_rate=50)
-    }
-    ckpt_callback = {
-        "ckpt": class_config(
-            CheckpointCallback,
-            save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        )
-    }
+    # Generic callbacks
+    logger_callback, ckpt_callback = get_generic_callback_config(
+        config, params
+    )
 
     # Assign the defined callbacks to the config
     config.shared_callbacks = {**logger_callback, **eval_callbacks}
@@ -220,11 +201,13 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  PL CALLBACKS                    ##
     ######################################################
-    pl_trainer = ConfigDict()
-
-    pl_callbacks: list[pl.callbacks.Callback] = []
-
+    # PL Trainer args
+    pl_trainer = get_pl_trainer_args()
+    pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
+
+    # PL Callbacks
+    pl_callbacks: list[pl.callbacks.Callback] = []
     config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

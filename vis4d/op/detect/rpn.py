@@ -10,7 +10,7 @@ from torch import nn
 from torchvision.ops import batched_nms
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
-from vis4d.op.box.encoder import BoxEncoder2D
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
 
@@ -31,6 +31,17 @@ class RPNOut(NamedTuple):
     # boxes under the anchor.
     # Each list item is for on feature pyramid level.
     box: list[torch.Tensor]
+
+
+def get_default_rpn_box_codec(
+    target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+) -> tuple[DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder]:
+    """Get the default bounding box encoder and decoder for RPN."""
+    return (
+        DeltaXYWHBBoxEncoder(target_means, target_stds),
+        DeltaXYWHBBoxDecoder(target_means, target_stds),
+    )
 
 
 class RPNHead(nn.Module):
@@ -127,7 +138,7 @@ class RPN2RoI(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: BoxEncoder2D,
+        box_decoder: None | DeltaXYWHBBoxDecoder = None,
         num_proposals_pre_nms_train: int = 2000,
         num_proposals_pre_nms_test: int = 1000,
         max_per_img: int = 1000,
@@ -139,8 +150,9 @@ class RPN2RoI(nn.Module):
         Args:
             anchor_generator (AnchorGenerator): Creates anchor grid serving as
                 for bounding box regression.
-            box_encoder (BoxEncoder2D): decodes box energies predicted by the
-                network into 2D bounding box parameters.
+            box_decoder (DeltaXYWHBBoxDecoder, optional): decodes box energies
+                predicted by the network into 2D bounding box parameters.
+                Defaults to None. If None, uses the default decoder.
             num_proposals_pre_nms_train (int, optional): How many boxes are
                 kept prior to NMS during training. Defaults to 2000.
             num_proposals_pre_nms_test (int, optional): How many boxes are
@@ -154,7 +166,12 @@ class RPN2RoI(nn.Module):
         """
         super().__init__()
         self.anchor_generator = anchor_generator
-        self.box_encoder = box_encoder
+
+        if box_decoder is None:
+            _, self.box_decoder = get_default_rpn_box_codec()
+        else:
+            self.box_decoder = box_decoder
+
         self.max_per_img = max_per_img
         self.min_proposal_size = min_proposal_size
         self.num_proposals_pre_nms_train = num_proposals_pre_nms_train
@@ -230,9 +247,7 @@ class RPN2RoI(nn.Module):
         levels = torch.cat(level_all)
 
         proposals = bbox_clip(
-            self.box_encoder.decode(
-                torch.cat(anchors_all), torch.cat(reg_out_all)
-            ),
+            self.box_decoder(torch.cat(anchors_all), torch.cat(reg_out_all)),
             image_hw,
         )
 
@@ -251,7 +266,7 @@ class RPN2RoI(nn.Module):
             )[: self.max_per_img]
             proposals = proposals[keep]
             scores = scores[keep]
-        else:
+        else:  # pragma: no cover
             return proposals.new_zeros(0, 4), scores.new_zeros(0)
         return proposals, scores
 
@@ -319,14 +334,16 @@ class RPNLoss(DenseAnchorHeadLoss):
     """Loss of region proposal network."""
 
     def __init__(
-        self, anchor_generator: AnchorGenerator, box_encoder: BoxEncoder2D
+        self,
+        anchor_generator: AnchorGenerator,
+        box_encoder: DeltaXYWHBBoxEncoder,
     ):
         """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (BoxEncoder2D): Encodes bounding boxes to the desired
-                network output.
+            box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to the
+                desired network output.
         """
         matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.7],
@@ -363,7 +380,6 @@ class RPNLoss(DenseAnchorHeadLoss):
         Returns:
             DenseAnchorHeadLosses: Classification and regression losses.
         """
-        assert target_class_ids is None  # TODO, why is this not used?
         return super().forward(
             cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
         )

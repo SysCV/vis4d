@@ -58,9 +58,6 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         """Inference test."""
         cc_3dt = FasterRCNNCC3DT(
             num_classes=len(nuscenes_track_map),
-            backbone="resnet50",
-            motion_model="KF3D",
-            pure_det=False,
             class_range_map=torch.Tensor(nuscenes_class_range_map),
             weights=self.model_weights,
         )

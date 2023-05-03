@@ -9,13 +9,13 @@ from torch import nn
 from torchvision.ops import batched_nms, sigmoid_focal_loss
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
-from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import PseudoSampler, Sampler
 
 from .anchor_generator import AnchorGenerator
+from .common import DetOut
 from .dense_anchor import DenseAnchorHeadLoss
-from .rcnn import DetOut
 
 
 class RetinaNetOut(NamedTuple):
@@ -40,10 +40,17 @@ def get_default_anchor_generator() -> AnchorGenerator:
     )
 
 
-def get_default_box_encoder() -> DeltaXYWHBBoxEncoder:
+def get_default_box_codec() -> (
+    tuple[DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder]
+):
     """Get the default bounding box encoder."""
-    return DeltaXYWHBBoxEncoder(
-        target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
+    return (
+        DeltaXYWHBBoxEncoder(
+            target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
+        ),
+        DeltaXYWHBBoxDecoder(
+            target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
+        ),
     )
 
 
@@ -61,7 +68,7 @@ def get_default_box_sampler() -> PseudoSampler:
     return PseudoSampler(0, 0)
 
 
-class RetinaNetHead(nn.Module):
+class RetinaNetHead(nn.Module):  # TODO: Refactor to use the new API
     """RetinaNet Head."""
 
     def __init__(
@@ -72,7 +79,7 @@ class RetinaNetHead(nn.Module):
         stacked_convs: int = 4,
         use_sigmoid_cls: bool = True,
         anchor_generator: AnchorGenerator | None = None,
-        box_encoder: BoxEncoder2D | None = None,
+        box_decoder: DeltaXYWHBBoxDecoder | None = None,
         box_matcher: Matcher | None = None,
         box_sampler: Sampler | None = None,
     ):
@@ -83,11 +90,10 @@ class RetinaNetHead(nn.Module):
             if anchor_generator is not None
             else get_default_anchor_generator()
         )
-        self.box_encoder = (
-            box_encoder
-            if box_encoder is not None
-            else get_default_box_encoder()
-        )
+        if box_decoder is None:
+            _, self.box_decoder = get_default_box_codec()
+        else:
+            self.box_decoder = box_decoder
         self.box_matcher = (
             box_matcher
             if box_matcher is not None
@@ -200,7 +206,7 @@ def decode_multi_level_outputs(
     reg_out_all: list[torch.Tensor],
     anchors_all: list[torch.Tensor],
     image_hw: tuple[int, int],
-    box_encoder: BoxEncoder2D,
+    box_decoder: DeltaXYWHBBoxDecoder,
     max_per_img: int = 1000,
     nms_threshold: float = 0.7,
     min_box_size: tuple[int, int] = (0, 0),
@@ -216,7 +222,7 @@ def decode_multi_level_outputs(
         reg_out_all (list[torch.Tensor]): topk regression params per level.
         anchors_all (list[torch.Tensor]): topk anchor boxes per level.
         image_hw (tuple[int, int]): image size.
-        box_encoder (BoxEncoder2D): bounding box encoder.
+        box_decoder (DeltaXYWHBBoxDecoder): bounding box encoder.
         max_per_img (int, optional): maximum predictions per image.
             Defaults to 1000.
         nms_threshold (float, optional): iou threshold for NMS.
@@ -229,7 +235,7 @@ def decode_multi_level_outputs(
     """
     scores, labels = torch.cat(cls_out_all), torch.cat(lbl_out_all)
     boxes = bbox_clip(
-        box_encoder.decode(torch.cat(anchors_all), torch.cat(reg_out_all)),
+        box_decoder(torch.cat(anchors_all), torch.cat(reg_out_all)),
         image_hw,
     )
 
@@ -262,7 +268,7 @@ class Dense2Det(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: BoxEncoder2D,
+        box_decoder: DeltaXYWHBBoxDecoder,
         num_pre_nms: int = 2000,
         max_per_img: int = 1000,
         nms_threshold: float = 0.7,
@@ -272,7 +278,7 @@ class Dense2Det(nn.Module):
         """Creates an instance of the class."""
         super().__init__()
         self.anchor_generator = anchor_generator
-        self.box_encoder = box_encoder
+        self.box_decoder = box_decoder
         self.num_pre_nms = num_pre_nms
         self.max_per_img = max_per_img
         self.nms_threshold = nms_threshold
@@ -332,7 +338,7 @@ class Dense2Det(nn.Module):
                 reg_out_all,
                 anchors_all,
                 image_hw,
-                self.box_encoder,
+                self.box_decoder,
                 self.max_per_img,
                 self.nms_threshold,
                 self.min_box_size,
@@ -358,7 +364,7 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: BoxEncoder2D,
+        box_encoder: DeltaXYWHBBoxEncoder,
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
     ) -> None:
@@ -366,8 +372,8 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (BoxEncoder2D): Encodes bounding boxes to the desired
-                network output.
+            box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to the
+                desired network output.
             box_matcher (None | Matcher, optional): Box matcher. Defaults to
                 None.
             box_sampler (None | Sampler, optional): Box sampler. Defaults to

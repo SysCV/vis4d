@@ -1,4 +1,4 @@
-"""Testcases for DLA backbone."""
+"""Testcases for DLA base model."""
 import unittest
 
 from tests.util import generate_features
@@ -6,7 +6,7 @@ from vis4d.op.base.dla import DLA
 
 
 class TestDLA(unittest.TestCase):
-    """Testcases for DLA backbone."""
+    """Testcases for DLA base model."""
 
     inputs = generate_features(3, 32, 32, 1, 2)[0]
 

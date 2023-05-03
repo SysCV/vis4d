@@ -11,8 +11,9 @@ from torch import Tensor, nn
 from torchvision.ops import roi_align
 
 from vis4d.op.box.box2d import apply_mask, bbox_clip, multiclass_nms
-from vis4d.op.box.encoder import BoxEncoder2D
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
+from vis4d.op.detect.common import DetOut
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
@@ -30,6 +31,17 @@ class RCNNOut(NamedTuple):
     # Each box has regression for all classes. So the tensor dimention is
     # [batch_size, number of boxes, number of classes x 4]
     bbox_pred: torch.Tensor
+
+
+def get_default_rcnn_box_codec(
+    target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    target_stds: tuple[float, float, float, float] = (0.1, 0.1, 0.2, 0.2),
+) -> tuple[DeltaXYWHBBoxEncoder, DeltaXYWHBBoxDecoder]:
+    """Get the default bounding box encoder and decoder for RCNN."""
+    return (
+        DeltaXYWHBBoxEncoder(target_means, target_stds),
+        DeltaXYWHBBoxDecoder(target_means, target_stds),
+    )
 
 
 class RCNNHead(nn.Module):
@@ -160,14 +172,6 @@ class RCNNHead(nn.Module):
         return self._call_impl(features, boxes)
 
 
-class DetOut(NamedTuple):  # TODO: decide where to put the class
-    """Output of the final detections from RCNN."""
-
-    boxes: list[torch.Tensor]  # N, 4
-    scores: list[torch.Tensor]
-    class_ids: list[torch.Tensor]
-
-
 class RoI2Det(nn.Module):
     """Post processing of RCNN results and detection generation.
 
@@ -182,7 +186,7 @@ class RoI2Det(nn.Module):
 
     def __init__(
         self,
-        box_encoder: BoxEncoder2D,
+        box_decoder: None | DeltaXYWHBBoxDecoder = None,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
@@ -190,8 +194,9 @@ class RoI2Det(nn.Module):
         """Creates an instance of the class.
 
         Args:
-            box_encoder (BoxEncoder2D): Decodes regression parameters to
-                detected boxes.
+            box_decoder (DeltaXYWHBBoxDecoder, optional): Decodes regression
+                parameters to detected boxes. Defaults to None.
+                if None, it will use the default decoder.
             score_threshold (float, optional): Minimum score of a detection.
                 Defaults to 0.05.
             iou_threshold (float, optional): IoU threshold of NMS
@@ -200,7 +205,10 @@ class RoI2Det(nn.Module):
                 image. Defaults to 100.
         """
         super().__init__()
-        self.bbox_coder = box_encoder
+        if box_decoder is None:
+            _, self.box_decoder = get_default_rcnn_box_codec()
+        else:
+            self.box_decoder = box_decoder
         self.score_threshold = score_threshold
         self.max_per_img = max_per_img
         self.iou_threshold = iou_threshold
@@ -236,7 +244,7 @@ class RoI2Det(nn.Module):
         ):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = bbox_clip(
-                self.bbox_coder.decode(boxs[:, :4], reg_out).view(-1, 4),
+                self.box_decoder(boxs[:, :4], reg_out).view(-1, 4),
                 image_hw,
             ).view(reg_out.shape)
             det_bbox, det_scores, det_label, _ = multiclass_nms(
@@ -291,13 +299,13 @@ class RCNNLoss(nn.Module):
     """
 
     def __init__(
-        self, box_encoder: BoxEncoder2D, num_classes: int = 80
+        self, box_encoder: DeltaXYWHBBoxEncoder, num_classes: int = 80
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            box_encoder (BoxEncoder2D): Decodes box regression parameters into
-                detected boxes.
+            box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression
+                parameters into detected boxes.
             num_classes (int, optional): number of object categories. Defaults
                 to 80.
         """
@@ -341,7 +349,7 @@ class RCNNLoss(nn.Module):
             pos_target_classes = target_classes[pos_mask]
             labels[:num_pos] = pos_target_classes
             label_weights[:num_pos] = 1.0
-            pos_box_targets = self.box_encoder.encode(
+            pos_box_targets = self.box_encoder(
                 boxes[pos_mask], pos_target_boxes
             )
             box_targets[:num_pos, :] = pos_box_targets

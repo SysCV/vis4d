@@ -3,7 +3,7 @@
 import torch
 
 from tests.util import generate_features
-from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.retinanet import (
     Dense2Det,
     RetinaNetHead,
@@ -35,7 +35,7 @@ def test_dense2det():
     batch_size, num_classes, wh = 2, 5, 128
     max_h, max_w = wh * 4, wh * 4
     dense2det = Dense2Det(
-        get_default_anchor_generator(), DeltaXYWHBBoxEncoder()
+        get_default_anchor_generator(), DeltaXYWHBBoxDecoder()
     )
     test_cls = generate_features(num_classes * 9, wh, wh, 5, batch_size)
     test_reg = generate_features(4 * 9, wh, wh, 5, batch_size)

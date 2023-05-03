@@ -1,47 +1,12 @@
 """Vis4D optimizer."""
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
-from typing import Protocol
+from collections.abc import Callable
 
 from torch import nn, optim
 
+from vis4d.config.util import ConfigDict, instantiate_classes
 from vis4d.optim.warmup import BaseLRWarmup
-
-
-class OptimizerBuilder(Protocol):
-    """Protocol for optimizer builder."""
-
-    # not sure why this is necessary by mypy complains missing __name__ without
-    __name__: str = "OptimizerBuilder"
-
-    def __call__(self, params: Iterator[nn.Parameter]) -> optim.Optimizer:
-        """Returns the optimizer for the desired parameters.
-
-        Args:
-            params: The parameters that will be optimized.
-
-        Returns:
-            The optimizer.
-        """
-
-
-class LRSchedulerBuilder(Protocol):
-    """Protocol for LR scheduler builder."""
-
-    __name__: str = "LRSchedulerBuilder"
-
-    def __call__(
-        self, optimizer: optim.Optimizer
-    ) -> optim.lr_scheduler._LRScheduler:
-        """Returns the scheduler for the desired optimizer.
-
-        Args:
-            optimizer: The optimizer.
-
-        Returns:
-            The LR Scheduler.
-        """
 
 
 class Optimizer:
@@ -53,8 +18,8 @@ class Optimizer:
 
     def __init__(
         self,
-        optimizer_cb: OptimizerBuilder,
-        lr_scheduler_cb: LRSchedulerBuilder | None = None,
+        optimizer: optim.Optimizer,
+        lr_scheduler: optim.lr_scheduler._LRScheduler | None = None,
         lr_warmup: BaseLRWarmup | None = None,
         epoch_based_lr: bool = False,
         epoch_based_warmup: bool = False,
@@ -62,10 +27,9 @@ class Optimizer:
         """Creates an instance of the class.
 
         Args:
-            optimizer_cb (OptimizerBuilder): A callback that creates the
-                optimizer.
-            lr_scheduler_cb (LRSchedulerBuilder, optional): A callback that
-                creates the learning rate scheduler. Defaults to None.
+            optimizer (optim.Optimizer): The optimizer.
+            lr_scheduler (optim.lr_scheduler._LRScheduler, optional): The
+                learning rate scheduler. Defaults to None.
             lr_warmup (BaseLRWarmup, optional): The learning rate
                 warmup. Defaults to None.
             epoch_based_lr (bool): Whether the learning rate scheduler
@@ -78,38 +42,12 @@ class Optimizer:
                 epoch. If False, the warmup will be conducted per batch.
                 Defaults to False.
         """
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
         self._warmup = lr_warmup
-        self._optimizer_cb = optimizer_cb
-        self._lr_scheduler_cb = lr_scheduler_cb
         self.epoch_based_lr = epoch_based_lr
         self.epoch_based_warmup = epoch_based_warmup
 
-        # TODO: Maybe can refactor it, becasue we can get the model first now.
-        # In that case, we don't need delayed instantiator.
-        # These need to be set in setup() since they might depend on the model
-        self.lr_scheduler: optim.lr_scheduler._LRScheduler | None = None
-        self.optimizer: None | optim.Optimizer = None
-
-    def setup(self, model: nn.Module) -> None:
-        """Setup optimizer.
-
-        This will initialize the optimizer and the learning rate scheduler.
-
-        Args:
-            model (nn.Module): The model with the corresponding weights that
-            will be optimized.
-
-        This creates the optimizer and the learning rate scheduler.
-        Note that this needs to be called before zero_grad() and step().
-        """
-        self.optimizer = self._optimizer_cb(params=model.parameters())
-        self.lr_scheduler = (
-            self._lr_scheduler_cb(optimizer=self.optimizer)
-            if self._lr_scheduler_cb is not None
-            else None
-        )
-
-        # Setup learning rate warmup
         if self._warmup is not None:
             _ = self._warmup_step(0)
 
@@ -204,18 +142,42 @@ class Optimizer:
         """
         assert self.optimizer is not None, "Optimizer was not correctly setup."
 
-        base_lr = self.optimizer.defaults.get("lr", None)
-        if base_lr is None:
-            raise ValueError(
-                "Couldn't determine base LR from optimizer defaults: "
-                f"{self.optimizer.defaults}"
-            )
-
         if self._warmup is not None and step <= self._warmup.warmup_steps:
             for g in self.optimizer.param_groups:
                 if step < self._warmup.warmup_steps:
-                    g["lr"] = self._warmup(step, base_lr)
+                    g["lr"] = self._warmup(step, g["initial_lr"])
                 else:
-                    g["lr"] = base_lr
+                    g["lr"] = g["initial_lr"]
             return False
         return True
+
+
+def set_up_optimizers(
+    optimizers_cfg: list[ConfigDict], model: nn.Module
+) -> list[Optimizer]:
+    """Set up optimizers."""
+    optimizers = []
+    for optim_cfg in optimizers_cfg:
+        optimizer = instantiate_classes(
+            optim_cfg.optimizer, params=model.parameters()
+        )
+        lr_scheduler = (
+            instantiate_classes(optim_cfg.lr_scheduler, optimizer=optimizer)
+            if optim_cfg.lr_scheduler is not None
+            else None
+        )
+        lr_warmup = (
+            instantiate_classes(optim_cfg.lr_warmup)
+            if optim_cfg.lr_warmup is not None
+            else None
+        )
+        optimizers.append(
+            Optimizer(
+                optimizer=optimizer,
+                lr_scheduler=lr_scheduler,
+                lr_warmup=lr_warmup,
+                epoch_based_lr=optim_cfg.epoch_based_lr,
+                epoch_based_warmup=optim_cfg.epoch_based_warmup,
+            )
+        )
+    return optimizers

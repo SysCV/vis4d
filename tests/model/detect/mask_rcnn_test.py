@@ -5,9 +5,9 @@ import torch
 from torch import optim
 
 from tests.util import get_test_data, get_test_file
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.model.detect.mask_rcnn import (
     REV_KEYS,
@@ -19,9 +19,10 @@ from vis4d.op.detect.rcnn import (
     MaskRCNNHeadLoss,
     RCNNLoss,
     SampledMaskLoss,
+    get_default_rcnn_box_codec,
     positive_mask_sampler,
 )
-from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rpn import RPNLoss, get_default_rpn_box_codec
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 
@@ -83,12 +84,17 @@ class MaskRCNNTest(unittest.TestCase):
         """Test Mask RCNN training."""
         mask_rcnn = MaskRCNN(num_classes=80)
 
+        rpn_box_encoder, _ = get_default_rpn_box_codec()
         rpn_loss = RPNLoss(
-            mask_rcnn.faster_rcnn_heads.anchor_generator,
-            mask_rcnn.faster_rcnn_heads.rpn_box_encoder,
+            mask_rcnn.faster_rcnn_heads.rpn2roi.anchor_generator,
+            rpn_box_encoder,
         )
-        rcnn_loss = RCNNLoss(mask_rcnn.faster_rcnn_heads.rcnn_box_encoder)
+
+        rcnn_box_encoder, _ = get_default_rcnn_box_codec()
+        rcnn_loss = RCNNLoss(rcnn_box_encoder)
+
         mask_loss = SampledMaskLoss(positive_mask_sampler, MaskRCNNHeadLoss())
+
         mask_rcnn_loss = WeightedMultiLoss(
             [
                 {"loss": rpn_loss, "weight": 1.0},

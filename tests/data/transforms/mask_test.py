@@ -2,14 +2,14 @@
 import numpy as np
 
 from vis4d.data.transforms.mask import (
-    ConvertInstanceMaskToSegmentationMask,
+    ConvertInstanceMaskToSegMask,
     RemappingCategories,
 )
 
 
 def test_convert_ins2seg_mask():
     """Test case for convert instance mask to segmentation mask."""
-    transform = ConvertInstanceMaskToSegmentationMask()
+    transform = ConvertInstanceMaskToSegMask()
     classes = np.array([1, 2, 3], dtype=np.int32)
     masks = np.array(
         [

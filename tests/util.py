@@ -106,6 +106,49 @@ def generate_features(
     return features_list
 
 
+def generate_features_determ(
+    channels: int,
+    init_height: int,
+    init_width: int,
+    num_features: int,
+    batch_size: int = 1,
+    double_channels: bool = False,
+) -> list[torch.Tensor]:
+    """Create a deterministic list of features maps with decreasing size.
+
+    Uses torch.arange instead of torch.rand so the final features will be
+    fixed no matter the randomness.
+
+    Args:
+        channels (int): Number of feature channels (C).
+        init_height (int): Target feature map height (h).
+        init_width (int): Target feature map width (w).
+        num_features (int): Number of features maps.
+        batch_size (int, optional): Batch size (B)
+        double_channels (bool, optional): If channels should be doubled for
+                                          each feature map.
+
+    Returns:
+        list[torch.Tensor]: List containing feature tensors
+                            shaped [B, C', h/(2^i), w/(2^i)], where i is
+                            the position in de list and C' is either C or
+                            C*(2^i) depending if double_channels is true
+    """
+    features_list = []
+    channel_factor = 1
+    for i in range(num_features):
+        channel = channels * channel_factor
+        height, width = init_height // (2**i), init_width // (2**i)
+        dims = [batch_size, channel, height, width]
+        features_list.append(
+            torch.arange(np.prod(dims)).reshape(*dims) / (np.prod(dims))
+        )
+        if double_channels:
+            channel_factor *= 2
+
+    return features_list
+
+
 def generate_boxes(
     height: int,
     width: int,
@@ -164,13 +207,13 @@ def generate_boxes(
     )
 
 
-def generate_masks(
+def generate_instance_masks(
     height: int,
     width: int,
     num_masks: int,
     batch_size: int = 1,
 ) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor]]:
-    """Generate random semantic masks.
+    """Generate random instance masks.
 
     Args:
         height (int): Image height
@@ -193,6 +236,30 @@ def generate_masks(
         [torch.rand(num_masks)] * batch_size,
         [torch.arange(num_masks)] * batch_size,
     )
+
+
+def generate_semantic_masks(
+    height: int,
+    width: int,
+    num_classes: int,
+    batch_size: int = 1,
+) -> list[torch.Tensor]:
+    """Generate random semantic masks.
+
+    Args:
+        height (int): Image height
+        width (int): Image width
+        num_classes (int): Number of classes
+        batch_size (int, optional): Batch size
+
+    Returns:
+        list[torch.Tensor]: [masks]
+    """
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    rand_mask = torch.randint(0, num_classes, (height, width))
+    torch.random.set_rng_state(state)
+    return [rand_mask] * batch_size
 
 
 def isclose_on_all_indices_tensor(

@@ -194,6 +194,19 @@ def nhw_to_hwc_mask(
     return hwc_mask
 
 
+def clip_mask(mask: Tensor, target_shape: tuple[int, int]) -> Tensor:
+    """Clip mask.
+
+    Args:
+        mask (Tensor): Mask with shape [C, H, W].
+        target_shape (tuple[int, int]): Target shape (Ht, Wt).
+
+    Returns:
+        Tensor: Clipped mask with shape [C, Ht, Wt].
+    """
+    return mask[:, : target_shape[0], : target_shape[1]]
+
+
 def postprocess_segms(
     segms: Tensor,
     images_hw: list[tuple[int, int]],

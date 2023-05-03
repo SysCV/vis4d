@@ -14,6 +14,7 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
+from vis4d.common import ArgsType
 from vis4d.common.distributed import (
     broadcast,
     get_local_rank,
@@ -24,20 +25,18 @@ from vis4d.common.logging import _info, rank_zero_info, setup_logger
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.engine.opt import set_up_optimizers
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 
-# Currently this does not allow to load multpile config files.
+# TODO: Currently this does not allow to load multpile config files.
 # Would be nice to extend functionality to chain multiple config files using
 # e.g. --config=model_1.py --config=loader_args.py
 # or --config=my_config.py --config.train_dl=different_dl.py
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
-_MODE = flags.DEFINE_string(
-    "mode", default="train", help="Choice of [train, test]"
-)
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
@@ -66,9 +65,7 @@ def ddp_setup(
         f"GLOBAL_RANK: {global_rank}, MEMBER: {global_rank + 1}/{world_size}"
     )
     init_process_group(
-        torch_distributed_backend,
-        rank=global_rank,
-        world_size=world_size,
+        torch_distributed_backend, rank=global_rank, world_size=world_size
     )
 
     # On rank=0 let everyone know training is starting
@@ -88,17 +85,17 @@ def ddp_setup(
     _info(f"LOCAL_RANK: {local_rank} - CUDA_VISIBLE_DEVICES: [{devices}]")
 
 
-def main(  # type:ignore # pylint: disable=unused-argument
-    *args, **kwargs
-) -> None:
+def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
     >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    mode = argv[1]
+    assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config = _CONFIG.value
-    config.n_gpus = _GPUS.value
+    num_gpus = _GPUS.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -120,7 +117,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)
     model = instantiate_classes(config.model)
-    optimizers = instantiate_classes(config.optimizers)
+    optimizers = set_up_optimizers(config.optimizers, model)
     loss = instantiate_classes(config.loss)
 
     if "shared_callbacks" in config:
@@ -128,7 +125,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
     else:
         shared_callbacks = {}
 
-    if "train_callbacks" in config and _MODE.value == "train":
+    if "train_callbacks" in config and mode == "fit":
         train_callbacks = {
             **shared_callbacks,
             **(instantiate_classes(config.train_callbacks)),
@@ -146,24 +143,22 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Setup DDP & seed
     seed = config.get("seed", init_random_seed())
-    if config.n_gpus > 1:
+    if num_gpus > 1:
         ddp_setup(slurm=_SLURM.value)
 
         # broadcast seed to all processes
         seed = broadcast(seed)
 
     # Setup Dataloaders & seed
-    if _MODE.value == "train":
+    if mode == "fit":
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
 
-    test_dataloader = instantiate_classes(
-        config.data.test_dataloader
-    ).values()[0]
+    test_dataloader = instantiate_classes(config.data.test_dataloader)
 
     # Setup Model
-    if config.n_gpus == 0:
+    if num_gpus == 0:
         device = torch.device("cpu")
     else:
         rank = get_local_rank()
@@ -171,7 +166,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     model.to(device)
 
-    if config.n_gpus > 1:
+    if num_gpus > 1:
         model = DDP(  # pylint: disable=redefined-variable-type
             model, device_ids=[rank]
         )
@@ -203,20 +198,19 @@ def main(  # type:ignore # pylint: disable=unused-argument
         # ):
         #     train(config.value)
         pass
-    elif _MODE.value == "train":
+    elif mode == "fit":
         trainer = Trainer(
             num_epochs=config.params.num_epochs,
-            log_step=1,
             dataloaders=train_dataloader,
             data_connector=data_connector,
             train_callbacks=train_callbacks,
         )
 
         trainer.train(model, optimizers, loss, tester)
-    elif _MODE.value == "test":
+    elif mode == "test":
         tester.test(model)
 
-    if config.n_gpus > 1:
+    if num_gpus > 1:
         destroy_process_group()
 
 

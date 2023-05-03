@@ -143,7 +143,7 @@ class COCO(Dataset, CacheMappingMixin):
         K.boxes2d,
         K.boxes2d_classes,
         K.instance_masks,
-        K.segmentation_masks,
+        K.seg_masks,
     ]
 
     def __init__(
@@ -193,7 +193,7 @@ class COCO(Dataset, CacheMappingMixin):
             K.boxes2d_classes in keys_to_load
         )
         self.with_masks = K.instance_masks in keys_to_load
-        self.with_sem_masks = K.segmentation_masks in keys_to_load
+        self.with_sem_masks = K.seg_masks in keys_to_load
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -201,7 +201,8 @@ class COCO(Dataset, CacheMappingMixin):
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats}), "
+            f"remove_empty={self.remove_empty}"
         )
 
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
@@ -295,8 +296,8 @@ class COCO(Dataset, CacheMappingMixin):
                         # RLE
                         rle = mask_ann
                     masks.append(maskUtils.decode(rle))
-                else:
-                    masks.append(np.empty((img_h, img_w)))  # pragma: no cover
+                else:  # pragma: no cover
+                    masks.append(np.empty((img_h, img_w), dtype=np.uint8))
             if not boxes:  # pragma: no cover
                 box_tensor = np.empty((0, 4), dtype=np.float32)
                 mask_tensor = np.empty((0, img_h, img_w), dtype=np.uint8)
@@ -318,6 +319,6 @@ class COCO(Dataset, CacheMappingMixin):
                 ).max(axis=0)
                 seg_masks = seg_masks.astype(np.int64)
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
-                dict_data[K.segmentation_masks] = seg_masks[None]
+                dict_data[K.seg_masks] = seg_masks[None]
 
         return dict_data
