@@ -9,16 +9,18 @@ from vis4d.engine.connectors import DataConnector
 class TestLoggingCallback(unittest.TestCase):
     """Test cases for callback functions."""
 
-    callback = LoggingCallback(refresh_rate=1)
+    def setUp(self) -> None:
+        """Setup callback."""
+        self.callback = LoggingCallback(refresh_rate=1)
 
-    trainer_state = TrainerState(
-        current_epoch=0,
-        num_epochs=0,
-        global_step=0,
-        data_connector=DataConnector(),
-        num_train_batches=1,
-        num_test_batches=[1],
-    )
+        self.trainer_state = TrainerState(
+            current_epoch=0,
+            num_epochs=0,
+            global_step=0,
+            data_connector=DataConnector(),
+            num_train_batches=1,
+            num_test_batches=[1],
+        )
 
     def test_on_train_epoch_start(self) -> None:
         """Test on_train_epoch_start function."""

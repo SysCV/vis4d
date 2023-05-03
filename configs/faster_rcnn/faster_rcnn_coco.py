@@ -70,13 +70,9 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    # data_root = "data/coco"
-    # train_split = "train2017"
-    # test_split = "val2017"
-
-    data_root = "tests/vis4d-test-data/coco_test"
-    train_split = "train"
-    test_split = "train"
+    data_root = "data/coco"
+    train_split = "train2017"
+    test_split = "val2017"
 
     data_backend = class_config(HDF5Backend)
 
@@ -84,7 +80,7 @@ def get_config() -> ConfigDict:
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
-        # data_backend=data_backend,
+        data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )
@@ -133,15 +129,14 @@ def get_config() -> ConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_callbacks_config(config, params)
+    callbacks = get_callbacks_config(config)
 
     # Visualizer
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer),
+            visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
             save_prefix=config.output_dir,
-            save_to_disk=True,
             test_connector=CONN_BBOX_2D_VIS,
         )
     )

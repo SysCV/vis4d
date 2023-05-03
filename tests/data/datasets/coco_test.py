@@ -48,7 +48,6 @@ class COCOTest(unittest.TestCase):
         self.assertEqual(
             tuple(item.keys()),
             (
-                "coco_image_id",
                 "sample_names",
                 "images",
                 "input_hw",
@@ -58,8 +57,8 @@ class COCOTest(unittest.TestCase):
             ),
         )
 
+        self.assertEqual(item[K.sample_names], 37777)
         self.assertEqual(item[K.input_hw], [230, 352])
-        self.assertEqual(item["coco_image_id"], 37777)
 
         self.assertEqual(len(item[K.boxes2d]), 14)
         self.assertEqual(len(item[K.boxes2d_classes]), 14)
@@ -144,7 +143,6 @@ class COCOSegTest(unittest.TestCase):
         item = self.coco[0]
         item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
         assert tuple(item.keys()) == (
-            "coco_image_id",
             "sample_names",
             "images",
             "input_hw",
@@ -153,8 +151,8 @@ class COCOSegTest(unittest.TestCase):
             "seg_masks",
         )
 
+        self.assertEqual(item[K.sample_names], 37777)
         self.assertEqual(item[K.input_hw], [230, 352])
-        self.assertEqual(item["coco_image_id"], 37777)
 
         self.assertEqual(len(item[K.boxes2d_classes]), 5)
         self.assertEqual(len(item[K.instance_masks]), 5)

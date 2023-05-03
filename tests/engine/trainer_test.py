@@ -60,7 +60,9 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )
 
 
-def get_test_dataloader(datasets: Dataset) -> list[DataLoader]:
+def get_test_dataloader(
+    datasets: Dataset, batch_size: int = 1
+) -> list[DataLoader]:
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
@@ -71,7 +73,7 @@ def get_test_dataloader(datasets: Dataset) -> list[DataLoader]:
     )
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
-        datapipe, samples_per_gpu=1, workers_per_gpu=1
+        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
     )
 
 

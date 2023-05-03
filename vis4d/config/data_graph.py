@@ -466,7 +466,7 @@ def prints_datagraph_for_config(
                  <p>-scores |                       | *scores
                             -------------------------
                           -----------------
-        <d>-coco_image_id |               | *coco_image_id
+         <d>-sample_names |               | *coco_image_id
                 <p>-boxes |               | *pred_boxes
             <p>-class_ids | COCOEvaluator | *pred_classes
                <p>-scores |               | *pred_scores

@@ -4,21 +4,12 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch.utils.data import DataLoader, Dataset
 
+from tests.engine.trainer_test import get_test_dataloader
 from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.eval.detect.coco import COCOEvaluator
-
-
-def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
-    """Get data loader for testing."""
-    datapipe = DataPipe(datasets)
-    return build_inference_dataloaders(
-        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
-    )[0]
 
 
 class TestCOCOEvaluator(unittest.TestCase):
@@ -45,16 +36,16 @@ class TestCOCOEvaluator(unittest.TestCase):
         # test gt
         dataset = COCO(
             get_test_data("coco_test"),
-            keys_to_load=(K.boxes2d, K.boxes2d_classes),
+            keys_to_load=(K.images, K.boxes2d, K.boxes2d_classes),
             split="train",
         )
-        test_loader = get_dataloader(dataset, batch_size)
+        test_loader = get_test_dataloader(dataset, batch_size)[0]
         batch = next(iter(test_loader))
         coco_eval.process(
-            batch["coco_image_id"],
-            batch["boxes2d"],
-            [torch.ones((len(b), 1)) for b in batch["boxes2d"]],
-            batch["boxes2d_classes"],
+            batch[K.sample_names],
+            batch[K.boxes2d],
+            [torch.ones((len(b), 1)) for b in batch[K.boxes2d]],
+            batch[K.boxes2d_classes],
         )
         score_dict, log_str = coco_eval.evaluate("COCO_AP")
         for metric in coco_metrics:

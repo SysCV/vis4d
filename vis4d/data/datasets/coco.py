@@ -262,13 +262,9 @@ class COCO(Dataset, CacheMappingMixin):
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
 
-        dict_data: DictData = {
-            "coco_image_id": data["img"]["id"],
-        }
+        dict_data: DictData = {}
 
         if K.images in self.keys_to_load:
-            dict_data[K.sample_names] = data["img"]["file_name"].split(".")[0]
-
             img_path = os.path.join(
                 self.data_root, self.split, data["img"]["file_name"]
             )
@@ -278,6 +274,8 @@ class COCO(Dataset, CacheMappingMixin):
             assert (img_h, img_w) == img_.shape[
                 1:3
             ], "Image's shape doesn't match annotation."
+
+            dict_data[K.sample_names] = data["img"]["id"]
             dict_data[K.images] = img_
             dict_data[K.input_hw] = [img_h, img_w]
 
