@@ -47,7 +47,7 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         """Init class."""
         self.callback = callback
 
-    def setup(
+    def setup(  # pylint: disable=unused-argument
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str
     ) -> None:
         """Setup callback."""
