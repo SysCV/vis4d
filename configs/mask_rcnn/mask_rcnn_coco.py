@@ -4,11 +4,6 @@ from __future__ import annotations
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
-from vis4d.common.callbacks import (
-    CheckpointCallback,
-    EvaluatorCallback,
-    VisualizerCallback,
-)
 from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
@@ -27,6 +22,11 @@ from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.default.sweep import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
+from vis4d.engine.callbacks import (
+    CheckpointCallback,
+    EvaluatorCallback,
+    VisualizerCallback,
+)
 from vis4d.engine.connectors import (
     DataConnector,
     data_key,
@@ -34,7 +34,7 @@ from vis4d.engine.connectors import (
     remap_pred_keys,
 )
 from vis4d.engine.loss import WeightedMultiLoss
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.model.detect.mask_rcnn import MaskRCNN
 from vis4d.op.detect.faster_rcnn import (
     get_default_anchor_generator,

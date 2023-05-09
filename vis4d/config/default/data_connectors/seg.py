@@ -20,8 +20,3 @@ CONN_SEG_EVAL = {
     "prediction": pred_key("masks"),
     "groundtruth": data_key(K.seg_masks),
 }
-
-CONN_BDD100K_SEG_EVAL = {
-    "data_names": data_key("name"),
-    "masks_list": pred_key("masks"),
-}

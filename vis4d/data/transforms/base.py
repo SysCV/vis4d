@@ -99,6 +99,7 @@ class Transform:
 
             def _transform_fn(data: DictData) -> DictData:
                 in_data = []
+                opt_in_data = {}
                 for key in self_.in_keys:
                     try:
                         # Optionally allow the function to get the full data
@@ -115,7 +116,7 @@ class Transform:
                         )
                         return data
 
-                result = self_(*in_data)
+                result = self_(*in_data, **opt_in_data)
                 if len(self_.out_keys) == 1:
                     if self_.out_keys[0] == "data":
                         return result

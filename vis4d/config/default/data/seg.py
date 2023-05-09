@@ -1,4 +1,4 @@
-"""Default data loading config for object detection."""
+"""Default data loading config for segmentation."""
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -11,10 +11,10 @@ from vis4d.data.transforms import RandomApply, compose, flip, normalize, resize
 
 
 def seg_augmentations() -> Iterable[ConfigDict]:
-    """Returns the default image augmentations used for detection tasks.
+    """Returns the default image augmentations used for segmentation tasks.
 
     These augmentations consist of solely of left-right flipping the image and
-    boxes.
+    masks.
 
     Returns:
         list[ConfigDict]: List with all transformations encoded as ConfigDict.
@@ -29,13 +29,12 @@ def seg_preprocessing(
     augment_probability: float | FieldReference,
     augmentation_transforms: Iterable[ConfigDict] = seg_augmentations(),
 ) -> ConfigDict:
-    """Creates the default image preprocessing pipeling for segmentation tasks.
+    """Creates the default image preprocessing pipeline for segmentation tasks.
 
     The pipeline consists of the following:
     1. Scale image and masks to target size.
     2. Randomly apply given augmentations with the specified probability.
     3. Normalize the Image.
-
     Use this in combination with a dataset config to create a dataloader.
 
     Example:

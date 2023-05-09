@@ -5,11 +5,6 @@ import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
-from vis4d.common.callbacks import (
-    CheckpointCallback,
-    EvaluatorCallback,
-    VisualizerCallback,
-)
 from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
@@ -23,8 +18,13 @@ from vis4d.config.default.data_connectors import (
 from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
+from vis4d.engine.callbacks import (
+    CheckpointCallback,
+    EvaluatorCallback,
+    VisualizerCallback,
+)
 from vis4d.engine.connectors import DataConnector
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.model.detect.retinanet import RetinaNet
 from vis4d.op.detect.retinanet import (
     RetinaNetHeadLoss,

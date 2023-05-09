@@ -199,6 +199,74 @@ class ResizeSegMasks:
         return masks_.numpy()
 
 
+@Transform([K.depth_maps, "transforms.resize.target_shape"], K.depth_maps)
+class ResizeDepthMaps:
+    """Resize depth maps."""
+
+    def __call__(
+        self, depth_maps: NDArrayF32, target_shape: tuple[int, int]
+    ) -> NDArrayF32:
+        """Resize depth maps."""
+        depth_maps_ = torch.from_numpy(depth_maps)
+        depth_maps_ = (
+            _resize_tensor(
+                depth_maps_.float().unsqueeze(0).unsqueeze(0),
+                target_shape,
+                interpolation="bilinear",
+            )
+            .type(depth_maps_.dtype)
+            .squeeze(0)
+            .squeeze(0)
+        )
+        return depth_maps_.numpy()
+
+
+@Transform(
+    [
+        K.optical_flows,
+        "transforms.resize.target_shape",
+        "transforms.resize.scale_factor",
+    ],
+    K.optical_flows,
+)
+class ResizeOpticalFlows:
+    """Resize optical flows."""
+
+    def __init__(self, normalized_flow: bool = True):
+        """Create a ResizeOpticalFlows instance.
+
+        Args:
+            normalized_flow (bool): Whether the optical flow is normalized.
+                Defaults to True. If false, the optical flow will be scaled
+                according to the scale factor.
+        """
+        self.normalized_flow = normalized_flow
+
+    def __call__(
+        self,
+        optical_flows: NDArrayF32,
+        target_shape: tuple[int, int],
+        scale_factor: tuple[float, float],
+    ) -> NDArrayF32:
+        """Resize optical flows."""
+        optical_flows_ = torch.from_numpy(optical_flows).permute(2, 0, 1)
+        optical_flows_ = (
+            _resize_tensor(
+                optical_flows_.float().unsqueeze(0),
+                target_shape,
+                interpolation="bilinear",
+            )
+            .type(optical_flows_.dtype)
+            .squeeze(0)
+            .permute(1, 2, 0)
+        )
+        # scale optical flows
+        if not self.normalized_flow:
+            optical_flows_[:, :, 0] *= scale_factor[0]
+            optical_flows_[:, :, 1] *= scale_factor[1]
+        return optical_flows_.numpy()
+
+
 @Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
 class ResizeIntrinsics:
     """Resize Intrinsics."""

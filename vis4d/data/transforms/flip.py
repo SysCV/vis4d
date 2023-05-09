@@ -113,6 +113,71 @@ class FlipSegMasks:
         raise ValueError(f"Direction {self.direction} not known!")
 
 
+@Transform(K.depth_maps, K.depth_maps)
+class FlipDepthMaps:
+    """Flip depth map."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipDepth.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(self, depth: NDArrayF32) -> NDArrayF32:
+        """Execute flipping op.
+
+        Args:
+            depth (NDArrayF32): [H, W] array of depth.
+
+        Returns:
+            NDArrayF32: [H, W] array of flipped depth.
+        """
+        image_ = torch.from_numpy(depth)
+        if self.direction == "horizontal":
+            return image_.flip(1).numpy()
+        if self.direction == "vertical":
+            return image_.flip(0).numpy()
+        raise ValueError(f"Direction {self.direction} not known!")
+
+
+@Transform(K.optical_flows, K.optical_flows)
+class FlipOpticalFlows:
+    """Flip optical flow map."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipOpticalFlow.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(self, flow: NDArrayF32) -> NDArrayF32:
+        """Execute flipping op.
+
+        Args:
+            flow (NDArrayF32): [H, W, 2] array of optical flow.
+
+        Returns:
+            NDArrayF32: [H, W, 2] array of flipped optical flow.
+        """
+        image_ = torch.from_numpy(flow)
+        if self.direction == "horizontal":
+            image_flipped = image_.flip(1).numpy()
+            image_flipped[..., 0] *= -1
+            return image_flipped
+        if self.direction == "vertical":
+            image_flipped = image_.flip(0).numpy()
+            image_flipped[..., 1] *= -1
+            return image_flipped
+
+        raise ValueError(f"Direction {self.direction} not known!")
+
+
 def get_axis(direction: str, axis_mode: AxisMode) -> int:
     """Get axis number of certain direction given axis mode.
 

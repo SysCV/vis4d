@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytorch_lightning as pl
 
-from vis4d.common.callbacks import EvaluatorCallback
 from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.default.runtime import (
     get_generic_callback_config,
@@ -24,6 +23,7 @@ from vis4d.data.transforms.resize import (
     ResizeImage,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
