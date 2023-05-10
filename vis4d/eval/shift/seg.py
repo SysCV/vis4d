@@ -1,7 +1,7 @@
 """SHIFT segmentation evaluator."""
 from __future__ import annotations
 
-from vis4d.common.typing import NDArrayNumber
+from vis4d.common.typing import NDArrayNumber, NDArrayI64
 from vis4d.data.datasets.shift import shift_seg_ignore, shift_seg_map
 
 from ..common import SegEvaluator
@@ -24,7 +24,7 @@ class SHIFTSegEvaluator(SegEvaluator):
         """Concise representation of the dataset evaluator."""
         return "SHIFT Segmentation Evaluator"
 
-    def _prune_class(self, label: NDArrayNumber) -> NDArrayNumber:
+    def _prune_class(self, label: NDArrayI64) -> NDArrayI64:
         """Prune class labels."""
         for cls in shift_seg_ignore:
             label[label == shift_seg_map[cls]] = 255

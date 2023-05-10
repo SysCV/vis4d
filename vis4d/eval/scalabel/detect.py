@@ -22,9 +22,13 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
     METRICS_INS_SEG = "ins_seg"
     METRICS_ALL = "all"
 
-    def __init__(self, mask_threshold: float = 0.0, **kwargs) -> None:
+    def __init__(
+        self,
+        annotation_path: str,
+        mask_threshold: float = 0.0,
+    ) -> None:
         """Initialize the evaluator."""
-        super().__init__(**kwargs)
+        super().__init__(annotation_path=annotation_path)
         self.mask_threshold = mask_threshold
 
     def __repr__(self) -> str:
@@ -34,7 +38,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [self.METRICS_TRACK]
+        return [self.METRICS_DET, self.METRICS_INS_SEG]
 
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -74,7 +78,9 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
                     else str(class_id),
                     score=float(score),
                     rle=mask_to_rle(
-                        (pred_masks[i][class_id] > self.mask_threshold).astype(np.uint8)  # type: ignore # pylint: disable=line-too-long
+                        (pred_masks[i][class_id] > self.mask_threshold).astype(
+                            np.uint8
+                        )
                     )
                     if pred_masks
                     else None,

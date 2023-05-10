@@ -10,7 +10,6 @@ from collections import defaultdict
 import numpy as np
 from PIL import Image
 
-from vis4d.common import GenericFunc
 from vis4d.common.typing import GenericFunc, NDArrayNumber
 from vis4d.data.datasets.shift import shift_det_map
 from vis4d.data.io import ZipBackend

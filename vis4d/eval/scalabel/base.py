@@ -5,9 +5,10 @@ import itertools
 from collections.abc import Callable
 from typing import Any
 
+from vis4d.common.typing import MetricLogs
 from vis4d.common.imports import SCALABEL_AVAILABLE
 
-from ..base import Evaluator
+from vis4d.eval.base import Evaluator
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load
@@ -50,3 +51,13 @@ class ScalabelEvaluator(Evaluator):
     def reset(self) -> None:
         """Reset the evaluator."""
         self.frames = []
+
+    def process(  # type: ignore # pragma: no cover
+        self, *args: Any, **kwargs: Any
+    ) -> None:
+        """Process sample and update confusion matrix."""
+        raise NotImplementedError
+
+    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
+        """Evaluate the dataset."""
+        raise NotImplementedError

@@ -9,6 +9,7 @@ import itertools
 import numpy as np
 import pycocotools.mask as maskUtils
 from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable
 
 from vis4d.common import DictStrAny, GenericFunc, MetricLogs, NDArrayNumber

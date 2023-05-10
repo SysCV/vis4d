@@ -22,7 +22,7 @@ if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from scalabel.label.typing import Frame, Label
 
 
-class BDD100KTrackingEvaluator(Evaluator):
+class BDD100KTrackEvaluator(Evaluator):
     """BDD100K 2D tracking evaluation class."""
 
     inverse_track_map = {v: k for k, v in bdd100k_track_map.items()}

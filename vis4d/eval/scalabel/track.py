@@ -1,6 +1,8 @@
 """Scalabel tracking evaluator."""
 from __future__ import annotations
 
+import numpy as np
+
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import MetricLogs, NDArrayNumber
 
@@ -20,6 +22,13 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
     METRICS_TRACK = "MOT"
     METRICS_SEG_TRACK = "MOTS"
     METRICS_ALL = "all"
+
+    def __init__(
+        self, annotation_path: str, mask_threshold: float = 0.0
+    ) -> None:
+        """Initialize the evaluator."""
+        super().__init__(annotation_path=annotation_path)
+        self.mask_threshold = mask_threshold
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
@@ -42,7 +51,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
         pred_masks: list[NDArrayNumber] | None = None,
     ) -> None:
         """Process tracking results."""
-        for (
+        for i, (
             frame_id,
             sample_name,
             sequence_name,
@@ -50,14 +59,16 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
             scores,
             class_ids,
             track_ids,
-        ) in zip(
-            frame_ids,
-            sample_names,
-            sequence_names,
-            pred_boxes,
-            pred_classes,
-            pred_scores,
-            pred_track_ids,
+        ) in enumerate(
+            zip(
+                frame_ids,
+                sample_names,
+                sequence_names,
+                pred_boxes,
+                pred_classes,
+                pred_scores,
+                pred_track_ids,
+            )
         ):
             labels = []
             for box, score, class_id, track_id in zip(
@@ -72,7 +83,9 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                     score=float(score),
                     id=str(int(track_id)),
                     rle=mask_to_rle(
-                        (pred_masks[i][class_id] > self.mask_threshold).astype(np.uint8)  # type: ignore # pylint: disable=line-too-long
+                        (pred_masks[i][class_id] > self.mask_threshold).astype(
+                            np.uint8
+                        )
                     )
                     if pred_masks
                     else None,
@@ -88,12 +101,13 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
+        assert self.config is not None, "config is not set"
         if metric in [self.METRICS_TRACK, self.METRICS_ALL]:
             results = evaluate_track(
                 acc_single_video_mot,
                 gts=group_and_sort(self.gt_frames),
                 results=group_and_sort(self.frames),
-                config=self.config.scalabel,
+                config=self.config,
                 nproc=0,
             )
         elif metric in [self.METRICS_SEG_TRACK, self.METRICS_ALL]:
@@ -101,7 +115,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 acc_single_video_mots,
                 gts=group_and_sort(self.gt_frames),
                 results=group_and_sort(self.frames),
-                config=self.config.scalabel,
+                config=self.config,
                 nproc=0,
             )
         else:
