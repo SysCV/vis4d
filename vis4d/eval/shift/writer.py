@@ -10,6 +10,7 @@ from collections import defaultdict
 import numpy as np
 from PIL import Image
 
+from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import GenericFunc, NDArrayNumber
 from vis4d.data.datasets.shift import shift_det_map
 from vis4d.data.io import ZipBackend
@@ -34,15 +35,17 @@ class SHIFTWriter(Writer):
 
         Args:
             output_dir (str): Output directory.
+            submission_file (str): Submission file name. Defaults to
+                "submission.zip".
         """
-        super().__init__(output_dir, backend=ZipBackend())
+        super().__init__(backend=ZipBackend())
         assert submission_file.endswith(
             ".zip"
         ), "Submission file must be a zip file."
         self.output_path = os.path.join(output_dir, submission_file)
-        self.frames_det_2d = []
-        self.frames_det_3d = []
-        self.sample_counts: defaultdict = defaultdict(int)
+        self.frames_det_2d: list[Frame] = []
+        self.frames_det_3d: list[Frame] = []
+        self.sample_counts: defaultdict[str, int] = defaultdict(int)
 
     def _write_sem_mask(
         self, sem_mask: NDArrayNumber, sample_name: str, video_name: str
@@ -93,7 +96,7 @@ class SHIFTWriter(Writer):
         """
         raise NotImplementedError
 
-    def process(
+    def process(  # pylint: disable=arguments-differ
         self,
         frame_ids: list[int],
         sample_names: list[str],
@@ -122,7 +125,11 @@ class SHIFTWriter(Writer):
             if pred_flow is not None:
                 self._write_flow(pred_flow[i], sample_name, sequence_name)
                 self.sample_counts["flow"] += 1
-            if pred_boxes2d is not None and pred_boxes2d_classes is not None:
+            if (
+                pred_boxes2d is not None
+                and pred_boxes2d_classes is not None
+                and pred_boxes2d_scores is not None
+            ):
                 labels = []
                 for box, score, class_id in zip(
                     pred_boxes2d[i],
@@ -155,9 +162,7 @@ class SHIFTWriter(Writer):
                 self.frames_det_2d.append(frame)
                 self.sample_counts["det_2d"] += 1
 
-    def gather(  # type: ignore # pragma: no cover
-        self, gather_func: GenericFunc
-    ) -> None:
+    def gather(self, gather_func: GenericFunc) -> None:  # pragma: no cover
         """Gather variables in case of distributed setting (if needed).
 
         Args:
@@ -187,6 +192,6 @@ class SHIFTWriter(Writer):
 
         # Save the 2D detection results
         if len(self.frames_det_2d) > 0:
-            ds = Dataset(frames=self.frames_det_2d)
+            ds = Dataset(frames=self.frames_det_2d, config=None)
             ds_bytes = json.dumps(ds.dict()).encode("utf-8")
             self.backend.set(f"{self.output_path}/det_2d.json", ds_bytes)

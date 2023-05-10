@@ -31,11 +31,11 @@ class DepthEvaluator(Evaluator):
         """Initialize the optical flow evaluator.
 
         Args:
-            max_flow (float, optional): Maximum flow value. Defaults to 400.0.
-            use_degrees (bool, optional): Whether to use degrees for angular
-                error. Defaults to False.
-            scale (float, optional): Scale factor for the optical flow.
-                Defaults to 1.0.
+            min_depth (float): Minimum depth to evaluate. Defaults to 0.05.
+            max_depth (float): Maximum depth to evaluate. Defaults to 80.0.
+            scale (float): Scale factor for depth. Defaults to 1.0.
+            epsilon (float): Small value to avoid logarithms of small values. 
+                Defaults to 1e-3.
         """
         super().__init__()
         self.min_depth = min_depth

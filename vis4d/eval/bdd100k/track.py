@@ -1,4 +1,4 @@
-"""Scalabel tracking evaluator."""
+"""BDD100K tracking evaluator."""
 from __future__ import annotations
 
 import itertools

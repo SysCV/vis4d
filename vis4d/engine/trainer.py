@@ -28,6 +28,7 @@ class Trainer:
         epoch: int = 0,
         global_step: int = 0,
         check_val_every_n_epoch: int = 1,
+        tta_mode: str | None = None,
     ) -> None:
         """Initialize the trainer.
 
@@ -47,10 +48,23 @@ class Trainer:
             global_step (int, optional): Starting step. Defaults to 0.
             check_val_every_n_epoch (int, optional): Interval for evaluating
                 the model during training. Defaults to 1.
+            tta_mode (str | None, optional): Test time adaptation mode. If
+                None, no test time adaptation is performed. Defaults to None.
+                Supported modes are: "sample" and "sequence".
+                (1) Sample mode: perform test time adaptation by taking each
+                    sample individually and averaging the predictions.
+                (2) Sequence mode: perform test time adaptation by taking one
+                    sequence of samples, then resetting the weights of the
+                    model to the initial weights and taking the next sequence.
         """
+        assert tta_mode in {None, "sample", "sequence"}, (
+            f"tta_mode must be one of None, 'sample', 'sequence', "
+            f"but was {tta_mode}."
+        )
         self.device = device
         self.num_epochs = num_epochs
         self.check_val_every_n_epoch = check_val_every_n_epoch
+        self.tta_mode = tta_mode
         self.data_connector = data_connector
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
@@ -176,6 +190,9 @@ class Trainer:
         assert self.test_dataloader is not None, "No test dataloader."
 
         model.eval()
+
+        if self.tta_mode is None:
+            model_ = model
 
         # run callbacks on test epoch begin
         for callback in self.callbacks:
