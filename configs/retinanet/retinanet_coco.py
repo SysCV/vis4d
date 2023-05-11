@@ -24,7 +24,7 @@ from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.engine.connectors import DataConnector
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.model.detect.retinanet import RetinaNet
 from vis4d.op.detect.retinanet import (
     RetinaNetHeadLoss,

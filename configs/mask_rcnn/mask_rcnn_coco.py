@@ -34,7 +34,7 @@ from vis4d.engine.connectors import (
     remap_pred_keys,
 )
 from vis4d.engine.loss import WeightedMultiLoss
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.model.detect.mask_rcnn import MaskRCNN
 from vis4d.op.detect.faster_rcnn import (
     get_default_anchor_generator,

@@ -15,7 +15,7 @@ def apply_garg_crop(mask: NDArrayNumber) -> NDArrayNumber:
         np.array: Cropped mask, in shape (..., H', W').
     """
     # crop used by Garg ECCV16
-    h, w = mask.shape
+    h, w = mask.shape[-2:]
     crop = np.array(
         [0.40810811 * h, 0.99189189 * h, 0.03594771 * w, 0.96405229 * w]
     ).astype(np.int32)
@@ -32,7 +32,7 @@ def apply_eigen_crop(mask: NDArrayNumber) -> NDArrayNumber:
         np.array: Cropped mask, in shape (N, H', W').
     """
     # https://github.com/mrharicot/monodepth/utils/evaluate_kitti.py
-    h, w = mask.shape
+    h, w = mask.shape[-2:]
     crop = np.array(
         [0.3324324 * h, 0.91351351 * h, 0.0359477 * w, 0.96405229 * w]
     ).astype(np.int32)

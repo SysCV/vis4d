@@ -15,6 +15,7 @@ class SHIFTSegEvaluator(SegEvaluator):
     def __init__(self, ignore_classes_as_cityscapes: bool = True) -> None:
         """Initialize the evaluator."""
         super().__init__(
+            num_classes=23,
             class_to_ignore=255,
             class_mapping=self.inverse_seg_map,
         )

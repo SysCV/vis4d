@@ -147,7 +147,7 @@ class SegEvaluator(Evaluator):
             fp = np.sum(self._confusion_matrix, axis=0) - tp
             fn = np.sum(self._confusion_matrix, axis=1) - tp
             iou = tp / (tp + fn + fp) * 100
-            m_iou = np.mean(iou)
+            m_iou = np.nanmean(iou)
 
             iou_class_str = ", ".join(
                 f"{self._get_class_name_for_idx(idx)}: ({d:.3f}%)"

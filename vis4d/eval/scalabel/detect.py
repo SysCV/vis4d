@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import MetricLogs, NDArrayNumber
 
@@ -68,17 +69,27 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
                 pred_scores,
             )
         ):
+            boxes = array_to_numpy(boxes, n_dims=None, dtype=np.float32)
+            class_ids = array_to_numpy(class_ids, n_dims=None, dtype=np.int64)
+            scores = array_to_numpy(scores, n_dims=None, dtype=np.float32)
+            if pred_masks:
+                masks = array_to_numpy(
+                    pred_masks[i], n_dims=None, dtype=np.float32
+                )
             labels = []
-            for box, score, class_id in zip(boxes, scores, class_ids):
+            for label_id, (box, score, class_id) in enumerate(
+                zip(boxes, scores, class_ids)
+            ):
                 box2d = xyxy_to_box2d(*box.tolist())
                 label = Label(
+                    id=str(label_id),
                     box2d=box2d,
                     category=self.inverse_cat_map[int(class_id)]
                     if self.inverse_cat_map != {}
                     else str(class_id),
                     score=float(score),
                     rle=mask_to_rle(
-                        (pred_masks[i][class_id] > self.mask_threshold).astype(
+                        (masks[class_id] > self.mask_threshold).astype(
                             np.uint8
                         )
                     )
