@@ -61,9 +61,11 @@ class EvaluatorCallback(Callback):
         dataloader_idx: int = 0,
     ) -> None:
         """Hook to run at the end of a testing batch."""
-        self.evaluator.process(
+        self.evaluator.process_on_batch_end(
             **self.get_data_connector_results(outputs, batch, train=False)
         )
+        if self.save_predictions:
+            self.evaluator.save_on_batch_end(self.output_dir)
 
     def on_test_epoch_end(
         self, trainer_state: TrainerState, model: nn.Module
@@ -82,17 +84,20 @@ class EvaluatorCallback(Callback):
         """Evaluate the performance after processing all input/output pairs."""
         rank_zero_info("Running evaluator %s...", str(self.evaluator))
 
+        self.evaluator.process_on_epoch_end()
+        self.evaluator.save_on_epoch_end(output_dir)
+
         for metric in self.evaluator.metrics:
             # Save output
             if self.save_predictions:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
-                self.evaluator.save(metric, output_dir)
+                
 
             # Evaluate metric
             log_dict, log_str = self.evaluator.evaluate(metric)
             for k, v in log_dict.items():
-                rank_zero_info("%s: %.3f", k, v)
-            rank_zero_info("Showing results for %s", metric)
+                rank_zero_info("%s: %.4f", k, v)
+            rank_zero_info("Showing evaluation results for %s", metric)
             rank_zero_info(log_str)
         return log_dict
