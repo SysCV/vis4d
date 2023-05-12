@@ -3,6 +3,7 @@
 This backends loads data from and saves data to the local hard drive.
 """
 import os
+from typing import Literal
 
 from .base import DataBackend
 
@@ -43,14 +44,20 @@ class FileBackend(DataBackend):
         """
         return os.path.exists(filepath)
 
-    def set(self, filepath: str, content: bytes) -> None:
+    def set(
+        self, filepath: str, content: bytes, mode: Literal["w", "a"] = "w"
+    ) -> None:
         """Write the file content to disk.
 
         Args:
             filepath (str): Path to file.
             content (bytes): Content to write in bytes.
+            mode (Literal["w", "a"], optional): Overwrite or append mode.
+                Defaults to "w".
         """
-        with open(filepath, "wb") as f:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        mode_binary: Literal["wb", "ab"] = "wb" if mode == "w" else "ab"
+        with open(filepath, mode_binary) as f:
             f.write(content)
 
     def get(self, filepath: str) -> bytes:
@@ -70,3 +77,6 @@ class FileBackend(DataBackend):
         with open(filepath, "rb") as f:
             value_buf = f.read()
         return value_buf
+
+    def close(self) -> None:
+        """No need to close manually."""

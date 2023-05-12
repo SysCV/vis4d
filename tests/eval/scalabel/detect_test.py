@@ -39,7 +39,7 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
         )
         scalabel_eval = ScalabelDetectEvaluator(annotation_path=annotations)
         assert str(scalabel_eval) == "Scalabel Tracking Evaluator"
-        assert scalabel_eval.metrics == ["det", "ins_seg"]
+        assert scalabel_eval.metrics == ["Det", "InsSeg"]
 
         # test gt
         dataset = SHIFT(data_root=get_test_data("shift_test"), split="val")
@@ -64,8 +64,10 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
                 )
             )
 
-        _, log_str = scalabel_eval.evaluate("det")
+        _, log_str = scalabel_eval.evaluate("Det")
         assert isinstance(log_str, str)
+        assert log_str.count("\n") == 12
 
-        _, log_str = scalabel_eval.evaluate("ins_seg")
+        _, log_str = scalabel_eval.evaluate("InsSeg")
         assert isinstance(log_str, str)
+        assert log_str.count("\n") == 12

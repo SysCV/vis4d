@@ -11,8 +11,9 @@ import numpy as np
 from PIL import Image
 
 from vis4d.common import MetricLogs
+from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import GenericFunc, NDArrayNumber
+from vis4d.common.typing import ArrayLike, GenericFunc, NDArrayNumber
 from vis4d.data.datasets.shift import shift_det_map
 from vis4d.data.io import DataBackend, ZipBackend
 from vis4d.eval.base import Evaluator
@@ -65,6 +66,7 @@ class SHIFTOnlineEvaluator(Evaluator):
         self.backend.set(
             f"{self.output_path}/semseg/{video_name}/{sample_name}",
             image_bytes.getvalue(),
+            mode="w",
         )
 
     def _write_depth(
@@ -78,12 +80,13 @@ class SHIFTOnlineEvaluator(Evaluator):
             video_name (str): Video name.
         """
         depth_map = np.clip(depth_map / 80.0 * 255.0, 0, 255)
-        image = Image.fromarray(depth_map.astype("uint8"), mode="RGB")
+        image = Image.fromarray(depth_map.astype("uint8"), mode="L")
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
         self.backend.set(
             f"{self.output_path}/depth/{video_name}/{sample_name}",
             image_bytes.getvalue(),
+            mode="w",
         )
 
     def _write_flow(
@@ -98,34 +101,77 @@ class SHIFTOnlineEvaluator(Evaluator):
         """
         raise NotImplementedError
 
-    def process_batch(  # pylint: disable=arguments-differ # type: ignore
+    def process_batch(  # type: ignore  # pylint: disable=arguments-differ
         self,
         frame_ids: list[int],
         sample_names: list[str],
         sequence_names: list[str],
-        pred_sem_mask: list[NDArrayNumber] | None = None,
-        pred_depth: list[NDArrayNumber] | None = None,
-        pred_flow: list[NDArrayNumber] | None = None,
-        pred_boxes2d: list[NDArrayNumber] | None = None,
-        pred_boxes2d_classes: list[NDArrayNumber] | None = None,
-        pred_boxes2d_scores: list[NDArrayNumber] | None = None,
-        pred_boxes2d_track_ids: list[NDArrayNumber] | None = None,
-        pred_instance_mask: list[NDArrayNumber] | None = None,
+        pred_sem_mask: list[ArrayLike] | None = None,
+        pred_depth: list[ArrayLike] | None = None,
+        pred_flow: list[ArrayLike] | None = None,
+        pred_boxes2d: list[ArrayLike] | None = None,
+        pred_boxes2d_classes: list[ArrayLike] | None = None,
+        pred_boxes2d_scores: list[ArrayLike] | None = None,
+        pred_boxes2d_track_ids: list[ArrayLike] | None = None,
+        pred_instance_masks: list[ArrayLike] | None = None,
     ) -> None:
-        """Process SHIFT results."""
+        """Process SHIFT results.
+
+        You can omit some of the predictions if they are not used.
+
+        Args:
+            frame_ids (list[int]): Frame IDs.
+            sample_names (list[str]): Sample names.
+            sequence_names (list[str]): Sequence names.
+            pred_sem_mask (list[ArrayLike], optional): Predicted semantic
+                masks, each in shape (C, H, W) or (H, W). Defaults to None.
+            pred_depth (list[ArrayLike], optional): Predicted depth maps,
+                each in shape (H, W), with meter unit. Defaults to None.
+            pred_flow (list[ArrayLike], optional): Predicted optical flows,
+                each in shape (H, W, 2). Defaults to None.
+            pred_boxes2d (list[ArrayLike], optional): Predicted 2D boxes,
+                each in shape (N, 4). Defaults to None.
+            pred_boxes2d_classes (list[ArrayLike], optional): Predicted
+                2D box classes, each in shape (N,). Defaults to None.
+            pred_boxes2d_scores (list[ArrayLike], optional): Predicted
+                2D box scores, each in shape (N,). Defaults to None.
+            pred_boxes2d_track_ids (list[ArrayLike], optional): Predicted
+                2D box track IDs, each in shape (N,). Defaults to None.
+            pred_instance_masks (list[ArrayLike], optional): Predicted
+                instance masks, each in shape (N, H, W). Defaults to None.
+        """
         for i, (frame_id, sample_name, sequence_name) in enumerate(
             zip(frame_ids, sample_names, sequence_names)
         ):
             if pred_sem_mask is not None:
-                self._write_sem_mask(
-                    pred_sem_mask[i], sample_name, sequence_name
+                sem_mask_ = array_to_numpy(
+                    pred_sem_mask[i],
+                    n_dims=None,
+                    dtype=np.float32,
                 )
+                if len(sem_mask_.shape) == 3:
+                    sem_mask = sem_mask_.argmax(axis=0)
+                else:
+                    sem_mask = sem_mask_.astype(np.uint8)
+                semseg_filename = sample_name.replace(".jpg", ".png").replace(
+                    "img", "semseg"
+                )
+                self._write_sem_mask(sem_mask, semseg_filename, sequence_name)
                 self.sample_counts["semseg"] += 1
             if pred_depth is not None:
-                self._write_depth(pred_depth[i], sample_name, sequence_name)
+                depth = array_to_numpy(
+                    pred_depth[i], n_dims=None, dtype=np.float32
+                )
+                depth_filename = sample_name.replace(".jpg", ".png").replace(
+                    "img", "depth"
+                )
+                self._write_depth(depth, depth_filename, sequence_name)
                 self.sample_counts["depth"] += 1
             if pred_flow is not None:
-                self._write_flow(pred_flow[i], sample_name, sequence_name)
+                flow = array_to_numpy(
+                    pred_flow[i], n_dims=None, dtype=np.float32
+                )
+                self._write_flow(flow, sample_name, sequence_name)
                 self.sample_counts["flow"] += 1
             if (
                 pred_boxes2d is not None
@@ -133,6 +179,16 @@ class SHIFTOnlineEvaluator(Evaluator):
                 and pred_boxes2d_scores is not None
             ):
                 labels = []
+                if pred_instance_masks:
+                    masks = array_to_numpy(
+                        pred_instance_masks[i], n_dims=None, dtype=np.float32
+                    )
+                if pred_boxes2d_track_ids:
+                    track_ids = array_to_numpy(
+                        pred_boxes2d_track_ids[i],
+                        n_dims=None,
+                        dtype=np.int64,
+                    )
                 for box, score, class_id in zip(
                     pred_boxes2d[i],
                     pred_boxes2d_scores[i],
@@ -146,13 +202,11 @@ class SHIFTOnlineEvaluator(Evaluator):
                         else str(class_id),
                         score=float(score),
                         rle=mask_to_rle(
-                            (pred_instance_mask[i][class_id] > 0.0).astype(
-                                np.uint8
-                            )  # pylint: disable=line-too-long
+                            (masks[class_id] > 0.0).astype(np.uint8)
                         )
-                        if pred_instance_mask
+                        if pred_instance_masks
                         else None,
-                        id=str(int(pred_boxes2d_track_ids[i][0]))
+                        id=str(int(track_ids[0]))
                         if pred_boxes2d_track_ids
                         else None,
                     )
@@ -202,4 +256,9 @@ class SHIFTOnlineEvaluator(Evaluator):
         if len(self.frames_det_2d) > 0:
             ds = Dataset(frames=self.frames_det_2d, groups=None, config=None)
             ds_bytes = json.dumps(ds.dict()).encode("utf-8")
-            self.backend.set(f"{self.output_path}/det_2d.json", ds_bytes)
+            self.backend.set(
+                f"{self.output_path}/det_2d.json", ds_bytes, mode="w"
+            )
+
+        self.backend.close()
+        print(f"Saved the submission file at {self.output_path}.")

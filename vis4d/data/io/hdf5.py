@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from typing import Literal
 
 import numpy as np
 from tqdm import tqdm
@@ -41,25 +42,39 @@ class HDF5Backend(DataBackend):
         self.db_cache: dict[str, File] = {}
 
     @staticmethod
-    def _get_hdf5_path(filepath: str) -> tuple[str, list[str]]:
+    def _get_hdf5_path(
+        filepath: str, allow_omitted_ext: bool = True
+    ) -> tuple[str, list[str]]:
         """Get .hdf5 path and keys from filepath.
 
         Args:
             filepath (str): The filepath to retrieve the data from.
                 Should have the following format: 'path/to/file.hdf5/key1/key2'
+            allow_omitted_ext (bool, optional): Whether to allow omitted
+                extension, in which case the backend will try to append
+                '.hdf5' to the filepath. Defaults to True.
 
         Returns:
             tuple[str, list[str]]: The .hdf5 path and the keys to retrieve.
+
+        Examples:
+            >>> HDF5Backend._get_hdf5_path("path/to/file.hdf5/key1/key2")
+            ("path/to/file.hdf5", ["key2", "key1"])
+            >>> HDF5Backend._get_hdf5_path("path/to/file/key1/key2", True)
+            ("path/to/file.hdf5", ["key2", "key1"]) # if file.hdf5 exists and
+                                                    # is a valid hdf5 file
         """
         filepath_as_list = filepath.split("/")
         keys = []
 
-        while filepath != ".hdf5" and not h5py.is_hdf5(filepath):
+        while True:
+            if filepath.endswith(".hdf5") or filepath == "":
+                break
+            if allow_omitted_ext and h5py.is_hdf5(filepath + ".hdf5"):
+                filepath = filepath + ".hdf5"
+                break
             keys.append(filepath_as_list.pop())
             filepath = "/".join(filepath_as_list)
-            # in case data_root is not explicitly set to a .hdf5 file
-            if not filepath.endswith(".hdf5"):
-                filepath = filepath + ".hdf5"
         return filepath, keys
 
     def exists(self, filepath: str) -> bool:
@@ -82,13 +97,16 @@ class HDF5Backend(DataBackend):
                 return False
         return True
 
-    def set(self, filepath: str, content: bytes) -> None:
+    def set(
+        self, filepath: str, content: bytes, mode: Literal["w", "a"] = "a"
+    ) -> None:
         """Set the file content.
 
         Args:
             filepath: path/to/file.hdf5/key1/key2/key3
             content: Bytes to be written to entry key3 within group key2
-            within another group key1, for example.
+                within another group key1, for example.
+            mode: "w" to overwrite the file, "a" to append to it.
 
         Raises:
             ValueError: If filepath is not a valid .hdf5 file
@@ -97,7 +115,7 @@ class HDF5Backend(DataBackend):
             raise ValueError(f"{filepath} not a valid .hdf5 filepath!")
         hdf5_path, keys_str = filepath.split(".hdf5")
         key_list = keys_str.split("/")
-        file = self._get_client(hdf5_path + ".hdf5", "a")
+        file = self._get_client(hdf5_path + ".hdf5", mode)
         if len(key_list) > 1:
             group_str = "/".join(key_list[:-1])
             if group_str == "":
@@ -217,6 +235,12 @@ class HDF5Backend(DataBackend):
             raise ValueError(f"Value {url} is not a group in {hdf5_path}!")
 
         return sorted(list(value_buf.keys()))
+
+    def close(self) -> None:
+        """Close all opened HDF5 files."""
+        for client, _ in self.db_cache.values():
+            client.close()
+        self.db_cache.clear()
 
 
 def convert_dataset(source_dir: str) -> None:
