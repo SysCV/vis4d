@@ -25,15 +25,15 @@ SEMANTIC_MASK_INDICES = np.array([0, 419, 581117, 1023997])
 SEMANTIC_MASK_VALUES = np.array([13, 5, 14, 22])
 
 DEPTH_MAP_INDICES = np.array([0, 419, 581117, 1023997])
-DEPTH_MAP_VALUES = np.array([16777.2109, 134.4130, 320.8880, 42.8810])
+DEPTH_MAP_VALUES = np.array([999.999, 8.011639, 19.126415, 2.5559065])
 
 OPTICAL_FLOW_INDICES = np.array([0, 419, 581117, 1023997])
 OPTICAL_FLOW_VALUES = np.array(
     [
-        [-0.0010, -0.0010],
-        [-0.0010, -0.0010],
-        [-0.0010, -0.0010],
-        [-0.0010, -0.0010],
+        [-12.5, -12.5],
+        [-12.5, -12.5],
+        [-12.5, -12.5],
+        [-12.5, -12.5],
     ]
 )
 

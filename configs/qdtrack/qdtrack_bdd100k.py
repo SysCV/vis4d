@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import pytorch_lightning as pl
 
-from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.default import (
     get_callbacks_config,
     get_pl_trainer_config,
     set_output_dir,
 )
+from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map

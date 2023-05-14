@@ -15,7 +15,7 @@ from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.base import Dataset
-from vis4d.data.datasets.util import im_decode, npy_decode
+from vis4d.data.datasets.util import filter_by_keys, im_decode, npy_decode
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
@@ -599,6 +599,6 @@ class SHIFT(Dataset):
                     data_dict_view[K.optical_flows] = self._load(
                         view, "flow", "npz", video_name, frame_name
                     )
-            data_dict[view] = data_dict_view  # type: ignore
+            data_dict[view] = filter_by_keys(data_dict_view, self.keys_to_load)
 
         return data_dict

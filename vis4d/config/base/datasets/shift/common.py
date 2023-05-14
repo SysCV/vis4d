@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ml_collections.config_dict import ConfigDict
+from pyrsistent import v
 
 from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.util import class_config
@@ -49,6 +50,7 @@ def get_train_preprocessing(
     horizontal_flip_prob: float = 0.5,
     color_jitter_prob: float = 0.0,
     keys_to_load: Sequence[str] = (K.images, K.seg_masks),
+    views_to_load: Sequence[str] = ("front",),
 ) -> ConfigDict:
     """Get the default data preprocessing for SHIFT dataset.
 
@@ -61,14 +63,17 @@ def get_train_preprocessing(
         color_jitter_prob: The probability of color jittering. Defaults to 0.5.
         keys_to_load: The keys to load from the dataset. Defaults to
             (K.images, K.seg_masks).
+        views_to_load: The views to load from the dataset. Defaults to
+            ("front",).
 
     Returns:
         The data preprocessing config.
     """
+    preprocess_transforms = []
+
     for key_to_load in keys_to_load:
         assert key_to_load in SHIFT.KEYS, f"Invalid key: {key_to_load}"
-
-    preprocess_transforms = []
+    views_arg = {"sensors": views_to_load} if len(views_to_load) > 0 else {}
 
     # Resize
     if image_size != (800, 1280):
@@ -77,18 +82,27 @@ def get_train_preprocessing(
                 GenerateResizeParameters,
                 shape=image_size,
                 keep_ratio=True,
+                **views_arg,
             )
         )
-        preprocess_transforms.append(class_config(ResizeImage))
+        preprocess_transforms.append(class_config(ResizeImage, **views_arg))
         if K.seg_masks in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeSegMasks))
+            preprocess_transforms.append(
+                class_config(ResizeSegMasks, **views_arg)
+            )
         if K.boxes2d in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeBoxes2D))
+            preprocess_transforms.append(
+                class_config(ResizeBoxes2D, **views_arg)
+            )
         if K.depth_maps in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeDepthMaps))
+            preprocess_transforms.append(
+                class_config(ResizeDepthMaps, **views_arg)
+            )
         if K.optical_flows in keys_to_load:
             preprocess_transforms.append(
-                class_config(ResizeOpticalFlows, normalized_flow=False)
+                class_config(
+                    ResizeOpticalFlows, normalized_flow=False, **views_arg
+                )
             )
 
     # Crop
@@ -98,33 +112,42 @@ def get_train_preprocessing(
                 GenCropParameters, shape=crop_size, cat_max_ratio=0.75
             ),
         )
-        preprocess_transforms.append(class_config(CropImage))
+        preprocess_transforms.append(class_config(CropImage, **views_arg))
         if K.seg_masks in keys_to_load:
-            preprocess_transforms.append(class_config(CropSegMasks))
+            preprocess_transforms.append(
+                class_config(CropSegMasks, **views_arg)
+            )
         if K.boxes2d in keys_to_load:
-            preprocess_transforms.append(class_config(CropBoxes2D))
+            preprocess_transforms.append(
+                class_config(CropBoxes2D, **views_arg)
+            )
         if K.depth_maps in keys_to_load:
-            preprocess_transforms.append(class_config(CropDepthMaps))
+            preprocess_transforms.append(
+                class_config(CropDepthMaps, **views_arg)
+            )
         if K.optical_flows in keys_to_load:
-            preprocess_transforms.append(class_config(CropOpticalFlows))
+            preprocess_transforms.append(
+                class_config(CropOpticalFlows, **views_arg)
+            )
 
     # Random flip
     if horizontal_flip_prob > 0:
         flip_transforms = []
-        flip_transforms.append(class_config(FlipImage))
+        flip_transforms.append(class_config(FlipImage, **views_arg))
         if K.seg_masks in keys_to_load:
-            flip_transforms.append(class_config(FlipSegMasks))
+            flip_transforms.append(class_config(FlipSegMasks, **views_arg))
         if K.boxes2d in keys_to_load:
-            flip_transforms.append(class_config(FlipBoxes2D))
+            flip_transforms.append(class_config(FlipBoxes2D, **views_arg))
         if K.depth_maps in keys_to_load:
-            flip_transforms.append(class_config(FlipDepthMaps))
+            flip_transforms.append(class_config(FlipDepthMaps, **views_arg))
         if K.optical_flows in keys_to_load:
-            flip_transforms.append(class_config(FlipOpticalFlows))
+            flip_transforms.append(class_config(FlipOpticalFlows, **views_arg))
         preprocess_transforms.append(
             class_config(
                 RandomApply,
                 transforms=flip_transforms,
                 probability=horizontal_flip_prob,
+                **views_arg,
             )
         )
 
@@ -134,10 +157,11 @@ def get_train_preprocessing(
                 RandomApply,
                 transforms=[class_config(ColorJitter)],
                 probability=color_jitter_prob,
+                **views_arg,
             )
         )
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImage, **views_arg))
 
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
@@ -145,7 +169,7 @@ def get_train_preprocessing(
     train_batchprocess_cfg = class_config(
         compose_batch,
         transforms=[
-            class_config(ToTensor),
+            class_config(ToTensor, **views_arg),
         ],
     )
     return train_preprocess_cfg, train_batchprocess_cfg
@@ -154,6 +178,7 @@ def get_train_preprocessing(
 def get_test_preprocessing(
     image_size: tuple[int, int] = (800, 1280),
     keys_to_load: Sequence[str] = (K.images, K.seg_masks),
+    views_to_load: Sequence[str] = ("front",),
 ) -> ConfigDict:
     """Get the default data preprocessing for SHIFT dataset.
 
@@ -161,14 +186,17 @@ def get_test_preprocessing(
         image_size: The image size to resize to. Defaults to (800, 1280).
         keys_to_load: The keys to load from the dataset. Defaults to
             (K.images, K.seg_masks).
+        views_to_load: The views to load from the dataset. Defaults to
+            ("front",).
 
     Returns:
         The data preprocessing config.
     """
+    preprocess_transforms = []
+
     for key_to_load in keys_to_load:
         assert key_to_load in SHIFT.KEYS, f"Invalid key: {key_to_load}"
-
-    preprocess_transforms = []
+    views_arg = {"sensors": views_to_load} if len(views_to_load) > 0 else {}
 
     # Resize
     if image_size != (800, 1280):
@@ -177,19 +205,28 @@ def get_test_preprocessing(
                 GenerateResizeParameters,
                 shape=image_size,
                 keep_ratio=True,
+                **views_arg,
             )
         )
-        preprocess_transforms.append(class_config(ResizeImage))
+        preprocess_transforms.append(class_config(ResizeImage, **views_arg))
         if K.seg_masks in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeSegMasks))
+            preprocess_transforms.append(
+                class_config(ResizeSegMasks, **views_arg)
+            )
         if K.boxes2d in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeBoxes2D))
+            preprocess_transforms.append(
+                class_config(ResizeBoxes2D, **views_arg)
+            )
         if K.depth_maps in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeDepthMaps))
+            preprocess_transforms.append(
+                class_config(ResizeDepthMaps, **views_arg)
+            )
         if K.optical_flows in keys_to_load:
-            preprocess_transforms.append(class_config(ResizeOpticalFlows))
+            preprocess_transforms.append(
+                class_config(ResizeOpticalFlows, **views_arg)
+            )
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImage, **views_arg))
 
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
@@ -197,7 +234,7 @@ def get_test_preprocessing(
     test_batchprocess_cfg = class_config(
         compose_batch,
         transforms=[
-            class_config(ToTensor),
+            class_config(ToTensor, **views_arg),
         ],
     )
     return test_preprocess_cfg, test_batchprocess_cfg
@@ -213,6 +250,8 @@ def get_shift_dataloader_config(
     color_jitter_prob: float = 0.5,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
+    train_views_to_load: Sequence[str] = ("front",),
+    test_views_to_load: Sequence[str] = ("front",),
 ) -> ConfigDict:
     """Get the default config for BDD100K segmentation."""
     data = ConfigDict()
@@ -223,11 +262,13 @@ def get_shift_dataloader_config(
         crop_size=crop_size,
         horizontal_flip_prob=horizontal_flip_prob,
         color_jitter_prob=color_jitter_prob,
+        views_to_load=train_views_to_load,
     )
 
     test_preprocess_cfg, test_batchprocess_cfg = get_test_preprocessing(
         keys_to_load=keys_to_load,
         image_size=image_size,
+        views_to_load=test_views_to_load,
     )
 
     data.train_dataloader = get_dataloader_config(
@@ -302,4 +343,6 @@ def get_shift_config(
         color_jitter_prob=color_jitter_prob,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
+        train_views_to_load=train_views_to_load,
+        test_views_to_load=test_views_to_load,
     )

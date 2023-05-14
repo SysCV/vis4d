@@ -7,6 +7,11 @@ from torch import optim
 from vis4d.config.base.datasets.shift.tasks import (
     get_shift_segmentation_config,
 )
+from vis4d.config.default import (
+    get_callbacks_config,
+    get_pl_trainer_config,
+    set_output_dir,
+)
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
@@ -14,11 +19,6 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_SEG_LOSS,
 )
 from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default import (
-    get_callbacks_config,
-    set_output_dir,
-    get_pl_trainer_config,
-)
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
@@ -69,6 +69,7 @@ def get_config() -> ConfigDict:
         data_root=data_root,
         train_split=train_split,
         train_views_to_load=views_to_load,
+        test_views_to_load=views_to_load,
         test_split=test_split,
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
