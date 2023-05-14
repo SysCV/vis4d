@@ -396,7 +396,7 @@ class SHIFT(Dataset):
         self._data_groups_to_load = self._get_data_groups(keys_to_load)
         if "det_2d" not in self._data_groups_to_load:
             raise ValueError(
-                "In current implementation, the 'det_2d' data group must be"
+                "In current implementation, the 'det_2d' data group must be "
                 "loaded to load any other data group."
             )
 
@@ -449,7 +449,7 @@ class SHIFT(Dataset):
 
     def _get_data_groups(self, keys_to_load: Sequence[str]) -> list[str]:
         """Get the data groups that need to be loaded from Scalabel."""
-        data_groups = []
+        data_groups = ["det_2d"]
         for data_group, group_keys in self.DATA_GROUPS.items():
             if data_group in self.GROUPS_IN_SCALABEL:
                 # If the data group is loaded by Scalabel, add it to the list
@@ -522,7 +522,7 @@ class SHIFT(Dataset):
             return frames[idx].videoName, frames[idx].name
         raise ValueError(
             "No Scalabel file has been loaded."
-        )  # pragma: no cover
+        )  # pragma: no coverS
 
     def __len__(self) -> int:
         """Get the number of samples in the dataset."""
