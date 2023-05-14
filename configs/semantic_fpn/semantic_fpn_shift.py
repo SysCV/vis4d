@@ -42,7 +42,7 @@ def get_config() -> ConfigDict:
     config = ConfigDict()
 
     config.work_dir = "vis4d-workspace"
-    config.experiment_name = "test/semantic_fpn_shift"
+    config.experiment_name = "shift_semantic_fpn"
     config = set_output_dir(config)
 
     ## High level hyper parameters
@@ -64,7 +64,7 @@ def get_config() -> ConfigDict:
     train_split = "train"
     test_split = "val"
     data_backend = class_config(HDF5Backend)
-    
+
     config.data = get_shift_segmentation_config(
         data_root=data_root,
         train_split=train_split,

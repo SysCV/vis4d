@@ -35,6 +35,8 @@ def main(argv: ArgsType) -> None:
     >>> python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    if len(argv) < 2:
+        raise ValueError("Missing running mode, either 'fit' or 'test'.")
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config = _CONFIG.value
