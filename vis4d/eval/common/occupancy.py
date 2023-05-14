@@ -75,8 +75,8 @@ class OccupancyEvaluator(Evaluator):
         """Calculates the confusion matrix and stores them as attributes.
 
         Args:
-             prediction: the prediction (binary) (Batch x Pts)
-             target: the groundtruth (binary) (Batch x Pts)
+             prediction: the prediction (binary) (N, Pts)
+             target: the groundtruth (binary) (N, Pts)
         """
         tp = np.sum(np.logical_and(prediction == 1, target == 1)).item()
         fp = np.sum(np.logical_and(prediction == 1, target == 0)).item()

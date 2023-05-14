@@ -11,9 +11,10 @@ from vis4d.common.typing import (
     ArrayLike,
     GenericFunc,
     MetricLogs,
-    NDArrayNumber,
+    NDArrayFloat,
 )
 from vis4d.eval.base import Evaluator
+from ..metrics.flow import end_point_error, angular_error
 
 
 class OpticalFlowEvaluator(Evaluator):
@@ -28,7 +29,7 @@ class OpticalFlowEvaluator(Evaluator):
         max_flow: float = 400.0,
         use_degrees: bool = False,
         scale: float = 1.0,
-        epsilon: float = 1e-8,
+        epsilon: float = 1e-6,
     ) -> None:
         """Initialize the optical flow evaluator.
 
@@ -59,52 +60,12 @@ class OpticalFlowEvaluator(Evaluator):
         """Reset evaluator for new round of evaluation."""
         self._metrics_list = []
 
-    def _end_point_error(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the end point error.
-
-        Args:
-            prediction (np.array): Prediction optical flow, in shape (H, W, 2).
-            target (np.array): Target optical flow, in shape (H, W, 2).
-
-        Returns:
-            float: End point error.
-        """
-        mask = np.sum(np.abs(target), axis=2) < self.max_flow
-        return np.mean(
-            np.sqrt(np.sum((prediction[mask] - target[mask]) ** 2, axis=1))
-        )
-
-    def _angular_error(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the angular error.
-
-        Args:
-            prediction (np.array): Prediction optical flow, in shape (H, W, 2).
-            target (np.array): Target optical flow, in shape (H, W, 2).
-
-        Returns:
-            float: Angular error.
-        """
-        mask = np.linalg.norm(target, axis=-1) < self.max_flow
-        return np.mean(
-            np.arccos(
-                np.clip(
-                    np.abs(
-                        np.sum(prediction[mask, :] * target[mask, :], axis=-1)
-                    )
-                    / (
-                        np.linalg.norm(prediction[mask, :], axis=-1)
-                        * np.linalg.norm(target[mask, :], axis=-1)
-                        + self.epsilon
-                    ),
-                    0.0,
-                    1.0,
-                )
-            )
-        )
+    def _apply_mask(
+        self, prediction: NDArrayFloat, target: NDArrayFloat
+    ) -> tuple[NDArrayFloat, NDArrayFloat]:
+        """Apply mask to prediction and target."""
+        mask = np.sum(np.abs(target), axis=-1) <= self.max_flow
+        return prediction[mask], target[mask]
 
     def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self, prediction: ArrayLike, groundtruth: ArrayLike
@@ -117,14 +78,16 @@ class OpticalFlowEvaluator(Evaluator):
             groundtruth (NDArrayNumber): Target optical flow, in shape
                 (N, H, W, 2).
         """
-        scaled_preds = (
+        preds = (
             array_to_numpy(prediction, n_dims=None, dtype=np.float32)
             * self.scale
         )
         gts = array_to_numpy(groundtruth, n_dims=None, dtype=np.float32)
-        for scaled_pred, gt in zip(scaled_preds, gts):
-            epe = self._end_point_error(scaled_pred, gt)
-            ae = self._angular_error(scaled_pred, gt)
+        preds, gts = self._apply_mask(preds, gts)
+
+        for pred, gt in zip(preds, gts):
+            epe = end_point_error(pred, gt)
+            ae = angular_error(pred, gt, self.epsilon)
             self._metrics_list.append(
                 {
                     OpticalFlowEvaluator.METRIC_ENDPOINT_ERROR: epe,

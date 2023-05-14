@@ -16,6 +16,7 @@ from vis4d.common.typing import (
     NDArrayNumber,
 )
 from vis4d.eval.base import Evaluator
+from ..metrics.classify import accuracy
 
 
 class ClassificationEvaluator(Evaluator):
@@ -73,8 +74,8 @@ class ClassificationEvaluator(Evaluator):
         for i in range(pred.shape[0]):
             self._metrics_list.append(
                 {
-                    "top1_correct": self._is_correct(pred[i], gt[i], top_k=1),
-                    "top5_correct": self._is_correct(pred[i], gt[i], top_k=5),
+                    "top1_correct": accuracy(pred[i], gt[i], top_k=1),
+                    "top5_correct": accuracy(pred[i], gt[i], top_k=5),
                 }
             )
 

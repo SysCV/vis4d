@@ -79,7 +79,7 @@ class ZipBackend(DataBackend):
         return url in file.namelist()
 
     def set(
-        self, filepath: str, content: bytes, mode: Literal["w", "a"] = "a"
+        self, filepath: str, content: bytes, mode: Literal["w", "a"] = "w"
     ) -> None:
         """Write the file content to the zip file.
 
