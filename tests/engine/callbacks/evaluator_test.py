@@ -10,7 +10,7 @@ from vis4d.config.base.datasets.coco_detection import CONN_COCO_BBOX_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
 from vis4d.engine.connectors import DataConnector
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 
 
 class TestEvaluatorCallback(unittest.TestCase):

@@ -1,8 +1,6 @@
 """SHIFT optical flow estimation evaluator."""
 from __future__ import annotations
 
-from vis4d.common.typing import NDArrayNumber
-
 from ..common import OpticalFlowEvaluator
 
 

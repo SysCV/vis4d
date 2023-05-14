@@ -25,7 +25,7 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import DataConnector, data_key, pred_key
-from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
+from vis4d.eval.bdd100k import BDD100KTrackingEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
 CONN_BBOX_2D_TEST = {

@@ -15,7 +15,7 @@ from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.base import Dataset
-from vis4d.data.datasets.util import filter_by_keys, im_decode, npy_decode
+from vis4d.data.datasets.util import im_decode, npy_decode
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
@@ -62,7 +62,6 @@ shift_seg_map = {
     "water": 21,
     "terrain": 22,
 }
-
 shift_seg_ignore = [
     "unlabeled",
     "other",
@@ -251,7 +250,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
                         pbar.update()
         else:
             frames = [parse_func(frame) for frame in raw_frames]
-        return ScalabelData(frames=frames, config=config)
+        return ScalabelData(frames=frames, config=config, groups=None)
 
 
 class SHIFT(Dataset):
@@ -361,7 +360,8 @@ class SHIFT(Dataset):
             "continuous/10x",
             "continuous/100x",
         }, (
-            f"Invalid shift_type '{shift_type}'. Must be one of 'discrete', 'continuous/1x', 'continuous/10x', "
+            f"Invalid shift_type '{shift_type}'. "
+            "Must be one of 'discrete', 'continuous/1x', 'continuous/10x', "
             "or 'continuous/100x'."
         )
         self.validate_keys(keys_to_load)
@@ -486,10 +486,10 @@ class SHIFT(Dataset):
         return image.astype(np.int64)
 
     def _load_depth(
-        self, filepath: str, max_depth: float = 1000.0
+        self, filepath: str, depth_factor: float = 16777.216  # 256 ^ 3 / 1000
     ) -> NDArrayF32:
         """Load depth data."""
-        assert max_depth > 0, "Max depth value must be greater than 0."
+        assert depth_factor > 0, "Max depth value must be greater than 0."
 
         im_bytes = self.backend.get(filepath)
         image = im_decode(im_bytes)
@@ -501,7 +501,7 @@ class SHIFT(Dataset):
         depth = (
             image[:, :, 2] * 256 * 256 + image[:, :, 1] * 256 + image[:, :, 0]
         )
-        return np.ascontiguousarray(depth / max_depth, dtype=np.float32)
+        return np.ascontiguousarray(depth / depth_factor, dtype=np.float32)
 
     def _load_flow(self, filepath: str) -> NDArrayF32:
         """Load optical flow data."""
@@ -559,9 +559,15 @@ class SHIFT(Dataset):
         """
         # load camera frames
         data_dict = {}
+
+        # metadata
+        video_name, frame_name = self._get_frame_key(idx)
+        data_dict[K.sample_names] = frame_name
+        data_dict[K.sequence_names] = video_name
+        data_dict[K.frame_ids] = frame_name.split("_")[0]
+
         for view in self.views_to_load:
             data_dict_view = {}
-            video_name, frame_name = self._get_frame_key(idx)
 
             if view == "center":
                 # Lidar is only available in the center view
@@ -589,7 +595,6 @@ class SHIFT(Dataset):
                     data_dict_view[K.optical_flows] = self._load(
                         view, "flow", "npz", video_name, frame_name
                     )
-
-            data_dict[view] = filter_by_keys(data_dict_view, self.keys_to_load)
+            data_dict[view] = data_dict_view  # type: ignore
 
         return data_dict

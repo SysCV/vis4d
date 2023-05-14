@@ -15,7 +15,7 @@ from vis4d.data.loader import (
     multi_sensor_collate,
 )
 from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
-from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
+from vis4d.eval.nuscenes import NuScenesEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -80,7 +80,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
 
         batch = next(iter(test_loader))
 
-        nusc_eval.process(
+        nusc_eval.process_batch(
             **get_multi_sensor_inputs(
                 self.CONN_NUSC_EVAL, output, batch, self.CAMERAS
             )

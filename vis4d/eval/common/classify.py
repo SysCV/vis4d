@@ -7,8 +7,17 @@ import itertools
 
 import numpy as np
 
-from vis4d.common.typing import GenericFunc, MetricLogs, NDArrayNumber
+from vis4d.common.array import array_to_numpy
+from vis4d.common.typing import (
+    ArrayLike,
+    GenericFunc,
+    MetricLogs,
+    NDArrayI64,
+    NDArrayNumber,
+)
 from vis4d.eval.base import Evaluator
+
+from ..metrics.classify import accuracy
 
 
 class ClassificationEvaluator(Evaluator):
@@ -26,20 +35,23 @@ class ClassificationEvaluator(Evaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [metric for metric in dir(self) if metric.startswith("METRIC")]
+        return [
+            ClassificationEvaluator.METRICS_ACCURACY,
+            ClassificationEvaluator.METRICS_ACCURACY_TOP5,
+        ]
 
     def reset(self) -> None:
         """Reset evaluator for new round of evaluation."""
         self._metrics_list = []
 
-    def is_correct(
-        self, pred: NDArrayNumber, target: NDArrayNumber, top_k: int = 1
+    def _is_correct(
+        self, pred: NDArrayNumber, target: NDArrayI64, top_k: int = 1
     ) -> bool:
         """Check if the prediction is correct for top-k.
 
         Args:
             pred (NDArrayNumber): Prediction logits, in shape (C, ).
-            target (NDArrayNumber): Target logits, in shape (C, ).
+            target (NDArrayI64): Target logits, in shape (1, ).
             top_k (int, optional): Top-k to check. Defaults to 1.
 
         Returns:
@@ -49,24 +61,22 @@ class ClassificationEvaluator(Evaluator):
         top_k_idx = np.argsort(pred)[-top_k:]
         return bool(np.any(top_k_idx == target))
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
-        self, prediction: NDArrayNumber, groundtruth: NDArrayNumber
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+        self, prediction: ArrayLike, groundtruth: ArrayLike
     ):
         """Process a batch of predictions and groundtruths.
 
         Args:
-            prediction (NDArrayNumber): Prediction, in shape (N, C).
-            groundtruth (NDArrayNumber): Groundtruth, in shape (N, C).
+            prediction (ArrayLike): Prediction, in shape (N, C).
+            groundtruth (ArrayLike): Groundtruth, in shape (N, ).
         """
-        for i in range(prediction.shape[0]):
+        pred = array_to_numpy(prediction, n_dims=None, dtype=np.float32)
+        gt = array_to_numpy(groundtruth, n_dims=None, dtype=np.int64)
+        for i in range(pred.shape[0]):
             self._metrics_list.append(
                 {
-                    "top1_correct": self.is_correct(
-                        prediction[i], groundtruth[i], top_k=1
-                    ),
-                    "top5_correct": self.is_correct(
-                        prediction[i], groundtruth[i], top_k=5
-                    ),
+                    "top1_correct": accuracy(pred[i], gt[i], top_k=1),
+                    "top5_correct": accuracy(pred[i], gt[i], top_k=5),
                 }
             )
 

@@ -208,7 +208,7 @@ class NuScenesEvaluator(Evaluator):
                 annos.append(nusc_anno)
         self.detect_3d[token] = annos
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
         tokens: list[str],
         boxes_3d: Tensor,

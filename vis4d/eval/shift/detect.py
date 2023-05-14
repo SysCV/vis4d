@@ -11,7 +11,7 @@ class SHIFTDetectEvaluator(ScalabelDetectEvaluator):
 
     inverse_det_map = {v: k for k, v in shift_det_map.items()}
 
-    def __init__(self) -> None:
+    def __init__(self, annotation_path: str) -> None:
         """Initialize the evaluator."""
-        super().__init__(mask_threshold=0)
+        super().__init__(annotation_path=annotation_path, mask_threshold=0)
         self.inverse_cat_map = self.inverse_det_map

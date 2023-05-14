@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import MetricLogs, NDArrayNumber
 
@@ -39,7 +40,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
         """Supported metrics."""
         return [self.METRICS_TRACK, self.METRICS_SEG_TRACK]
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
         frame_ids: list[int],
         sample_names: list[str],
@@ -65,14 +66,22 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 sample_names,
                 sequence_names,
                 pred_boxes,
-                pred_classes,
                 pred_scores,
+                pred_classes,
                 pred_track_ids,
             )
         ):
+            boxes = array_to_numpy(boxes, n_dims=None, dtype=np.float32)
+            class_ids = array_to_numpy(class_ids, n_dims=None, dtype=np.int64)
+            scores = array_to_numpy(scores, n_dims=None, dtype=np.float32)
+            if pred_masks:
+                masks = array_to_numpy(
+                    pred_masks[i], n_dims=None, dtype=np.float32
+                )
+
             labels = []
-            for box, score, class_id, track_id in zip(
-                boxes, scores, class_ids, track_ids
+            for label_id, (box, score, class_id, track_id) in enumerate(
+                zip(boxes, scores, class_ids, track_ids)
             ):
                 box2d = xyxy_to_box2d(*box.tolist())
                 label = Label(
@@ -83,7 +92,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                     score=float(score),
                     id=str(int(track_id)),
                     rle=mask_to_rle(
-                        (pred_masks[i][class_id] > self.mask_threshold).astype(
+                        (masks[label_id] > self.mask_threshold).astype(
                             np.uint8
                         )
                     )
@@ -102,6 +111,9 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
         assert self.config is not None, "config is not set"
+        metrics_log = {}
+        short_description = ""
+
         if metric in [self.METRICS_TRACK, self.METRICS_ALL]:
             results = evaluate_track(
                 acc_single_video_mot,
@@ -110,7 +122,13 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 config=self.config,
                 nproc=0,
             )
-        elif metric in [self.METRICS_SEG_TRACK, self.METRICS_ALL]:
+            for metric_name, metric_value in results.summary().items():
+                metrics_log[
+                    f"{self.METRICS_TRACK}/{metric_name}"
+                ] = metric_value
+            short_description += str(results) + "\n"
+
+        if metric in [self.METRICS_SEG_TRACK, self.METRICS_ALL]:
             results = evaluate_seg_track(
                 acc_single_video_mots,
                 gts=group_and_sort(self.gt_frames),
@@ -118,7 +136,10 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 config=self.config,
                 nproc=0,
             )
-        else:
-            raise NotImplementedError
+            for metric_name, metric_value in results.summary().items():
+                metrics_log[
+                    f"{self.METRICS_SEG_TRACK}/{metric_name}"
+                ] = metric_value
+            short_description += str(results) + "\n"
 
-        return results.summary(), str(results)  # type: ignore
+        return metrics_log, short_description  # type: ignore

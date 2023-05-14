@@ -6,8 +6,23 @@ import itertools
 
 import numpy as np
 
-from vis4d.common.typing import MetricLogs, NDArrayNumber, GenericFunc
+from vis4d.common.array import array_to_numpy
+from vis4d.common.typing import (
+    ArrayLike,
+    GenericFunc,
+    MetricLogs,
+    NDArrayFloat,
+)
 from vis4d.eval.base import Evaluator
+
+from ..metrics.depth import (
+    absolute_error,
+    absolute_relative_error,
+    root_mean_squared_error,
+    root_mean_squared_error_log,
+    scale_invariant_log,
+    squared_relative_error,
+)
 
 
 class DepthEvaluator(Evaluator):
@@ -23,7 +38,7 @@ class DepthEvaluator(Evaluator):
 
     def __init__(
         self,
-        min_depth: float = 0.05,
+        min_depth: float = 0.001,
         max_depth: float = 80.0,
         scale: float = 1.0,
         epsilon: float = 1e-3,
@@ -31,10 +46,10 @@ class DepthEvaluator(Evaluator):
         """Initialize the optical flow evaluator.
 
         Args:
-            min_depth (float): Minimum depth to evaluate. Defaults to 0.05.
+            min_depth (float): Minimum depth to evaluate. Defaults to 0.001.
             max_depth (float): Maximum depth to evaluate. Defaults to 80.0.
             scale (float): Scale factor for depth. Defaults to 1.0.
-            epsilon (float): Small value to avoid logarithms of small values. 
+            epsilon (float): Small value to avoid logarithms of small values.
                 Defaults to 1e-3.
         """
         super().__init__()
@@ -47,108 +62,18 @@ class DepthEvaluator(Evaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [metric for metric in dir(self) if metric.startswith("METRIC")]
+        return [
+            DepthEvaluator.METRIC_ABS_REL,
+            DepthEvaluator.METRIC_ABS_ERR,
+            DepthEvaluator.METRIC_SQ_REL,
+            DepthEvaluator.METRIC_RMSE,
+            DepthEvaluator.METRIC_RMSE_LOG,
+            DepthEvaluator.METRIC_SILOG,
+        ]
 
     def reset(self) -> None:
         """Reset evaluator for new round of evaluation."""
         self._metrics_list = []
-
-    def absolute_error(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the absolute error.
-
-        Args:
-            prediction (NDArrayNumber): Prediction depth map, in shape (H, W).
-            target (NDArrayNumber): Target depth map, in shape (H, W).
-
-        Returns:
-            float: Absolute error.
-        """
-        return np.mean(np.abs(prediction - target))
-
-    def squared_relative_error(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the squared relative error.
-
-        Args:
-            prediction (NDArrayNumber): Prediction depth map, in shape (H, W).
-            target (NDArrayNumber): Target depth map, in shape (H, W).
-
-        Returns:
-            float: Square relative error.
-        """
-        return np.mean(np.square(prediction - target) / np.square(target))
-
-    def absolute_relative_error(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the absolute relative error.
-
-        Args:
-            prediction (NDArrayNumber): Prediction depth map, in shape (H, W).
-            target (NDArrayNumber): Target depth map, in shape (H, W).
-
-        Returns:
-            float: Absolute relative error.
-        """
-        return np.mean(np.abs(prediction - target) / target)
-
-    def root_mean_squared_error(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the root mean squared error.
-
-        Args:
-            prediction (NDArrayNumber): Prediction depth map, in shape (H, W).
-            target (NDArrayNumber): Target depth map, in shape (H, W).
-
-        Returns:
-            float: Root mean squared error.
-        """
-        return np.sqrt(np.mean(np.square(prediction - target)))
-
-    def root_mean_squared_error_log(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the root mean squared error in log space.
-
-        Args:
-            prediction (NDArrayNumber): Prediction depth map, in shape (H, W).
-            target (NDArrayNumber): Target depth map, in shape (H, W).
-
-        Returns:
-            float: Root mean squared error in log space.
-        """
-        return np.sqrt(
-            np.mean(
-                np.square(
-                    np.log(prediction + self.epsilon)
-                    - np.log(target + self.epsilon)
-                )
-            )
-        )
-
-    def scale_invariant_log(
-        self, prediction: NDArrayNumber, target: NDArrayNumber
-    ) -> float:
-        """Compute the scale invariant log error.
-
-        Args:
-            prediction (NDArrayNumber): Prediction depth map, in shape (H, W).
-            target (NDArrayNumber): Target depth map, in shape (H, W).
-
-        Returns:
-            float: Scale invariant log error.
-        """
-        return np.mean(
-            np.square(
-                np.log(prediction + self.epsilon)
-                - np.log(target + self.epsilon)
-                + np.mean(np.log(target + self.epsilon))
-            )
-        )
 
     def gather(self, gather_func: GenericFunc) -> None:
         """Accumulate predictions across processes."""
@@ -156,8 +81,15 @@ class DepthEvaluator(Evaluator):
         if all_metrics is not None:
             self._metrics_list = list(itertools.chain(*all_metrics))
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
-        self, prediction: NDArrayNumber, groundtruth: NDArrayNumber
+    def _apply_mask(
+        self, prediction: NDArrayFloat, target: NDArrayFloat
+    ) -> tuple[NDArrayFloat, NDArrayFloat]:
+        """Apply mask to prediction and target."""
+        mask = (target > self.min_depth) & (target < self.max_depth)
+        return prediction[mask], target[mask]
+
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+        self, prediction: ArrayLike, groundtruth: ArrayLike
     ) -> None:
         """Process a batch of data.
 
@@ -165,29 +97,26 @@ class DepthEvaluator(Evaluator):
             prediction (np.array): Prediction optical flow, in shape (H, W, 2).
             groundtruth (np.array): Target optical flow, in shape (H, W, 2).
         """
-        pred_scaled = prediction * self.scale
-        self._metrics_list.append(
-            {
-                self.METRIC_ABS_REL: self.absolute_relative_error(
-                    pred_scaled, groundtruth
-                ),
-                self.METRIC_ABS_ERR: self.absolute_error(
-                    pred_scaled, groundtruth
-                ),
-                self.METRIC_SQ_REL: self.squared_relative_error(
-                    pred_scaled, groundtruth
-                ),
-                self.METRIC_RMSE: self.root_mean_squared_error(
-                    pred_scaled, groundtruth
-                ),
-                self.METRIC_RMSE_LOG: self.root_mean_squared_error_log(
-                    pred_scaled, groundtruth
-                ),
-                self.METRIC_SILOG: self.scale_invariant_log(
-                    pred_scaled, groundtruth
-                ),
-            }
+        preds = (
+            array_to_numpy(prediction, n_dims=None, dtype=np.float32)
+            * self.scale
         )
+        gts = array_to_numpy(groundtruth, n_dims=None, dtype=np.float32)
+        preds, gts = self._apply_mask(preds, gts)
+
+        for pred, gt in zip(preds, gts):
+            self._metrics_list.append(
+                {
+                    self.METRIC_ABS_REL: absolute_relative_error(pred, gt),
+                    self.METRIC_ABS_ERR: absolute_error(pred, gt),
+                    self.METRIC_SQ_REL: squared_relative_error(pred, gt),
+                    self.METRIC_RMSE: root_mean_squared_error(pred, gt),
+                    self.METRIC_RMSE_LOG: root_mean_squared_error_log(
+                        pred, gt
+                    ),
+                    self.METRIC_SILOG: scale_invariant_log(pred, gt),
+                }
+            )
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate predictions.

@@ -1,4 +1,4 @@
-"""Track visualziation test cases."""
+"""Occupancy test cases."""
 from __future__ import annotations
 
 import unittest
@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from vis4d.common.typing import NDArrayNumber
-from vis4d.eval.occupancy.occupancy_evaluator import OccupancyEvaluator
+from vis4d.eval.common import OccupancyEvaluator
 
 
 def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
@@ -252,7 +252,7 @@ class TestOccupancyEvaluator(unittest.TestCase):
         pred = np.ones((self.batch_size, self.n_points)) * 0.6
         gt = np.ones((self.batch_size, self.n_points))
         self.evaluator.reset()
-        self.evaluator.process(pred, gt)
+        self.evaluator.process_batch(pred, gt)
         data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_ACCURACY], 1)
@@ -264,7 +264,7 @@ class TestOccupancyEvaluator(unittest.TestCase):
         evaluator = OccupancyEvaluator(threshold=0.3)
         pred = np.ones((self.batch_size, self.n_points)) * 0.34
         gt = np.ones((self.batch_size, self.n_points))
-        evaluator.process(pred, gt)
+        evaluator.process_batch(pred, gt)
         data, _ = evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_ACCURACY], 1)
@@ -276,7 +276,7 @@ class TestOccupancyEvaluator(unittest.TestCase):
         pred = np.ones((self.batch_size, self.n_points)) * 0.2
         gt = np.zeros((self.batch_size, self.n_points))
         self.evaluator.reset()
-        self.evaluator.process(pred, gt)
+        self.evaluator.process_batch(pred, gt)
         data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_ACCURACY], 1)
@@ -286,7 +286,7 @@ class TestOccupancyEvaluator(unittest.TestCase):
         """Tests values for precomputed data."""
         prediction, gt = get_test_data()
         self.evaluator.reset()
-        self.evaluator.process(prediction, gt)
+        self.evaluator.process_batch(prediction, gt)
         data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 0.47500)
         self.assertAlmostEqual(
@@ -307,8 +307,12 @@ class TestOccupancyEvaluator(unittest.TestCase):
         prediction, gt = get_test_data()
         n_batch = prediction.shape[0] // 2
         self.evaluator.reset()
-        self.evaluator.process(prediction[:n_batch, ...], gt[:n_batch, ...])
-        self.evaluator.process(prediction[-n_batch:, ...], gt[-n_batch:, ...])
+        self.evaluator.process_batch(
+            prediction[:n_batch, ...], gt[:n_batch, ...]
+        )
+        self.evaluator.process_batch(
+            prediction[-n_batch:, ...], gt[-n_batch:, ...]
+        )
 
         data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
 

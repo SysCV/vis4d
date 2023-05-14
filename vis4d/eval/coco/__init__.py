@@ -1,5 +1,5 @@
 """Detection evaluators."""
 
-from .detect2d import COCOEvaluator
+from .detect import COCOEvaluator
 
 __all__ = ["COCOEvaluator"]

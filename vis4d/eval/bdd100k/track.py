@@ -65,7 +65,7 @@ class BDD100KTrackEvaluator(Evaluator):
         """Reset the evaluator."""
         self.frames = []
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
         frame_ids: list[int],
         data_names: list[str],

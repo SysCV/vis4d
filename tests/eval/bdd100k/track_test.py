@@ -14,7 +14,7 @@ from vis4d.engine.connectors import (
     get_inputs_for_pred_and_data,
     pred_key,
 )
-from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
+from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -25,7 +25,7 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )[0]
 
 
-class TestBDD100KTrackingEvaluator(unittest.TestCase):
+class TestBDD100KTrackEvaluator(unittest.TestCase):
     """BDD100K tracking evaluator testcase class."""
 
     CONN_BDD100K_EVAL = {
@@ -46,7 +46,7 @@ class TestBDD100KTrackingEvaluator(unittest.TestCase):
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
 
-        scalabel_eval = BDD100KTrackingEvaluator(annotation_path=annotations)
+        scalabel_eval = BDD100KTrackEvaluator(annotation_path=annotations)
         assert str(scalabel_eval) == "BDD100K Tracking Evaluator"
         assert scalabel_eval.metrics == ["track"]
 
@@ -69,7 +69,7 @@ class TestBDD100KTrackingEvaluator(unittest.TestCase):
         }
 
         for batch in test_loader:
-            scalabel_eval.process(
+            scalabel_eval.process_batch(
                 **get_inputs_for_pred_and_data(
                     self.CONN_BDD100K_EVAL, output, batch
                 )

@@ -130,6 +130,7 @@ class COCOEvaluator(Evaluator):
         coco_gt_cats = self._coco_gt.loadCats(self._coco_gt.getCatIds())
         self.cat_map = {c["name"]: c["id"] for c in coco_gt_cats}
         self._predictions: list[DictStrAny] = []
+        self.coco_dt: COCO | None = None
 
     @property
     def metrics(self) -> list[str]:
@@ -149,8 +150,9 @@ class COCOEvaluator(Evaluator):
     def reset(self) -> None:
         """Reset the saved predictions to start new round of evaluation."""
         self._predictions = []
+        self.coco_dt = None
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
         coco_image_id: list[int],
         pred_boxes: list[NDArrayNumber],
@@ -182,6 +184,18 @@ class COCOEvaluator(Evaluator):
 
             self._predictions.extend(coco_preds)
 
+    def process(self) -> None:
+        """Process the accumulated predictions."""
+        if self.iou_type == "segm":
+            # remove bbox for segm evaluation so cocoapi will use mask
+            # area instead of box area
+            _predictions = copy.deepcopy(self._predictions)
+            for pred in _predictions:
+                pred.pop("bbox")
+        else:
+            _predictions = self._predictions
+        self.coco_dt = self._coco_gt.loadRes(_predictions)
+
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate COCO predictions.
 
@@ -190,6 +204,7 @@ class COCOEvaluator(Evaluator):
 
         Raises:
             NotImplementedError: Raised if metric is not "COCO_AP".
+            RuntimeError: Raised if no predictions are available.
 
         Returns:
             tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
@@ -197,27 +212,16 @@ class COCOEvaluator(Evaluator):
         """
         if metric != "COCO_AP":
             raise NotImplementedError(f"Metric {metric} not known!")
-        coco_dt = None  # self._coco_gt.loadRes(self._predictions)
 
         if len(self._predictions) == 0:
-            print(
-                "[COCO Evaluator]: No predictions to evaluate. "  # TODO: log
-                "Make sure to call process() first!"
+            raise RuntimeError(
+                "No predictions to evaluate. Make sure to process batch first!"
             )
-            return {}, ""
 
         with contextlib.redirect_stdout(io.StringIO()):
-            if self.iou_type == "segm":
-                # remove bbox for segm evaluation so cocoapi will use mask
-                # area instead of box area
-                _predictions = copy.deepcopy(self._predictions)
-                for pred in _predictions:
-                    pred.pop("bbox")
-            else:
-                _predictions = self._predictions
-            coco_dt = self._coco_gt.loadRes(_predictions)
+            assert self.coco_dt is not None
             evaluator = COCOevalV2(
-                self._coco_gt, coco_dt, iouType=self.iou_type
+                self._coco_gt, self.coco_dt, iouType=self.iou_type
             )
             evaluator.evaluate()
             evaluator.accumulate()

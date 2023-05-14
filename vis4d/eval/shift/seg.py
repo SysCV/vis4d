@@ -1,7 +1,7 @@
 """SHIFT segmentation evaluator."""
 from __future__ import annotations
 
-from vis4d.common.typing import NDArrayNumber, NDArrayI64
+from vis4d.common.typing import NDArrayI64, NDArrayNumber
 from vis4d.data.datasets.shift import shift_seg_ignore, shift_seg_map
 
 from ..common import SegEvaluator
@@ -15,6 +15,7 @@ class SHIFTSegEvaluator(SegEvaluator):
     def __init__(self, ignore_classes_as_cityscapes: bool = True) -> None:
         """Initialize the evaluator."""
         super().__init__(
+            num_classes=23,
             class_to_ignore=255,
             class_mapping=self.inverse_seg_map,
         )
@@ -30,7 +31,7 @@ class SHIFTSegEvaluator(SegEvaluator):
             label[label == shift_seg_map[cls]] = 255
         return label
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self, prediction: NDArrayNumber, groundtruth: NDArrayI64
     ) -> None:
         """Process sample and update confusion matrix.
@@ -44,4 +45,4 @@ class SHIFTSegEvaluator(SegEvaluator):
         """
         if self.ignore_classes_as_cityscapes:
             groundtruth = self._prune_class(groundtruth)
-        super().process(prediction, groundtruth)
+        super().process_batch(prediction, groundtruth)

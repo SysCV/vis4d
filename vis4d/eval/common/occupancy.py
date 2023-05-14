@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from vis4d.common.typing import MetricLogs, NDArrayBool, NDArrayNumber
+from vis4d.common.array import array_to_numpy
+from vis4d.common.typing import (
+    ArrayLike,
+    MetricLogs,
+    NDArrayBool,
+    NDArrayNumber,
+)
 from vis4d.eval.base import Evaluator
 
 
@@ -69,8 +75,8 @@ class OccupancyEvaluator(Evaluator):
         """Calculates the confusion matrix and stores them as attributes.
 
         Args:
-             prediction: the prediction (binary) (Batch x Pts)
-             target: the groundtruth (binary) (Batch x Pts)
+             prediction: the prediction (binary) (N, Pts)
+             target: the groundtruth (binary) (N, Pts)
         """
         tp = np.sum(np.logical_and(prediction == 1, target == 1)).item()
         fp = np.sum(np.logical_and(prediction == 1, target == 0)).item()
@@ -95,10 +101,10 @@ class OccupancyEvaluator(Evaluator):
         self.false_negatives = []
         self.n_samples = []
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
-        prediction: NDArrayNumber,
-        groundtruth: NDArrayNumber,
+        prediction: ArrayLike,
+        groundtruth: ArrayLike,
     ) -> None:
         """Processes a new (batch) of predictions.
 
@@ -109,7 +115,9 @@ class OccupancyEvaluator(Evaluator):
              groundtruth: the groundtruth (binary) (Batch x Pts)
         """
         pred, gt = threshold_and_flatten(
-            prediction, groundtruth, self.threshold
+            array_to_numpy(prediction, n_dims=None, dtype=np.float32),
+            array_to_numpy(groundtruth, n_dims=None, dtype=np.bool8),
+            self.threshold,
         )
 
         # Confusion Matrix

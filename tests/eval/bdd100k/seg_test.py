@@ -14,7 +14,7 @@ from vis4d.engine.connectors import (
     get_inputs_for_pred_and_data,
     pred_key,
 )
-from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
+from vis4d.eval.bdd100k import BDD100KSegEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -58,7 +58,7 @@ class TestBDD100KSegEvaluator(unittest.TestCase):
         output = {"masks": masks}
 
         for batch in test_loader:
-            scalabel_eval.process(
+            scalabel_eval.process_batch(
                 **get_inputs_for_pred_and_data(
                     self.CONN_BDD100K_EVAL, output, batch
                 )

@@ -10,15 +10,15 @@ class Evaluator:  # pragma: no cover
 
     The evaluator is responsible for evaluating the model on a given dataset.
     At each end of batches, the process_batch() is called with the model
-    outputs and the batch data to accumulate the data for evaluation. An 
-    optional save_batch() can be implemented to save the predictions in the 
-    current batch. 
-    
-    After all batches are processed, the gather() method is called to gather 
-    the data from all ranks. Then, the process() method is used to process all 
-    the accumulated data that are metrics-independent. Finally, the evaluate() 
-    method is called to evaluate the model for the specified metrics and return 
-    the results. Optionally, the save() method can be implemented to save the 
+    outputs and the batch data to accumulate the data for evaluation. An
+    optional save_batch() can be implemented to save the predictions in the
+    current batch.
+
+    After all batches are processed, the gather() method is called to gather
+    the data from all ranks. Then, the process() method is used to process all
+    the accumulated data that are metrics-independent. Finally, the evaluate()
+    method is called to evaluate the model for the specified metrics and return
+    the results. Optionally, the save() method can be implemented to save the
     predictions for the specified metrics.
 
     The following diagram illustrates the evaluation process:
@@ -31,9 +31,9 @@ class Evaluator:  # pragma: no cover
     │  │ process_batch(data, ...) │    │ process_batch(data, ...) │  │ <- Process a batch (predictions, labels, etc.)
     │  └──────────────────────────┘    └──────────────────────────┘  │    and accumulate the data for evaluation.
     │                ▼                              ▼                │
-    │     ┌─────────────────────┐         ┌─────────────────────┐    │
-    │     │ save_batch(metrics) │         │ save_batch(metrics) │    │ <- Dump the predictions in a batch for the specified
-    │     └─────────────────────┘         └─────────────────────┘    │    metrics (e.g., for online evaluation).
+    │     ┌────────────────────┐          ┌────────────────────┐     │
+    │     │ save_batch(metric) │          │ save_batch(metric) │     │ <- Dump the predictions in a batch for a specified
+    │     └────────────────────┘          └────────────────────┘     │    metric (e.g., for online evaluation).
     └────────────────┬──────────────────────────────┬────────────────┘
                ┌─────┴────┐                         │
                │ gather() ├─────────────────────────┘
@@ -43,21 +43,21 @@ class Evaluator:  # pragma: no cover
                │ process() │     <- Process the data that are
                └───────────┘        metrics-independent (if any)
                      ▼
-           ┌───────────────────┐
-           │ evaluate(metrics) │ <- Evaluate for the specified metrics and
-           └───────────────────┘    return the results.
+           ┌──────────────────┐
+           │ evaluate(metric) │  <- Evaluate for a specified metric and
+           └──────────────────┘    return the results.
                      ▼
-             ┌───────────────┐
-             │ save(metrics) │   <- Dump the predictions for the specified
-             └───────────────┘      metrics (e.g., for online evaluation).
+             ┌──────────────┐
+             │ save(metric) │    <- Dump the predictions for a specified
+             └──────────────┘       metric (e.g., for online evaluation).
 
     Note:
-        The save_batch() saves the predictions every batch, which is helpful 
-        for reducing the memory usage, compared to saving all predictions at 
-        once in the save() method. However, the save_batch() is optional and 
+        The save_batch() saves the predictions every batch, which is helpful
+        for reducing the memory usage, compared to saving all predictions at
+        once in the save() method. However, the save_batch() is optional and
         can be omitted if the data can be saved only after all batches are
         processed.
-    """
+    """  # pylint: disable=line-too-long
 
     @property
     def metrics(self) -> list[str]:
@@ -83,7 +83,7 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
-    def process_on_batch_end(self, *args: ArgsType) -> None:
+    def process_batch(self, *args: ArgsType) -> None:
         """Process a batch of data.
 
         Raises:
@@ -91,44 +91,12 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
-    def process_on_epoch_end(self) -> None:
-        """Process all accumulated data at the end of an epoch.
+    def process(self) -> None:
+        """Process all accumulated data at the end of an epoch, if any.
 
         Raises:
             NotImplementedError: This is an abstract class method.
         """
-        raise NotImplementedError
-
-    def evaluate_batch(self, metric: str) -> tuple[MetricLogs, str]:
-        """Evaluate a batch of predictions according to given metric.
-
-        Args:
-            metric (str): Metric to evaluate.
-
-        Raises:
-            NotImplementedError: This is an abstract class method.
-
-        Returns:
-            tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
-                printed string.
-        """
-        raise NotImplementedError
-
-    def save_on_batch_end(self, output_dir: str) -> None:
-        """Save batch of predictions to file.
-
-        Args:
-            output_dir (str): Output directory.
-        """
-        raise NotImplementedError
-
-    def save_on_epoch_end(self, output_dir: str) -> None:
-        """Save all predictions to file at the end of an epoch.
-
-        Args:
-            output_dir (str): Output directory.
-        """
-        raise NotImplementedError
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate all predictions according to given metric.
@@ -145,22 +113,20 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
-
-# TODO: Find a better name/place for the writer class, which is not really an
-# evaluator, but is used in the same way as an evaluator. When processing a
-# batch, it should be able to save the predictions to file according to the
-# dataset-specific format.
-
-
-class Writer(Evaluator):
-    """Abstract writer class."""
-
-    def __init__(self, backend: DataBackend = FileBackend()) -> None:
-        """Init writer.
+    def save_batch(self, metric: str, output_dir: str) -> None:
+        """Save batch of predictions to file.
 
         Args:
-            backend (DataBackend, optional): Data backend. Defaults to
-                FileBackend().
+            metric (str): Save predictions for the specified metrics.
+            output_dir (str): Output directory.
+        """
+
+    def save(self, metric: str, output_dir: str) -> None:
+        """Save all predictions to file at the end of an epoch.
+
+        Args:
+            metric (str): Save predictions for the specified metrics.
+            output_dir (str): Output directory.
         """
         super().__init__()
         self.backend = backend

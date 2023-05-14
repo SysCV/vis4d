@@ -5,7 +5,8 @@ import numpy as np
 from terminaltables import AsciiTable
 
 from vis4d.common import MetricLogs
-from vis4d.common.typing import NDArrayI64, NDArrayNumber
+from vis4d.common.array import array_to_numpy
+from vis4d.common.typing import ArrayLike, NDArrayI64, NDArrayNumber
 from vis4d.eval.base import Evaluator
 
 
@@ -85,8 +86,8 @@ class SegEvaluator(Evaluator):
         """Reset the saved predictions to start new round of evaluation."""
         self._confusion_matrix = None
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
-        self, prediction: NDArrayNumber, groundtruth: NDArrayI64
+    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+        self, prediction: ArrayLike, groundtruth: ArrayLike
     ) -> None:
         """Process sample and update confusion matrix.
 
@@ -97,7 +98,10 @@ class SegEvaluator(Evaluator):
                     the max operations along the second axis
              groundtruth: Groundtruth of shape [N_batch, ...] type int
         """
-        confusion_matrix = self.calc_confusion_matrix(prediction, groundtruth)
+        confusion_matrix = self.calc_confusion_matrix(
+            array_to_numpy(prediction, n_dims=None, dtype=np.float32),
+            array_to_numpy(groundtruth, n_dims=None, dtype=np.int64),  # type: ignore  # pylint: disable=line-too-long
+        )
 
         if self._confusion_matrix is None:
             self._confusion_matrix = confusion_matrix
@@ -143,7 +147,7 @@ class SegEvaluator(Evaluator):
             fp = np.sum(self._confusion_matrix, axis=0) - tp
             fn = np.sum(self._confusion_matrix, axis=1) - tp
             iou = tp / (tp + fn + fp) * 100
-            m_iou = np.mean(iou)
+            m_iou = np.nanmean(iou)
 
             iou_class_str = ", ".join(
                 f"{self._get_class_name_for_idx(idx)}: ({d:.3f}%)"

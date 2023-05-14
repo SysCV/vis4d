@@ -9,7 +9,7 @@ from tests.engine.trainer_test import get_test_dataloader
 from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 
 
 class TestCOCOEvaluator(unittest.TestCase):
@@ -25,7 +25,8 @@ class TestCOCOEvaluator(unittest.TestCase):
 
         # test empty
         boxes, scores, classes, _ = generate_boxes(512, 512, 20, batch_size)
-        coco_eval.process([37777, 397133], boxes, scores, classes)
+        coco_eval.process_batch([37777, 397133], boxes, scores, classes)
+        coco_eval.process()
         score_dict, log_str = coco_eval.evaluate("COCO_AP")
         for metric in coco_metrics:
             assert metric in score_dict
@@ -41,12 +42,13 @@ class TestCOCOEvaluator(unittest.TestCase):
         )
         test_loader = get_test_dataloader(dataset, batch_size)[0]
         batch = next(iter(test_loader))
-        coco_eval.process(
+        coco_eval.process_batch(
             batch[K.sample_names],
             batch[K.boxes2d],
             [torch.ones((len(b), 1)) for b in batch[K.boxes2d]],
             batch[K.boxes2d_classes],
         )
+        coco_eval.process()
         score_dict, log_str = coco_eval.evaluate("COCO_AP")
         for metric in coco_metrics:
             assert metric in score_dict

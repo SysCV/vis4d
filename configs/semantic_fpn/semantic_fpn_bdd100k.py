@@ -23,7 +23,7 @@ from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.optim import PolyLR
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
+from vis4d.eval.bdd100k import BDD100KSegEvaluator
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
 

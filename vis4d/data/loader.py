@@ -44,9 +44,19 @@ def default_collate(batch: list[DictData]) -> DictData:
         try:
             if key in [K.images]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [K.seg_masks, K.extrinsics, K.intrinsics]:
+            elif key in [
+                K.seg_masks,
+                K.extrinsics,
+                K.intrinsics,
+                K.depth_maps,
+                K.optical_flows,
+            ]:
+                # Stack tensors that have the same shape, e.g., matrices, and
+                # dense labels.
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
+                # Keep tensors in list that have different shapes, e.g., sparse
+                # labels.
                 data[key] = [b[key] for b in batch]
         except RuntimeError as e:
             raise RuntimeError(f"Error collating key {key}") from e
@@ -58,7 +68,12 @@ def multi_sensor_collate(batch: list[DictData]) -> DictData:
     data = {}
     sensors = list(batch[0].keys())
     for sensor in sensors:
-        data[sensor] = default_collate([d[sensor] for d in batch])
+        # Only collate if all items are a dict, otherwise keep as it is.
+        sub_batch = [b[sensor] for b in batch]
+        if all(isinstance(item, dict) for item in sub_batch):
+            data[sensor] = default_collate(sub_batch)
+        else:
+            data[sensor] = sub_batch
     return data
 
 

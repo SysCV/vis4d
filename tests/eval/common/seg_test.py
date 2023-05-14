@@ -1,4 +1,4 @@
-"""Track visualziation test cases."""
+"""Seg eval test cases."""
 from __future__ import annotations
 
 import unittest
@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from vis4d.common.typing import NDArrayNumber
-from vis4d.eval.seg.seg_evaluator import SegEvaluator
+from vis4d.eval.common import SegEvaluator
 
 
 def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
@@ -238,7 +238,7 @@ class TestSegEvaluator(unittest.TestCase):
         pred = np.argmax(pred, axis=1)
         gt = pred.copy()
         self.evaluator.reset()
-        self.evaluator.process(pred, gt)
+        self.evaluator.process_batch(pred, gt)
         data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
@@ -249,7 +249,7 @@ class TestSegEvaluator(unittest.TestCase):
         pred_amax = np.argmax(pred, axis=1)
         gt = pred_amax.copy()
         self.evaluator.reset()
-        self.evaluator.process(pred, gt)
+        self.evaluator.process_batch(pred, gt)
         data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
@@ -266,7 +266,7 @@ class TestSegEvaluator(unittest.TestCase):
         gt[..., :10] = 255  # mask out in target
 
         evaluator.reset()
-        evaluator.process(pred, gt)
+        evaluator.process_batch(pred, gt)
         data, _ = evaluator.evaluate(SegEvaluator.METRIC_ALL)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
@@ -275,6 +275,6 @@ class TestSegEvaluator(unittest.TestCase):
         # All ones
         pred, gt = get_test_data()
         self.evaluator.reset()
-        self.evaluator.process(pred, gt)
+        self.evaluator.process_batch(pred, gt)
         data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 5.230499415482852)
