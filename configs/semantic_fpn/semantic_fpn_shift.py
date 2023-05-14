@@ -31,7 +31,7 @@ from vis4d.op.loss import SegCrossEntropyLoss
 
 
 def get_config() -> ConfigDict:
-    """Returns the config dict for the BDD100K semantic segmentation task.
+    """Returns the config dict for the SHIFT semantic segmentation task.
 
     Returns:
         ConfigDict: The configuration
@@ -63,14 +63,17 @@ def get_config() -> ConfigDict:
     views_to_load = ["front"]
     train_split = "train"
     test_split = "val"
+    domain_attr = [{"weather_coarse": "clear", "timeofday_coarse": "daytime"}]
     data_backend = class_config(HDF5Backend)
 
     config.data = get_shift_segmentation_config(
         data_root=data_root,
         train_split=train_split,
+        test_split=test_split,
         train_views_to_load=views_to_load,
         test_views_to_load=views_to_load,
-        test_split=test_split,
+        train_attributes_to_load=domain_attr,
+        test_attributes_to_load=domain_attr,
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,

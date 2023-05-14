@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import multiprocessing
 import os
 from collections.abc import Sequence
@@ -11,6 +10,7 @@ from functools import partial
 import numpy as np
 from tqdm import tqdm
 
+from vis4d.common.logging import rank_zero_info
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
@@ -80,9 +80,6 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.typing import Dataset as ScalabelData
 
 
-logger = logging.getLogger(__name__)
-
-
 def _get_extension(backend: DataBackend) -> str:
     """Get the appropriate file extension for the given backend."""
     if isinstance(backend, HDF5Backend):
@@ -113,6 +110,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
         split: str,
         data_file: str = "",
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
         annotation_file: str = "",
         view: str = "front",
         framerate: str = "images",
@@ -128,6 +126,9 @@ class _SHIFTScalabelLabels(ScalabelVideo):
             split (str): Which data split to load.
             data_file (str): Path to the data archive file. Default: "".
             keys_to_load (Sequence[str]): List of keys to load.
+                Default: (K.images, K.boxes2d).
+            attributes_to_load (Sequence[dict[str, str | float]] | None):
+                List of attributes to load. Default: None.
             annotation_file (str): Path to the annotation file. Default: "".
             view (str): Which view to load. Default: "front". Options: "front",
                 "center", "left_45", "left_90", "right_45", "right_90", and
@@ -188,13 +189,14 @@ class _SHIFTScalabelLabels(ScalabelVideo):
             annotation_path,
             data_backend=backend,
             keys_to_load=keys_to_load,
+            attributes_to_load=attributes_to_load,
         )
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         # Skipping validation for much faster loading
         if self.verbose:
-            logger.info(
+            rank_zero_info(
                 "Loading annotation from '%s' ...", self.annotation_path
             )
         return self._load(self.annotation_path)
@@ -223,7 +225,9 @@ class _SHIFTScalabelLabels(ScalabelVideo):
                     "The input file contains neither dict nor list."
                 )
 
-            logging.info("Loading SHIFT annotation from '%s' Done.", filepath)
+            rank_zero_info(
+                "Loading SHIFT annotation from '%s' Done.", filepath
+            )
             return raw_cfg
 
         cfg = None
@@ -341,6 +345,7 @@ class SHIFT(Dataset):
         split: str,
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
         views_to_load: Sequence[str] = ("front",),
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
         framerate: str = "images",
         shift_type: str = "discrete",
         backend: DataBackend = HDF5Backend(),
@@ -371,6 +376,7 @@ class SHIFT(Dataset):
         self.split = split
         self.keys_to_load = keys_to_load
         self.views_to_load = views_to_load
+        self.attributes_to_load = attributes_to_load
         self.framerate = framerate
         self.shift_type = shift_type
         self.backend = backend
@@ -413,6 +419,7 @@ class SHIFT(Dataset):
                     framerate=self.framerate,
                     shift_type=self.shift_type,
                     keys_to_load=(K.points3d, *self.DATA_GROUPS["det_3d"]),
+                    attributes_to_load=self.attributes_to_load,
                     backend=backend,
                     num_workers=num_workers,
                     verbose=verbose,
@@ -436,6 +443,7 @@ class SHIFT(Dataset):
                         framerate=self.framerate,
                         shift_type=self.shift_type,
                         keys_to_load=keys_to_load,
+                        attributes_to_load=self.attributes_to_load,
                         backend=backend,
                         num_workers=num_workers,
                         verbose=verbose,

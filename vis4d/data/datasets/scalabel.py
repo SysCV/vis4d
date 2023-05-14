@@ -8,6 +8,7 @@ from typing import Union
 
 import numpy as np
 import torch
+from zmq import has
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
@@ -177,6 +178,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         config_path: None | str | Config = None,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -199,6 +201,10 @@ class Scalabel(Dataset, CacheMappingMixin):
                 per-video IDs. Defaults to false.
             bg_as_class (bool): Whether to include background pixels as an
                 additional class for masks.
+            `attributes_to_load` (Sequence[dict[str, str]]): List of attributes
+                dictionaries to load. Each dictionary is a mapping from the
+                attribute name to its desired value. If any of the attributes
+                dictionaries is matched, the corresponding frame will be loaded.
         """
         super().__init__()
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
@@ -214,6 +220,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping  # type: ignore
         )
+        self.frames = self._filter_frames(self.frames, attributes_to_load)
 
         assert self.cfg is not None, (
             "No dataset configuration found. Please provide a configuration "
@@ -261,13 +268,44 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
-        data = load(self.annotation_path)
+        data = load(self.annotation_path, validate_frames=False)
         if self.config_path is not None:
             if isinstance(self.config_path, str):
                 data.config = load_label_config(self.config_path)
             else:
                 data.config = self.config_path
         return data
+
+    def _filter_frames(
+        self,
+        frames: list[Frame],
+        attributes_to_load: Sequence[dict[str, str | float]] | None,
+    ) -> list[Frame]:
+        """Filter frames based on attributes."""
+        if attributes_to_load is None:
+            return frames
+        filtered_frames: list[Frame] = []
+        for frame in frames:
+            for attribute_dict in attributes_to_load:
+                if (
+                    hasattr(frame, "attributes")
+                    and frame.attributes is not None
+                ):
+                    if all(
+                        frame.attributes.get(key) == value
+                        for key, value in attribute_dict.items()
+                    ):
+                        filtered_frames.append(frame)
+                        break
+                else:
+                    raise ValueError(
+                        "Attribute to load is specified but no attributes "
+                        "are found in the frame."
+                    )
+        rank_zero_info(
+            f"Use {len(filtered_frames)} frames with the specified attributes."
+        )
+        return filtered_frames
 
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""

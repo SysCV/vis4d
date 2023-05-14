@@ -20,6 +20,7 @@ class TestMultiViewDataloaderConfig(unittest.TestCase):
     DATA_ROOT = get_test_data("shift_test")
     VIEWS = ["front"]
     SPLIT = "val"
+    DOMAIN_ATTR = [{"weather_coarse": "rainy", "timeofday_coarse": "night"}]
 
     def test_dataloader_config(self) -> None:
         """Test case to instantiate a dataloader from a config.
@@ -32,6 +33,8 @@ class TestMultiViewDataloaderConfig(unittest.TestCase):
             test_split=self.SPLIT,
             train_views_to_load=self.VIEWS,
             test_views_to_load=self.VIEWS,
+            train_attributes_to_load=self.DOMAIN_ATTR,
+            test_attributes_to_load=self.DOMAIN_ATTR,
             data_backend=class_config(HDF5Backend),
             workers_per_gpu=0,
         )
