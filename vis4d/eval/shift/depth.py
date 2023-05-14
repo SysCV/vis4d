@@ -4,7 +4,7 @@ from __future__ import annotations
 from vis4d.common.typing import NDArrayNumber
 
 from ..common import DepthEvaluator
-from ..common.utils import apply_eigen_crop, apply_garg_crop
+from ..utils import apply_eigen_crop, apply_garg_crop
 
 
 class SHIFTDepthEvaluator(DepthEvaluator):

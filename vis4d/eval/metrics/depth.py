@@ -5,7 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from vis4d.common.typing import ArrayLike
-from ..utils import dense_inputs_to_numpy, check_shape_match
+
+from ..utils import check_shape_match, dense_inputs_to_numpy
 
 
 def absolute_error(prediction: ArrayLike, target: ArrayLike) -> float:

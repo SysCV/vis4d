@@ -39,7 +39,7 @@ class TestDepthEvaluator(unittest.TestCase):
     batch_size = 4
     mask_h, mask_w = 10, 10
     depth_scale = 10.0
-    evaluator = DepthEvaluator(min_depth=0.0, max_depth=7.0)
+    evaluator = DepthEvaluator(min_depth=0.0, max_depth=10.0)
 
     def test_perfect_prediction(self) -> None:
         """Tests when predictions are correct."""
@@ -75,13 +75,13 @@ class TestDepthEvaluator(unittest.TestCase):
         self.evaluator.process_batch(pred, gt)
         metrics, log_str = self.evaluator.evaluate(DepthEvaluator.METRIC_ALL)
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_SILOG], 2.435, places=3
+            metrics[DepthEvaluator.METRIC_SILOG], 1.801, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_RMSE], 3.860, places=3
+            metrics[DepthEvaluator.METRIC_RMSE], 3.375, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_RMSE_LOG], 1.144, places=3
+            metrics[DepthEvaluator.METRIC_RMSE_LOG], 1.00, places=3
         )
         self.assertAlmostEqual(
             metrics[DepthEvaluator.METRIC_ABS_ERR], 3.375, places=3

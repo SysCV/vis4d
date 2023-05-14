@@ -17,11 +17,11 @@ from vis4d.eval.base import Evaluator
 
 from ..metrics.depth import (
     absolute_error,
-    squared_relative_error,
     absolute_relative_error,
     root_mean_squared_error,
     root_mean_squared_error_log,
     scale_invariant_log,
+    squared_relative_error,
 )
 
 

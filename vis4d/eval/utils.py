@@ -2,13 +2,8 @@
 
 import numpy as np
 
-from vis4d.common.typing import NDArrayNumber
-
 from vis4d.common.array import array_to_numpy
-from vis4d.common.typing import (
-    ArrayLike,
-    NDArrayNumber,
-)
+from vis4d.common.typing import ArrayLike, NDArrayNumber
 
 
 def apply_garg_crop(mask: NDArrayNumber) -> NDArrayNumber:

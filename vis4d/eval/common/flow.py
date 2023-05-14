@@ -14,7 +14,8 @@ from vis4d.common.typing import (
     NDArrayFloat,
 )
 from vis4d.eval.base import Evaluator
-from ..metrics.flow import end_point_error, angular_error
+
+from ..metrics.flow import angular_error, end_point_error
 
 
 class OpticalFlowEvaluator(Evaluator):

@@ -17,7 +17,7 @@ if SCALABEL_AVAILABLE:
 
 
 class ScalabelDetectEvaluator(ScalabelEvaluator):
-    """Scalabel 2D tracking evaluation class."""
+    """Scalabel 2D detection evaluation class."""
 
     METRICS_DET = "Det"
     METRICS_INS_SEG = "InsSeg"

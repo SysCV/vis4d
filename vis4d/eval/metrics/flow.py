@@ -5,7 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from vis4d.common.typing import ArrayLike
-from ..utils import dense_inputs_to_numpy, check_shape_match
+
+from ..utils import check_shape_match, dense_inputs_to_numpy
 
 
 def end_point_error(prediction: ArrayLike, target: ArrayLike) -> float:
@@ -20,7 +21,7 @@ def end_point_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.sqrt(np.sum((prediction - target) ** 2, axis=1)))
+    return np.mean(np.sqrt(np.sum((prediction - target) ** 2, axis=-1)))
 
 
 def angular_error(

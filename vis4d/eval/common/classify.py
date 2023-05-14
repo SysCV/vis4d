@@ -16,6 +16,7 @@ from vis4d.common.typing import (
     NDArrayNumber,
 )
 from vis4d.eval.base import Evaluator
+
 from ..metrics.classify import accuracy
 
 
