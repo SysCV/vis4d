@@ -10,7 +10,7 @@ from vis4d.data.const import CommonKeys as K
 
 def get_shift_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT segmentation task."""
-    keys_to_load = (K.images, K.seg_masks)
+    keys_to_load = (K.images, K.input_hw, K.seg_masks)
     cfg = get_shift_config(
         train_keys_to_load=keys_to_load,
         test_keys_to_load=keys_to_load,
@@ -24,7 +24,7 @@ def get_shift_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
 
 def get_shift_detection_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT detection task."""
-    keys_to_load = (K.images, K.boxes2d, K.boxes2d_classes)
+    keys_to_load = (K.images, K.input_hw, K.boxes2d, K.boxes2d_classes)
     cfg = get_shift_config(
         train_keys_to_load=keys_to_load,
         test_keys_to_load=keys_to_load,
@@ -38,7 +38,13 @@ def get_shift_detection_config(**kwargs: ArgsType) -> ConfigDict:
 
 def get_shift_instance_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT instance segmentation task."""
-    keys_to_load = (K.images, K.boxes2d, K.boxes2d_classes, K.instance_masks)
+    keys_to_load = (
+        K.images,
+        K.input_hw,
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.instance_masks,
+    )
     cfg = get_shift_config(
         train_keys_to_load=keys_to_load,
         test_keys_to_load=keys_to_load,
@@ -52,7 +58,7 @@ def get_shift_instance_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
 
 def get_shift_depth_estimation_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT depth estimation task."""
-    keys_to_load = (K.images, K.depth_maps)
+    keys_to_load = (K.images, K.input_hw, K.depth_maps)
     cfg = get_shift_config(
         train_keys_to_load=keys_to_load,
         test_keys_to_load=keys_to_load,
@@ -66,7 +72,7 @@ def get_shift_depth_estimation_config(**kwargs: ArgsType) -> ConfigDict:
 
 def get_shift_optical_flow_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT optical flow task."""
-    keys_to_load = (K.images, K.optical_flows)
+    keys_to_load = (K.images, K.input_hw, K.optical_flows)
     cfg = get_shift_config(
         train_keys_to_load=keys_to_load,
         test_keys_to_load=keys_to_load,
@@ -82,6 +88,7 @@ def get_shift_tracking_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT tracking task."""
     keys_to_load = (
         K.images,
+        K.input_hw,
         K.boxes2d,
         K.boxes2d_classes,
         K.boxes2d_track_ids,
@@ -101,6 +108,8 @@ def get_shift_multitask_2d_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT multitask 2D task."""
     keys_to_load = (
         K.images,
+        K.input_hw,
+        K.intrinsics,
         K.boxes2d,
         K.boxes2d_classes,
         K.boxes2d_track_ids,
@@ -122,6 +131,8 @@ def get_shift_multitask_3d_config(**kwargs: ArgsType) -> ConfigDict:
     """Get the config for the SHIFT multitask 3D task."""
     keys_to_load = (
         K.images,
+        K.input_hw,
+        K.intrinsics,
         K.boxes2d,
         K.boxes2d_classes,
         K.boxes2d_track_ids,

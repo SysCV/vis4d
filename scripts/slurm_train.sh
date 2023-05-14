@@ -16,7 +16,7 @@ module load python/3.10.4
 module load cuda/11.7.0
 
 export PYTHONPATH=
-source /cluster/home/$USER/vis4d/bin/activate
+source /cluster/home/$USER/py310-vis4d/bin/activate
 
 srun --cpus-per-task=4 --gres=gpumem:20G --kill-on-bad-exit=1 \
     python -m vis4d.engine.cli fit \

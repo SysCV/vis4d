@@ -4,18 +4,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ml_collections.config_dict import ConfigDict
-from pyrsistent import v
 
 from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.shift import SHIFT
-from vis4d.data.transforms.base import (
-    RandomApply,
-    Transform,
-    compose,
-    compose_batch,
-)
+from vis4d.data.loader import default_collate, multi_sensor_collate
+from vis4d.data.transforms.base import RandomApply, compose, compose_batch
 from vis4d.data.transforms.crop import (
     CropBoxes2D,
     CropDepthMaps,
@@ -41,7 +36,7 @@ from vis4d.data.transforms.resize import (
     ResizeOpticalFlows,
     ResizeSegMasks,
 )
-from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.data.transforms.to_tensor import SelectSensor, ToTensor
 
 
 def get_train_preprocessing(
@@ -109,7 +104,10 @@ def get_train_preprocessing(
     if crop_size is not None:
         preprocess_transforms.append(
             class_config(
-                GenCropParameters, shape=crop_size, cat_max_ratio=0.75
+                GenCropParameters,
+                shape=crop_size,
+                cat_max_ratio=0.75,
+                **views_arg,
             ),
         )
         preprocess_transforms.append(class_config(CropImage, **views_arg))
@@ -133,15 +131,15 @@ def get_train_preprocessing(
     # Random flip
     if horizontal_flip_prob > 0:
         flip_transforms = []
-        flip_transforms.append(class_config(FlipImage, **views_arg))
+        flip_transforms.append(class_config(FlipImage))
         if K.seg_masks in keys_to_load:
-            flip_transforms.append(class_config(FlipSegMasks, **views_arg))
+            flip_transforms.append(class_config(FlipSegMasks))
         if K.boxes2d in keys_to_load:
-            flip_transforms.append(class_config(FlipBoxes2D, **views_arg))
+            flip_transforms.append(class_config(FlipBoxes2D))
         if K.depth_maps in keys_to_load:
-            flip_transforms.append(class_config(FlipDepthMaps, **views_arg))
+            flip_transforms.append(class_config(FlipDepthMaps))
         if K.optical_flows in keys_to_load:
-            flip_transforms.append(class_config(FlipOpticalFlows, **views_arg))
+            flip_transforms.append(class_config(FlipOpticalFlows))
         preprocess_transforms.append(
             class_config(
                 RandomApply,
@@ -155,23 +153,25 @@ def get_train_preprocessing(
         preprocess_transforms.append(
             class_config(
                 RandomApply,
-                transforms=[class_config(ColorJitter)],
+                transforms=[class_config(ColorJitter, **views_arg)],
                 probability=color_jitter_prob,
-                **views_arg,
             )
         )
 
     preprocess_transforms.append(class_config(NormalizeImage, **views_arg))
-
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
+
+    batchprocess_transforms = [class_config(ToTensor, **views_arg)]
+    if len(views_to_load) == 1:
+        batchprocess_transforms.append(
+            class_config(SelectSensor, sensor=views_to_load[0])
+        )
     train_batchprocess_cfg = class_config(
-        compose_batch,
-        transforms=[
-            class_config(ToTensor, **views_arg),
-        ],
+        compose_batch, transforms=batchprocess_transforms
     )
+
     return train_preprocess_cfg, train_batchprocess_cfg
 
 
@@ -227,16 +227,19 @@ def get_test_preprocessing(
             )
 
     preprocess_transforms.append(class_config(NormalizeImage, **views_arg))
-
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
+
+    batchprocess_transforms = [class_config(ToTensor, **views_arg)]
+    if len(views_to_load) == 1:
+        batchprocess_transforms.append(
+            class_config(SelectSensor, sensor=views_to_load[0])
+        )
     test_batchprocess_cfg = class_config(
-        compose_batch,
-        transforms=[
-            class_config(ToTensor, **views_arg),
-        ],
+        compose_batch, transforms=batchprocess_transforms
     )
+
     return test_preprocess_cfg, test_batchprocess_cfg
 
 
@@ -278,6 +281,9 @@ def get_shift_dataloader_config(
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         shuffle=True,
+        collate_fn=multi_sensor_collate
+        if len(train_views_to_load) > 1
+        else default_collate,
     )
     data.test_dataloader = get_dataloader_config(
         preprocess_cfg=test_preprocess_cfg,
@@ -286,6 +292,9 @@ def get_shift_dataloader_config(
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         shuffle=False,
+        collate_fn=multi_sensor_collate
+        if len(test_views_to_load) > 1
+        else default_collate,
     )
 
     return data

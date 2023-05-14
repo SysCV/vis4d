@@ -105,11 +105,13 @@ class Transform:
                         # Optionally allow the function to get the full data
                         # dict as aux input.
                         in_data += [
-                            get_dict_nested(data, key.split("."))
+                            get_dict_nested(
+                                data, key.split("."), allow_missing=True
+                            )
                             if key != "data"
                             else data
                         ]
-                    except ValueError:
+                    except (ValueError, AttributeError):
                         rank_zero_warn(
                             f"Could not find key {key} in data dictionary."
                             + f"Skipping transform {self_.__class__.__name__}."

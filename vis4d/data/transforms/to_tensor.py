@@ -1,4 +1,5 @@
 """ToTensor transformation."""
+
 import numpy as np
 import torch
 
@@ -35,3 +36,30 @@ class ToTensor:
         for data in batch:
             _replace_arrays(data)
         return batch
+
+
+@BatchTransform("data", "data")
+class SelectSensor:
+    """Keep data from one sensor only."""
+
+    def __init__(self, sensor: str):
+        """Creates an instance of SelectSensor.
+
+        Args:
+            sensor (str): Sensor name.
+        """
+        self.sensor = sensor
+
+    def __call__(self, batch: list[DictData]) -> list[DictData]:
+        """Select data from one sensor only."""
+        new_batch = []
+        for data in batch:
+            new_data = {}
+            for key in data.keys():
+                if isinstance(data[key], dict):
+                    if key == self.sensor:
+                        new_data.update(data[key])
+                else:
+                    new_data[key] = data[key]
+            new_batch.append(new_data)
+        return new_batch

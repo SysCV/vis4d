@@ -87,7 +87,7 @@ def relative_range_crop(
 
 
 @Transform(
-    [K.input_hw, (K.boxes2d, "boxes"), (K.seg_masks, "masks")],
+    [K.input_hw, K.boxes2d, K.seg_masks],
     "transforms.crop",
 )
 class GenCropParameters:
@@ -164,7 +164,9 @@ class GenCropParameters:
 class CropImage:
     """Crop Image."""
 
-    def __call__(self, image: NDArrayF32, crop_box: NDArrayI32) -> NDArrayF32:
+    def __call__(
+        self, image: NDArrayF32, crop_box: NDArrayI32
+    ) -> tuple[NDArrayF32, tuple[int, int]]:
         """Crop an image of dimensions [N, H, W, C].
 
         Args:
@@ -186,9 +188,9 @@ class CropImage:
     [
         K.boxes2d,
         K.boxes2d_classes,
-        (K.boxes2d_track_ids, "track_ids"),
         "transforms.crop.crop_box",
         "transforms.crop.keep_mask",
+        K.boxes2d_track_ids,
     ],
     [K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
 )
