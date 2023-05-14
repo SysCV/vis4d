@@ -4,9 +4,9 @@ from __future__ import annotations
 import pytorch_lightning as pl
 
 from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.default.runtime import (
-    get_generic_callback_config,
-    get_pl_trainer_args,
+from vis4d.config.default import (
+    get_callbacks_config,
+    get_pl_trainer_config,
     set_output_dir,
 )
 from vis4d.config.util import ConfigDict, class_config
@@ -25,7 +25,7 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import DataConnector, data_key, pred_key
-from vis4d.eval.bdd100k import BDD100KTrackingEvaluator
+from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
 CONN_BBOX_2D_TEST = {
@@ -168,7 +168,7 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             save_prefix=config.output_dir,
             evaluator=class_config(
-                BDD100KTrackingEvaluator,
+                BDD100KTrackEvaluator,
                 annotation_path=annotation_path,
             ),
             run_every_nth_epoch=1,
@@ -180,9 +180,7 @@ def get_config() -> ConfigDict:
     ##                GENERIC CALLBACKS                 ##
     ######################################################
     # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
-    )
+    logger_callback, ckpt_callback = get_callbacks_config(config, params)
 
     # Assign the defined callbacks to the config
     config.shared_callbacks = {**logger_callback, **eval_callbacks}
@@ -195,7 +193,7 @@ def get_config() -> ConfigDict:
     ##                  PL CALLBACKS                    ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_args()
+    pl_trainer = get_pl_trainer_config()
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 

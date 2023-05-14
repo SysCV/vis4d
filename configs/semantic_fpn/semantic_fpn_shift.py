@@ -1,6 +1,7 @@
 """Semantic FPN BDD100K training example."""
 from __future__ import annotations
 
+import lightning.pytorch as pl
 from torch import optim
 
 from vis4d.config.base.datasets.shift.tasks import (
@@ -13,9 +14,10 @@ from vis4d.config.default.data_connectors.seg import (
     CONN_SEG_LOSS,
 )
 from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default.runtime import (
-    get_generic_callback_config,
+from vis4d.config.default import (
+    get_callbacks_config,
     set_output_dir,
+    get_pl_trainer_config,
 )
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -51,7 +53,7 @@ def get_config() -> ConfigDict:
     params.num_steps = 40000
     params.num_epochs = 45
     params.augment_prob = 0.5
-    params.num_classes = 19
+    params.num_classes = 23
     config.params = params
 
     ######################################################
@@ -61,9 +63,8 @@ def get_config() -> ConfigDict:
     views_to_load = ["front"]
     train_split = "train"
     test_split = "val"
-
     data_backend = class_config(HDF5Backend)
-
+    
     config.data = get_shift_segmentation_config(
         data_root=data_root,
         train_split=train_split,
@@ -84,7 +85,6 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-
     config.optimizers = [
         get_optimizer_config(
             optimizer=class_config(
@@ -97,49 +97,50 @@ def get_config() -> ConfigDict:
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
             ),
             epoch_based_lr=False,
+            epoch_based_warmup=False,
         )
     ]
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-
     config.data_connector = class_config(
         DataConnector,
         train=CONN_MASKS_TRAIN,
         test=CONN_MASKS_TEST,
         loss=CONN_SEG_LOSS,
-        callbacks={"shift_eval": CONN_SEG_EVAL},
     )
-
-    ######################################################
-    ##                     EVALUATOR                    ##
-    ######################################################
-
-    eval_callbacks = {
-        "shift_eval": class_config(
-            EvaluatorCallback,
-            evaluator=class_config(
-                SHIFTSegEvaluator,
-                annotation_path="data/bdd100k/labels/sem_seg_val_rle.json",
-            ),
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        )
-    }
 
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
+    # Logger and Checkpoint
+    callbacks = get_callbacks_config(config)
+
+    # Evaluator
+    callbacks.append(
+        class_config(
+            EvaluatorCallback,
+            evaluator=class_config(
+                SHIFTSegEvaluator,
+            ),
+            test_connector=CONN_SEG_EVAL,
+        )
     )
 
-    # Assign the defined callbacks to the config
-    config.shared_callbacks = {**logger_callback}
+    config.callbacks = callbacks
 
-    config.train_callbacks = {**ckpt_callback}
-    config.test_callbacks = {**eval_callbacks}
+    ######################################################
+    ##                     PL CLI                       ##
+    ######################################################
+    # PL Trainer args
+    pl_trainer = get_pl_trainer_config(config)
+    pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.wandb = True
+    config.pl_trainer = pl_trainer
+
+    # PL Callbacks
+    pl_callbacks: list[pl.callbacks.Callback] = []
+    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

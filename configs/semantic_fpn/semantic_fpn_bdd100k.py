@@ -14,7 +14,7 @@ from vis4d.config.default.data_connectors.seg import (
 )
 from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import (
-    get_generic_callback_config,
+    get_callbacks_config,
     set_output_dir,
 )
 from vis4d.config.util import ConfigDict, class_config
@@ -130,9 +130,7 @@ def get_config() -> ConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
-    )
+    logger_callback, ckpt_callback = get_callbacks_config(config, params)
 
     # Assign the defined callbacks to the config
     config.shared_callbacks = {**logger_callback}
