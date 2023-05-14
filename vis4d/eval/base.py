@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from vis4d.common import ArgsType, GenericFunc, MetricLogs
-from vis4d.data.io import DataBackend, FileBackend
 
 
 class Evaluator:  # pragma: no cover
@@ -91,6 +90,14 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
+    def save_batch(self, metric: str, output_dir: str) -> None:
+        """Save batch of predictions to file.
+
+        Args:
+            metric (str): Save predictions for the specified metrics.
+            output_dir (str): Output directory.
+        """
+
     def process(self) -> None:
         """Process all accumulated data at the end of an epoch, if any.
 
@@ -113,14 +120,6 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
-    def save_batch(self, metric: str, output_dir: str) -> None:
-        """Save batch of predictions to file.
-
-        Args:
-            metric (str): Save predictions for the specified metrics.
-            output_dir (str): Output directory.
-        """
-
     def save(self, metric: str, output_dir: str) -> None:
         """Save all predictions to file at the end of an epoch.
 
@@ -128,33 +127,3 @@ class Evaluator:  # pragma: no cover
             metric (str): Save predictions for the specified metrics.
             output_dir (str): Output directory.
         """
-        super().__init__()
-        self.backend = backend
-
-    def reset(self) -> None:
-        """Reset writer for new round of evaluation.
-
-        Raises:
-            NotImplementedError: This is an abstract class method.
-        """
-        raise NotImplementedError
-
-    def process(self, *args: ArgsType) -> None:
-        """Process a batch of data.
-
-        Raises:
-            NotImplementedError: This is an abstract class method.
-        """
-        raise NotImplementedError
-
-    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
-        """The writer does not evaluate anything."""
-        pass
-
-    def save(self) -> None:
-        """Save predictions to file.
-
-        Raises:
-            NotImplementedError: This is an abstract class method.
-        """
-        raise NotImplementedError

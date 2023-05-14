@@ -5,14 +5,8 @@ import itertools
 from collections.abc import Callable
 from typing import Any
 
-<<<<<<< HEAD
-from vis4d.common.typing import MetricLogs
-from vis4d.common.imports import SCALABEL_AVAILABLE
-
-=======
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.typing import MetricLogs
->>>>>>> eval-refactor
 from vis4d.eval.base import Evaluator
 
 if SCALABEL_AVAILABLE:
@@ -57,11 +51,7 @@ class ScalabelEvaluator(Evaluator):
         """Reset the evaluator."""
         self.frames = []
 
-<<<<<<< HEAD
-    def process(  # type: ignore # pragma: no cover
-=======
     def process_batch(  # type: ignore # pragma: no cover
->>>>>>> eval-refactor
         self, *args: Any, **kwargs: Any
     ) -> None:
         """Process sample and update confusion matrix."""

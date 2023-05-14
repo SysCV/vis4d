@@ -507,6 +507,10 @@ class SHIFT(Dataset):
         """Load optical flow data."""
         npy_bytes = self.backend.get(filepath)
         flow = npy_decode(npy_bytes, key="flow")
+        flow = flow[:, :, [1, 0]]  # Convert to (u, v) format
+        flow *= flow.shape[1]  # Scale to image size (1280)
+        if self.framerate == "images":
+            flow *= 10.0  # NOTE: Scale to 1 fps approximately
         return flow.astype(np.float32)
 
     def _get_frame_key(self, idx: int) -> tuple[str, str]:

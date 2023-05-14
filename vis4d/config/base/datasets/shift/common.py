@@ -9,7 +9,12 @@ from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.shift import SHIFT
-from vis4d.data.transforms.base import RandomApply, compose, compose_batch
+from vis4d.data.transforms.base import (
+    RandomApply,
+    Transform,
+    compose,
+    compose_batch,
+)
 from vis4d.data.transforms.crop import (
     CropBoxes2D,
     CropDepthMaps,
@@ -105,15 +110,16 @@ def get_train_preprocessing(
 
     # Random flip
     if horizontal_flip_prob > 0:
-        flip_transforms = [FlipImage()]
+        flip_transforms = []
+        flip_transforms.append(class_config(FlipImage))
         if K.seg_masks in keys_to_load:
-            flip_transforms.append(FlipSegMasks())
+            flip_transforms.append(class_config(FlipSegMasks))
         if K.boxes2d in keys_to_load:
-            flip_transforms.append(FlipBoxes2D())
+            flip_transforms.append(class_config(FlipBoxes2D))
         if K.depth_maps in keys_to_load:
-            flip_transforms.append(FlipDepthMaps())
+            flip_transforms.append(class_config(FlipDepthMaps))
         if K.optical_flows in keys_to_load:
-            flip_transforms.append(FlipOpticalFlows())
+            flip_transforms.append(class_config(FlipOpticalFlows))
         preprocess_transforms.append(
             class_config(
                 RandomApply,
