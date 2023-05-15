@@ -1,9 +1,7 @@
-"""Contains base class implementations for image based visualization."""
+"""Base class of canvas for image based visualization."""
 from __future__ import annotations
 
 from vis4d.common.typing import NDArrayBool, NDArrayUI8
-
-# TODO @zrene, change color to int,int,int not float,float,float
 
 
 class CanvasBackend:
@@ -31,7 +29,7 @@ class CanvasBackend:
     def draw_bitmap(
         self,
         bitmap: NDArrayBool,
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
         top_left_corner: tuple[float, float] = (0, 0),
         alpha: float = 0.5,
     ) -> None:
@@ -39,10 +37,11 @@ class CanvasBackend:
 
         Args:
             bitmap (ndarray): The binary mask to draw
-            color (tuple(float)): Color of the box [0,255]
+            color (tuple[int, int, int]): Color of the box [0,255].
             top_left_corner (tuple(float, float)): Coordinates of top left
-                                                    corner of the bitmap
-            alpha (float): Alpha value for transparency of this mask
+                corner of the bitmap. Defaults to (0, 0).
+            alpha (float, optional): Alpha value for transparency of this mask.
+                Defaults to 0.5.
         """
         raise NotImplementedError
 
@@ -50,7 +49,7 @@ class CanvasBackend:
         self,
         position: tuple[float, float],
         text: str,
-        color: tuple[float, float, float] = (255, 255, 255),
+        color: tuple[int, int, int] = (255, 255, 255),
     ) -> None:
         """Draw text onto canvas at given position.
 
@@ -67,7 +66,7 @@ class CanvasBackend:
         self,
         point1: tuple[float, float],
         point2: tuple[float, float],
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
         """Draw a line onto canvas from point 1 to 2.
@@ -75,7 +74,7 @@ class CanvasBackend:
         Args:
             point1 (tuple[float, float]): Start point (2D pixel coordinates).
             point2 (tuple[float, float]): End point (2D pixel coordinates).
-            color (tuple[float, float, float]): Color of the line.
+            color (ttuple[int, int, int]): Color of the line.
             width (int, optional): Line width. Defaults to 0.
         """
         raise NotImplementedError
@@ -83,14 +82,14 @@ class CanvasBackend:
     def draw_box(
         self,
         corners: tuple[float, float, float, float],
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
     ) -> None:
         """Draws a box onto the given canvas.
 
         Args:
             corners (list[float]): Containing [x1,y1,x2,y2] the corners of
-                                    the box
-            color (tuple(float)): Color of the box [0,255]
+                the box.
+            color (tuple[int, int, int]): Color of the box [0,255].
 
         Raises:
             ValueError: If the canvas is not initialized.
@@ -100,7 +99,7 @@ class CanvasBackend:
     def draw_rotated_box(
         self,
         corners: tuple[tuple[float, float], ...],
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
         """Draws a box onto the given canvas.
@@ -116,7 +115,7 @@ class CanvasBackend:
         Args:
             corners (tuple[tuple[float, float], ...]): Containing the four
                 corners of the box.
-            color (tuple(float)): Color of the box [0,255].
+            color (tuple[int, int, int]): Color of the box [0,255].
             width (int, optional): Line width. Defaults to 0.
         """
         raise NotImplementedError
@@ -130,21 +129,5 @@ class CanvasBackend:
 
         Args:
             image_path (str): Full image path (with file name and ending).
-        """
-        raise NotImplementedError
-
-
-class ImageViewerBackend:
-    """Abstract interface that allows to show images."""
-
-    def show_images(
-        self, images: list[NDArrayUI8], blocking: bool = True
-    ) -> None:
-        """Shows a list of images.
-
-        Args:
-            images (list[NDArrayUI8]): Images to display
-            blocking (bool): If the viewer should be blocking and wait for
-                            input after each image.
         """
         raise NotImplementedError

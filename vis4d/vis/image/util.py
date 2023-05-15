@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-import numpy.typing as npt
 
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
@@ -11,11 +10,11 @@ from vis4d.common.typing import (
     ArrayLikeFloat,
     ArrayLikeInt,
     NDArrayBool,
+    NDArrayUI8,
 )
-from vis4d.vis.image.base import CanvasBackend
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
-ImageType = npt.NDArray[np.float64]
+from .canvas import CanvasBackend
 
 
 def _get_box_label(
@@ -54,13 +53,13 @@ def preprocess_boxes(
     scores: None | ArrayLikeFloat = None,
     class_ids: None | ArrayLikeInt = None,
     track_ids: None | ArrayLikeInt = None,
-    color_palette: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
+    color_palette: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
 ) -> tuple[
     list[tuple[float, float, float, float]],
     list[str],
-    list[tuple[float, float, float]],
+    list[tuple[int, int, int]],
 ]:
     """Preprocesses bounding boxes.
 
@@ -82,8 +81,10 @@ def preprocess_boxes(
             class or track id is given.
 
     Returns:
-        tuple[list[tuple[float x 4]], list[str], list[tuple[float x 3]]]:
-        box corners, labels and colors
+        boxes_proc (list[tuple[float, float, float, float]]): List of box
+            corners.
+        labels_proc (list[str]): List of labels.
+        colors_proc (list[tuple[int, int, int]]): List of colors.
     """
     if class_id_mapping is None:
         class_id_mapping = {}
@@ -95,7 +96,7 @@ def preprocess_boxes(
     track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
     boxes_proc: list[tuple[float, float, float, float]] = []
-    colors_proc: list[tuple[float, float, float]] = []
+    colors_proc: list[tuple[int, int, int]] = []
     labels_proc: list[str] = []
 
     # Only one box provided
@@ -133,15 +134,15 @@ def preprocess_boxes(
 def preprocess_masks(
     masks: ArrayLikeBool,
     class_ids: ArrayLikeInt | None,
-    color_mapping: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
-) -> tuple[list[NDArrayBool], list[tuple[float, float, float]]]:
+    color_mapping: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
+) -> tuple[list[NDArrayBool], list[tuple[int, int, int]]]:
     """Preprocesses predicted semantic masks.
 
     Args:
         masks (ArrayLikeBool): The semantic masks of shape [N, h, w].
         class_ids (ArrayLikeInt, None):  An array with class ids for each mask
             shape [N]
-        color_mapping (list[tuple[float, float, float]]): Color mapping for
+        color_mapping (list[tuple[int, int, int]]): Color mapping for
             each semantic class
 
     Returns:
@@ -152,7 +153,7 @@ def preprocess_masks(
     class_ids = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
 
     mask_list: list[NDArrayBool] = []
-    color_list: list[tuple[float, float, float]] = []
+    color_list: list[tuple[int, int, int]] = []
 
     for idx in range(masks.shape[0]):
         mask = masks[idx, ...]
@@ -167,9 +168,7 @@ def preprocess_masks(
     return mask_list, color_list
 
 
-def preprocess_image(
-    image: ArrayLike, mode: str = "RGB"
-) -> npt.NDArray[np.uint8]:
+def preprocess_image(image: ArrayLike, mode: str = "RGB") -> NDArrayUI8:
     """Validate and convert input image.
 
     Args:
@@ -238,7 +237,7 @@ def draw_box3d(
     canvas: CanvasBackend,
     corners: tuple[tuple[float, float], ...],
     label: str,
-    color: tuple[float, float, float],
+    color: tuple[int, int, int],
 ) -> None:
     """Draw 3D bounding box on a given 2D canvas.
 
@@ -247,7 +246,7 @@ def draw_box3d(
         corners (tuple[tuple[float, float], ...]): Projected locations of the
             3D bounding box corners.
         label (str): Text label of the 3D box.
-        color (tuple[float, float, float]): The box color.
+        color (tuple[int, int, int]): The box color.
     """
     assert len(corners) == 8, "A 3D box needs 8 corners."
     # Draw the sides

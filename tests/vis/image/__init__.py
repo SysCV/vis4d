@@ -1,1 +1,1 @@
-"""Vis4D Tests."""
+"""Image Visualization Tests."""

@@ -1,10 +1,9 @@
-# pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Data module composing the data loading pipeline."""
 from __future__ import annotations
 
 import lightning.pytorch as pl
 from ml_collections import ConfigDict
-from torch.utils import data
+from torch.utils.data import DataLoader
 
 from vis4d.config.util import instantiate_classes
 from vis4d.data.typing import DictData
@@ -25,14 +24,14 @@ class DataModule(pl.LightningDataModule):  # type: ignore
         super().__init__()
         self.data_cfg = data_cfg
 
-    def train_dataloader(self) -> data.DataLoader[DictData]:
+    def train_dataloader(self) -> DataLoader[DictData]:
         """Return dataloader for training."""
         return instantiate_classes(self.data_cfg.train_dataloader)
 
-    def test_dataloader(self) -> list[data.DataLoader[DictData]]:
+    def test_dataloader(self) -> list[DataLoader[DictData]]:
         """Return dataloaders for testing."""
         return instantiate_classes(self.data_cfg.test_dataloader)
 
-    def val_dataloader(self) -> list[data.DataLoader[DictData]]:
+    def val_dataloader(self) -> list[DataLoader[DictData]]:
         """Return dataloaders for validation."""
         return self.test_dataloader()

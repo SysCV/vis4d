@@ -1,5 +1,4 @@
-# pylint: disable=consider-using-alias,consider-alternative-union-syntax
-"""Vis4D Trainer."""
+"""Trainer for PyTorch Lightning."""
 from __future__ import annotations
 
 import os.path as osp
@@ -12,8 +11,8 @@ from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 
 
-class DefaultTrainer(pl.Trainer):  # type: ignore
-    """DefaultTrainer for PyTorch-Lightning."""
+class PLTrainer(pl.Trainer):  # type: ignore
+    """Trainer for PyTorch Lightning."""
 
     def __init__(
         self,

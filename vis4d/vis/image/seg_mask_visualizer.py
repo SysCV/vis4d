@@ -1,4 +1,4 @@
-"""Vis4D segmentation mask visualizer."""
+"""Semantic mask visualizer."""
 from __future__ import annotations
 
 import os
@@ -8,17 +8,19 @@ import numpy as np
 
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
-    ArrayLike,
+    ArgsType,
+    ArrayLikeBool,
+    ArrayLikeFloat,
+    ArrayLikeInt,
     NDArrayBool,
-    NDArrayI64,
-    NDArrayNumber,
+    NDArrayFloat,
+    NDArrayInt,
     NDArrayUI8,
 )
 from vis4d.vis.base import Visualizer
-from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
-from vis4d.vis.image.canvas import PillowCanvasBackend
+from vis4d.vis.image.canvas import CanvasBackend, PillowCanvasBackend
 from vis4d.vis.image.util import preprocess_image, preprocess_masks
-from vis4d.vis.image.viewer import MatplotlibImageViewer
+from vis4d.vis.image.viewer import ImageViewerBackend, MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map
 
 
@@ -27,7 +29,7 @@ class SegMask2D:
     """Dataclass storing mask information."""
 
     mask: NDArrayBool
-    color: tuple[float, float, float]
+    color: tuple[int, int, int]
 
 
 @dataclass
@@ -35,6 +37,7 @@ class ImageWithSegMask:
     """Dataclass storing a data sample that can be visualized."""
 
     image: NDArrayUI8
+    image_name: str
     masks: list[SegMask2D]
 
 
@@ -43,6 +46,7 @@ class SegMaskVisualizer(Visualizer):
 
     def __init__(
         self,
+        *args: ArgsType,
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
         num_samples: int = -1,
@@ -50,6 +54,7 @@ class SegMaskVisualizer(Visualizer):
         image_mode: str = "RGB",
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
+        **kwargs: ArgsType,
     ) -> None:
         """Creates a new Visualizer for Image and Bounding Boxes.
 
@@ -63,7 +68,7 @@ class SegMaskVisualizer(Visualizer):
             canvas (CanvasBackend): Backend that is used to draw on images
             viewer (ImageViewerBackend): Backend that is used show images
         """
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self._samples: list[ImageWithSegMask] = []
         self.color_palette = generate_color_map(n_colors)
         self.class_id_mapping = (
@@ -77,24 +82,25 @@ class SegMaskVisualizer(Visualizer):
 
     def reset(self) -> None:
         """Reset visualizer for new round of evaluation."""
-        self._samples = []
+        self._samples.clear()
 
     def _add_masks(
         self,
         data_sample: ImageWithSegMask,
         masks: NDArrayBool,
-        class_ids: None | NDArrayI64 = None,
+        class_ids: NDArrayInt | None = None,
     ) -> None:
         """Adds a mask to the current data sample.
 
         Args:
             data_sample (DataSample): Data sample to add mask to
-            masks (NDArrayBool): Binary masks shape [N,h,w]
-            class_ids (NdArrayI64, optional): Class ids for each mask shape [N]
+            masks (ArrayLikeBool): Binary masks shape [N,h,w]
+            class_ids (ArrayLikeInt | None, optional): Class ids for each mask
+                shape [N]. Defaults to None.
         """
         if class_ids is not None:
             assert (
-                len(class_ids) == masks.shape[0]
+                len(class_ids) == masks.shape[0]  # type: ignore
             ), "The amount of masks must match the given class count!"
 
         for mask, color in zip(*preprocess_masks(masks, class_ids)):
@@ -130,22 +136,29 @@ class SegMaskVisualizer(Visualizer):
             binary_masks.append(mask == class_id)
         return np.stack(binary_masks, axis=0)
 
-    def process(  # pylint: disable=arguments-renamed,arguments-differ
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self,
-        images: ArrayLike,
-        masks: list[ArrayLike],
-        class_ids: list[ArrayLike] | None = None,
+        cur_iter: int,
+        images: list[ArrayLikeFloat],
+        image_names: list[str],
+        masks: list[ArrayLikeBool],
+        class_ids: list[ArrayLikeInt] | None = None,
     ) -> None:
         """Processes a batch of data.
 
-        Use .show() or .save_to_disk() to show or save the predictions.
-
         Args:
-            images (list[np.array]): Images to show
-            masks (list[NDArrayBool]): Binary masks to show each shape [N,h,w]
-            class_ids (list[NDArrayI64]): class ids for each mask shape [N]
+            cur_iter (int): Current iteration.
+            images (list[ArrayLike]): Images to show.
+            image_names (list[str]): Image names.
+            masks (list[ArrayLikeBool]): Binary masks to show each shape
+                [N, H, W].
+            class_ids (list[ArrayLikeInt] | None, optional): Class ids for each
+                mask shape [N]. Defaults to None.
         """
-        images = array_to_numpy(images, None)
+        if not self._run_on_batch(cur_iter):
+            return
+
+        images = array_to_numpy(images, None, np.float)
         masks = [array_to_numpy(mask, None, np.uint8) for mask in masks]
         if class_ids is not None:
             class_ids = [
@@ -161,61 +174,63 @@ class SegMaskVisualizer(Visualizer):
                 mask = self._to_binary_mask(mask)
             self.process_single_image(
                 image,
+                image_names[idx],
                 mask,
                 None if class_ids is None else class_ids[idx],
             )
 
     def process_single_image(
         self,
-        image: NDArrayNumber,
+        image: NDArrayFloat,
+        image_name: str,
         masks: NDArrayBool,
-        class_ids: NDArrayI64 | None,
+        class_ids: NDArrayInt | None = None,
     ) -> None:
         """Processes a single image entry.
 
-        Use .show() or .save_to_disk() to show or save the predictions.
-
         Args:
-            image (np.array): Images to show
-            masks (NDArrayBool): Binary masks to show each shape [N,h,w]
-            class_ids (NDArrayI64, optional): Binary masks to show
-                each mask of shape [h,w]
+            image (ArrayLike): Images to show.
+            image_name (str): Name of the image.
+            masks (ArrayLikeBool): Binary masks to show each shape
+                [N, H, W].
+            class_ids (ArrayLikeInt | None, optional): Binary masks to show
+                each mask of shape [H, W]. Defaults to None.
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
-        data_sample = ImageWithSegMask(img_normalized, [])
+        data_sample = ImageWithSegMask(img_normalized, image_name, [])
         self._add_masks(data_sample, masks, class_ids)
         self._samples.append(data_sample)
 
-    def show(self, blocking: bool = True) -> None:
+    def show(self, cur_iter: int, blocking: bool = True) -> None:
         """Shows the processed images in a interactive window.
 
         Args:
-            blocking (bool): If the visualizer should be blocking
-                             i.e. wait for human input for each image
+            cur_iter (int): Current iteration.
+            blocking (bool): If the visualizer should be blocking i.e. wait for
+                human input for each image
         """
+        if not self._run_on_batch(cur_iter):
+            return
         image_data = [self._draw_image(d) for d in self._samples]
         self.viewer.show_images(image_data, blocking=blocking)
 
-    def save_to_disk(self, path_to_out_folder: str) -> None:
+    def save_to_disk(self, cur_iter: int, output_folder: str) -> None:
         """Saves the visualization to disk.
 
         Writes all processes samples to the output folder naming each image
-        #####.<filetype> where ##### is the zero padded index of the sample
+        <sample.image_name>.<filetype>.
 
         Args:
-            path_to_out_folder (str): Path to output folder.
-                                      All folders in the path will be created
-                                      if they do not already exist
+            cur_iter (int): Current iteration.
+            output_folder (str): Folder where the output should be written.
         """
-        os.makedirs(path_to_out_folder, exist_ok=True)
-
-        for idx, sample in enumerate(self._samples):
-            image_name = f"{idx:04d}.{self.file_type}"
+        if not self._run_on_batch(cur_iter):
+            return
+        for sample in self._samples:
+            image_name = f"{sample.image_name}.{self.file_type}"
 
             self.canvas.create_canvas(sample.image)
             for mask in sample.masks:
                 self.canvas.draw_bitmap(mask.mask, mask.color)
 
-            self.canvas.save_to_disk(
-                os.path.join(path_to_out_folder, image_name)
-            )
+            self.canvas.save_to_disk(os.path.join(output_folder, image_name))

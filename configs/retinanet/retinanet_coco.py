@@ -23,7 +23,7 @@ from vis4d.config.default.data_connectors import (
 from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.engine.connectors import DataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.model.detect.retinanet import RetinaNet
 from vis4d.op.detect.retinanet import (
@@ -152,18 +152,16 @@ def get_config() -> ConfigDict:
     # We do this using the remap_pred_keys function.
 
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            train=CONN_IMAGES_TRAIN,
-            test=CONN_IMAGES_TEST,
-            loss={
-                **CONN_BOX_LOSS_2D,
-            },
-            callbacks={
-                "coco_eval_test": CONN_COCO_BBOX_EVAL,
-                "bbox_vis_test": CONN_BBOX_2D_VIS,
-            },
-        ),
+        DataConnector,
+        train=CONN_IMAGES_TRAIN,
+        test=CONN_IMAGES_TEST,
+        loss={
+            **CONN_BOX_LOSS_2D,
+        },
+        callbacks={
+            "coco_eval_test": CONN_COCO_BBOX_EVAL,
+            "bbox_vis_test": CONN_BBOX_2D_VIS,
+        },
     )
 
     ######################################################

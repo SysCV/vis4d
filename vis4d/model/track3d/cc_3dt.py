@@ -530,7 +530,11 @@ class FasterRCNNCC3DT(nn.Module):
     ) -> list[CC3DTrackState]:
         """Forward inference stage."""
         # Curretnly only work with single batch per gpu
+        # (N, 1, 3, H, W) -> (N, 3, H, W)
+        images = images.squeeze(1)
+        # (N, 1, 3, 3) -> (N, 3, 3)
         intrinsics = intrinsics.squeeze(1)
+        # (N, 1, 4, 4) -> (N, 4, 4)
         extrinsics = extrinsics.squeeze(1)
 
         features = self.basemodel(images)

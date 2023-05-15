@@ -1,7 +1,7 @@
 """Test cases for warmup."""
 import unittest
 
-from vis4d.optim.warmup import ConstantLRWarmup, ExponentialLRWarmup
+from vis4d.engine.optim import ConstantLRWarmup, ExponentialLRWarmup
 
 
 class TestWarmup(unittest.TestCase):

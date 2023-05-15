@@ -1,10 +1,8 @@
 """Tests for pointcloud visualization."""
-
 import glob
 import shutil
 import tempfile
 import unittest
-import warnings
 
 import numpy as np
 import torch
@@ -33,12 +31,11 @@ class TestPointcloudViewer(unittest.TestCase):
 
     def setUp(self) -> None:
         """Creates a tmp directory and loads input data."""
-        # Create a temporary directory
         self.test_dir = tempfile.mkdtemp()
+        self.vis = PointCloudVisualizer(vis_freq=1)
 
     def tearDown(self) -> None:
-        """Removes the tmp directory."""
-        # Remove the directory after the test
+        """Removes the tmp directory after the test."""
         shutil.rmtree(self.test_dir)
 
     def _assert_pc_equal(self, file1: str, file2: str) -> None:
@@ -60,15 +57,12 @@ class TestPointcloudViewer(unittest.TestCase):
 
     def test_precomputed(self) -> None:
         """Loads a precomputed datasamples from s3dis and checks the output."""
-        if not OPEN3D_AVAILABLE:
-            warnings.warn("open3d not installed, skipping test.")
-            return
-
         test_file_loc = get_test_file("test_s3dis_pts_in.pt")
         data = torch.load(test_file_loc)
-        vis = PointCloudVisualizer()
+
         for e in data:
-            vis.process(
+            self.vis.process(
+                cur_iter=1,
                 points_xyz=e[K.points3d].numpy(),
                 semantics=e[K.semantics3d].numpy(),
                 colors=e[K.colors3d].numpy(),
@@ -76,7 +70,7 @@ class TestPointcloudViewer(unittest.TestCase):
                 scene_index=e["source_index"].numpy(),
             )
 
-        vis.save_to_disk(self.test_dir)
+        self.vis.save_to_disk(cur_iter=1, output_folder=self.test_dir)
         for f in glob.glob(self.test_dir + "/**/*.ply"):
             self._assert_pc_equal(
                 f,
@@ -85,12 +79,10 @@ class TestPointcloudViewer(unittest.TestCase):
                 ),
             )
 
+        self.vis.reset()
+
     def test_vis_s3dis(self) -> None:
         """Loads two rooms from the s3dis dataset and visualizes it."""
-        if not OPEN3D_AVAILABLE:
-            warnings.warn("open3d not installed, skipping test.")
-            return
-
         s3dis = S3DIS(data_root=get_test_data("s3d_test"))
         preprocess_fn = compose(
             [
@@ -109,9 +101,9 @@ class TestPointcloudViewer(unittest.TestCase):
             datapipe, n_samples_per_batch=1024
         )
 
-        vis = PointCloudVisualizer()
         for e in dataset:
-            vis.process(
+            self.vis.process(
+                cur_iter=1,
                 points_xyz=e[K.points3d],
                 semantics=e[K.semantics3d],
                 colors=e[K.colors3d],
@@ -119,4 +111,6 @@ class TestPointcloudViewer(unittest.TestCase):
                 scene_index=e["source_index"],
             )
 
-        vis.save_to_disk(self.test_dir)
+        self.vis.save_to_disk(cur_iter=1, output_folder=self.test_dir)
+
+        self.vis.reset()

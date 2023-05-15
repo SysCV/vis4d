@@ -5,7 +5,6 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
@@ -15,23 +14,24 @@ from vis4d.config.base.models.faster_rcnn import (
     CONN_RPN_LOSS_2D,
     get_model_cfg,
 )
+from vis4d.config.default import (
+    get_callbacks_config,
+    get_optimizer_config,
+    get_pl_trainer_config,
+    set_output_dir,
+)
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default.runtime import (
-    get_generic_callback_config,
-    get_pl_trainer_args,
-    set_output_dir,
-)
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
+from vis4d.engine.connectors import DataConnector
+from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.op.base import ResNet
-from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
@@ -119,73 +119,48 @@ def get_config() -> ConfigDict:
     ##                  DATA CONNECTOR                  ##
     ######################################################
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            train=CONN_BBOX_2D_TRAIN,
-            test=CONN_BBOX_2D_TEST,
-            loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
-            callbacks={
-                "coco_eval_test": CONN_COCO_BBOX_EVAL,
-                "bbox_vis_test": CONN_BBOX_2D_VIS,
-            },
-        ),
+        DataConnector,
+        train=CONN_BBOX_2D_TRAIN,
+        test=CONN_BBOX_2D_TEST,
+        loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
     )
 
     ######################################################
-    ##                     EVALUATOR                    ##
+    ##                     CALLBACKS                    ##
     ######################################################
-    eval_callbacks = {
-        "coco_eval": class_config(
+    # Logger and Checkpoint
+    callbacks = get_callbacks_config(config)
+
+    # Visualizer
+    callbacks.append(
+        class_config(
+            VisualizerCallback,
+            visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
+            save_prefix=config.output_dir,
+            test_connector=CONN_BBOX_2D_VIS,
+        )
+    )
+
+    # Evaluator
+    callbacks.append(
+        class_config(
             EvaluatorCallback,
             evaluator=class_config(
                 COCOEvaluator,
                 data_root=data_root,
                 split=test_split,
             ),
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
+            test_connector=CONN_COCO_BBOX_EVAL,
         )
-    }
-
-    ######################################################
-    ##                    VISUALIZER                    ##
-    ######################################################
-    vis_callbacks = {
-        "bbox_vis": class_config(
-            VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer),
-            save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        )
-    }
-
-    ######################################################
-    ##                     CALLBACKS                    ##
-    ######################################################
-    # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
     )
 
-    # Assign the defined callbacks to the config
-    config.shared_callbacks = {
-        **logger_callback,
-        **eval_callbacks,
-    }
-
-    config.train_callbacks = {
-        **ckpt_callback,
-    }
-    config.test_callbacks = {
-        **vis_callbacks,
-    }
+    config.callbacks = callbacks
 
     ######################################################
     ##                     PL CLI                       ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_args()
+    pl_trainer = get_pl_trainer_config(config)
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 

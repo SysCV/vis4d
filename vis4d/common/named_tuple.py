@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-from vis4d.engine.util import is_namedtuple
-
 
 def get_all_keys(entry: NamedTuple) -> list[str]:
     """Get all keys in a NamedTuple."""
@@ -39,3 +37,15 @@ def get_from_namedtuple(entry: NamedTuple, key: str) -> Any:  # type: ignore
         return getattr(entry, first_key)
 
     return get_from_namedtuple(getattr(entry, first_key), ".".join(keys[1:]))
+
+
+def is_namedtuple(obj: object) -> bool:
+    """Check if obj is namedtuple.
+
+    https://github.com/pytorch/pytorch/blob/v1.8.1/torch/nn/parallel/scatter_gather.py#L4-L8
+    """
+    return (
+        isinstance(obj, tuple)
+        and hasattr(obj, "_asdict")
+        and hasattr(obj, "_fields")
+    )

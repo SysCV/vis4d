@@ -1,4 +1,4 @@
-"""LightningModule that wraps around the vis4d models, losses and optims."""
+"""LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -8,7 +8,6 @@ import lightning.pytorch as pl
 import torch
 from lightning.pytorch import seed_everything
 from torch import nn, optim
-from torchmetrics import MeanMetric
 
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
@@ -16,7 +15,7 @@ from vis4d.common.util import init_random_seed
 from vis4d.config.util import ConfigDict, instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
-from vis4d.engine.opt import Optimizer, set_up_optimizers
+from vis4d.engine.optim import Optimizer, set_up_optimizers
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -125,29 +124,6 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         else:
             losses["loss"] = sum(list(losses.values()))
 
-        log_dict = {}
-        metric_attributes = []
-        for k, v in losses.items():
-            if not hasattr(self, k):
-                metric = MeanMetric()
-                metric.to(self.device)
-                setattr(self, k, metric)
-
-            metric = getattr(self, k)
-            metric(v.detach())
-            log_dict["train/" + k] = metric
-            metric_attributes += [k]
-
-        for (k, v), k_name in zip(log_dict.items(), metric_attributes):
-            self.log(
-                k,
-                v,
-                logger=True,
-                prog_bar=True,
-                on_step=True,
-                on_epoch=False,
-                metric_attribute=k_name,
-            )
         return {
             "loss": losses["loss"],
             "metrics": losses,

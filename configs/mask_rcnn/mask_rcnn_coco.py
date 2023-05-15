@@ -28,8 +28,7 @@ from vis4d.config.default.sweep import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
+    DataConnector,
     data_key,
     pred_key,
     remap_pred_keys,
@@ -209,22 +208,18 @@ def get_config() -> ConfigDict:
     # We do this using the remap_pred_keys function.
 
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            train=CONN_BBOX_2D_TRAIN,
-            test=CONN_BBOX_2D_TEST,
-            loss={
-                **remap_pred_keys(CONN_RPN_LOSS_2D, "boxes"),
-                **remap_pred_keys(CONN_ROI_LOSS_2D, "boxes"),
-                **CONN_MASK_HEAD_LOSS_2D,
-            },
-            callbacks={
-                "coco_eval_test": remap_pred_keys(
-                    CONN_COCO_BBOX_EVAL, "boxes"
-                ),
-                "bbox_vis_test": remap_pred_keys(CONN_BBOX_2D_VIS, "boxes"),
-            },
-        ),
+        DataConnector,
+        train=CONN_BBOX_2D_TRAIN,
+        test=CONN_BBOX_2D_TEST,
+        loss={
+            **remap_pred_keys(CONN_RPN_LOSS_2D, "boxes"),
+            **remap_pred_keys(CONN_ROI_LOSS_2D, "boxes"),
+            **CONN_MASK_HEAD_LOSS_2D,
+        },
+        callbacks={
+            "coco_eval_test": remap_pred_keys(CONN_COCO_BBOX_EVAL, "boxes"),
+            "bbox_vis_test": remap_pred_keys(CONN_BBOX_2D_VIS, "boxes"),
+        },
     )
 
     ######################################################

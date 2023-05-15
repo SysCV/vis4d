@@ -6,16 +6,15 @@ import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.common.callbacks import EvaluatorCallback
-from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default.runtime import (
-    get_generic_callback_config,
-    get_pl_trainer_args,
+from vis4d.config.default import (
+    get_callbacks_config,
+    get_pl_trainer_config,
     set_output_dir,
 )
+from vis4d.config.default.dataloader import get_dataloader_config
+from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
     nuscenes_class_range_map,
@@ -32,26 +31,26 @@ from vis4d.data.transforms.resize import (
     ResizeIntrinsics,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
-    DataConnectionInfo,
     MultiSensorDataConnector,
     data_key,
     pred_key,
 )
+from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
-from vis4d.optim.warmup import LinearLRWarmup
 
 CONN_BBOX_3D_TEST = {
-    CK.images: CK.images,
-    CK.original_hw: "images_hw",
-    CK.intrinsics: CK.intrinsics,
-    CK.extrinsics: CK.extrinsics,
-    CK.frame_ids: CK.frame_ids,
+    "images": K.images,
+    "images_hw": K.original_hw,
+    "intrinsics": K.intrinsics,
+    "extrinsics": K.extrinsics,
+    "frame_ids": K.frame_ids,
 }
 
 CONN_NUSC_EVAL = {
-    "token": data_key("token"),
+    "tokens": data_key("token"),
     "boxes_3d": pred_key("boxes_3d"),
     "class_ids": pred_key("class_ids"),
     "scores_3d": pred_key("scores_3d"),
@@ -69,6 +68,7 @@ def get_config() -> ConfigDict:
     ##                    General Config                ##
     ######################################################
     config = ConfigDict()
+
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "cc_3dt_r50_kf3d"
     config = set_output_dir(config)
@@ -200,46 +200,35 @@ def get_config() -> ConfigDict:
     ######################################################
     config.data_connector = class_config(
         MultiSensorDataConnector,
-        connections=DataConnectionInfo(
-            test=CONN_BBOX_3D_TEST,
-            callbacks={"nusc_eval_test": CONN_NUSC_EVAL},
-        ),
-        default_sensor=NuScenes._CAMERAS[0],
+        test=CONN_BBOX_3D_TEST,
         sensors=NuScenes._CAMERAS,
     )
 
     ######################################################
-    ##                     EVALUATOR                    ##
+    ##                     CALLBACKS                    ##
     ######################################################
-    eval_callbacks = {
-        "nusc_eval": class_config(
+    # Logger and Checkpoint
+    callbacks = get_callbacks_config(config)
+
+    # Evaluator
+    callbacks.append(
+        class_config(
             EvaluatorCallback,
-            save_prefix=config.output_dir,
             evaluator=class_config(NuScenesEvaluator),
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        ),
-    }
-
-    ######################################################
-    ##                GENERIC CALLBACKS                 ##
-    ######################################################
-    # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
+            save_predictions=True,
+            save_prefix=config.output_dir,
+            test_connector=CONN_NUSC_EVAL,
+            sensors=NuScenes._CAMERAS,
+        )
     )
-    # Assign the defined callbacks to the config
-    config.shared_callbacks = {**logger_callback, **eval_callbacks}
 
-    config.train_callbacks = {**ckpt_callback}
-
-    config.test_callbacks = {}
+    config.callbacks = callbacks
 
     ######################################################
     ##                  PL CALLBACKS                    ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_args()
+    pl_trainer = get_pl_trainer_config(config)
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 

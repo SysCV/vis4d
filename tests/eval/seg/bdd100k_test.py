@@ -7,13 +7,11 @@ import unittest
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import generate_semantic_masks, get_test_data
-from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
     data_key,
+    get_inputs_for_pred_and_data,
     pred_key,
 )
 from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
@@ -29,8 +27,6 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 
 class TestBDD100KSegEvaluator(unittest.TestCase):
     """BDD100K segmentation evaluator testcase class."""
-
-    CONN_SEG_TEST = {CK.images: CK.images}
 
     CONN_BDD100K_EVAL = {
         "data_names": data_key("name"),
@@ -58,21 +54,15 @@ class TestBDD100KSegEvaluator(unittest.TestCase):
         )
         test_loader = get_dataloader(dataset, batch_size)
 
-        data_connection_info = DataConnectionInfo(
-            test=self.CONN_SEG_TEST,
-            callbacks={"bdd100k_eval_test": self.CONN_BDD100K_EVAL},
-        )
-
-        data_connector = StaticDataConnector(connections=data_connection_info)
-
         masks = generate_semantic_masks(720, 1280, 19, batch_size)
         output = {"masks": masks}
 
         for batch in test_loader:
-            clbk_kwargs = data_connector.get_callback_input(
-                "bdd100k_eval", output, batch, "test"
+            scalabel_eval.process(
+                **get_inputs_for_pred_and_data(
+                    self.CONN_BDD100K_EVAL, output, batch
+                )
             )
-            scalabel_eval.process(**clbk_kwargs)
 
         _, log_str = scalabel_eval.evaluate("sem_seg")
         assert log_str.count("\n") == 24

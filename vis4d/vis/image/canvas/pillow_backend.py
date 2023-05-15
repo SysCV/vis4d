@@ -5,7 +5,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from vis4d.common.typing import NDArrayBool, NDArrayF64, NDArrayUI8
-from vis4d.vis.image.base import CanvasBackend
+
+from .base import CanvasBackend
 
 
 class PillowCanvasBackend(CanvasBackend):
@@ -48,18 +49,18 @@ class PillowCanvasBackend(CanvasBackend):
     def draw_bitmap(
         self,
         bitmap: NDArrayBool,
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
         top_left_corner: tuple[float, float] = (0, 0),
         alpha: float = 0.5,
     ) -> None:
         """Draws a binary mask onto the given canvas.
 
         Args:
-            bitmap (ndarray): The binary mask to draw
-            color (tuple(float)): Color of the box [0,255]
+            bitmap (ndarray): The binary mask to draw.
+            color (tuple[int, int, int]): Color of the box [0,255].
             top_left_corner (tuple(float, float)): Coordinates of top left
-                 corner of the bitmap.
-            alpha (float): Alpha value for transparency of this mask
+                corner of the bitmap.
+            alpha (float): Alpha value for transparency of this mask.
 
         Raises:
             ValueError: If the canvas is not initialized.
@@ -84,7 +85,7 @@ class PillowCanvasBackend(CanvasBackend):
         self,
         position: tuple[float, float],
         text: str,
-        color: tuple[float, float, float] = (255, 255, 255),
+        color: tuple[int, int, int] = (255, 255, 255),
     ) -> None:
         """Draw text onto canvas at given position.
 
@@ -92,8 +93,8 @@ class PillowCanvasBackend(CanvasBackend):
             position (tuple[float, float]): x,y position where the text will
                 start.
             text (str): Text to be placed at the given location.
-            color (tuple[float, float, float], optional): Text color. Defaults
-                to (255, 255, 255).
+            color (tuple[int, int, int], optional): Text color. Defaults to
+                (255, 255, 255).
 
         Raises:
             ValueError: If the canvas is not initialized.
@@ -107,14 +108,14 @@ class PillowCanvasBackend(CanvasBackend):
     def draw_box(
         self,
         corners: tuple[float, float, float, float],
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
     ) -> None:
         """Draws a box onto the given canvas.
 
         Args:
             corners (list[float]): Containing [x1,y2,x2,y2] the corners of
-                                    the box
-            color (tuple(float)): Color of the box [0,255]
+                the box.
+            color (tuple[int, int, int]): Color of the box [0,255].
 
         Raises:
             ValueError: If the canvas is not initialized.
@@ -129,7 +130,7 @@ class PillowCanvasBackend(CanvasBackend):
     def draw_rotated_box(
         self,
         corners: tuple[tuple[float, float], ...],
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
         """Draws a box onto the given canvas.
@@ -145,7 +146,7 @@ class PillowCanvasBackend(CanvasBackend):
         Args:
             corners (tuple[tuple[float, float], ...]): Containing the four
                 corners of the box.
-            color (tuple(float)): Color of the box [0,255].
+            color (tuple[int, int, int]): Color of the box [0,255].
             width (int, optional): Line width. Defaults to 0.
 
         Raises:
@@ -163,7 +164,7 @@ class PillowCanvasBackend(CanvasBackend):
         self,
         point1: tuple[float, float],
         point2: tuple[float, float],
-        color: tuple[float, float, float],
+        color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
         """Draw a line onto canvas from point 1 to 2.
@@ -171,7 +172,7 @@ class PillowCanvasBackend(CanvasBackend):
         Args:
             point1 (tuple[float, float]): Start point (2D pixel coordinates).
             point2 (tuple[float, float]): End point (2D pixel coordinates).
-            color (tuple[float, float, float]): Color of the line.
+            color (tuple[int, int, int]): Color of the line.
             width (int, optional): Line width. Defaults to 0.
 
         Raises:

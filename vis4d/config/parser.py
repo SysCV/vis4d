@@ -16,7 +16,6 @@ from ml_collections.config_flags.config_flags import (
 )
 
 
-## Parser Setup
 class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
     """Parser for config files."""
 

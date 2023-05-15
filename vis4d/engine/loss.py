@@ -1,10 +1,4 @@
-"""Loss implementations to be used with the CLI.
-
-This file provides a set of loss implementations that can be used with the CLI.
-
-Currently, it implements the following losses:
-    WeightedMultiLoss: A loss that combines multiple losses with weights.
-"""
+"""Loss implementations to be used with the CLI."""
 from __future__ import annotations
 
 import inspect
@@ -14,13 +8,23 @@ import torch
 from torch import Tensor, nn
 from typing_extensions import NotRequired
 
+from vis4d.common.named_tuple import is_namedtuple
 from vis4d.common.typing import LossesType
-from vis4d.engine.util import is_namedtuple
 from vis4d.op.loss.base import Loss
+
+__all__ = ["WeightedMultiLoss"]
 
 
 class LossDefinition(TypedDict):
-    """Loss definition."""
+    """Loss definition.
+
+    Attributes:
+        loss (Loss | nn.Module): Loss function to use.
+        weight (float): Weight to use for the loss.
+        name (str, optional): Name to use for the loss.
+        in_keys (dict[str, str], optional): Mapping from loss input names to
+            keys in the data dict.
+    """
 
     loss: Loss | nn.Module
     weight: float
@@ -79,8 +83,7 @@ class WeightedMultiLoss(nn.Module):
         providing a mapping in in_keys for each loss definition.
 
         Args:
-            losses (list[nn.Module]): List of loss defintions.
-            weights (list[float]): List of weights.
+            losses (list[LossDefinition]): List of loss definitions.
 
         Example:
             >>> loss = WeightedMultiLoss(

@@ -1,18 +1,14 @@
 """Semantic FPN BDD100K training example."""
 from __future__ import annotations
 
+import lightning.pytorch as pl
 from torch import optim
 
-from vis4d.common.callbacks import (
-    CheckpointCallback,
-    EvaluatorCallback,
-    LoggingCallback,
-    VisualizerCallback,
-)
 from vis4d.config.base.datasets.bdd100k_segmentation import (
     CONN_BDD100K_SEG_EVAL,
     get_bdd100k_segmentation_config,
 )
+from vis4d.config.default import get_pl_trainer_config
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
@@ -23,12 +19,18 @@ from vis4d.config.default.optimizer import get_optimizer_config
 from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.engine.callbacks import (
+    CheckpointCallback,
+    EvaluatorCallback,
+    LoggingCallback,
+    VisualizerCallback,
+)
+from vis4d.engine.connectors import DataConnector
+from vis4d.engine.optim import PolyLR
+from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
-from vis4d.optim import PolyLR
-from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.vis.image import SegMaskVisualizer
 
 
@@ -112,66 +114,61 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.data_connector = class_config(
-        StaticDataConnector,
-        connections=DataConnectionInfo(
-            train=CONN_MASKS_TRAIN,
-            test=CONN_MASKS_TEST,
-            loss=CONN_SEG_LOSS,
-            callbacks={
-                "bdd100k_eval": CONN_BDD100K_SEG_EVAL,
-                "seg_vis": CONN_SEG_VIS,
-            },
-        ),
+        DataConnector,
+        train=CONN_MASKS_TRAIN,
+        test=CONN_MASKS_TEST,
+        loss=CONN_SEG_LOSS,
     )
 
     ######################################################
-    ##                     EVALUATOR                    ##
+    ##                     CALLBACKS                    ##
     ######################################################
-    eval_callbacks = {
-        "bdd100k_eval": class_config(
+    callbacks = []
+
+    # Logger
+    callbacks.append(class_config(LoggingCallback, refresh_rate=50))
+
+    # Checkpoint
+    callbacks.append(
+        class_config(CheckpointCallback, save_prefix=config.output_dir)
+    )
+
+    # Evaluator
+    callbacks.append(
+        class_config(
             EvaluatorCallback,
             evaluator=class_config(
                 BDD100KSegEvaluator,
                 annotation_path="data/bdd100k/labels/sem_seg_val_rle.json",
             ),
-            run_every_nth_epoch=6,
-            num_epochs=params.num_epochs,
+            test_connector=CONN_BDD100K_SEG_EVAL,
         )
-    }
+    )
 
-    ######################################################
-    ##                    VISUALIZER                    ##
-    ######################################################
-    vis_callbacks = {
-        "seg_vis": class_config(
+    # Visualizer
+    callbacks.append(
+        class_config(
             VisualizerCallback,
-            visualizer=class_config(SegMaskVisualizer, num_samples=10),
+            visualizer=class_config(
+                SegMaskVisualizer, num_samples=10, vis_freq=100
+            ),
             save_prefix=config.output_dir,
-            run_every_nth_epoch=6,
-            num_epochs=params.num_epochs,
+            test_connector=CONN_SEG_VIS,
         )
-    }
+    )
+
+    config.callbacks = callbacks
 
     ######################################################
-    ##                     CALLBACKS                    ##
+    ##                     PL CLI                       ##
     ######################################################
-    # Generic callbacks
-    logger_callback = {
-        "logger": class_config(LoggingCallback, refresh_rate=50)
-    }
-    ckpt_callback = {
-        "ckpt": class_config(
-            CheckpointCallback,
-            save_prefix=config.output_dir,
-            run_every_nth_epoch=6,
-            num_epochs=params.num_epochs,
-        )
-    }
+    # PL Trainer args
+    pl_trainer = get_pl_trainer_config(config)
+    pl_trainer.max_epochs = params.num_epochs
+    config.pl_trainer = pl_trainer
 
-    # Assign the defined callbacks to the config
-    config.shared_callbacks = {**logger_callback}
-
-    config.train_callbacks = {**ckpt_callback}
-    config.test_callbacks = {**vis_callbacks}
+    # PL Callbacks
+    pl_callbacks: list[pl.callbacks.Callback] = []
+    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

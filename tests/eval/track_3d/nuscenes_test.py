@@ -14,12 +14,7 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     multi_sensor_collate,
 )
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    MultiSensorDataConnector,
-    data_key,
-    pred_key,
-)
+from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 
 
@@ -46,7 +41,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
     }
 
     CONN_NUSC_EVAL = {
-        "token": data_key("token"),
+        "tokens": data_key("token"),
         "boxes_3d": pred_key("boxes_3d"),
         "class_ids": pred_key("class_ids"),
         "scores_3d": pred_key("scores_3d"),
@@ -64,7 +59,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
 
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
-        batch_size = 2
+        batch_size = 1
         nusc_eval = NuScenesEvaluator()
 
         # test gt
@@ -76,17 +71,6 @@ class TestNuScenesEvaluator(unittest.TestCase):
         )
         test_loader = get_dataloader(dataset, batch_size)
 
-        data_connection_info = DataConnectionInfo(
-            test=self.CONN_BBOX_3D_TEST,
-            callbacks={"nusc_eval_test": self.CONN_NUSC_EVAL},
-        )
-
-        data_connector = MultiSensorDataConnector(
-            connections=data_connection_info,
-            default_sensor="CAM_FRONT",
-            sensors=self.CAMERAS,
-        )
-
         output = {
             "boxes_3d": torch.zeros(batch_size, 12),
             "class_ids": torch.zeros(batch_size),
@@ -95,11 +79,12 @@ class TestNuScenesEvaluator(unittest.TestCase):
         }
 
         batch = next(iter(test_loader))
-        clbk_kwargs = data_connector.get_callback_input(
-            "nusc_eval", output, batch, "test"
-        )
 
-        nusc_eval.process(**clbk_kwargs)
+        nusc_eval.process(
+            **get_multi_sensor_inputs(
+                self.CONN_NUSC_EVAL, output, batch, self.CAMERAS
+            )
+        )
 
         _, _ = nusc_eval.evaluate("detect_3d")
         _, _ = nusc_eval.evaluate("track_3d")

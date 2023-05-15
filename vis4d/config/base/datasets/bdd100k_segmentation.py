@@ -29,7 +29,7 @@ from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 
 CONN_BDD100K_SEG_EVAL = {
-    "data_names": data_key("name"),
+    "data_names": data_key("sample_names"),
     "masks_list": pred_key("masks"),
 }
 

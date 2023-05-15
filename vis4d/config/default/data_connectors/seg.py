@@ -23,5 +23,6 @@ CONN_SEG_EVAL = {
 
 CONN_SEG_VIS = {
     K.images: data_key(K.images),
+    "image_names": data_key(K.sample_names),
     "masks": pred_key("masks"),
 }

@@ -6,14 +6,15 @@ from collections.abc import Callable
 from torch import nn, optim
 
 from vis4d.config.util import ConfigDict, instantiate_classes
-from vis4d.optim.warmup import BaseLRWarmup
+
+from .warmup import BaseLRWarmup
 
 
 class Optimizer:
-    """Vis4D Optimizer.
+    """Optimizer class.
 
-    This class is responsible for creating the optimizer and learning rate
-    scheduler. It also handles the learning rate warmup.
+    It is responsible for creating the optimizer and learning rate scheduler.
+    It also handles the learning rate warmup.
     """
 
     def __init__(
