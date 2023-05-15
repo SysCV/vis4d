@@ -6,8 +6,12 @@ from collections.abc import Callable
 from typing import Any
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import MetricLogs
+from vis4d.common.typing import ArgsType, MetricLogs
 from vis4d.eval.base import Evaluator
+from vis4d.data.datasets.scalabel import (
+    filter_frames_by_attributes,
+    filter_frames_by_empty_labels,
+)
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load
@@ -17,7 +21,12 @@ if SCALABEL_AVAILABLE:
 class ScalabelEvaluator(Evaluator):
     """Scalabel base evaluation class."""
 
-    def __init__(self, annotation_path: str) -> None:
+    def __init__(
+        self,
+        annotation_path: str,
+        attributes_to_load: list[dict[str, str | float]] | None = None,
+        filter_empty_frames: bool = False,
+    ) -> None:
         """Initialize the evaluator."""
         super().__init__()
         self.annotation_path = annotation_path
@@ -25,6 +34,12 @@ class ScalabelEvaluator(Evaluator):
 
         dataset = load(self.annotation_path, validate_frames=False)
         self.gt_frames = dataset.frames
+        if attributes_to_load is not None:
+            self.gt_frames = filter_frames_by_attributes(
+                self.gt_frames, attributes_to_load
+            )
+        if filter_empty_frames:
+            self.gt_frames = filter_frames_by_empty_labels(self.gt_frames)
         self.config = dataset.config
         if self.config is not None and self.config.categories is not None:
             self.inverse_cat_map = {

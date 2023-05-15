@@ -5,7 +5,7 @@ import numpy as np
 
 from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import ArrayLike, MetricLogs
+from vis4d.common.typing import ArrayLike, MetricLogs, ArgsType
 
 from .base import ScalabelEvaluator
 
@@ -27,9 +27,10 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
         self,
         annotation_path: str,
         mask_threshold: float = 0.0,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize the evaluator."""
-        super().__init__(annotation_path=annotation_path)
+        super().__init__(annotation_path=annotation_path, **kwargs)
         self.mask_threshold = mask_threshold
 
     def __repr__(self) -> str:

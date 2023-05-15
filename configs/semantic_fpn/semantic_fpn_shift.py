@@ -50,7 +50,7 @@ def get_config() -> ConfigDict:
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
-    params.num_steps = 160000
+    params.num_steps = 320000
     params.augment_prob = 0.5
     params.num_classes = 23
     config.params = params

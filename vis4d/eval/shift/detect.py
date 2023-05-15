@@ -1,5 +1,6 @@
 """SHIFT detection evaluator."""
 from __future__ import annotations
+from vis4d.common.typing import ArgsType
 
 from vis4d.data.datasets.shift import shift_det_map
 
@@ -11,7 +12,9 @@ class SHIFTDetectEvaluator(ScalabelDetectEvaluator):
 
     inverse_det_map = {v: k for k, v in shift_det_map.items()}
 
-    def __init__(self, annotation_path: str) -> None:
+    def __init__(self, annotation_path: str, **kwargs: ArgsType) -> None:
         """Initialize the evaluator."""
-        super().__init__(annotation_path=annotation_path, mask_threshold=0)
+        super().__init__(
+            annotation_path=annotation_path, mask_threshold=0, **kwargs
+        )
         self.inverse_cat_map = self.inverse_det_map

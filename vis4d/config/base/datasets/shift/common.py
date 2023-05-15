@@ -39,6 +39,10 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import SelectSensor, ToTensor
 
 
+IMAGE_MEAN = [122.884, 117.266, 110.287]
+IMAGE_STD = [59.925, 59.466, 60.69]
+
+
 def get_train_preprocessing(
     image_size: tuple[int, int] = (800, 1280),
     crop_size: tuple[int, int] | None = None,
@@ -158,7 +162,11 @@ def get_train_preprocessing(
             )
         )
 
-    preprocess_transforms.append(class_config(NormalizeImage, **views_arg))
+    preprocess_transforms.append(
+        class_config(
+            NormalizeImage, mean=IMAGE_MEAN, std=IMAGE_STD, **views_arg
+        )
+    )
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
@@ -226,7 +234,11 @@ def get_test_preprocessing(
                 class_config(ResizeOpticalFlows, **views_arg)
             )
 
-    preprocess_transforms.append(class_config(NormalizeImage, **views_arg))
+    preprocess_transforms.append(
+        class_config(
+            NormalizeImage, mean=IMAGE_MEAN, std=IMAGE_STD, **views_arg
+        )
+    )
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )

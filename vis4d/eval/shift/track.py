@@ -12,10 +12,15 @@ class SHIFTTrackEvaluator(ScalabelTrackEvaluator):
     inverse_det_map = {v: k for k, v in shift_det_map.items()}
 
     def __init__(
-        self, annotation_path: str, mask_threshold: float = 0.0
+        self,
+        annotation_path: str,
+        mask_threshold: float = 0.0,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize the evaluator."""
         super().__init__(
-            annotation_path=annotation_path, mask_threshold=mask_threshold
+            annotation_path=annotation_path,
+            mask_threshold=mask_threshold,
+            **kwargs,
         )
         self.inverse_cat_map = self.inverse_det_map

@@ -72,6 +72,11 @@ class FasterRCNN(nn.Module):
                 "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
             )
             load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
+        elif weights == "shift":
+            weights = (
+                "./data/shift/weights/det_2d/faster_rcnn_r50_fpn_shift.pth"
+            )
+            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
         elif weights is not None:
             load_model_checkpoint(self, weights)
 

@@ -1,5 +1,6 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
+from click import File
 
 import lightning.pytorch as pl
 from torch.optim import SGD
@@ -22,7 +23,9 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
 )
 from vis4d.config.util import ConfigDict, class_config
+from vis4d.data.io.file import FileBackend
 from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.data.io.zip import ZipBackend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.shift import SHIFTDetectEvaluator
@@ -66,7 +69,7 @@ def get_config() -> ConfigDict:
     # High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
+    params.workers_per_gpu = 0
     params.lr = 0.02
     params.num_epochs = 12
     params.num_classes = 6
@@ -80,7 +83,7 @@ def get_config() -> ConfigDict:
     train_split = "train"
     test_split = "val"
     domain_attr = [{"weather_coarse": "clear", "timeofday_coarse": "daytime"}]
-    data_backend = class_config(HDF5Backend)
+    data_backend = class_config(ZipBackend)
 
     config.data = get_shift_detection_config(
         data_root=data_root,
@@ -148,6 +151,7 @@ def get_config() -> ConfigDict:
             evaluator=class_config(
                 SHIFTDetectEvaluator,
                 annotation_path=f"{data_root}/discrete/images/val/front/det_2d.json",
+                attributes_to_load=domain_attr,
             ),
             metrics=["Det"],
             test_connector=CONN_SHIFT_EVAL,

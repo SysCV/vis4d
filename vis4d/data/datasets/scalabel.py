@@ -157,6 +157,48 @@ def prepare_labels(
         instance_ids_to_global(frames, instance_ids)
 
 
+def filter_frames_by_attributes(
+    frames: list[Frame],
+    attributes_to_load: Sequence[dict[str, str | float]] | None,
+) -> list[Frame]:
+    """Filter frames based on attributes."""
+    if attributes_to_load is None:
+        return frames
+    filtered_frames: list[Frame] = []
+    for frame in frames:
+        for attribute_dict in attributes_to_load:
+            if hasattr(frame, "attributes") and frame.attributes is not None:
+                if all(
+                    frame.attributes.get(key) == value
+                    for key, value in attribute_dict.items()
+                ):
+                    filtered_frames.append(frame)
+                    break
+            else:
+                raise ValueError(
+                    "Attribute to load is specified but no attributes "
+                    "are found in the frame."
+                )
+    rank_zero_info(
+        f"Use {len(filtered_frames)} frames with the specified attributes."
+    )
+    return filtered_frames
+
+
+def filter_frames_by_empty_labels(frames: list[Frame]) -> list[Frame]:
+    """Filter frames without any labels."""
+    filtered_frames: list[Frame] = []
+    for frame in frames:
+        if (
+            hasattr(frame, "labels")
+            and frame.labels is not None
+            and len(frame.labels) > 0
+        ):
+            filtered_frames.append(frame)
+    rank_zero_info(f"Use {len(filtered_frames)} frames with labels.")
+    return filtered_frames
+
+
 # Not using | operator because of a bug in Python 3.9
 # https://bugs.python.org/issue42233
 CategoryMap = Union[dict[str, int], dict[str, dict[str, int]]]
@@ -225,11 +267,11 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping  # type: ignore
         )
-        self.frames = self._filter_frames_by_attributes(
+        self.frames = filter_frames_by_attributes(
             self.frames, attributes_to_load
         )
         if self.skip_empty_frames:
-            self.frames = self._filter_frames_by_empty_labels(self.frames)
+            self.frames = filter_frames_by_empty_labels(self.frames)
 
         assert self.cfg is not None, (
             "No dataset configuration found. Please provide a configuration "
@@ -284,52 +326,6 @@ class Scalabel(Dataset, CacheMappingMixin):
             else:
                 data.config = self.config_path
         return data
-
-    def _filter_frames_by_attributes(
-        self,
-        frames: list[Frame],
-        attributes_to_load: Sequence[dict[str, str | float]] | None,
-    ) -> list[Frame]:
-        """Filter frames based on attributes."""
-        if attributes_to_load is None:
-            return frames
-        filtered_frames: list[Frame] = []
-        for frame in frames:
-            for attribute_dict in attributes_to_load:
-                if (
-                    hasattr(frame, "attributes")
-                    and frame.attributes is not None
-                ):
-                    if all(
-                        frame.attributes.get(key) == value
-                        for key, value in attribute_dict.items()
-                    ):
-                        filtered_frames.append(frame)
-                        break
-                else:
-                    raise ValueError(
-                        "Attribute to load is specified but no attributes "
-                        "are found in the frame."
-                    )
-        rank_zero_info(
-            f"Use {len(filtered_frames)} frames with the specified attributes."
-        )
-        return filtered_frames
-
-    def _filter_frames_by_empty_labels(
-        self, frames: list[Frame]
-    ) -> list[Frame]:
-        """Filter frames without any labels."""
-        filtered_frames: list[Frame] = []
-        for frame in frames:
-            if (
-                hasattr(frame, "labels")
-                and frame.labels is not None
-                and len(frame.labels) > 0
-            ):
-                filtered_frames.append(frame)
-        rank_zero_info(f"Use {len(filtered_frames)} frames with labels.")
-        return filtered_frames
 
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""

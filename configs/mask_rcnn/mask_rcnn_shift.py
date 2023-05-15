@@ -161,6 +161,7 @@ def get_config() -> ConfigDict:
             evaluator=class_config(
                 SHIFTDetectEvaluator,
                 annotation_path=f"{data_root}/discrete/images/val/front/det_insseg_2d.json",
+                attributes_to_load=domain_attr,
             ),
             metrics=["Det", "InsSeg"],
             test_connector=CONN_SHIFT_EVAL,
