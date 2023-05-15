@@ -16,7 +16,7 @@ def get_shift_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
         test_keys_to_load=keys_to_load,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=(512, 512),
+        crop_size=kwargs.get("crop_size", (512, 1024)),
         **kwargs,
     )
     return cfg
@@ -38,7 +38,7 @@ def get_shift_detection_config(**kwargs: ArgsType) -> ConfigDict:
         test_skip_empty_frames=False,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg
@@ -61,7 +61,7 @@ def get_shift_instance_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
         test_skip_empty_frames=False,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg
@@ -75,7 +75,7 @@ def get_shift_depth_estimation_config(**kwargs: ArgsType) -> ConfigDict:
         test_keys_to_load=keys_to_load,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg
@@ -89,7 +89,7 @@ def get_shift_optical_flow_config(**kwargs: ArgsType) -> ConfigDict:
         test_keys_to_load=keys_to_load,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg
@@ -110,7 +110,7 @@ def get_shift_tracking_config(**kwargs: ArgsType) -> ConfigDict:
         test_keys_to_load=keys_to_load,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg
@@ -134,7 +134,7 @@ def get_shift_multitask_2d_config(**kwargs: ArgsType) -> ConfigDict:
         test_keys_to_load=keys_to_load,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg
@@ -161,7 +161,7 @@ def get_shift_multitask_3d_config(**kwargs: ArgsType) -> ConfigDict:
         test_keys_to_load=keys_to_load,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
-        crop_size=None,
+        crop_size=kwargs.get("crop_size", None),
         **kwargs,
     )
     return cfg

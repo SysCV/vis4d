@@ -47,11 +47,10 @@ def get_config() -> ConfigDict:
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.samples_per_gpu = 4
-    params.workers_per_gpu = 4
+    params.samples_per_gpu = 2
+    params.workers_per_gpu = 2
     params.lr = 0.01
-    params.num_steps = 80000
-    params.num_epochs = 45
+    params.num_steps = 160000
     params.augment_prob = 0.5
     params.num_classes = 23
     config.params = params
@@ -98,7 +97,7 @@ def get_config() -> ConfigDict:
                 PolyLR, max_steps=params.num_steps, min_lr=0.0001, power=0.9
             ),
             lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
+                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=1000
             ),
             epoch_based_lr=False,
             epoch_based_warmup=False,
@@ -139,7 +138,7 @@ def get_config() -> ConfigDict:
     ######################################################
     # PL Trainer args
     pl_trainer = get_pl_trainer_config(config)
-    pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.max_steps = params.num_steps
     pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 
