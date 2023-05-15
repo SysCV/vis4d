@@ -45,6 +45,14 @@ class TestMultiViewDataloaderConfig(unittest.TestCase):
         entries = next(iter(train_dl))
         self.assertEqual(entries["images"].shape, (1, 3, 512, 512))
         self.assertEqual(entries["seg_masks"].shape, (1, 512, 512))
+        self.assertEqual(entries["original_hw"], [(800, 1280)])
+
+        test_dl = instantiate_classes(dataloader_cfg.test_dataloader)
+        self.assertTrue(isinstance(test_dl, DataLoader))
+        entries = next(iter(test_dl))
+        self.assertEqual(entries["images"].shape, (1, 3, 800, 1280))
+        self.assertEqual(entries["seg_masks"].shape, (1, 800, 1280))
+        self.assertEqual(entries["original_hw"], [(800, 1280)])
 
     def test_detection_config(self) -> None:
         """Test case to instantiate a dataloader from a config.
@@ -67,5 +75,6 @@ class TestMultiViewDataloaderConfig(unittest.TestCase):
         self.assertTrue(isinstance(train_dl, DataLoader))
         entries = next(iter(train_dl))
         self.assertEqual(entries["images"].shape, (1, 3, 800, 1280))
+        self.assertEqual(entries["original_hw"], [(800, 1280)])
         self.assertEqual(entries["boxes2d"][0].shape, (2, 4))
         self.assertEqual(entries["boxes2d_classes"][0].shape, (2,))
