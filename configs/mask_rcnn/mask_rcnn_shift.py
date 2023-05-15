@@ -1,4 +1,4 @@
-"""Faster RCNN COCO training example."""
+"""Mask RCNN SHIFT training example."""
 from __future__ import annotations
 
 import lightning.pytorch as pl
@@ -50,19 +50,7 @@ CONN_SHIFT_EVAL = {
 
 
 def get_config() -> ConfigDict:
-    """Returns the Faster-RCNN config dict for the coco detection task.
-
-    This is an example that shows how to set up a training experiment for the
-    COCO detection task.
-
-    Note that the high level params are exposed in the config. This allows
-    to easily change them from the command line.
-    E.g.:
-    >>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
-
-    Returns:
-        ConfigDict: The configuration
-    """
+    """Returns the MaskRCNN config dict for the SHIFT detection task."""
     ######################################################
     ##                    General Config                ##
     ######################################################
