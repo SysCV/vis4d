@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 from tests.util import get_test_file
-from vis4d.vis.image.semantic_mask_visualizer import SemanticMaskVisualizer
+from vis4d.vis.image.seg_mask_visualizer import SegMaskVisualizer
 
 SEM_MAPPING = {  # pylint:disable=duplicate-code
     1: "person",
@@ -130,7 +130,7 @@ class TestBoundingBoxVis(unittest.TestCase):
     # Single image visualization
     def test_single_bbox_vis(self) -> None:
         """Tests visualization of bboxes with classes, scores and tracks."""
-        vis = SemanticMaskVisualizer(n_colors=20, class_id_mapping=SEM_MAPPING)
+        vis = SegMaskVisualizer(n_colors=20, class_id_mapping=SEM_MAPPING)
 
         vis.process_single_image(
             self.images[0], self.masks[0], self.class_ids[0]

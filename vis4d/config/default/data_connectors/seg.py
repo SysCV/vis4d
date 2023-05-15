@@ -20,3 +20,8 @@ CONN_SEG_EVAL = {
     "prediction": pred_key("masks"),
     "groundtruth": data_key(K.seg_masks),
 }
+
+CONN_SEG_VIS = {
+    K.images: data_key(K.images),
+    "masks": pred_key("masks"),
+}

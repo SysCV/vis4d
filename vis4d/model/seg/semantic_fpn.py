@@ -64,17 +64,7 @@ class SemanticFPN(nn.Module):
         self.fpn = FPN(self.basemodel.out_channels[2:], 256, extra_blocks=None)
         self.seg_head = SemanticFPNHead(num_classes, 256)
 
-        if weights == "mmseg":
-            weights = (
-                "mmseg://sem_fpn/fpn_r50_512x1024_80k_cityscapes/"
-                "fpn_r50_512x1024_80k_cityscapes_20200717_021437-94018a0d.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights == "bdd100k":
-            weights = (
-                "bdd100k://sem_seg/models/"
-                "fpn_r50_512x1024_80k_sem_seg_bdd100k.pth"
-            )
+        if weights.startswith("mmseg://") or weights.startswith("bdd100k://"):
             load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
         elif weights is not None:
             load_model_checkpoint(self, weights)

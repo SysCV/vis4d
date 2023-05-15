@@ -1,10 +1,14 @@
-"""Vis4D box visualizer."""
+"""Vis4D segmentation mask visualizer."""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 
+import numpy as np
+
+from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
+    ArrayLike,
     NDArrayBool,
     NDArrayI64,
     NDArrayNumber,
@@ -19,28 +23,29 @@ from vis4d.vis.util import generate_color_map
 
 
 @dataclass
-class SemanticMask2D:
-    """Dataclass storing box informations."""
+class SegMask2D:
+    """Dataclass storing mask information."""
 
     mask: NDArrayBool
     color: tuple[float, float, float]
 
 
 @dataclass
-class ImageWithSemanticMask:
+class ImageWithSegMask:
     """Dataclass storing a data sample that can be visualized."""
 
     image: NDArrayUI8
-    masks: list[SemanticMask2D]
+    masks: list[SegMask2D]
 
 
-class SemanticMaskVisualizer(Visualizer):
-    """Base visualizer class."""
+class SegMaskVisualizer(Visualizer):
+    """Segmentation mask visualizer class."""
 
     def __init__(
         self,
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
+        num_samples: int = -1,
         file_type: str = "png",
         image_mode: str = "RGB",
         canvas: CanvasBackend = PillowCanvasBackend(),
@@ -59,11 +64,12 @@ class SemanticMaskVisualizer(Visualizer):
             viewer (ImageViewerBackend): Backend that is used show images
         """
         super().__init__()
-        self._samples: list[ImageWithSemanticMask] = []
+        self._samples: list[ImageWithSegMask] = []
         self.color_palette = generate_color_map(n_colors)
         self.class_id_mapping = (
             class_id_mapping if class_id_mapping is not None else {}
         )
+        self.num_samples = num_samples
         self.file_type = file_type
         self.image_mode = image_mode
         self.canvas = canvas
@@ -75,7 +81,7 @@ class SemanticMaskVisualizer(Visualizer):
 
     def _add_masks(
         self,
-        data_sample: ImageWithSemanticMask,
+        data_sample: ImageWithSegMask,
         masks: NDArrayBool,
         class_ids: None | NDArrayI64 = None,
     ) -> None:
@@ -93,10 +99,10 @@ class SemanticMaskVisualizer(Visualizer):
 
         for mask, color in zip(*preprocess_masks(masks, class_ids)):
             data_sample.masks.append(
-                SemanticMask2D(mask=mask.astype(bool), color=color)
+                SegMask2D(mask=mask.astype(bool), color=color)
             )
 
-    def _draw_image(self, sample: ImageWithSemanticMask) -> NDArrayUI8:
+    def _draw_image(self, sample: ImageWithSegMask) -> NDArrayUI8:
         """Visualizes the datasample and returns is as numpy image.
 
         Args:
@@ -110,11 +116,25 @@ class SemanticMaskVisualizer(Visualizer):
             self.canvas.draw_bitmap(mask.mask, mask.color)
         return self.canvas.as_numpy_image()
 
-    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def _to_binary_mask(self, mask: NDArrayUI8) -> NDArrayBool:
+        """Converts a mask to binary masks.
+
+        Args:
+            mask (np.array): The mask to convert with shape [H, W].
+
+        Returns:
+            np.array[bool]: The binary masks with shape [N, H, W].
+        """
+        binary_masks = []
+        for class_id in np.unique(mask):
+            binary_masks.append(mask == class_id)
+        return np.stack(binary_masks, axis=0)
+
+    def process(  # pylint: disable=arguments-renamed,arguments-differ
         self,
-        images: NDArrayNumber,
-        masks: list[NDArrayBool],
-        class_ids: list[NDArrayI64 | None] | None,
+        images: ArrayLike,
+        masks: list[ArrayLike],
+        class_ids: list[ArrayLike] | None = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -125,10 +145,23 @@ class SemanticMaskVisualizer(Visualizer):
             masks (list[NDArrayBool]): Binary masks to show each shape [N,h,w]
             class_ids (list[NDArrayI64]): class ids for each mask shape [N]
         """
+        images = array_to_numpy(images, None)
+        masks = [array_to_numpy(mask, None, np.uint8) for mask in masks]
+        if class_ids is not None:
+            class_ids = [
+                array_to_numpy(class_id, None, np.int)
+                for class_id in class_ids
+            ]
         for idx, image in enumerate(images):
+            if len(self._samples) >= self.num_samples:
+                break
+            mask = masks[idx]
+            if len(mask.shape) == 2:
+                assert len(mask.shape) == 2
+                mask = self._to_binary_mask(mask)
             self.process_single_image(
                 image,
-                masks[idx],
+                mask,
                 None if class_ids is None else class_ids[idx],
             )
 
@@ -149,7 +182,7 @@ class SemanticMaskVisualizer(Visualizer):
                 each mask of shape [h,w]
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
-        data_sample = ImageWithSemanticMask(img_normalized, [])
+        data_sample = ImageWithSegMask(img_normalized, [])
         self._add_masks(data_sample, masks, class_ids)
         self._samples.append(data_sample)
 

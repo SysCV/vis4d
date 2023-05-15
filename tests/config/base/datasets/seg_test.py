@@ -25,7 +25,7 @@ class TestSegPreprocessing(unittest.TestCase):
             )
         )
         for data in dataloader:
-            self.assertEqual(data[K.input_hw][0], [512, 1024])
+            self.assertEqual(data[K.input_hw][0], (512, 1024))
             self.assertEqual(data[K.images].shape, (1, 3, 512, 1024))
             self.assertEqual(data[K.seg_masks].shape, (1, 512, 1024))
 
@@ -34,7 +34,9 @@ class TestSegPreprocessing(unittest.TestCase):
             # Image.fromarray(
             #     data[K.images][0].permute(1, 2, 0).numpy().astype(np.uint8)
             # ).save("test.jpg")
-            # Image.fromarray(data[K.seg_masks][0].numpy()).save("test_mask.jpg")
+            # Image.fromarray(
+            #     data[K.seg_masks][0].numpy()
+            # ).save("test_mask.jpg")
             # breakpoint()
 
             break
