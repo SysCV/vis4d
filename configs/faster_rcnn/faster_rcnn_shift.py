@@ -63,7 +63,7 @@ def get_config() -> ConfigDict:
     config = ConfigDict()
 
     config.work_dir = "vis4d-workspace"
-    config.experiment_name = "faster_rcnn_r50_fpn_coco"
+    config.experiment_name = "faster_rcnn_r50_fpn_shift"
     config = set_output_dir(config)
 
     # High level hyper parameters

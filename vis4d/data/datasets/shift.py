@@ -115,6 +115,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
         view: str = "front",
         framerate: str = "images",
         shift_type: str = "discrete",
+        skip_empty_frames: bool = False,
         backend: DataBackend = HDF5Backend(),
         verbose: bool = False,
         num_workers: int = 1,
@@ -190,6 +191,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
             data_backend=backend,
             keys_to_load=keys_to_load,
             attributes_to_load=attributes_to_load,
+            skip_empty_frames=skip_empty_frames,
         )
 
     def _generate_mapping(self) -> ScalabelData:
@@ -348,6 +350,7 @@ class SHIFT(Dataset):
         attributes_to_load: Sequence[dict[str, str | float]] | None = None,
         framerate: str = "images",
         shift_type: str = "discrete",
+        skip_empty_frames: bool = False,
         backend: DataBackend = HDF5Backend(),
         num_workers: int = 1,
         verbose: bool = False,
@@ -420,6 +423,7 @@ class SHIFT(Dataset):
                     shift_type=self.shift_type,
                     keys_to_load=(K.points3d, *self.DATA_GROUPS["det_3d"]),
                     attributes_to_load=self.attributes_to_load,
+                    skip_empty_frames=skip_empty_frames,
                     backend=backend,
                     num_workers=num_workers,
                     verbose=verbose,
@@ -444,6 +448,7 @@ class SHIFT(Dataset):
                         shift_type=self.shift_type,
                         keys_to_load=keys_to_load,
                         attributes_to_load=self.attributes_to_load,
+                        skip_empty_frames=skip_empty_frames,
                         backend=backend,
                         num_workers=num_workers,
                         verbose=verbose,

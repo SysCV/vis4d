@@ -179,6 +179,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
         attributes_to_load: Sequence[dict[str, str | float]] | None = None,
+        skip_empty_frames: bool = False,
     ) -> None:
         """Creates an instance of the class.
 
@@ -201,10 +202,13 @@ class Scalabel(Dataset, CacheMappingMixin):
                 per-video IDs. Defaults to false.
             bg_as_class (bool): Whether to include background pixels as an
                 additional class for masks.
-            `attributes_to_load` (Sequence[dict[str, str]]): List of attributes
+            attributes_to_load (Sequence[dict[str, str]]): List of attributes
                 dictionaries to load. Each dictionary is a mapping from the
                 attribute name to its desired value. If any of the attributes
                 dictionaries is matched, the corresponding frame will be loaded.
+                Defaults to None.
+            skip_empty_frames (bool): Whether to skip frames without any labels
+                or not. Defaults to False.
         """
         super().__init__()
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
@@ -213,6 +217,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.keys_to_load = keys_to_load
         self.global_instance_ids = global_instance_ids
         self.bg_as_class = bg_as_class
+        self.skip_empty_frames = skip_empty_frames
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
@@ -220,7 +225,11 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping  # type: ignore
         )
-        self.frames = self._filter_frames(self.frames, attributes_to_load)
+        self.frames = self._filter_frames_by_attributes(
+            self.frames, attributes_to_load
+        )
+        if self.skip_empty_frames:
+            self.frames = self._filter_frames_by_empty_labels(self.frames)
 
         assert self.cfg is not None, (
             "No dataset configuration found. Please provide a configuration "
@@ -276,7 +285,7 @@ class Scalabel(Dataset, CacheMappingMixin):
                 data.config = self.config_path
         return data
 
-    def _filter_frames(
+    def _filter_frames_by_attributes(
         self,
         frames: list[Frame],
         attributes_to_load: Sequence[dict[str, str | float]] | None,
@@ -305,6 +314,21 @@ class Scalabel(Dataset, CacheMappingMixin):
         rank_zero_info(
             f"Use {len(filtered_frames)} frames with the specified attributes."
         )
+        return filtered_frames
+
+    def _filter_frames_by_empty_labels(
+        self, frames: list[Frame]
+    ) -> list[Frame]:
+        """Filter frames without any labels."""
+        filtered_frames: list[Frame] = []
+        for frame in frames:
+            if (
+                hasattr(frame, "labels")
+                and frame.labels is not None
+                and len(frame.labels) > 0
+            ):
+                filtered_frames.append(frame)
+        rank_zero_info(f"Use {len(filtered_frames)} frames with labels.")
         return filtered_frames
 
     def _load_inputs(self, frame: Frame) -> DictData:

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from attr import attrib
 
 from ml_collections.config_dict import ConfigDict
 
@@ -309,12 +308,14 @@ def get_shift_config(
     train_views_to_load: Sequence[str] = ("front",),
     train_keys_to_load: Sequence[str] = (K.images, K.seg_masks),
     train_attributes_to_load: Sequence[dict[str, str | float]] | None = None,
+    train_skip_empty_frames: bool = False,
     test_split: str = "val",
     test_framerate: str = "images",
     test_shift_type: str = "discrete",
     test_views_to_load: Sequence[str] = ("front",),
     test_keys_to_load: Sequence[str] = (K.images, K.seg_masks),
     test_attributes_to_load: Sequence[dict[str, str | float]] | None = None,
+    test_skip_empty_frames: bool = False,
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (800, 1280),
     crop_size: tuple[int, int] | None = None,
@@ -333,6 +334,7 @@ def get_shift_config(
         views_to_load=train_views_to_load,
         keys_to_load=train_keys_to_load,
         attributes_to_load=train_attributes_to_load,
+        skip_empty_frames=train_skip_empty_frames,
         backend=data_backend,
     )
     test_dataset_cfg = class_config(
@@ -344,6 +346,7 @@ def get_shift_config(
         views_to_load=test_views_to_load,
         keys_to_load=test_keys_to_load,
         attributes_to_load=test_attributes_to_load,
+        skip_empty_frames=test_skip_empty_frames,
         backend=data_backend,
     )
 
