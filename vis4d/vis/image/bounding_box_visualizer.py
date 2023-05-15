@@ -87,6 +87,7 @@ class BoundingBoxVisualizer(Visualizer):
         scores: None | list[ArrayLikeFloat] = None,
         class_ids: None | list[ArrayLikeInt] = None,
         track_ids: None | list[ArrayLikeInt] = None,
+        sequence_names: None | list[str] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -102,12 +103,15 @@ class BoundingBoxVisualizer(Visualizer):
                 class ids each of shape [N]. Defaults to None.
             track_ids (None | list[ArrayLikeInt], optional): List of predicted
                 track ids each of shape [N]. Defaults to None.
+            sequence_names (None | list[str], optional): List of sequence names.
         """
         if self._run_on_batch(cur_iter):
             for idx, image in enumerate(images):
                 self.process_single_image(
                     image,
-                    image_names[idx],
+                    image_names[idx]
+                    if sequence_names is None
+                    else f"{sequence_names[idx]}_{image_names[idx]}",
                     boxes[idx],
                     None if scores is None else scores[idx],
                     None if class_ids is None else class_ids[idx],
