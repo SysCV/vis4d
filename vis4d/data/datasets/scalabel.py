@@ -407,6 +407,13 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[K.boxes3d_classes] = classes
             data[K.boxes3d_track_ids] = track_ids
 
+    def __repr__(self) -> str:
+        """Representation string of dataset."""
+        return (
+            f"{self.__class__.__name__}(data_root={self.data_root}, "
+            f"annotation_path={self.annotation_path})"
+        )
+
     def __len__(self) -> int:
         """Length of dataset."""
         return len(self.frames)
