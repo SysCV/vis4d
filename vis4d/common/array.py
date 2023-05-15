@@ -119,6 +119,13 @@ def array_to_numpy(
         array = data
     elif isinstance(data, torch.Tensor):
         array = np.asarray(data.detach().cpu().numpy())
+    elif isinstance(data, list):
+        for i, item in enumerate(data):
+            if isinstance(item, torch.Tensor):
+                data[i] = item.detach().cpu().numpy()
+            else:
+                data[i] = item
+        array = np.asarray(data)
     else:
         array = np.asarray(data)
 

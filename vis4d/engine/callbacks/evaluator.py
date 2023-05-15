@@ -98,14 +98,15 @@ class EvaluatorCallback(Callback):
         self.evaluator.process()
 
         for metric in self.evaluator.metrics:
+            # Evaluate metric
+            log_dict, log_str = self.evaluator.evaluate(metric)
+
             # Save output
             if self.save_predictions:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
+                self.evaluator.save(metric, output_dir)
 
-            # Evaluate metric
-            log_dict, log_str = self.evaluator.evaluate(metric)
-            self.evaluator.save(metric, output_dir)
             for k, v in log_dict.items():
                 rank_zero_info("%s: %.4f", k, v)
             rank_zero_info("Showing evaluation results for %s", metric)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
+from sympy import Domain
 from torch import optim
 
 from vis4d.config.base.datasets.shift.tasks import (
@@ -47,10 +48,10 @@ def get_config() -> ConfigDict:
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
+    params.samples_per_gpu = 4
+    params.workers_per_gpu = 4
     params.lr = 0.01
-    params.num_steps = 40000
+    params.num_steps = 80000
     params.num_epochs = 45
     params.augment_prob = 0.5
     params.num_classes = 23

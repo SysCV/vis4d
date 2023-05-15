@@ -20,7 +20,6 @@ from vis4d.config.default import (
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
-    CONN_BBOX_2D_VIS,
 )
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -72,7 +71,7 @@ def get_config() -> ConfigDict:
     params.workers_per_gpu = 2
     params.lr = 0.02
     params.num_epochs = 12
-    params.num_classes = 5
+    params.num_classes = 6
     config.params = params
 
     ######################################################
@@ -144,23 +143,13 @@ def get_config() -> ConfigDict:
     # Logger and Checkpoint
     callbacks = get_callbacks_config(config)
 
-    # Visualizer
-    callbacks.append(
-        class_config(
-            VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
-            save_prefix=config.output_dir,
-            test_connector=CONN_BBOX_2D_VIS,
-        )
-    )
-
     # Evaluator
     callbacks.append(
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
                 SHIFTDetectEvaluator,
-                annotation_path=f"{data_root}/discrete/images/val/front/det_2d.json",
+                annotation_path=f"{data_root}/discrete/images/front/val/det_2d.json",
             ),
             test_connector=CONN_SHIFT_EVAL,
         )

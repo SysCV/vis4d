@@ -122,7 +122,9 @@ def get_model_cfg(
         anchor_generator=anchor_generator,
         box_encoder=rpn_box_encoder,
     )
-    rcnn_loss = class_config(RCNNLoss, box_encoder=rcnn_box_encoder)
+    rcnn_loss = class_config(
+        RCNNLoss, box_encoder=rcnn_box_encoder, num_classes=num_classes
+    )
 
     loss = class_config(
         WeightedMultiLoss,
