@@ -71,10 +71,11 @@ class TestMultiViewDataloaderConfig(unittest.TestCase):
             workers_per_gpu=0,
         )
         self.assertTrue(isinstance(dataloader_cfg, ConfigDict))
-        train_dl = instantiate_classes(dataloader_cfg.test_dataloader)
+        train_dl = instantiate_classes(dataloader_cfg.train_dataloader)
         self.assertTrue(isinstance(train_dl, DataLoader))
         entries = next(iter(train_dl))
         self.assertEqual(entries["images"].shape, (1, 3, 800, 1280))
         self.assertEqual(entries["original_hw"], [(800, 1280)])
         self.assertEqual(entries["boxes2d"][0].shape, (2, 4))
         self.assertEqual(entries["boxes2d_classes"][0].shape, (2,))
+        assert False

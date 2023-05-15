@@ -410,8 +410,10 @@ class Scalabel(Dataset, CacheMappingMixin):
     def __repr__(self) -> str:
         """Representation string of dataset."""
         return (
-            f"{self.__class__.__name__}(data_root={self.data_root}, "
-            f"annotation_path={self.annotation_path})"
+            f"{self.__class__.__name__}("
+            f"data_root={self.data_root}, "
+            f"annotation_path={self.annotation_path}"
+            f")"
         )
 
     def __len__(self) -> int:
