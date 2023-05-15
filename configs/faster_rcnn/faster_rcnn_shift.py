@@ -1,6 +1,5 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
-from click import File
 
 import lightning.pytorch as pl
 from torch.optim import SGD
@@ -23,15 +22,13 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
 )
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.io.file import FileBackend
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
+from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.shift import SHIFTDetectEvaluator
 from vis4d.engine.connectors import DataConnector, data_key, pred_key
 from vis4d.op.base import ResNet
-from vis4d.vis.image import BoundingBoxVisualizer
 
 
 CONN_SHIFT_EVAL = {

@@ -39,8 +39,15 @@ def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data: DictData = {}
 
-    # Find a common set of keys from all batch items.
-    keys = set([key for b in batch for key in b.keys()])
+    # Find an intersection of keys across all samples.
+    # NOTE: This is a hacky way to handle different keys across samples.
+    # For example, some samples have annotations, some don't. Or, some samples
+    # have transform metadata, some don't because the transform are not applied
+    # in the RandomApply.
+    keys = set(batch[0].keys())
+    if len(batch) > 1:
+        for b in batch[1:]:
+            keys &= set(b.keys())
 
     for key in keys:
         try:
