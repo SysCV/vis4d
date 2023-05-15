@@ -97,7 +97,10 @@ class EvaluatorCallback(Callback):
 
         self.evaluator.process()
 
-        for metric in self.evaluator.metrics:
+        metrics = (
+            self.evaluator.metrics if self.metrics is None else self.metrics
+        )
+        for metric in metrics:
             # Evaluate metric
             log_dict, log_str = self.evaluator.evaluate(metric)
 

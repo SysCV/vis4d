@@ -38,9 +38,11 @@ _DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
 def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data: DictData = {}
-    # TODO: It seems dangerous if batches originally contain different keys.
-    # e.g. if batch[0] has annotations but batch[1] doesn't.
-    for key in batch[0]:
+
+    # Find a common set of keys from all batch items.
+    keys = set([key for b in batch for key in b.keys()])
+
+    for key in keys:
         try:
             if key in [K.images]:
                 data[key] = torch.cat([b[key] for b in batch])

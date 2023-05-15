@@ -1,5 +1,6 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
+from click import File
 
 import lightning.pytorch as pl
 from torch.optim import SGD
@@ -22,6 +23,7 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
 )
 from vis4d.config.util import ConfigDict, class_config
+from vis4d.data.io.file import FileBackend
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import DataConnector
@@ -149,8 +151,9 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             evaluator=class_config(
                 SHIFTDetectEvaluator,
-                annotation_path=f"{data_root}/discrete/images/front/val/det_2d.json",
+                annotation_path=f"{data_root}/discrete/images/val/front/det_2d.json",
             ),
+            metrics=["Det"],
             test_connector=CONN_SHIFT_EVAL,
         )
     )
