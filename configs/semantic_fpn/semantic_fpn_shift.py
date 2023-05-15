@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from sympy import Domain
 from torch import optim
 
 from vis4d.config.base.datasets.shift.tasks import (

@@ -5,10 +5,13 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.config.base.datasets.shift.tasks import get_shift_detection_config
-from vis4d.config.base.models.faster_rcnn import (
+from vis4d.config.base.datasets.shift.tasks import (
+    get_shift_instance_segmentation_config,
+)
+from vis4d.config.base.models.mask_rcnn import (
     CONN_ROI_LOSS_2D,
     CONN_RPN_LOSS_2D,
+    CONN_MASK_HEAD_LOSS_2D,
     get_model_cfg,
 )
 from vis4d.config.default import (
@@ -26,7 +29,12 @@ from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.shift import SHIFTDetectEvaluator
-from vis4d.engine.connectors import DataConnector, data_key, pred_key
+from vis4d.engine.connectors import (
+    DataConnector,
+    data_key,
+    pred_key,
+    remap_pred_keys,
+)
 from vis4d.op.base import ResNet
 
 
@@ -34,9 +42,10 @@ CONN_SHIFT_EVAL = {
     "frame_ids": data_key("frame_ids"),
     "sample_names": data_key("sample_names"),
     "sequence_names": data_key("sequence_names"),
-    "pred_boxes": pred_key("boxes"),
-    "pred_classes": pred_key("class_ids"),
-    "pred_scores": pred_key("scores"),
+    "pred_boxes": pred_key("boxes.boxes"),
+    "pred_classes": pred_key("boxes.class_ids"),
+    "pred_scores": pred_key("boxes.scores"),
+    "pred_masks": pred_key("masks.masks"),
 }
 
 
@@ -60,14 +69,14 @@ def get_config() -> ConfigDict:
     config = ConfigDict()
 
     config.work_dir = "vis4d-workspace"
-    config.experiment_name = "faster_rcnn_r50_fpn_shift"
+    config.experiment_name = "mask_rcnn_r50_fpn_shift"
     config = set_output_dir(config)
 
     # High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
-    params.lr = 0.02
+    params.workers_per_gpu = 0
+    params.lr = 0.01
     params.num_epochs = 12
     params.num_classes = 6
     config.params = params
@@ -82,7 +91,7 @@ def get_config() -> ConfigDict:
     domain_attr = [{"weather_coarse": "clear", "timeofday_coarse": "daytime"}]
     data_backend = class_config(HDF5Backend)
 
-    config.data = get_shift_detection_config(
+    config.data = get_shift_instance_segmentation_config(
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
@@ -132,7 +141,11 @@ def get_config() -> ConfigDict:
         DataConnector,
         train=CONN_BBOX_2D_TRAIN,
         test=CONN_BBOX_2D_TEST,
-        loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
+        loss={
+            **remap_pred_keys(CONN_RPN_LOSS_2D, "boxes"),
+            **remap_pred_keys(CONN_ROI_LOSS_2D, "boxes"),
+            **CONN_MASK_HEAD_LOSS_2D,
+        },
     )
 
     ######################################################
@@ -147,9 +160,9 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             evaluator=class_config(
                 SHIFTDetectEvaluator,
-                annotation_path=f"{data_root}/discrete/images/val/front/det_2d.json",
+                annotation_path=f"{data_root}/discrete/images/val/front/det_insseg_2d.json",
             ),
-            metrics=["Det"],
+            metrics=["Det", "InsSeg"],
             test_connector=CONN_SHIFT_EVAL,
         )
     )

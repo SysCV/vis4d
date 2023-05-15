@@ -57,6 +57,8 @@ def get_shift_instance_segmentation_config(**kwargs: ArgsType) -> ConfigDict:
     cfg = get_shift_config(
         train_keys_to_load=keys_to_load,
         test_keys_to_load=keys_to_load,
+        train_skip_empty_frames=True,
+        test_skip_empty_frames=False,
         horizontal_flip_prob=0.5,
         color_jitter_prob=0.5,
         crop_size=None,
