@@ -146,7 +146,9 @@ class ColorJitter:
         self.saturation_range = saturation_range
         self.hue_range = hue_range
 
-    def __call__(self, image: NDArrayF32) -> NDArrayF32:
+    def __call__(
+        self, image: NDArrayF32
+    ) -> tuple[ColorJitterParam, NDArrayF32]:
         """Call function for Hue transformation."""
         transform_order = np.random.permutation(4)
         for transform in transform_order:

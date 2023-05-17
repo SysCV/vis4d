@@ -165,6 +165,7 @@ def main(argv: ArgsType) -> None:
         callbacks=callbacks,
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,
+        check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?

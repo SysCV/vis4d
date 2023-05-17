@@ -47,6 +47,7 @@ def get_config() -> ConfigDict:
 
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "test/semantic_fpn_bdd100k"
+    config.check_val_every_n_epoch = 6
     config = set_output_dir(config)
 
     ## High level hyper parameters
@@ -149,7 +150,7 @@ def get_config() -> ConfigDict:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(SegMaskVisualizer, vis_freq=100),
+            visualizer=class_config(SegMaskVisualizer, vis_freq=10),
             save_prefix=config.output_dir,
             test_connector=CONN_SEG_VIS,
         )

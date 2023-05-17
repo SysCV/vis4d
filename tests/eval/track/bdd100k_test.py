@@ -30,8 +30,8 @@ class TestBDD100KTrackingEvaluator(unittest.TestCase):
 
     CONN_BDD100K_EVAL = {
         "frame_ids": data_key("frame_ids"),
-        "data_names": data_key("name"),
-        "video_names": data_key("videoName"),
+        "data_names": data_key("sample_names"),
+        "video_names": data_key("sequence_names"),
         "boxes_list": pred_key("boxes"),
         "class_ids_list": pred_key("class_ids"),
         "scores_list": pred_key("scores"),

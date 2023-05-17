@@ -77,10 +77,9 @@ class SemanticFPNHead(nn.Module):
                     )
             self.scale_heads.append(nn.Sequential(*scale_head))
         self.conv_seg = nn.Conv2d(inner_channels, num_classes, 1)
+        self.dropout_ratio = dropout_ratio
         if dropout_ratio > 0:
             self.dropout = nn.Dropout2d(dropout_ratio)
-        else:
-            self.dropout = None
         self.init_weights()
 
     def init_weights(self) -> None:
@@ -113,7 +112,7 @@ class SemanticFPNHead(nn.Module):
                 align_corners=False,
             )
 
-        if self.dropout is not None:
+        if self.dropout_ratio > 0:
             output = self.dropout(output)
         seg_preds = self.conv_seg(output)
         return SemanticFPNOut(outputs=seg_preds)

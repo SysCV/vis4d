@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.common.distributed import distributed_available, get_world_size
+from vis4d.common.distributed import get_world_size
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.op.base import BaseModel, ResNetV1c
 from vis4d.op.fpp.fpn import FPN
@@ -76,8 +76,8 @@ class SemanticFPN(nn.Module):
             else:
                 load_model_checkpoint(self, weights)
 
-        if use_sync_bn:
-            if distributed_available() and get_world_size() > 1:
+        if use_sync_bn:  # pragma: no cover
+            if get_world_size() > 1:
                 rank_zero_info(
                     "SyncBN enabled, converting BatchNorm layers to"
                     " SyncBatchNorm layers."
@@ -86,7 +86,7 @@ class SemanticFPN(nn.Module):
             else:
                 rank_zero_warn(
                     "use_sync_bn is True, but not in a distributed setting."
-                    "BatchNorm layers are not converted."
+                    " BatchNorm layers are not converted."
                 )
 
     def forward_train(self, images: torch.Tensor) -> SemanticFPNOut:
@@ -98,7 +98,7 @@ class SemanticFPN(nn.Module):
         Returns:
             SemanticFPNOut: Raw model predictions.
         """
-        features = self.fpn(self.basemodel(images))
+        features = self.fpn(self.basemodel(images.contiguous()))
         out = self.seg_head(features)
         if self.resize:
             out = SemanticFPNOut(

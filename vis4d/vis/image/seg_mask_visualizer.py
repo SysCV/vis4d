@@ -9,9 +9,9 @@ import numpy as np
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
     ArgsType,
-    ArrayLikeBool,
     ArrayLikeFloat,
     ArrayLikeInt,
+    ArrayLikeUInt,
     NDArrayBool,
     NDArrayFloat,
     NDArrayInt,
@@ -85,15 +85,15 @@ class SegMaskVisualizer(Visualizer):
     def _add_masks(
         self,
         data_sample: ImageWithSegMask,
-        masks: NDArrayBool,
+        masks: NDArrayUI8,
         class_ids: NDArrayInt | None = None,
     ) -> None:
         """Adds a mask to the current data sample.
 
         Args:
-            data_sample (DataSample): Data sample to add mask to
-            masks (ArrayLikeBool): Binary masks shape [N,h,w]
-            class_ids (ArrayLikeInt | None, optional): Class ids for each mask
+            data_sample (ImageWithSegMask): Data sample to add mask to.
+            masks (NDArrayUI8): Binary masks shape [N, H, W].
+            class_ids (NDArrayInt, optional): Class ids for each mask, with
                 shape [N]. Defaults to None.
         """
         if class_ids is not None:
@@ -110,24 +110,24 @@ class SegMaskVisualizer(Visualizer):
         """Visualizes the datasample and returns is as numpy image.
 
         Args:
-            sample (DataSample): The data sample to visualize
+            sample (DataSample): The data sample to visualize.
 
         Returns:
-            np.array[uint8]: A image with the visualized data sample
+            NDArrayUI8: A image with the visualized data sample.
         """
         self.canvas.create_canvas(sample.image)
         for mask in sample.masks:
             self.canvas.draw_bitmap(mask.mask, mask.color)
         return self.canvas.as_numpy_image()
 
-    def _to_binary_mask(self, mask: NDArrayUI8) -> NDArrayBool:
+    def _to_binary_mask(self, mask: NDArrayUI8) -> NDArrayUI8:
         """Converts a mask to binary masks.
 
         Args:
-            mask (np.array): The mask to convert with shape [H, W].
+            mask (NDArrayUI8): The mask to convert with shape [H, W].
 
         Returns:
-            np.array[bool]: The binary masks with shape [N, H, W].
+            NDArrayUI8: The binary masks with shape [N, H, W].
         """
         binary_masks = []
         for class_id in np.unique(mask):
@@ -139,32 +139,34 @@ class SegMaskVisualizer(Visualizer):
         cur_iter: int,
         images: list[ArrayLikeFloat],
         image_names: list[str],
-        masks: list[ArrayLikeBool],
+        masks: list[ArrayLikeUInt],
         class_ids: list[ArrayLikeInt] | None = None,
     ) -> None:
         """Processes a batch of data.
 
         Args:
             cur_iter (int): Current iteration.
-            images (list[ArrayLike]): Images to show.
+            images (list[ArrayLikeFloat]): Images to show.
             image_names (list[str]): Image names.
-            masks (list[ArrayLikeBool]): Binary masks to show each shape
-                [N, H, W].
-            class_ids (list[ArrayLikeInt] | None, optional): Class ids for each
-                mask shape [N]. Defaults to None.
+            masks (list[ArrayLikeUInt]): Segmentation masks to show, each
+                with shape [H, W] or [N, H, W].
+            class_ids (list[ArrayLikeInt], optional): Class ids for each mask,
+                with shape [N]. Defaults to None.
         """
         if not self._run_on_batch(cur_iter):
             return
 
-        images = array_to_numpy(images, None, np.float)
-        masks = [array_to_numpy(mask, None, np.uint8) for mask in masks]
+        images_numpy = array_to_numpy(images, None, np.float32)
+        masks_numpy = [array_to_numpy(mask, None, np.uint8) for mask in masks]
         if class_ids is not None:
-            class_ids = [
-                array_to_numpy(class_id, None, np.int)
+            class_ids_numpy = [
+                array_to_numpy(class_id, None, np.int32)
                 for class_id in class_ids
             ]
-        for idx, image in enumerate(images):
-            mask = masks[idx]
+        else:
+            class_ids_numpy = None
+        for idx, image in enumerate(images_numpy):
+            mask = masks_numpy[idx]
             if len(mask.shape) == 2:
                 assert len(mask.shape) == 2
                 mask = self._to_binary_mask(mask)
@@ -172,24 +174,24 @@ class SegMaskVisualizer(Visualizer):
                 image,
                 image_names[idx],
                 mask,
-                None if class_ids is None else class_ids[idx],
+                None if class_ids_numpy is None else class_ids_numpy[idx],
             )
 
     def process_single_image(
         self,
         image: NDArrayFloat,
         image_name: str,
-        masks: NDArrayBool,
+        masks: NDArrayUI8,
         class_ids: NDArrayInt | None = None,
     ) -> None:
         """Processes a single image entry.
 
         Args:
-            image (ArrayLike): Images to show.
+            image (NDArrayFloat): Images to show.
             image_name (str): Name of the image.
-            masks (ArrayLikeBool): Binary masks to show each shape
+            masks (NDArrayUI8): Binary masks to show, each with shape
                 [N, H, W].
-            class_ids (ArrayLikeInt | None, optional): Binary masks to show
+            class_ids (NDArrayInt, optional): Binary masks to show
                 each mask of shape [H, W]. Defaults to None.
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)

@@ -103,7 +103,7 @@ class PadSegMasks:
         # generate params for torch pad
         for i, (mask, h, w) in enumerate(zip(masks, heights, widths)):
             pad_param = ((0, max_hw[0] - h), (0, max_hw[1] - w))
-            masks[i] = np.pad(
+            masks[i] = np.pad(  # type: ignore
                 mask, pad_param, mode=self.mode, constant_values=self.value
             )
         return masks

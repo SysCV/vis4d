@@ -29,7 +29,7 @@ class TestBDD100KSegEvaluator(unittest.TestCase):
     """BDD100K segmentation evaluator testcase class."""
 
     CONN_BDD100K_EVAL = {
-        "data_names": data_key("name"),
+        "data_names": data_key("sample_names"),
         "masks_list": pred_key("masks"),
     }
 
