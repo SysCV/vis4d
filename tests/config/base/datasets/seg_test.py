@@ -2,7 +2,7 @@
 import unittest
 
 from tests.util import get_test_data
-from vis4d.config.base.datasets.bdd100k_segmentation import (
+from vis4d.config.base.datasets.bdd100k.semantic_segmentation import (
     get_test_dataloader,
     get_train_dataloader,
 )

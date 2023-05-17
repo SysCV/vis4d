@@ -26,6 +26,7 @@ class SemanticFPNHead(nn.Module):
         inner_channels: int = 128,
         start_level: int = 2,
         end_level: int = 6,
+        dropout_ratio: float = 0.1,
     ):
         """Creates an instance of the class.
 
@@ -37,6 +38,8 @@ class SemanticFPNHead(nn.Module):
                 SemanticFPN.
             end_level (int): The end level of the used features, the
                 ``end_level``-th layer will not be used.
+            dropout_ratio (float): The drop ratio of dropout layer.
+                Default: 0.1.
         """
         super().__init__()
         self.num_classes = num_classes
@@ -74,6 +77,10 @@ class SemanticFPNHead(nn.Module):
                     )
             self.scale_heads.append(nn.Sequential(*scale_head))
         self.conv_seg = nn.Conv2d(inner_channels, num_classes, 1)
+        if dropout_ratio > 0:
+            self.dropout = nn.Dropout2d(dropout_ratio)
+        else:
+            self.dropout = None
         self.init_weights()
 
     def init_weights(self) -> None:
@@ -106,5 +113,7 @@ class SemanticFPNHead(nn.Module):
                 align_corners=False,
             )
 
+        if self.dropout is not None:
+            output = self.dropout(output)
         seg_preds = self.conv_seg(output)
         return SemanticFPNOut(outputs=seg_preds)

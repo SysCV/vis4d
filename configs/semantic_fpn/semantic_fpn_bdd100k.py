@@ -4,7 +4,7 @@ from __future__ import annotations
 import lightning.pytorch as pl
 from torch import optim
 
-from vis4d.config.base.datasets.bdd100k_segmentation import (
+from vis4d.config.base.datasets.bdd100k.semantic_segmentation import (
     CONN_BDD100K_SEG_EVAL,
     get_bdd100k_segmentation_config,
 )
@@ -81,13 +81,9 @@ def get_config() -> ConfigDict:
     ##                   MODEL & LOSS                   ##
     ######################################################
 
-    weights = (
-        "bdd100k://sem_seg/models/fpn_r50_512x1024_40k_sem_seg_bdd100k.pth"
-    )
     config.model = class_config(
-        SemanticFPN, num_classes=params.num_classes, weights=weights
+        SemanticFPN, num_classes=params.num_classes, use_sync_bn=True
     )
-    # config.model = class_config(SemanticFPN, num_classes=params.num_classes, weights="vis4d-workspace/test/semantic_fpn_bdd100k/2023-04-29_20-11-58/checkpoints/model_e45.pt")
     config.loss = class_config(SegCrossEntropyLoss)
 
     ######################################################
@@ -130,7 +126,11 @@ def get_config() -> ConfigDict:
 
     # Checkpoint
     callbacks.append(
-        class_config(CheckpointCallback, save_prefix=config.output_dir)
+        class_config(
+            CheckpointCallback,
+            save_prefix=config.output_dir,
+            save_ckpt_every_n_epoch=6,
+        )
     )
 
     # Evaluator
@@ -149,9 +149,7 @@ def get_config() -> ConfigDict:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(
-                SegMaskVisualizer, num_samples=10, vis_freq=100
-            ),
+            visualizer=class_config(SegMaskVisualizer, vis_freq=100),
             save_prefix=config.output_dir,
             test_connector=CONN_SEG_VIS,
         )
@@ -165,6 +163,7 @@ def get_config() -> ConfigDict:
     # PL Trainer args
     pl_trainer = get_pl_trainer_config(config)
     pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.check_val_every_n_epoch = 6
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

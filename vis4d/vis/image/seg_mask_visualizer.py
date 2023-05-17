@@ -1,4 +1,4 @@
-"""Semantic mask visualizer."""
+"""Segmentation mask visualizer."""
 from __future__ import annotations
 
 import os
@@ -49,7 +49,6 @@ class SegMaskVisualizer(Visualizer):
         *args: ArgsType,
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
-        num_samples: int = -1,
         file_type: str = "png",
         image_mode: str = "RGB",
         canvas: CanvasBackend = PillowCanvasBackend(),
@@ -74,7 +73,6 @@ class SegMaskVisualizer(Visualizer):
         self.class_id_mapping = (
             class_id_mapping if class_id_mapping is not None else {}
         )
-        self.num_samples = num_samples
         self.file_type = file_type
         self.image_mode = image_mode
         self.canvas = canvas
@@ -100,7 +98,7 @@ class SegMaskVisualizer(Visualizer):
         """
         if class_ids is not None:
             assert (
-                len(class_ids) == masks.shape[0]  # type: ignore
+                len(class_ids) == masks.shape[0]
             ), "The amount of masks must match the given class count!"
 
         for mask, color in zip(*preprocess_masks(masks, class_ids)):
@@ -166,8 +164,6 @@ class SegMaskVisualizer(Visualizer):
                 for class_id in class_ids
             ]
         for idx, image in enumerate(images):
-            if len(self._samples) >= self.num_samples:
-                break
             mask = masks[idx]
             if len(mask.shape) == 2:
                 assert len(mask.shape) == 2
