@@ -46,17 +46,17 @@ def get_config() -> ConfigDict:
     config = ConfigDict()
 
     config.work_dir = "vis4d-workspace"
-    config.experiment_name = "test/semantic_fpn_bdd100k"
-    config.check_val_every_n_epoch = 6
+    config.experiment_name = "semantic_fpn_r50_80k_bdd100k"
     config = set_output_dir(config)
+    config.sync_batchnorm = True
+    config.val_check_interval = 4000
 
     ## High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
-    params.num_steps = 40000
-    params.num_epochs = 90
+    params.num_steps = 80000
     params.num_classes = 19
     config.params = params
 
@@ -82,9 +82,7 @@ def get_config() -> ConfigDict:
     ##                   MODEL & LOSS                   ##
     ######################################################
 
-    config.model = class_config(
-        SemanticFPN, num_classes=params.num_classes, use_sync_bn=True
-    )
+    config.model = class_config(SemanticFPN, num_classes=params.num_classes)
     config.loss = class_config(SegCrossEntropyLoss)
 
     ######################################################
@@ -123,16 +121,14 @@ def get_config() -> ConfigDict:
     callbacks = []
 
     # Logger
-    callbacks.append(class_config(LoggingCallback, refresh_rate=50))
-
-    # Checkpoint
     callbacks.append(
-        class_config(
-            CheckpointCallback,
-            save_prefix=config.output_dir,
-            save_ckpt_every_n_epoch=6,
-        )
+        class_config(LoggingCallback, epoch_based=False, refresh_rate=50)
     )
+
+    # # Checkpoint
+    # callbacks.append(
+    #     class_config(CheckpointCallback, save_prefix=config.output_dir)
+    # )
 
     # Evaluator
     callbacks.append(
@@ -150,7 +146,7 @@ def get_config() -> ConfigDict:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(SegMaskVisualizer, vis_freq=10),
+            visualizer=class_config(SegMaskVisualizer, vis_freq=20),
             save_prefix=config.output_dir,
             test_connector=CONN_SEG_VIS,
         )
@@ -163,8 +159,17 @@ def get_config() -> ConfigDict:
     ######################################################
     # PL Trainer args
     pl_trainer = get_pl_trainer_config(config)
-    pl_trainer.max_epochs = params.num_epochs
-    pl_trainer.check_val_every_n_epoch = 6
+    pl_trainer.epoch_based = False
+    pl_trainer.max_steps = params.num_steps
+
+    val_freq = 4000
+    pl_trainer.checkpoint_period = val_freq
+    pl_trainer.val_check_interval = val_freq
+    pl_trainer.check_val_every_n_epoch = None
+
+    pl_trainer.sync_batchnorm = True
+    # pl_trainer.precision = 16
+
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

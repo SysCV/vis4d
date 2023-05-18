@@ -43,7 +43,7 @@ class Timer:  # pragma: no cover
 
     def resume(self) -> None:
         """Resume function."""
-        if self.paused:
+        if not self.paused:
             raise ValueError("Timer is not paused!")
         assert self._toc is not None
         self._tic = perf_counter() - (self._toc - self._tic)

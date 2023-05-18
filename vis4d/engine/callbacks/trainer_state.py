@@ -17,6 +17,7 @@ class TrainerState(TypedDict):
     current_epoch: int
     num_epochs: int
     global_step: int
+    num_steps: int
     data_connector: DataConnector
     train_dataloader: DataLoader[DictData] | None
     num_train_batches: int | None

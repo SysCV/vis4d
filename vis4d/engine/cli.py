@@ -21,7 +21,12 @@ from vis4d.common.distributed import (
     get_rank,
     get_world_size,
 )
-from vis4d.common.logging import _info, rank_zero_info, setup_logger
+from vis4d.common.logging import (
+    _info,
+    rank_zero_info,
+    rank_zero_warn,
+    setup_logger,
+)
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config.parser import DEFINE_config_file
@@ -154,18 +159,32 @@ def main(argv: ArgsType) -> None:
             model, device_ids=[rank]
         )
 
+    if config.get("sync_batchnorm", False):
+        if num_gpus > 1:
+            rank_zero_info(
+                "SyncBN enabled, converting BatchNorm layers to"
+                " SyncBatchNorm layers."
+            )
+            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        else:
+            rank_zero_warn(
+                "use_sync_bn is True, but not in a distributed setting."
+                " BatchNorm layers are not converted."
+            )
+
     # Setup Callbacks
     for cb in callbacks:
         cb.setup()
 
     trainer = Trainer(
         device=device,
-        num_epochs=config.params.num_epochs,
         data_connector=data_connector,
         callbacks=callbacks,
+        num_epochs=config.params.get("num_epochs", 0),
+        num_steps=config.params.get("num_steps", 0),
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,
-        check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
+        val_check_interval=config.get("val_check_interval", -1),
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?

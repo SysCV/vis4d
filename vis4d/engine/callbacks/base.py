@@ -19,6 +19,7 @@ class Callback:
 
     def __init__(
         self,
+        epoch_based: bool = False,
         train_connector: None | dict[str, SourceKeyDescription] = None,
         test_connector: None | dict[str, SourceKeyDescription] = None,
         sensors: None | list[str] = None,
@@ -26,6 +27,8 @@ class Callback:
         """Init callback.
 
         Args:
+            epoch_based (bool, optional): Whether the callback is epoch based.
+                Defaults to False.
             train_connector (None | dict[str, SourceKeyDescription], optional):
                 Defines which which kwargs to use during training for different
                 callbacks. Defaults to None.
@@ -35,6 +38,7 @@ class Callback:
             sensors (None | list[str], optional): List of sensors to use.
                 Defaults to None.
         """
+        self.epoch_based = epoch_based
         self.train_connector = train_connector
         self.test_connector = test_connector
         self.sensors = sensors
@@ -55,6 +59,35 @@ class Callback:
             )
 
         return get_inputs_for_pred_and_data(connector, outputs, batch)
+
+    def get_iteration(
+        self,
+        trainer_state: TrainerState,
+        train: bool,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> tuple[int, int]:
+        """Returns the current iteration and total iterations."""
+        if self.epoch_based or not train:
+            cur_iter = batch_idx + 1
+
+            if train:
+                total_iters = (
+                    trainer_state["num_train_batches"]
+                    if trainer_state["num_train_batches"] is not None
+                    else -1
+                )
+            else:
+                total_iters = (
+                    trainer_state["num_test_batches"][dataloader_idx]
+                    if trainer_state["num_test_batches"] is not None
+                    else -1
+                )
+        else:
+            cur_iter = trainer_state["global_step"] + 1
+            total_iters = trainer_state["num_steps"]
+
+        return cur_iter, total_iters
 
     def on_train_epoch_start(
         self, trainer_state: TrainerState, model: nn.Module

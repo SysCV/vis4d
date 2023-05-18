@@ -20,6 +20,7 @@ class PLTrainer(pl.Trainer):  # type: ignore
         work_dir: str,
         exp_name: str,
         version: str,
+        epoch_based: bool = True,
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
         wandb: bool = False,
@@ -32,6 +33,8 @@ class PLTrainer(pl.Trainer):  # type: ignore
                 Integrates with exp_name and version to get output_dir.
             exp_name: Name of current experiment.
             version: Version of current experiment.
+            epoch_based: Use epoch-based / iteration-based training. Default is
+                True.
             find_unused_parameters: Activates PyTorch checking for unused
                 parameters in DDP setting. Default: False, for better
                 performance.
@@ -79,16 +82,24 @@ class PLTrainer(pl.Trainer):  # type: ignore
                 pl.callbacks.LearningRateMonitor(logging_interval="step")
             ]
 
-        # add Model checkpointer
-        callbacks += [
-            pl.callbacks.ModelCheckpoint(
+        # add model checkpointer
+        if epoch_based:
+            checkpoint_cb = pl.callbacks.ModelCheckpoint(
                 dirpath=osp.join(self.output_dir, "checkpoints"),
                 verbose=True,
                 save_last=True,
                 every_n_epochs=checkpoint_period,
                 save_on_train_epoch_end=True,
             )
-        ]
+
+        else:
+            checkpoint_cb = pl.callbacks.ModelCheckpoint(
+                dirpath=osp.join(self.output_dir, "checkpoints"),
+                verbose=True,
+                save_last=True,
+                every_n_train_steps=checkpoint_period,
+            )
+        callbacks += [checkpoint_cb]
 
         kwargs["callbacks"] += callbacks
 

@@ -8,8 +8,6 @@ import torch.nn.functional as F
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.common.distributed import get_world_size
-from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.op.base import BaseModel, ResNetV1c
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.mask.util import clip_mask
@@ -48,7 +46,6 @@ class SemanticFPN(nn.Module):
         num_classes: int,
         resize: bool = True,
         weights: None | str = None,
-        use_sync_bn: bool = False,
         basemodel: BaseModel = ResNetV1c(
             "resnet50_v1c",
             pretrained=True,
@@ -62,7 +59,6 @@ class SemanticFPN(nn.Module):
             num_classes (int): Number of classes.
             resize (bool): Resize output to input size.
             weights (None | str): Pre-trained weights.
-            use_sync_bn (bool): Whether to use sync batch normalization.
             basemodel (BaseModel): Base model.
         """
         super().__init__()
@@ -78,19 +74,6 @@ class SemanticFPN(nn.Module):
                 load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
             else:
                 load_model_checkpoint(self, weights)
-
-        if use_sync_bn:  # pragma: no cover
-            if get_world_size() > 1:
-                rank_zero_info(
-                    "SyncBN enabled, converting BatchNorm layers to"
-                    " SyncBatchNorm layers."
-                )
-                nn.SyncBatchNorm.convert_sync_batchnorm(self)
-            else:
-                rank_zero_warn(
-                    "use_sync_bn is True, but not in a distributed setting."
-                    " BatchNorm layers are not converted."
-                )
 
     def forward_train(self, images: torch.Tensor) -> SemanticFPNOut:
         """Forward pass for training.

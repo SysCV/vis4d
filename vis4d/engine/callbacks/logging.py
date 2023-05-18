@@ -28,14 +28,8 @@ class LoggingCallback(Callback):
         super().__init__(*args, **kwargs)
         self._refresh_rate = refresh_rate
         self._metrics: dict[str, list[Tensor]] = defaultdict(list)
-        self.timer = Timer()
-
-    def on_train_epoch_start(
-        self, trainer_state: TrainerState, model: nn.Module
-    ) -> None:
-        """Hook to run at the start of a training epoch."""
-        self.timer.reset()
-        self._metrics.clear()
+        self.train_timer = Timer()
+        self.test_timer = Timer()
 
     def on_train_batch_end(
         self,
@@ -50,25 +44,24 @@ class LoggingCallback(Callback):
             for k, v in trainer_state["metrics"].items():
                 self._metrics[k].append(v)
 
-        cur_iter = batch_idx + 1
-        total_iters = (
-            trainer_state["num_train_batches"]
-            if trainer_state["num_train_batches"] is not None
-            else -1
+        cur_iter, total_iters = self.get_iteration(
+            trainer_state, train=True, batch_idx=batch_idx
         )
 
         if cur_iter % self._refresh_rate == 0:
+            prefix = (
+                f"Epoch {trainer_state['current_epoch'] + 1}"
+                if self.epoch_based
+                else "Iter"
+            )
+
             log_dict = {
                 k: sum(v) / len(v) if len(v) > 0 else float("NaN")
                 for k, v in self._metrics.items()
             }
             rank_zero_info(
                 compose_log_str(
-                    f"Epoch {trainer_state['current_epoch'] + 1}",
-                    cur_iter,
-                    total_iters,
-                    self.timer,
-                    log_dict,
+                    prefix, cur_iter, total_iters, self.train_timer, log_dict
                 )
             )
             self._metrics.clear()
@@ -81,7 +74,8 @@ class LoggingCallback(Callback):
         self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the start of a training epoch."""
-        self.timer.reset()
+        self.train_timer.pause()
+        self.test_timer.reset()
 
     def on_test_batch_end(
         self,
@@ -103,9 +97,16 @@ class LoggingCallback(Callback):
         if cur_iter % self._refresh_rate == 0:
             rank_zero_info(
                 compose_log_str(
-                    "Testing",
-                    cur_iter,
-                    total_iters,
-                    self.timer,
+                    "Testing", cur_iter, total_iters, self.test_timer
                 )
             )
+
+    def on_test_epoch_end(
+        self, trainer_state: TrainerState, model: nn.Module
+    ) -> None:
+        """Hook to run at the end of a testing epoch."""
+        if self.epoch_based:
+            self.train_timer.reset()
+            self._metrics.clear()
+        else:
+            self.train_timer.resume()
