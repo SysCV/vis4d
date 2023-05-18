@@ -86,10 +86,7 @@ def relative_range_crop(
     return int(im_h * crop_h + 0.5), int(im_w * crop_w + 0.5)
 
 
-@Transform(
-    [K.input_hw, (K.boxes2d, "boxes"), (K.seg_masks, "masks")],
-    "transforms.crop",
-)
+@Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
 class GenCropParameters:
     """Generate the parameters for a crop operation."""
 
@@ -136,8 +133,8 @@ class GenCropParameters:
     def __call__(
         self,
         input_hw: tuple[int, int],
-        boxes: NDArrayF32 | None = None,
-        masks: NDArrayUI8 | None = None,
+        boxes: NDArrayF32 | None,
+        masks: NDArrayUI8 | None,
     ) -> CropParam:
         """Compute the parameters and put them in the data dict."""
         im_h, im_w = input_hw
@@ -164,7 +161,9 @@ class GenCropParameters:
 class CropImage:
     """Crop Image."""
 
-    def __call__(self, image: NDArrayF32, crop_box: NDArrayI32) -> NDArrayF32:
+    def __call__(
+        self, image: NDArrayF32, crop_box: NDArrayI32
+    ) -> tuple[NDArrayF32, tuple[int, int]]:
         """Crop an image of dimensions [N, H, W, C].
 
         Args:
@@ -186,7 +185,7 @@ class CropImage:
     [
         K.boxes2d,
         K.boxes2d_classes,
-        (K.boxes2d_track_ids, "track_ids"),
+        K.boxes2d_track_ids,
         "transforms.crop.crop_box",
         "transforms.crop.keep_mask",
     ],
@@ -199,10 +198,10 @@ class CropBoxes2D:
         self,
         boxes: NDArrayF32,
         classes: NDArrayI32,
+        track_ids: NDArrayI32 | None,
         crop_box: NDArrayI32,
         keep_mask: NDArrayBool,
-        track_ids: NDArrayI32 | None = None,
-    ) -> tuple[NDArrayF32, NDArrayI32, NDArrayI32]:
+    ) -> tuple[NDArrayF32, NDArrayI32, NDArrayI32 | None]:
         """Crop 2D bounding boxes.
 
         Args:

@@ -99,42 +99,25 @@ class Transform:
 
             def _transform_fn(data: DictData) -> DictData:
                 in_data = []
-                opt_in_data = {}
                 for key in self_.in_keys:
-                    if isinstance(key, tuple):
-                        # optional keyword arguments
-                        # TODO: make the change for batch transform after
-                        # implementation is fixed
-                        assert len(key) == 2
-                        try:
-                            opt_in_data[key[1]] = (
-                                get_dict_nested(data, key[0].split("."))
-                                if key != "data"
-                                else data
+                    try:
+                        # Optionally allow the function to get the full data
+                        # dict as aux input.
+                        in_data += [
+                            get_dict_nested(
+                                data, key.split("."), allow_missing=True
                             )
-                        except ValueError:
-                            opt_in_data[key[1]] = None
-                    else:
-                        # positional arguments
-                        try:
-                            # Optionally allow the function to get the full
-                            # data dict as aux input.
-                            in_data += [
-                                (
-                                    get_dict_nested(data, key.split("."))
-                                    if key != "data"
-                                    else data
-                                )
-                            ]
-                        except ValueError:
-                            rank_zero_warn(
-                                f"Could not find key {key} in data dictionary."
-                                + "Skipping transform "
-                                + f"{self_.__class__.__name__}."
-                            )
-                            return data
+                            if key != "data"
+                            else data
+                        ]
+                    except (ValueError, AttributeError):
+                        rank_zero_warn(
+                            f"Could not find key {key} in data dictionary. "
+                            + f"Skipping transform {self_.__class__.__name__}."
+                        )
+                        return data
 
-                result = self_(*in_data, **opt_in_data)
+                result = self_(*in_data)
                 if len(self_.out_keys) == 1:
                     if self_.out_keys[0] == "data":
                         return result
