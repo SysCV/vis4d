@@ -50,7 +50,10 @@ class SemanticFPN(nn.Module):
         weights: None | str = None,
         use_sync_bn: bool = False,
         basemodel: BaseModel = ResNetV1c(
-            "resnet50", pretrained=True, trainable_layers=3, norm_freezed=False
+            "resnet50_v1c",
+            pretrained=True,
+            trainable_layers=5,
+            norm_freezed=False,
         ),
     ) -> None:
         """Semantic FPN.

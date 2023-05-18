@@ -10,6 +10,17 @@ from vis4d.common.typing import ArgsType
 
 from .base import BaseModel
 
+model_urls = {
+    "resnet50_v1c": (
+        "https://download.openmmlab.com/pretrain/third_party/"
+        "resnet50_v1c-2cccc1ad.pth"
+    ),
+    "resnet101_v1c": (
+        "https://download.openmmlab.com/pretrain/third_party/"
+        "resnet101_v1c-e67eebb6.pth"
+    ),
+}
+
 
 class ResNet(BaseModel):
     """Wrapper for torchvision ResNet."""
@@ -32,8 +43,8 @@ class ResNet(BaseModel):
                 Defaults to 5.
             norm_freezed (bool, optional): Whether to freeze batch norm.
                 Defaults to True.
-            pretrained (bool, optional): Whether to load ImageNet
-                pre-trained weights. Defaults to False.
+            pretrained (bool, optional): Whether to load ImageNet pre-trained
+                weights. Defaults to False.
             replace_stride_with_dilation (None | list[bool], optional):
                 Whether to replace stride with dilation. Defaults to None.
 
@@ -181,11 +192,23 @@ class ResNetV1c(ResNet):
     <https://arxiv.org/abs/1812.01187>`.
     """
 
-    def __init__(self, resnet_name: str, **kwargs: ArgsType):
+    def __init__(
+        self, resnet_name: str, pretrained: bool = False, **kwargs: ArgsType
+    ):
         """Initialize ResNetV1c.
 
         Args:
             resnet_name (str): Name of the resnet model.
+            pretrained (bool, optional): Whether to load ImageNet pre-trained
+                weights. Defaults to False.
             **kwargs: Arguments for ResNet.
         """
-        super().__init__(resnet_name, deep_stem=True, **kwargs)
+        assert resnet_name in {"resnet50_v1c", "resnet101_v1c"}
+        super().__init__(
+            resnet_name[:-4], pretrained=pretrained, deep_stem=True, **kwargs
+        )
+        if pretrained:
+            state_dict = torch.hub.load_state_dict_from_url(
+                model_urls[resnet_name]
+            )
+            self.load_state_dict(state_dict["state_dict"], strict=False)
