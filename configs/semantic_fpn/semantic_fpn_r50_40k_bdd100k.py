@@ -46,7 +46,7 @@ def get_config() -> ConfigDict:
     config = ConfigDict()
 
     config.work_dir = "vis4d-workspace"
-    config.experiment_name = "test/semantic_fpn_r50_40k_bdd100k"
+    config.experiment_name = "semantic_fpn_r50_40k_bdd100k"
     config = set_output_dir(config)
     config.sync_batchnorm = True
     config.val_check_interval = 2000

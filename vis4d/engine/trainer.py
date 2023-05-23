@@ -176,6 +176,9 @@ class Trainer:
                     if self.global_step >= self.num_steps - 1:
                         break
 
+                    # Set model back to train mode
+                    model.train()
+
                 self.global_step += 1
 
             # Update learning rate on epoch
