@@ -18,12 +18,15 @@ def main(
     """
     config = _CONFIG.value
 
-    data_connector = instantiate_classes(config.data_connector)
+    train_data_connector = instantiate_classes(config.train_data_connector)
+    test_data_connector = instantiate_classes(config.test_data_connector)
     loss = instantiate_classes(config.loss)
     model = instantiate_classes(config.model)
     callbacks = instantiate_classes(config.callbacks)
 
-    dg = prints_datagraph_for_config(model, data_connector, loss, callbacks)
+    dg = prints_datagraph_for_config(
+        model, train_data_connector, test_data_connector, loss, callbacks
+    )
     print(dg)
 
 

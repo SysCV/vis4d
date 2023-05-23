@@ -1,7 +1,6 @@
 """Utility functions to visualize the data graph of a configuration."""
 from __future__ import annotations
 
-import copy
 import inspect
 from typing import Any, TypedDict, get_type_hints
 
@@ -12,7 +11,7 @@ from vis4d.engine.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.engine.connectors import DataConnector, SourceKeyDescription
+from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
@@ -84,7 +83,7 @@ def _get_model_conn_infos(
     return {"train": train_connection_info, "test": test_connection_info}
 
 
-def _get_loss_connection_infos(loss: nn.Module) -> DataConnectionInfo:
+def _get_loss_connection_infos(loss: nn.Module) -> list[DataConnectionInfo]:
     """Returns the connection infos for a loss.
 
     Args:
@@ -93,19 +92,25 @@ def _get_loss_connection_infos(loss: nn.Module) -> DataConnectionInfo:
     Returns:
         DataConnectionInfo for the loss.
     """
-    in_keys: set[str] = set()
+    assert isinstance(
+        loss, WeightedMultiLoss
+    ), "Loss must be a WeightedMultiLoss"
 
-    if isinstance(loss, WeightedMultiLoss):
-        for l in loss.losses:
-            in_keys.update(l["in_keys"])
-    else:
-        in_keys.update(list(inspect.signature(loss.forward).parameters.keys()))
+    loss_connection_info = []
+    for l in loss.losses:
+        loss_out = []
+        loss_in = []
+        for entry, value in l["connector"].key_mapping.items():
+            loss_out.append(f"{entry}")
+            loss_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
 
-    return DataConnectionInfo(
-        in_keys=sorted(in_keys),
-        out_keys=[],
-        name=loss.__class__.__name__,
-    )
+        loss_connection_info.append(
+            DataConnectionInfo(
+                in_keys=loss_in, out_keys=loss_out, name=l["name"]
+            )
+        )
+
+    return loss_connection_info
 
 
 def _get_vis_connection_infos(
@@ -149,71 +154,33 @@ def _get_evaluator_connection_infos(
 
 
 def _get_data_connector_infos(
-    data_connector: DataConnector,
-) -> dict[str, list[DataConnectionInfo]]:
+    data_connector: DataConnector, name: str
+) -> DataConnectionInfo:
     """Returns the connection infos for a DataConnector.
 
     Args:
-        data_connector: DataConnector to extract data from
+        data_connector (DataConnector): Data connector to extract data.
+        name (str): Name of the data connector.
 
     Returns:
-        Dict containing train, test, loss, visualizer and evaluator connections
+        DataConnectionInfo for the data connector.
     """
-    # train
-    train_connection_info: list[DataConnectionInfo] = []
-    if data_connector.train is not None:
-        train_connection_info.append(
-            DataConnectionInfo(
-                in_keys=[
-                    "<d>-" + e for e in list(data_connector.train.keys())
-                ],
-                out_keys=list(data_connector.train.values()),
-                name="Train Data",
-            )
-        )
-
-    # test
-    test_connection_info: list[DataConnectionInfo] = []
-    if data_connector.test is not None:
-        test_connection_info.append(
-            DataConnectionInfo(
-                in_keys=["<d>-" + e for e in list(data_connector.test.keys())],
-                out_keys=list(data_connector.test.values()),
-                name="Test Data",
-            )
-        )
-
-    # loss
-    loss_connection_info: list[DataConnectionInfo] = []
-    if data_connector.loss is not None:
-        loss_out = []
-        loss_in = []
-        for entry, value in data_connector.loss.items():
-            loss_out.append(f"{entry}")
-            loss_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
-
-        loss_connection_info.append(
-            DataConnectionInfo(
-                in_keys=loss_in, out_keys=loss_out, name="Loss Connector"
-            )
-        )
-
-    return {
-        "train": train_connection_info,
-        "test": test_connection_info,
-        "loss": loss_connection_info,
-    }
+    return DataConnectionInfo(
+        in_keys=["<d>-" + e for e in list(data_connector.key_mapping.keys())],
+        out_keys=list(data_connector.key_mapping.values()),
+        name=name,
+    )
 
 
 def _get_cb_connection_infos(
     name: str,
-    cb_data_connector: None | dict[str, SourceKeyDescription] = None,
+    cb_data_connector: None | CallbackConnector = None,
 ) -> DataConnectionInfo | None:
     """Returns the connection infos for a callback."""
     if cb_data_connector is not None:
         eval_out = []
         eval_in = []
-        for entry, value in cb_data_connector.items():
+        for entry, value in cb_data_connector.key_mapping.items():
             eval_out.append(f"{entry}")
             eval_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
         return DataConnectionInfo(
@@ -372,7 +339,8 @@ def connect_components(
 
 def prints_datagraph_for_config(
     model: nn.Module,
-    data_connector: DataConnector,
+    train_data_connector: DataConnector,
+    test_data_connector: DataConnector,
     loss: nn.Module,
     callbacks: list[Callback],
 ) -> str:
@@ -386,10 +354,11 @@ def prints_datagraph_for_config(
     from model predictions with <p>.
 
     Args:
-        model(nn.Module): Model to plot.
-        data_connector(DataConnector): DataConnector to plot.
-        loss(nn.Module): Loss to plot.
-        callbacks(dict[str, ConfigDict]): Callbacks to plot.
+        model (nn.Module): Model to plot.
+        train_data_connector (DataConnector): Train data connector to plot.
+        test_data_connector (DataConnector): Test data connector to plot.
+        loss (nn.Module): Loss to plot.
+        callbacks (list[Callback]): Callbacks to plot.
 
     Returns:
         str: The datagraph as a string, that can be printed to the console.
@@ -399,53 +368,44 @@ def prints_datagraph_for_config(
         Inputs loaded from dataset are marked with <d> and predictions
         with <p>. Unconnected inputs are missing a (*) sign.
 
-        >>> dg = prints_datagraph_for_config(config, model, data_connector, loss)))
+        >>> dg = prints_datagraph_for_config(model, train_data_connector, test_data_connector, loss, callbacks)))
         >>> print(dg)
         ```
-        ========================================
-        =          Training Loop           =
-        ========================================
+        # TODO: check if this is correct
+        ===================================
+        =          Training Loop          =
+        ===================================
                             --------------
                 <d>-boxes2d |            | *boxes2d
         <d>-boxes2d_classes |            | *boxes2d_classes
                  <d>-images | Train Data | *images
                <d>-input_hw |            | *input_hw
                             --------------
-                        --------------
-                boxes2d* |            | <p>-proposals
-        boxes2d_classes* |            | *<p>-roi
-                 images* |            | *<p>-rpn
-               input_hw* | FasterRCNN | *<p>-sampled_proposals
-             original_hw |            | <p>-sampled_target_indices
-                         |            | *<p>-sampled_targets
                          --------------
-                                     ------------------
-        <p>-sampled_proposals.boxes* |                | *boxes
-         <p>-sampled_targets.labels* |                | *boxes_mask
-                  <p>-roi.cls_score* |                | *class_outs
-                        <p>-rpn.cls* |                | *cls_outs
-                        <d>-input_hw |                | *images_hw
-              <p>-sampled_proposals* | Loss Connector | pred_sampled_proposals
-                        <p>-rpn.box* |                | *reg_outs
-                  <p>-roi.bbox_pred* |                | *regression_outs
-          <p>-sampled_targets.boxes* |                | *target_boxes
-        <p>-sampled_targets.classes* |                | *target_classes
-                                     ------------------
-                         ---------------------
-                  boxes* |                   |
-             boxes_mask* |                   |
-             class_outs* |                   |
-               cls_outs* |                   |
-              images_hw* |                   |
-               reg_outs* | WeightedMultiLoss |
-        regression_outs* |                   |
-           target_boxes* |                   |
-        target_class_ids |                   |
-         target_classes* |                   |
-                         ---------------------
-        ========================================
+                boxes2d* |            | <p>-proposals
+        boxes2d_classes* |            | <p>-roi
+                 images* |            | *<p>-rpn
+               input_hw* | FasterRCNN | <p>-sampled_proposals
+             original_hw |            | <p>-sampled_target_indices
+                         |            | <p>-sampled_targets
+                         --------------
+                         -----------
+            <p>-rpn.cls* |         | cls_outs
+            <d>-input_hw |         | images_hw
+            <p>-rpn.box* | RPNLoss | reg_outs
+             <d>-boxes2d |         | target_boxes
+                         -----------
+                                        ------------
+            <p>-sampled_proposals.boxes |          | boxes
+             <p>-sampled_targets.labels |          | boxes_mask
+                      <p>-roi.cls_score |          | class_outs
+                      <p>-roi.bbox_pred | RCNNLoss | regression_outs
+              <p>-sampled_targets.boxes |          | target_boxes
+            <p>-sampled_targets.classes |          | target_classes
+                                        ------------
+        ===================================
         =          Testing Loop           =
-        ========================================
+        ===================================
                         -------------
              <d>-images |           | *images
            <d>-input_hw | Test Data | *input_hw
@@ -458,64 +418,77 @@ def prints_datagraph_for_config(
               input_hw* |            |
            original_hw* |            |
                         --------------
+        ===================================
+        =            Callbacks            =
+        ===================================
                             -------------------------
-                  <p>-boxes |                       | *boxes
-              <p>-class_ids |                       | *class_ids
-        <d>-original_images | BoundingBoxVisualizer | *images
-           <d>-sample_names |                       | *img_names
+        <d>-original_images |                       | *images
+           <d>-sample_names |                       | *image_names
+                  <p>-boxes | BoundingBoxVisualizer | *boxes
                  <p>-scores |                       | *scores
+              <p>-class_ids |                       | *class_ids
                             -------------------------
-                          -----------------
-         <d>-sample_names |               | *coco_image_id
-                <p>-boxes |               | *pred_boxes
-            <p>-class_ids | COCOEvaluator | *pred_classes
-               <p>-scores |               | *pred_scores
-                          -----------------
+                         -----------------
+        <d>-sample_names |               | *coco_image_id
+               <p>-boxes |               | *pred_boxes
+              <p>-scores | COCOEvaluator | *pred_scores
+           <p>-class_ids |               | *pred_classes
+                         -----------------
     ```
     """
     model_connection_info = _get_model_conn_infos(model)
-    # TODO: support MultiSensorDataConnector
-    assert isinstance(data_connector, DataConnector)
-    data_connection_info = _get_data_connector_infos(data_connector)
+
+    # TODO: support more data connectors
+    assert isinstance(train_data_connector, DataConnector) and isinstance(
+        test_data_connector, DataConnector
+    ), "Only DataConnector is supported."
+    train_data_connection_info = _get_data_connector_infos(
+        train_data_connector, name="Train Data"
+    )
+    test_data_connection_info = _get_data_connector_infos(
+        test_data_connector, name="Test Data"
+    )
 
     loss_info = _get_loss_connection_infos(loss)
-    # TODO: needs more safety checks. I.e. does config.loss exists, ...
     log_str = ""
 
     # connect components
-    log_str += "=" * 40 + "\n"
-    log_str += "=" + " " * 10 + "Training Loop " + " " * 10 + "=" + "\n"
-    log_str += "=" * 40 + "\n"
-    train_components = copy.deepcopy(
-        [
-            *data_connection_info["train"],
-            model_connection_info["train"],
-            *data_connection_info["loss"],
-            loss_info,
-        ]
-    )
+    log_str += "=" * 35 + "\n"
+    log_str += "=" + " " * 10 + "Training Loop" + " " * 10 + "=" + "\n"
+    log_str += "=" * 35 + "\n"
+
+    train_components = [
+        train_data_connection_info,
+        model_connection_info["train"],
+    ] + loss_info
 
     for inp, out in zip(train_components[:-1], train_components[1:]):
         connect_components(inp, out)
     for e in train_components:
         log_str += print_box(e["name"], e["in_keys"], e["out_keys"])
 
-    log_str += "=" * 40 + "\n"
+    log_str += "=" * 35 + "\n"
     log_str += "=" + " " * 10 + "Testing Loop " + " " * 10 + "=" + "\n"
-    log_str += "=" * 40 + "\n"
+    log_str += "=" * 35 + "\n"
 
-    train_components = copy.deepcopy(
-        [
-            *data_connection_info["test"],
-            model_connection_info["test"],
-        ]
-    )
-    for inp, out in zip(train_components[:-1], train_components[1:]):
+    test_components = [
+        test_data_connection_info,
+        model_connection_info["test"],
+    ]
+
+    for inp, out in zip(test_components[:-1], test_components[1:]):
         connect_components(inp, out)
 
+    for e in test_components:
+        log_str += print_box(e["name"], e["in_keys"], e["out_keys"])
+
     # TODO: Add support for more callbacks and handle train_connector
+    log_str += "=" * 35 + "\n"
+    log_str += "=" + " " * 12 + "Callbacks" + " " * 12 + "=" + "\n"
+    log_str += "=" * 35 + "\n"
+
     # evaluator and visualizer
-    optional_components: list[DataConnectionInfo] = []
+    callback_components: list[DataConnectionInfo] = []
 
     for cb in callbacks:
         if isinstance(cb, EvaluatorCallback):
@@ -529,7 +502,7 @@ def prints_datagraph_for_config(
             # found matching connector
             if component is not None:
                 connect_components(component, connect_info)
-                optional_components.append(component)
+                callback_components.append(component)
 
         if isinstance(cb, VisualizerCallback):
             visualizer = cb.visualizer
@@ -543,11 +516,9 @@ def prints_datagraph_for_config(
             # found matching connector
             if component is not None:
                 connect_components(component, connect_info)
-                optional_components.append(component)
+                callback_components.append(component)
 
-    train_components.extend(optional_components)
-
-    for e in train_components:
+    for e in callback_components:
         log_str += print_box(e["name"], e["in_keys"], e["out_keys"])
 
     return log_str

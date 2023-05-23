@@ -29,7 +29,7 @@ def imshow(
     """Shows a single image.
 
     Args:
-        image (NDArrayNumber): The image to show
+        image (NDArrayNumber): The image to show.
         image_mode (str, optional): Image Mode. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().

@@ -1,15 +1,11 @@
 """Base module for callbacks."""
 from __future__ import annotations
 
-from torch import nn
+from torch import Tensor, nn
 
-from vis4d.common import MetricLogs
+from vis4d.common.typing import DictStrArrNested, MetricLogs
 from vis4d.data.typing import DictData
-from vis4d.engine.connectors import (
-    SourceKeyDescription,
-    get_inputs_for_pred_and_data,
-    get_multi_sensor_inputs,
-)
+from vis4d.engine.connectors import CallbackConnector
 
 from .trainer_state import TrainerState
 
@@ -19,42 +15,40 @@ class Callback:
 
     def __init__(
         self,
-        train_connector: None | dict[str, SourceKeyDescription] = None,
-        test_connector: None | dict[str, SourceKeyDescription] = None,
-        sensors: None | list[str] = None,
+        train_connector: None | CallbackConnector = None,
+        test_connector: None | CallbackConnector = None,
     ) -> None:
         """Init callback.
 
         Args:
-            train_connector (None | dict[str, SourceKeyDescription], optional):
-                Defines which which kwargs to use during training for different
-                callbacks. Defaults to None.
-            test_connector (None | dict[str, SourceKeyDescription], optional):
-                Defines which kwargs to use during testing for different
-                callbacks. Defaults to None.
-            sensors (None | list[str], optional): List of sensors to use.
-                Defaults to None.
+            train_connector (None | CallbackConnector, optional): Defines which
+                kwargs to use during training for different callbacks. Defaults
+                to None.
+            test_connector (None | CallbackConnector, optional): Defines which
+                kwargs to use during testing for different callbacks. Defaults
+                to None.
         """
         self.train_connector = train_connector
         self.test_connector = test_connector
-        self.sensors = sensors
 
     def setup(self) -> None:
         """Setup callback."""
 
-    def get_data_connector_results(
-        self, outputs: DictData, batch: DictData, train: bool
-    ) -> DictData:
+    def get_train_callback_inputs(
+        self, outputs: DictData, batch: DictData
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the data connector results."""
-        connector = self.train_connector if train else self.test_connector
+        assert self.train_connector is not None, "Train connector is None."
 
-        assert connector is not None, "Connector is None."
-        if self.sensors is not None:
-            return get_multi_sensor_inputs(
-                connector, outputs, batch, self.sensors
-            )
+        return self.train_connector(outputs, batch)
 
-        return get_inputs_for_pred_and_data(connector, outputs, batch)
+    def get_test_callback_inputs(
+        self, outputs: DictData, batch: DictData
+    ) -> dict[str, Tensor | DictStrArrNested]:
+        """Returns the data connector results."""
+        assert self.test_connector is not None, "Test connector is None."
+
+        return self.test_connector(outputs, batch)
 
     def on_train_epoch_start(
         self, trainer_state: TrainerState, model: nn.Module

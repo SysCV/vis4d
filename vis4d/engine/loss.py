@@ -1,15 +1,15 @@
 """Loss implementations to be used with the CLI."""
 from __future__ import annotations
 
-import inspect
-from typing import Any, TypedDict, Union
+from typing import TypedDict, Union
 
-import torch
 from torch import Tensor, nn
 from typing_extensions import NotRequired
 
 from vis4d.common.named_tuple import is_namedtuple
 from vis4d.common.typing import LossesType
+from vis4d.data.typing import DictData
+from vis4d.engine.connectors import LossConnector
 from vis4d.op.loss.base import Loss
 
 __all__ = ["WeightedMultiLoss"]
@@ -20,16 +20,15 @@ class LossDefinition(TypedDict):
 
     Attributes:
         loss (Loss | nn.Module): Loss function to use.
-        weight (float): Weight to use for the loss.
+        connector (LossConnector): Connector to use for the loss.
+        weight (float, optional): Weight to use for the loss.
         name (str, optional): Name to use for the loss.
-        in_keys (dict[str, str], optional): Mapping from loss input names to
-            keys in the data dict.
     """
 
     loss: Loss | nn.Module
-    weight: float
+    connector: LossConnector
+    weight: NotRequired[float]
     name: NotRequired[str]
-    in_keys: NotRequired[dict[str, str]]
 
 
 NestedLossesType = Union[dict[str, "NestedLossesType"], LossesType]
@@ -45,7 +44,7 @@ def _get_tensors_nested(
         prefix (str, optional): Prefix to add to keys. Defaults to "".
 
     Returns:
-        list[torch.Tensor]: List of tensors.
+        list[tuple[str, Tensor]]: List of tensors.
 
     Raises:
         ValueError: If loss dict contains non-tensor or dict values.
@@ -54,7 +53,7 @@ def _get_tensors_nested(
     for key in loss_dict:
         value = loss_dict[key]
 
-        if isinstance(value, torch.Tensor):
+        if isinstance(value, Tensor):
             named_tensors.append((prefix + key, value))
         elif isinstance(value, dict):
             named_tensors.extend(
@@ -75,7 +74,7 @@ class WeightedMultiLoss(nn.Module):
     weighted by the corresponding weight and returned as a dictionary.
     """
 
-    def __init__(self, losses: list[LossDefinition]) -> None:
+    def __init__(self, losses: list[LossDefinition] | LossDefinition) -> None:
         """Creates an instance of the class.
 
         By default, each loss will be called with arguments matching the
@@ -88,7 +87,7 @@ class WeightedMultiLoss(nn.Module):
         Example:
             >>> loss = WeightedMultiLoss(
             >>>     [
-            >>>         {"loss": nn.MSELoss(), "weight": 1.0},
+            >>>         {"loss": nn.MSELoss()},
             >>>         {"loss": nn.L1Loss(), "weight": 0.5},
             >>>     ]
             >>> )
@@ -96,28 +95,24 @@ class WeightedMultiLoss(nn.Module):
         super().__init__()
         self.losses: list[LossDefinition] = []
 
+        if not isinstance(losses, list):
+            losses = [losses]
+
         for loss in losses:
-            assert "loss" in loss
-            assert "weight" in loss
+            assert "loss" in loss, "Loss definition must contain a loss."
+            assert (
+                "connector" in loss
+            ), "Loss definition must contain a connector."
 
             if "name" not in loss:
                 loss["name"] = loss["loss"].__class__.__name__
-            if "in_keys" not in loss:
-                loss["in_keys"] = {}
-                for k in inspect.signature(
-                    loss["loss"].forward
-                ).parameters.keys():
-                    loss["in_keys"][k] = k
 
-            if "args" in loss["in_keys"] or "kwargs" in loss["in_keys"]:
-                raise ValueError(
-                    "Loss functions must not have args or kwargs as "
-                    "parameters. Please use explicit parameters or provide"
-                    "the correspondinig key mapping in in_keys."
-                )
+            if "weight" not in loss:
+                loss["weight"] = 1.0
+
             self.losses.append(loss)
 
-    def forward(self, **kwargs: Any) -> LossesType:  # type: ignore
+    def forward(self, output: DictData, batch: DictData) -> LossesType:
         """Forward of loss function.
 
         This function will call all loss functions and return a dictionary
@@ -128,7 +123,8 @@ class WeightedMultiLoss(nn.Module):
         two underscores.
 
         Args:
-            **kwargs (Any): Arguments to pass to loss functions.
+            output (DictData): Output of the model.
+            batch (DictData): Batch data.
 
         Returns:
             LossesType: The loss values.
@@ -137,16 +133,11 @@ class WeightedMultiLoss(nn.Module):
         for loss in self.losses:
             loss_values_as_dict: LossesType = {}
             name = loss["name"]
-            # Save loss value
-            loss_value = loss["loss"](
-                **{
-                    key_o: kwargs.get(key_i, None)
-                    for key_o, key_i in loss["in_keys"].items()
-                }
-            )
+
+            loss_value = loss["loss"](**loss["connector"](output, batch))
 
             # Convert loss value to one level dict.
-            if isinstance(loss_value, torch.Tensor):
+            if isinstance(loss_value, Tensor):
                 # Loss returned a simple tensor
                 loss_values_as_dict[name] = loss_value
             elif isinstance(loss_value, dict):

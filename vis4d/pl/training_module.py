@@ -5,9 +5,8 @@ from collections.abc import Callable
 from typing import Any
 
 import lightning.pytorch as pl
-import torch
 from lightning.pytorch import seed_everything
-from torch import nn, optim
+from torch import Tensor, nn, optim
 
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
@@ -71,7 +70,8 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         model: ConfigDict,
         optimizers: list[ConfigDict],
         loss: nn.Module,
-        data_connector: DataConnector,
+        train_data_connector: DataConnector,
+        test_data_connector: DataConnector,
         seed: None | int = None,
     ) -> None:
         """Initialize the TrainingModule.
@@ -81,6 +81,8 @@ class TrainingModule(pl.LightningModule):  # type: ignore
             optimizers: The optimizers to use. Will be wrapped into a pytorch
                 optimizer.
             loss: The loss function to use.
+            train_data_connector: The data connector to use.
+            test_data_connector: The data connector to use.
             data_connector: The data connector to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
@@ -89,7 +91,8 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         self.model = model
         self.optims = optimizers
         self.loss_fn = loss
-        self.data_connector = data_connector
+        self.train_data_connector = train_data_connector
+        self.test_data_connector = test_data_connector
         self.seed = seed
 
     def setup(self, stage: str) -> None:
@@ -107,41 +110,50 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         self.model = instantiate_classes(self.model)
         self.optims = set_up_optimizers(self.optims, self.model)  # type: ignore # pylint: disable=line-too-long
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
+    def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
     ) -> Any:
         """Forward pass through the model."""
-        return self.model(**self.data_connector.get_train_input(data))
+        if self.training:
+            return self.model(**self.train_data_connector(data))
+        return self.model(**self.test_data_connector(data))
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int
     ) -> Any:
         """Perform a single training step."""
-        out = self.model(**self.data_connector.get_train_input(batch))
-        losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
-        if isinstance(losses, torch.Tensor):
-            losses = {"loss": losses}
+        out = self.model(**self.train_data_connector(batch))
+
+        losses = self.loss_fn(out, batch)
+
+        metrics = {}
+        if isinstance(losses, Tensor):
+            total_loss = losses
         else:
-            losses["loss"] = sum(list(losses.values()))
+            total_loss = sum(list(losses.values()))
+            for k, v in losses.items():
+                metrics[k] = v.detach().cpu().item()
+
+        metrics["loss"] = total_loss.detach().cpu().item()
 
         return {
-            "loss": losses["loss"],
-            "metrics": losses,
+            "loss": total_loss,
+            "metrics": metrics,
             "predictions": out,
         }
 
-    def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
+    def validation_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
+    ) -> DictData:
         """Perform a single validation step."""
-        out = self.model(**self.data_connector.get_test_input(batch))
+        out = self.model(**self.test_data_connector(batch))
         return out
 
-    def test_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
+    def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
+    ) -> DictData:
         """Perform a single test step."""
-        out = self.model(**self.data_connector.get_test_input(batch))
+        out = self.model(**self.test_data_connector(batch))
         return out
 
     def configure_optimizers(self) -> list[TorchOptimizer]:

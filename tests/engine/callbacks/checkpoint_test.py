@@ -5,7 +5,6 @@ import unittest
 
 from tests.util import MockModel
 from vis4d.engine.callbacks import CheckpointCallback, TrainerState
-from vis4d.engine.connectors import DataConnector
 
 
 class TestCheckpointCallback(unittest.TestCase):
@@ -25,7 +24,10 @@ class TestCheckpointCallback(unittest.TestCase):
             current_epoch=0,
             num_epochs=0,
             global_step=0,
-            data_connector=DataConnector(),
+            train_dataloader=None,
+            num_train_batches=None,
+            test_dataloader=None,
+            num_test_batches=None,
         )
 
     def tearDown(self) -> None:

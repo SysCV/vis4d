@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from torch import Tensor, nn
+from torch import nn
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.logging import rank_zero_info
@@ -27,7 +27,7 @@ class LoggingCallback(Callback):
         """Init callback."""
         super().__init__(*args, **kwargs)
         self._refresh_rate = refresh_rate
-        self._metrics: dict[str, list[Tensor]] = defaultdict(list)
+        self._metrics: dict[str, list[float]] = defaultdict(list)
         self.timer = Timer()
 
     def on_train_epoch_start(
@@ -57,6 +57,7 @@ class LoggingCallback(Callback):
             else -1
         )
 
+        log_dict: None | MetricLogs = None
         if cur_iter % self._refresh_rate == 0:
             log_dict = {
                 k: sum(v) / len(v) if len(v) > 0 else float("NaN")
@@ -72,8 +73,6 @@ class LoggingCallback(Callback):
                 )
             )
             self._metrics.clear()
-        else:
-            log_dict = None
 
         return log_dict
 

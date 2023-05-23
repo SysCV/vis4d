@@ -56,6 +56,7 @@ class CommonKeys:
     instance_masks (NDArrayUI8): Instance segmentation masks of shape
         [N, H, W].
     seg_masks (NDArrayUI8): Semantic segmentation masks [H, W].
+    deph_maps (NDArrayF32): Depth maps of shape [H, W].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of

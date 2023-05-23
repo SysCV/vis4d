@@ -25,7 +25,6 @@ def get_trainer_state(
         current_epoch=pl_module.current_epoch,
         num_epochs=trainer.max_epochs,
         global_step=trainer.global_step,
-        data_connector=pl_module.data_connector,
         train_dataloader=trainer.train_dataloader,
         num_train_batches=trainer.num_training_batches,
         test_dataloader=test_dataloader,

@@ -33,6 +33,7 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
+    MultiSensorCallbackConnector,
     MultiSensorDataConnector,
     data_key,
     pred_key,
@@ -154,6 +155,7 @@ def get_config() -> ConfigDict:
         workers_per_gpu=params.workers_per_gpu,
         train=False,
         collate_fn=multi_sensor_collate,
+        video_based_inference=True,
     )
 
     config.data = data
@@ -198,9 +200,12 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-    config.data_connector = class_config(
+    # TODO: Add train data connector
+    config.train_data_connector = None
+
+    config.test_data_connector = class_config(
         MultiSensorDataConnector,
-        test=CONN_BBOX_3D_TEST,
+        key_mapping=CONN_BBOX_3D_TEST,
         sensors=NuScenes._CAMERAS,
     )
 
@@ -217,8 +222,11 @@ def get_config() -> ConfigDict:
             evaluator=class_config(NuScenesEvaluator),
             save_predictions=True,
             save_prefix=config.output_dir,
-            test_connector=CONN_NUSC_EVAL,
-            sensors=NuScenes._CAMERAS,
+            test_connector=class_config(
+                MultiSensorCallbackConnector,
+                key_mapping=CONN_NUSC_EVAL,
+                sensors=NuScenes._CAMERAS,
+            ),
         )
     )
 

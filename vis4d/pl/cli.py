@@ -69,7 +69,8 @@ def main(argv: ArgsType) -> None:
     seed = config.get("seed", None)
 
     # Instantiate classes
-    data_connector = instantiate_classes(config.data_connector)
+    train_data_connector = instantiate_classes(config.train_data_connector)
+    test_data_connector = instantiate_classes(config.test_data_connector)
     loss = instantiate_classes(config.loss)
 
     # Callbacks
@@ -95,7 +96,12 @@ def main(argv: ArgsType) -> None:
 
     trainer = PLTrainer(callbacks=callbacks, **trainer_args)
     training_module = TrainingModule(
-        config.model, config.optimizers, loss, data_connector, seed
+        config.model,
+        config.optimizers,
+        loss,
+        train_data_connector,
+        test_data_connector,
+        seed,
     )
     data_module = DataModule(config.data)
 

@@ -4,6 +4,7 @@ import unittest
 
 import torch
 
+from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss import WeightedMultiLoss
 
 
@@ -14,13 +15,31 @@ class WeightedLossTest(unittest.TestCase):
         """Test forward."""
         loss = WeightedMultiLoss(
             [
-                {"loss": torch.nn.MSELoss(), "weight": 0.7},
-                {"loss": torch.nn.L1Loss(), "weight": 0.3},
+                {
+                    "loss": torch.nn.MSELoss(),
+                    "weight": 0.7,
+                    "connector": LossConnector(
+                        {
+                            "input": pred_key("input"),
+                            "target": data_key("target"),
+                        }
+                    ),
+                },
+                {
+                    "loss": torch.nn.L1Loss(),
+                    "weight": 0.3,
+                    "connector": LossConnector(
+                        {
+                            "input": pred_key("input"),
+                            "target": data_key("target"),
+                        }
+                    ),
+                },
             ]
         )
         x = torch.rand(2, 3, 4, 5)
         y = torch.rand(2, 3, 4, 5)
-        losses = loss(input=x, target=y)
+        losses = loss({"input": x}, {"target": y})
         total_loss = sum(losses.values())
 
         self.assertAlmostEqual(

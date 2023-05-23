@@ -27,10 +27,11 @@ def get_dataloader_config(
         transforms=[class_config(ToTensor)],
     ),
     samples_per_gpu: int | FieldReference = 1,
-    workers_per_gpu: int | FieldReference = 4,
+    workers_per_gpu: int | FieldReference = 1,
     train: bool = True,
     shuffle: bool | FieldReference = False,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
+    video_based_inference: bool = False,
 ) -> ConfigDict:
     """Creates dataloader configuration given dataset and preprocessing.
 
@@ -50,6 +51,8 @@ def get_dataloader_config(
         train (bool): Whether to create a train dataloader.
         shuffle (bool, FieldReference): Whether to shuffle the dataset.
         collate_fn (Callable): The collate function to use.
+        video_based_inference (bool, optional): Whether to to split dataset by
+            sequences. Defaults to False.
 
     Returns:
         ConfigDict: Configuration that can be instantiate as a dataloader.
@@ -78,6 +81,7 @@ def get_dataloader_config(
         ),
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
+        video_based_inference=video_based_inference,
         batchprocess_fn=batchprocess_cfg,
         collate_fn=collate_fn,
     )

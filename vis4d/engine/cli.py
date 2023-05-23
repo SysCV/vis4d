@@ -114,7 +114,8 @@ def main(argv: ArgsType) -> None:
         rank_zero_info(pprints_config(config))
 
     # Instantiate classes
-    data_connector = instantiate_classes(config.data_connector)
+    train_data_connector = instantiate_classes(config.train_data_connector)
+    test_data_connector = instantiate_classes(config.test_data_connector)
     model = instantiate_classes(config.model)
     optimizers = set_up_optimizers(config.optimizers, model)
     loss = instantiate_classes(config.loss)
@@ -161,7 +162,8 @@ def main(argv: ArgsType) -> None:
     trainer = Trainer(
         device=device,
         num_epochs=config.params.num_epochs,
-        data_connector=data_connector,
+        train_data_connector=train_data_connector,
+        test_data_connector=test_data_connector,
         callbacks=callbacks,
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,

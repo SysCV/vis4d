@@ -21,7 +21,8 @@ class Trainer:
         self,
         device: torch.device,
         num_epochs: int,
-        data_connector: DataConnector,
+        train_data_connector: DataConnector,
+        test_data_connector: DataConnector,
         callbacks: list[Callback],
         train_dataloader: DataLoader[DictData] | None = None,
         test_dataloader: list[DataLoader[DictData]] | None = None,
@@ -35,8 +36,10 @@ class Trainer:
             device (torch.device): Device that should be used for training.
             num_epochs (int): Number of training epochs.
             dataloaders (DataLoader[DictData]): Dataloader for training.
-            data_connector (DataConnector): Data connector used for generating
-                training inputs from a batch of data.
+            train_data_connector (DataConnector): Data connector used for
+                generating training inputs from a batch of data.
+            test_data_connector (DataConnector): Data connector used for
+                generating testing inputs from a batch of data.
             callbacks (list[Callback]): Callbacks that should be used during
                 training.
             train_dataloader (DataLoader[DictData] | None, optional):
@@ -51,7 +54,8 @@ class Trainer:
         self.device = device
         self.num_epochs = num_epochs
         self.check_val_every_n_epoch = check_val_every_n_epoch
-        self.data_connector = data_connector
+        self.train_data_connector = train_data_connector
+        self.test_data_connector = test_data_connector
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
         self.callbacks = callbacks
@@ -114,27 +118,27 @@ class Trainer:
 
                 # Input data
                 data = move_data_to_device(data, self.device)
-                train_input = self.data_connector.get_train_input(data)
+                train_input = self.train_data_connector(data)
 
                 # Forward + backward + optimize
                 output = model(**train_input)
 
-                loss_input = self.data_connector.get_loss_input(output, data)
-                losses = loss(**loss_input)
+                losses = loss(output, data)
 
-                metrics: dict[str, Tensor] = {}
+                metrics: dict[str, float] = {}
                 if isinstance(losses, Tensor):
                     total_loss = losses
-                    metrics["loss"] = total_loss
                 elif isinstance(losses, dict):
                     total_loss = sum(losses.values())  # type: ignore
-                    metrics["loss"] = total_loss
-                    metrics.update(losses)
+                    for k, v in losses.items():
+                        metrics[k] = v.detach().cpu().item()
                 else:
                     raise TypeError(
                         "Loss function must return a Tensor or a dict of "
                         + "Tensor"
                     )
+                metrics["loss"] = total_loss.detach().cpu().item()
+
                 total_loss.backward()
 
                 for opt in optimizers:
@@ -184,7 +188,7 @@ class Trainer:
         for i, test_loader in enumerate(self.test_dataloader):
             for batch_idx, data in enumerate(test_loader):
                 data = move_data_to_device(data, self.device)
-                test_input = self.data_connector.get_test_input(data)
+                test_input = self.test_data_connector(data)
 
                 # forward
                 output = model(**test_input)
@@ -204,7 +208,7 @@ class Trainer:
             callback.on_test_epoch_end(self.get_state(), model)
 
     def get_state(
-        self, metrics: dict[str, Tensor] | None = None
+        self, metrics: dict[str, float] | None = None
     ) -> TrainerState:
         """Get the state of the trainer."""
         num_train_batches = (
@@ -223,7 +227,6 @@ class Trainer:
             current_epoch=self.epoch,
             num_epochs=self.num_epochs,
             global_step=self.global_step,
-            data_connector=self.data_connector,
             train_dataloader=self.train_dataloader,
             num_train_batches=num_train_batches,
             test_dataloader=self.test_dataloader,

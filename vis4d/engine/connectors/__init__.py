@@ -1,6 +1,11 @@
 """Data connector for data connection."""
-from .data_connector import DataConnector
-from .multi_sensor import MultiSensorDataConnector, get_multi_sensor_inputs
+from .base import CallbackConnector, DataConnector, LossConnector
+from .multi_sensor import (
+    MultiSensorCallbackConnector,
+    MultiSensorDataConnector,
+    MultiSensorLossConnector,
+    get_multi_sensor_inputs,
+)
 from .util import (
     SourceKeyDescription,
     data_key,
@@ -10,12 +15,16 @@ from .util import (
 )
 
 __all__ = [
-    "pred_key",
-    "data_key",
-    "remap_pred_keys",
+    "CallbackConnector",
     "DataConnector",
-    "SourceKeyDescription",
-    "MultiSensorDataConnector",
-    "get_inputs_for_pred_and_data",
+    "data_key",
     "get_multi_sensor_inputs",
+    "get_inputs_for_pred_and_data",
+    "LossConnector",
+    "MultiSensorDataConnector",
+    "MultiSensorCallbackConnector",
+    "MultiSensorLossConnector",
+    "pred_key",
+    "remap_pred_keys",
+    "SourceKeyDescription",
 ]

@@ -9,11 +9,7 @@ from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
 )
-from vis4d.config.base.models.faster_rcnn import (
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
-    get_model_cfg,
-)
+from vis4d.config.base.models.faster_rcnn import get_model_cfg
 from vis4d.config.default import (
     get_callbacks_config,
     get_optimizer_config,
@@ -28,7 +24,7 @@ from vis4d.config.default.data_connectors import (
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
-from vis4d.engine.connectors import DataConnector
+from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.op.base import ResNet
@@ -118,11 +114,14 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-    config.data_connector = class_config(
+    config.train_data_connector = class_config(
         DataConnector,
-        train=CONN_BBOX_2D_TRAIN,
-        test=CONN_BBOX_2D_TEST,
-        loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
+        key_mapping=CONN_BBOX_2D_TRAIN,
+    )
+
+    config.test_data_connector = class_config(
+        DataConnector,
+        key_mapping=CONN_BBOX_2D_TEST,
     )
 
     ######################################################
@@ -137,7 +136,7 @@ def get_config() -> ConfigDict:
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
             save_prefix=config.output_dir,
-            test_connector=CONN_BBOX_2D_VIS,
+            test_connector=CallbackConnector(CONN_BBOX_2D_VIS),
         )
     )
 
@@ -150,7 +149,7 @@ def get_config() -> ConfigDict:
                 data_root=data_root,
                 split=test_split,
             ),
-            test_connector=CONN_COCO_BBOX_EVAL,
+            test_connector=CallbackConnector(CONN_COCO_BBOX_EVAL),
         )
     )
 
