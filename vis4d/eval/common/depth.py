@@ -18,6 +18,8 @@ from vis4d.eval.base import Evaluator
 from ..metrics.depth import (
     absolute_error,
     absolute_relative_error,
+    delta_p,
+    log_10_error,
     root_mean_squared_error,
     root_mean_squared_error_log,
     scale_invariant_log,
@@ -28,17 +30,23 @@ from ..metrics.depth import (
 class DepthEvaluator(Evaluator):
     """Depth estimation evaluator."""
 
+    METRIC_DELTA05 = "d05"
+    METRIC_DELTA1 = "d1"
+    METRIC_DELTA2 = "d2"
+    METRIC_DELTA3 = "d3"
     METRIC_ABS_REL = "AbsRel"
     METRIC_ABS_ERR = "AbsErr"
     METRIC_SQ_REL = "SqRel"
     METRIC_RMSE = "RMSE"
     METRIC_RMSE_LOG = "RMSELog"
     METRIC_SILOG = "SILog"
+    METRIC_LOG10 = "Log10"
+
     METRIC_ALL = "all"
 
     def __init__(
         self,
-        min_depth: float = 0.001,
+        min_depth: float = 0.01,
         max_depth: float = 80.0,
         scale: float = 1.0,
         epsilon: float = 1e-3,
@@ -69,6 +77,11 @@ class DepthEvaluator(Evaluator):
             DepthEvaluator.METRIC_RMSE,
             DepthEvaluator.METRIC_RMSE_LOG,
             DepthEvaluator.METRIC_SILOG,
+            DepthEvaluator.METRIC_DELTA05,
+            DepthEvaluator.METRIC_DELTA1,
+            DepthEvaluator.METRIC_DELTA2,
+            DepthEvaluator.METRIC_DELTA3,
+            DepthEvaluator.METRIC_LOG10,
         ]
 
     def reset(self) -> None:
@@ -115,6 +128,11 @@ class DepthEvaluator(Evaluator):
                         pred, gt
                     ),
                     self.METRIC_SILOG: scale_invariant_log(pred, gt),
+                    self.METRIC_DELTA05: delta_p(pred, gt, 0.5),
+                    self.METRIC_DELTA1: delta_p(pred, gt, 1.0),
+                    self.METRIC_DELTA2: delta_p(pred, gt, 2.0),
+                    self.METRIC_DELTA3: delta_p(pred, gt, 3.0),
+                    self.METRIC_LOG10: log_10_error(pred, gt),
                 }
             )
 
@@ -184,5 +202,45 @@ class DepthEvaluator(Evaluator):
             silog = np.mean([x[self.METRIC_SILOG] for x in self._metrics_list])
             metric_data[self.METRIC_SILOG] = silog
             short_description += f"SILog: {silog:.3f}\n"
+        if metric in [
+            DepthEvaluator.METRIC_DELTA05,
+            DepthEvaluator.METRIC_ALL,
+        ]:
+            delta05 = np.mean(
+                [x[self.METRIC_DELTA05] for x in self._metrics_list]
+            )
+            metric_data[self.METRIC_DELTA05] = delta05
+            short_description += f"Delta 0.5: {delta05:.3f}\n"
+        if metric in [
+            DepthEvaluator.METRIC_DELTA1,
+            DepthEvaluator.METRIC_ALL,
+        ]:
+            delta1 = np.mean(
+                [x[self.METRIC_DELTA1] for x in self._metrics_list]
+            )
+            metric_data[self.METRIC_DELTA1] = delta1
+            short_description += f"Delta 1: {delta1:.3f}\n"
+        if metric in [
+            DepthEvaluator.METRIC_DELTA2,
+            DepthEvaluator.METRIC_ALL,
+        ]:
+            delta2 = np.mean(
+                [x[self.METRIC_DELTA2] for x in self._metrics_list]
+            )
+            metric_data[self.METRIC_DELTA2] = delta2
+            short_description += f"Delta 2: {delta2:.3f}\n"
+        if metric in [
+            DepthEvaluator.METRIC_DELTA3,
+            DepthEvaluator.METRIC_ALL,
+        ]:
+            delta3 = np.mean(
+                [x[self.METRIC_DELTA3] for x in self._metrics_list]
+            )
+            metric_data[self.METRIC_DELTA3] = delta3
+            short_description += f"Delta 3: {delta3:.3f}\n"
+        if metric in [DepthEvaluator.METRIC_LOG10, DepthEvaluator.METRIC_ALL]:
+            log10 = np.mean([x[self.METRIC_LOG10] for x in self._metrics_list])
+            metric_data[self.METRIC_LOG10] = log10
+            short_description += f"Log10 error: {log10:.3f}\n"
 
         return metric_data, short_description

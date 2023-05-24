@@ -70,7 +70,7 @@ def root_mean_squared_error(prediction: ArrayLike, target: ArrayLike) -> float:
 
 
 def root_mean_squared_error_log(
-    prediction: ArrayLike, target: ArrayLike, epsilon: float = 1e-6
+    prediction: ArrayLike, target: ArrayLike, epsilon: float = 1e-8
 ) -> float:
     """Compute the root mean squared error in log space.
 
@@ -92,7 +92,7 @@ def root_mean_squared_error_log(
 
 
 def scale_invariant_log(
-    prediction: ArrayLike, target: ArrayLike, epsilon: float = 1e-6
+    prediction: ArrayLike, target: ArrayLike, epsilon: float = 1e-8
 ) -> float:
     """Compute the scale invariant log error.
 
@@ -106,10 +106,45 @@ def scale_invariant_log(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(
-        np.square(
-            np.log(prediction + epsilon)
-            - np.log(target + epsilon)
-            + np.mean(np.log(target + epsilon))
-        )
+    return (
+        100
+        * np.sqrt(
+            np.var(np.log(prediction + epsilon) - np.log(target + epsilon))
+        ).mean(),
     )
+
+
+def delta_p(
+    prediction: ArrayLike, target: ArrayLike, power: float = 1
+) -> float:
+    """Compute the delta_p metric.
+
+    Args:
+        prediction (ArrayLike): Prediction depth map, in shape (H, W).
+        target (ArrayLike): Target depth map, in shape (H, W).
+        power (float, optional): Power of the threshold. Defaults to 1.
+
+    Returns:
+        float: Delta_p metric.
+    """
+    prediction, target = dense_inputs_to_numpy(prediction, target)
+    check_shape_match(prediction, target)
+    return (
+        np.maximum((target / prediction), (prediction / target))
+        < 1.25**power
+    )
+
+
+def log_10_error(prediction: ArrayLike, target: ArrayLike) -> float:
+    """Compute the log_10 error.
+
+    Args:
+        prediction (ArrayLike): Prediction depth map, in shape (H, W).
+        target (ArrayLike): Target depth map, in shape (H, W).
+
+    Returns:
+        float: Log_10 error.
+    """
+    prediction, target = dense_inputs_to_numpy(prediction, target)
+    check_shape_match(prediction, target)
+    return np.mean(np.abs(np.log10(prediction) - np.log10(target)))

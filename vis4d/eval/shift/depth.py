@@ -4,25 +4,25 @@ from __future__ import annotations
 from vis4d.common.typing import NDArrayNumber
 
 from ..common import DepthEvaluator
-from ..utils import apply_eigen_crop, apply_garg_crop
+
+
+def apply_crop(depth: NDArrayNumber) -> NDArrayNumber:
+    """Apply crop to depth map to match SHIFT evaluation."""
+    return depth[..., 0:740, :]
 
 
 class SHIFTDepthEvaluator(DepthEvaluator):
     """SHIFT depth estimation evaluation class."""
 
-    def __init__(self, evaluation_crop: str | None = None) -> None:
+    def __init__(self, use_eval_crop: bool = True) -> None:
         """Initialize the evaluator.
 
         Args:
-            evaluation_crop (str, optional): Evaluation crop preset, either
-                "garg" or "eigen". Defaults to None, which means no crop.
+            use_eval_crop (bool): Whether to use the evaluation crop.
+                Default: True.
         """
         super().__init__(min_depth=0.01, max_depth=80.0)
-        assert evaluation_crop in {"garg", "eigen", None}, (
-            f"Invalid evaluation crop {evaluation_crop}. "
-            "Supported options are 'garg' and 'eigen'."
-        )
-        self.evaluation_crop = evaluation_crop
+        self.use_eval_crop = use_eval_crop
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
@@ -37,10 +37,7 @@ class SHIFTDepthEvaluator(DepthEvaluator):
             prediction: Predictions of shape (N, H, W).
             groundtruth: Groundtruth of shape (N, H, W).
         """
-        if self.evaluation_crop == "garg":
-            prediction = apply_garg_crop(prediction)
-            groundtruth = apply_garg_crop(groundtruth)
-        elif self.evaluation_crop == "eigen":
-            prediction = apply_eigen_crop(prediction)
-            groundtruth = apply_eigen_crop(groundtruth)
+        if self.use_eval_crop:
+            prediction = apply_crop(prediction)
+            groundtruth = apply_crop(groundtruth)
         super().process_batch(prediction, groundtruth)

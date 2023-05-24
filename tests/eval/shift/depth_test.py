@@ -14,7 +14,7 @@ from vis4d.eval.shift import SHIFTDepthEvaluator
 class TestSegEvaluator(unittest.TestCase):
     """Tests for SegEvaluator."""
 
-    evaluator = SHIFTDepthEvaluator(evaluation_crop="eigen")
+    evaluator = SHIFTDepthEvaluator(use_eval_crop=True)
     dataset = SHIFT(
         data_root=get_test_data("shift_test"),
         split="val",
