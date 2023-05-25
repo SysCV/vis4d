@@ -1,16 +1,17 @@
-"""Utils to parse and initialize a configuration file."""
+"""Config dict module."""
 from __future__ import annotations
 
 import importlib
-import re
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from ml_collections import ConfigDict as _ConfigDict
 from ml_collections import FieldReference, FrozenConfigDict
 
+from vis4d.common.typing import ArgsType
 
-# Most of these functions need to deal with unknown parameters and are
+
+# NOTE: Most of these functions need to deal with unknown parameters and are
 # therefore not strictly typed
 class ConfigDict(_ConfigDict):  # type: ignore # pylint: disable=too-many-instance-attributes, line-too-long
     """A configuration dict which allows to access fields via dot notation.
@@ -22,10 +23,10 @@ class ConfigDict(_ConfigDict):  # type: ignore # pylint: disable=too-many-instan
         ml_collections._ConfigDict
 
     Examples of using the ref and value mode:
-        >>> config = _ConfigDict({"a": 1, "b": 2})
+        >>> config = ConfigDict({"a": 1, "b": 2})
         >>> type(config.a)
         <class 'ml_collections.field_reference.FieldReference'>
-        >>> config.valueMode() # Set the config to return values
+        >>> config.value_mode() # Set the config to return values
         >>> type(config.a)
         <class 'int'>
     """
@@ -85,7 +86,7 @@ class ConfigDict(_ConfigDict):  # type: ignore # pylint: disable=too-many-instan
         for value in self.values():
             if isinstance(value, ConfigDict):
                 value = value.value_mode()
-            elif isinstance(value, (list, tuple, ConfigDict, dict)):
+            elif isinstance(value, (list, tuple, _ConfigDict, dict)):
                 cfgs: list[ConfigDict] = []
                 _rec_resolve_iterable(value, cfgs)
                 for cfg in cfgs:
@@ -152,12 +153,16 @@ def resolve_class_name(clazz: type | Callable[Any, Any] | str) -> str:  # type: 
     return module + "." + clazz.__name__
 
 
-def class_config(clazz: type | Callable[Any, Any] | str, **kwargs: Any) -> _ConfigDict:  # type: ignore # pylint: disable=line-too-long
+def class_config(
+    clazz: type | Callable[Any, Any] | str,  # type: ignore
+    **kwargs: ArgsType,
+) -> ConfigDict:
     """Creates a configuration which can be instantiated as a class.
 
     This function creates a configuration dict which can be passed to
     'instantiate_classes' to create a instance of the given class or functor.
 
+    TODO: Update example
     Example:
     >>> class_cfg_obj = class_config("your.module.Module", arg1="arg1", arg2=2)
     >>>
@@ -194,105 +199,20 @@ def class_config(clazz: type | Callable[Any, Any] | str, **kwargs: Any) -> _Conf
     Args:
         clazz (type | Callable[[Any], Any] | str): class type or functor or
             class string path.
-        **kwargs (any): Kwargs to pass to the class constructor.
+        **kwargs (ArgsType): Kwargs to pass to the class constructor.
 
     Returns:
-        _ConfigDict: _description_
+        ConfigDict: _description_
     """
     class_path = resolve_class_name(clazz)
     if class_path is None or len(kwargs) == 0:
-        return _ConfigDict({"class_path": class_path})
-    return _ConfigDict(
-        {"class_path": class_path, "init_args": _ConfigDict(kwargs)}
+        return ConfigDict({"class_path": class_path})
+    return ConfigDict(
+        {"class_path": class_path, "init_args": ConfigDict(kwargs)}
     )
 
 
-def pprints_config(data: _ConfigDict) -> str:
-    """Converts a Config Dict into a string with a .yaml like structure.
-
-    This function differs from __repr__ of _ConfigDict in that it will not
-    encode python classes using binary formats but just prints the __repr__
-    of these classes.
-
-    Args:
-        data (_ConfigDict): Configuration dict to convert to string
-
-    Returns:
-        str: A string representation of the _ConfigDict
-    """
-    return _pprints_config(data)
-
-
-def _pprints_config(  # type: ignore
-    data: _ConfigDict | Any,
-    prefix: str = "",
-    n_indents: int = 1,
-) -> str:
-    """Converts a Config Dict into a string with a .yaml like structure.
-
-    This is the recursive implementation of 'pprints_config' and will be called
-    recursively for every element in the dict.
-
-    This function differs from __repr__ of _ConfigDict in that it will not
-    encode python classes using binary formats but just prints the __repr__
-    of these classes.
-
-
-    Args:
-        data (_ConfigDict | Any): Configuration dict or object to convert to
-            string
-        prefix (str): Prefix to print on each new line
-        n_indents (int): Number of spaces to append for each nester property.
-
-    Returns:
-        str: A string representation of the _ConfigDict
-    """
-    string_repr = ""
-    if isinstance(data, FieldReference):
-        data = data.get()
-
-    if not isinstance(data, (dict, _ConfigDict, list, tuple, dict)):
-        return str(data)
-
-    string_repr += "\n"
-
-    if isinstance(data, (_ConfigDict, dict)):
-        for key in data:
-            value = data[key]
-            string_repr += (
-                prefix
-                + key
-                + ": "
-                + _pprints_config(value, prefix=prefix + " " * n_indents)
-            ) + "\n"
-
-    elif isinstance(data, (list, tuple)):
-        for value in data:
-            string_repr += prefix + "- "
-            if isinstance(value, (_ConfigDict, dict)):
-                string_repr += "\n"
-
-            string_repr += (
-                _pprints_config(value, prefix=prefix + " " + " " * n_indents)
-                + "\n"
-            )
-        string_repr += " \n"  # Add newline after list for better readability.
-
-    # Clean up some formatting issues using regex. Could be done better
-    string_repr = re.sub("\n\n+", "\n", string_repr)
-    return re.sub("- +\n +", "- ", string_repr)
-
-
-def pprint_config(data: _ConfigDict) -> None:
-    """Pretty prints a configuration dict to the console.
-
-    Args:
-        data (_ConfigDict): The Configuration dict to print.
-    """
-    print(pprints_config(data))
-
-
-def delay_instantiation(instantiable: _ConfigDict) -> _ConfigDict:
+def delay_instantiation(instantiable: _ConfigDict) -> ConfigDict:
     """Delays the instantiation of the given configuration object.
 
     This is a somewhat hacky way to delay the initialization of the optimizer
@@ -327,57 +247,62 @@ class DelayedInstantiator:
 
     def __init__(self, instantiable: _ConfigDict) -> None:
         """Instantiates the DelayedInstantiator."""
-        self.instantiable = copy_and_resolve_references(instantiable)
+        self.instantiable = instantiable
 
-    def __call__(self, **kwargs: Any) -> Any:  # type: ignore
+    def __call__(self, **kwargs: ArgsType) -> Any:  # type: ignore
         """Instantiates the configuration object."""
-        for k, v in kwargs.items():
-            self.instantiable["init_args"][k] = v
-        self.instantiable["class_path"] = self.instantiable["_class_path"]
+        instantiable = class_config(
+            self.instantiable["_class_path"],
+            **self.instantiable.get("init_args", {}),
+        )
 
-        del self.instantiable["_class_path"]
-        ins = instantiate_classes(self.instantiable)
-        return ins
+        return instantiate_classes(instantiable, **kwargs)
 
 
-def instantiate_classes(data: _ConfigDict, **kwargs: Any) -> _ConfigDict | Any:  # type: ignore # pylint: disable=line-too-long
+def instantiate_classes(data: ConfigDict, **kwargs: ArgsType) -> ConfigDict | Any:  # type: ignore # pylint: disable=line-too-long
     """Instantiates all classes in a given ConfigDict.
 
     This function iterates over the configuration data and instantiates
     all classes. Class defintions are provided by a config dict that has
     the following structure:
 
-    {
-        'data_path': 'path.to.my.class.Class',
-        'init_args': ConfigDict(
-            {
-                'arg1': 'value1',
-                'arg2': 'value2',
-            }
-        )
-    }
+        {
+            'data_path': 'path.to.my.class.Class',
+            'init_args': ConfigDict(
+                {
+                    'arg1': 'value1',
+                    'arg2': 'value2',
+                }
+            )
+        }
 
     Args:
-        data (_ConfigDict): The general configuration object.
-        **kwargs: Additional arguments to pass to the class constructor.
+        data (Any): The general configuration object.
+        **kwargs (ArgsType): Additional arguments to pass to the class
+            constructor.
 
     Returns:
-        _ConfigDict | Any: The _ConfigDict with all classes intialized. If the
-        top level element is a class config, the returned element will be
-        the instantiated class.
+        ConfigDict | Any: The instantiated objects.
     """
-    for k, v in kwargs.items():
-        data["init_args"][k] = v
+    assert isinstance(data, ConfigDict), "Data must be a ConfigDict."
 
-    resolved = copy_and_resolve_references(data)
-    instantiated_objects = _instantiate_classes(resolved)
+    data.value_mode()  # make sure config is in value mode
+    if len(kwargs) > 0:
+        if "init_args" not in data:
+            data["init_args"] = ConfigDict(kwargs)
+        else:
+            for k, v in kwargs.items():
+                data["init_args"][k] = v
+
+    resolved_data = copy_and_resolve_references(data)
+    instantiated_objects = _instantiate_classes(resolved_data)
     return instantiated_objects
 
 
 def copy_and_resolve_references(  # type: ignore
-    config: _ConfigDict | Any, visit_map: dict[int, Any] | None = None
-):
-    """Returns a _ConfigDict copy with FieldReferences replaced by values.
+    config: Any, visit_map: dict[int, Any] | None = None
+) -> Any:
+    """Returns a ConfigDict copy with FieldReferences replaced by values.
 
     If the object is a FrozenConfigDict, the copy returned is also a
     FrozenConfigDict. However, note that FrozenConfigDict should already have
@@ -385,7 +310,7 @@ def copy_and_resolve_references(  # type: ignore
     a deep copy.
 
     Note: This method is overwritten from the _ConfigDict class and allows to
-    also resolve FieldReferences in lists and tuples.
+    also resolve FieldReferences in list, tuple and dict.
 
     Args:
         config: _ConfigDict object to copy.
@@ -394,9 +319,8 @@ def copy_and_resolve_references(  # type: ignore
             ".copy_and_resolve_references(visit_map)" on each encountered
             object, unless it is already in visit_map.
 
-
     Returns:
-        _ConfigDict copy with previous FieldReferences replaced by values.
+        Any: ConfigDict copy with previous FieldReferences replaced by values.
     """
     if isinstance(config, FieldReference):
         config = config.get()
@@ -405,12 +329,21 @@ def copy_and_resolve_references(  # type: ignore
         return type(config)(
             copy_and_resolve_references(value, visit_map) for value in config
         )
+
+    if isinstance(config, dict):
+        return {
+            k: copy_and_resolve_references(v, visit_map)
+            for k, v in config.items()
+        }
+
     if not isinstance(config, _ConfigDict):
         return config
 
     visit_map = visit_map or {}
     config_dict_copy = ConfigDict()
     config_dict_copy.value_mode()
+
+    # copy attributes
     super(_ConfigDict, config_dict_copy).__setattr__(
         "_convert_dict", config.convert_dict
     )
@@ -430,6 +363,11 @@ def copy_and_resolve_references(  # type: ignore
             value = tuple(
                 copy_and_resolve_references(v, visit_map) for v in value
             )
+        elif isinstance(value, dict):
+            value = {
+                k: copy_and_resolve_references(v, visit_map)
+                for k, v in value.items()
+            }
 
         if isinstance(config, FrozenConfigDict):
             config_dict_copy._frozen_setattr(  # pylint:disable=protected-access
@@ -438,6 +376,7 @@ def copy_and_resolve_references(  # type: ignore
         else:
             config_dict_copy[key] = value
 
+    # copy attributes
     super(_ConfigDict, config_dict_copy).__setattr__(
         "_locked", config.is_locked
     )
@@ -447,7 +386,7 @@ def copy_and_resolve_references(  # type: ignore
     return config_dict_copy
 
 
-def _get_index(data: Any) -> Sequence[int] | Any:  # type: ignore
+def _get_index(data: Any) -> Any:  # type: ignore
     """Internal function to generate a Sequence of indexes for a given object.
 
     Example:
@@ -457,16 +396,18 @@ def _get_index(data: Any) -> Sequence[int] | Any:  # type: ignore
         data (Any): The data entry to get an index for.
 
     Returns:
-        Sequence[int] | Any: Iterable that can be used to index the data entry
-            using e.g. [data[idx] for idx in _get_index(data)]
+        Any: Iterable that can be used to index the data entry using e.g.
+            [data[idx] for idx in _get_index(data)]
     """
     if isinstance(data, (list, tuple)):
         return range(len(data))
     return data
 
 
-def _instantiate_classes(data: _ConfigDict | Any) -> ConfigDict | Any:  # type: ignore # pylint: disable=line-too-long
-    """Instantiates all classes in a given _ConfigDict, tuple, list or Any.
+def _instantiate_classes(data: Any) -> Any:  # type: ignore
+    """Instantiates all classes in a given data.
+
+    Data could be ConfigDict, FieldReference, tuple, list or dict.
 
     This is the recursive implementation of the 'instantiate_classes'.
 
@@ -476,7 +417,7 @@ def _instantiate_classes(data: _ConfigDict | Any) -> ConfigDict | Any:  # type: 
 
     {
         'data_path': 'path.to.my.class.Class',
-        'init_args': _ConfigDict(
+        'init_args': ConfigDict(
             {
                 'arg1': 'value1',
                 'arg2': 'value2',
@@ -485,45 +426,55 @@ def _instantiate_classes(data: _ConfigDict | Any) -> ConfigDict | Any:  # type: 
     }
 
     Args:
-        data (_ConfigDict): The general configuration object.
+        data (Any): The general configuration object.
 
     Returns:
-        _ConfigDict | Any: The _ConfigDict with all classes intialized. If the
-        top level element is a class config, the returned element will be
-        the instantiated class.
+        Any: The ConfigDict with all classes intialized. Or, if the top level
+        element is a class config, the returned element will be the
+        instantiated class.
     """
     if isinstance(data, FieldReference):
         data = data.get()
 
-    if not isinstance(data, (_ConfigDict, list, tuple, dict)):
+    if not isinstance(data, (ConfigDict, dict, list, tuple)):
         return data
 
     for key in _get_index(data):
         value = data[key]
+
         if isinstance(value, FieldReference):
             value = value.get()
-        # resolve field refs
-        if isinstance(value, _ConfigDict):
-            # Allow to convert _ConfigDict to Object
-            if isinstance(data, _ConfigDict):
+
+        if isinstance(value, (ConfigDict, dict)):
+            if isinstance(data, ConfigDict):
                 with data.ignore_type():
                     data[key] = _instantiate_classes(value)
             else:
-                data[key] = _instantiate_classes(value)
+                data[key] = _instantiate_classes(value)  # type: ignore
 
         elif isinstance(value, (list)):
             for idx, v in enumerate(value):
-                data[key][idx] = _instantiate_classes(v)
+                if isinstance(data, ConfigDict):
+                    with data.ignore_type():
+                        data[key][idx] = _instantiate_classes(v)
+                else:
+                    data[key][idx] = _instantiate_classes(v)
 
         elif isinstance(value, (tuple)):
-            data[key] = tuple(
-                _instantiate_classes(value[idx]) for idx in range(len(value))
-            )
+            if isinstance(data, ConfigDict):
+                with data.ignore_type():
+                    data[key] = tuple(
+                        _instantiate_classes(value[idx])
+                        for idx in range(len(value))
+                    )
+            else:
+                data[key] = tuple(  # type: ignore
+                    _instantiate_classes(value[idx])
+                    for idx in range(len(value))
+                )
 
     # Instantiate classs
-    if "class_path" in data and not isinstance(
-        data["class_path"], _ConfigDict
-    ):
+    if "class_path" in data and not isinstance(data["class_path"], ConfigDict):
         module_name, class_name = data["class_path"].rsplit(".", 1)
         init_args = data.get("init_args", {})
         module = importlib.import_module(module_name)

@@ -1,9 +1,9 @@
 """Mask RCNN base model config."""
 
-from vis4d.config.base.models.faster_rcnn import (
+from vis4d.config.common.models.faster_rcnn import (
     CONN_ROI_LOSS_2D as _CONN_ROI_LOSS_2D,
 )
-from vis4d.config.base.models.faster_rcnn import (
+from vis4d.config.common.models.faster_rcnn import (
     CONN_RPN_LOSS_2D as _CONN_RPN_LOSS_2D,
 )
 from vis4d.data.const import CommonKeys as K

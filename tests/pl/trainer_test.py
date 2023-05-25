@@ -5,12 +5,12 @@ import shutil
 import unittest
 
 from pytorch_lightning import Callback
-from torch import nn, optim
+from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.util import class_config
+from vis4d.config import ConfigDict, class_config
+from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_train_dataloader
@@ -88,7 +88,7 @@ def get_trainer(
     )
 
 
-def get_training_module(model: nn.Module):
+def get_training_module(model: ConfigDict):
     """Build mockup training module.
 
     Args:
@@ -108,7 +108,8 @@ def get_training_module(model: nn.Module):
         }
     )
 
-    optimizer_cfg = get_optimizer_config(class_config(optim.SGD, lr=0.01))
+    optimizer_cfg = get_optimizer_cfg(class_config(optim.SGD, lr=0.01))
+    optimizer_cfg.value_mode()
     return TrainingModule(
         model,
         [optimizer_cfg],
@@ -122,8 +123,17 @@ def get_training_module(model: nn.Module):
 class PLTrainerTest(unittest.TestCase):
     """Pytorch lightning trainer test class."""
 
-    trainer = get_trainer("test")
-    training_module = get_training_module(model=SemanticFPN(num_classes=80))
+    def setUp(self) -> None:
+        """Setup."""
+        self.trainer = get_trainer("test")
+
+        model_cfg = class_config(
+            SemanticFPN,
+            num_classes=80,
+        )
+        model_cfg.value_mode()
+
+        self.training_module = get_training_module(model=model_cfg)
 
     def test_train(self) -> None:
         """Test training."""

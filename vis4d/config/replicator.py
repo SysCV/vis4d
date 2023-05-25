@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator, Iterable
 from queue import Queue
 from typing import Any
 
-from ml_collections import ConfigDict
+from vis4d.config import ConfigDict
 
 
 def iterable_sampler(  # type: ignore

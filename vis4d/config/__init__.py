@@ -1,4 +1,17 @@
 """Config modules."""
-from vis4d.config.util import ConfigDict, class_config
+from .config_dict import (
+    ConfigDict,
+    class_config,
+    delay_instantiation,
+    instantiate_classes,
+)
+from .parser import DEFINE_config_file, pprints_config
 
-__all__ = ["ConfigDict", "class_config"]
+__all__ = [
+    "class_config",
+    "ConfigDict",
+    "DEFINE_config_file",
+    "delay_instantiation",
+    "instantiate_classes",
+    "pprints_config",
+]

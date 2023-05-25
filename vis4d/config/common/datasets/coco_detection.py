@@ -3,13 +3,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ml_collections.config_dict import ConfigDict
-
-from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.util import class_config
+from vis4d.config import ConfigDict, class_config
+from vis4d.config.util import (
+    get_inference_dataloaders_cfg,
+    get_train_dataloader_cfg,
+)
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
+from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose, compose_batch
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
 from vis4d.data.transforms.normalize import NormalizeImage
@@ -88,13 +90,12 @@ def get_train_dataloader(
         ],
     )
 
-    return get_dataloader_config(
+    return get_train_dataloader_cfg(
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
         batchprocess_cfg=train_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        shuffle=True,
     )
 
 
@@ -109,7 +110,7 @@ def get_test_dataloader(
 ) -> ConfigDict:
     """Get the default test dataloader for COCO detection."""
     # Test Dataset
-    test_dataset_cfg = class_config(
+    test_dataset = class_config(
         COCO,
         keys_to_load=keys_to_load,
         data_root=data_root,
@@ -144,17 +145,22 @@ def get_test_dataloader(
         ],
     )
 
-    return get_dataloader_config(
-        preprocess_cfg=test_preprocess_cfg,
-        dataset_cfg=test_dataset_cfg,
+    # Test Dataset Config
+    test_dataset_cfg = class_config(
+        DataPipe,
+        datasets=test_dataset,
+        preprocess_fn=test_preprocess_cfg,
+    )
+
+    return get_inference_dataloaders_cfg(
+        datasets_cfg=test_dataset_cfg,
         batchprocess_cfg=test_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        train=False,
     )
 
 
-def get_coco_detection_config(
+def get_coco_detection_cfg(
     data_root: str = "data/coco",
     train_split: str = "train2017",
     train_keys_to_load: Sequence[str] = (

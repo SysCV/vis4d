@@ -1,4 +1,5 @@
 """Visualizer base class."""
+from vis4d.common.typing import ArgsType
 
 
 class Visualizer:
@@ -13,7 +14,7 @@ class Visualizer:
         self.vis_freq = vis_freq
 
     def _run_on_batch(self, cur_iter: int) -> bool:
-        """Return whether run on current iteration.
+        """Return whether to run on current iteration.
 
         Args:
             cur_iter (int): Current iteration.
@@ -24,7 +25,7 @@ class Visualizer:
         """Reset visualizer for new round of evaluation."""
         raise NotImplementedError()
 
-    def process(self, cur_iter: int) -> None:
+    def process(self, cur_iter: int, *args: ArgsType) -> None:
         """Process data of single sample."""
         raise NotImplementedError()
 

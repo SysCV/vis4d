@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from torch import nn, optim
 
-from vis4d.config.util import ConfigDict, instantiate_classes
+from vis4d.config import ConfigDict, instantiate_classes
 
 from .warmup import BaseLRWarmup
 

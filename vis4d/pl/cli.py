@@ -12,8 +12,11 @@ from torch.utils.collect_env import get_pretty_env_info
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
-from vis4d.config.parser import DEFINE_config_file
-from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.config import (
+    DEFINE_config_file,
+    instantiate_classes,
+    pprints_config,
+)
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
@@ -53,11 +56,9 @@ def main(argv: ArgsType) -> None:
     set_tf32(False)
 
     # Setup GPU
-    config.pl_trainer.unlock()
     config.pl_trainer.devices = num_gpus
     if num_gpus > 0:
         config.pl_trainer.accelerator = "gpu"
-    config.pl_trainer.lock()
 
     trainer_args = instantiate_classes(config.pl_trainer)
 
@@ -79,7 +80,7 @@ def main(argv: ArgsType) -> None:
     ]
 
     if "pl_callbacks" in config:
-        pl_callbacks = instantiate_classes(config.pl_callbacks)
+        pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]
     else:
         pl_callbacks = []
 

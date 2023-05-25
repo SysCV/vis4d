@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ml_collections import FieldReference
 
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config import ConfigDict, class_config
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.model.detect.faster_rcnn import FasterRCNN
@@ -55,7 +55,7 @@ def get_default_rcnn_box_codec_cfg(
     )
 
 
-def get_model_cfg(
+def get_faster_rcnn_cfg(
     num_classes: FieldReference | int,
     basemodel: ConfigDict,
 ) -> tuple[ConfigDict, ConfigDict]:

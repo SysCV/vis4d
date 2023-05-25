@@ -265,13 +265,15 @@ def build_train_dataloader(
 
     def _collate_fn_single(data: list[DictData]) -> DictDataOrList:
         """Collates data from single view dataset."""
-        return collate_fn(batchprocess_fn(data))
+        return collate_fn(batch=batchprocess_fn(data))
 
     def _collate_fn_multi(data: list[list[DictData]]) -> DictDataOrList:
         """Collates data from multi view dataset."""
         views = []
         for view_idx in range(len(data[0])):
-            view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
+            view = collate_fn(
+                batch=batchprocess_fn([d[view_idx] for d in data])
+            )
             views.append(view)
         return views
 
@@ -309,7 +311,7 @@ def build_inference_dataloaders(
 
     def _collate_fn(data: list[DictData]) -> DictDataOrList:
         """Collates data for inference."""
-        return collate_fn(batchprocess_fn(data))
+        return collate_fn(batch=batchprocess_fn(data))
 
     if isinstance(datasets, Dataset):
         datasets_ = [datasets]

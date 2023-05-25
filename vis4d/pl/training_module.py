@@ -11,7 +11,7 @@ from torch import Tensor, nn, optim
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.util import init_random_seed
-from vis4d.config.util import ConfigDict, instantiate_classes
+from vis4d.config import ConfigDict, instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.optim import Optimizer, set_up_optimizers

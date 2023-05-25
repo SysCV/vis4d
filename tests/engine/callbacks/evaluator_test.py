@@ -6,7 +6,7 @@ import unittest
 import torch
 
 from tests.util import MockModel, get_test_data
-from vis4d.config.base.datasets.coco_detection import CONN_COCO_BBOX_EVAL
+from vis4d.config.common.datasets import CONN_COCO_BBOX_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
 from vis4d.engine.connectors import CallbackConnector

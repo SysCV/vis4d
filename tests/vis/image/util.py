@@ -1,6 +1,6 @@
 """Utility functions for image visualization tests."""
 
-COLOR_MAPPING = {  # pylint:disable=duplicate-code
+COLOR_MAPPING = {
     1: "person",
     2: "bicycle",
     3: "car",

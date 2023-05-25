@@ -7,8 +7,8 @@ import torch
 from torch import nn
 
 from tests.util import MockModel
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config import ConfigDict, class_config
+from vis4d.config.util import get_optimizer_cfg
 from vis4d.engine.optim import (
     LinearLRWarmup,
     Optimizer,
@@ -30,13 +30,14 @@ def get_optimizer(
     epoch_based_warmup: bool = True,
 ) -> Optimizer:
     """Get an optimizer for testing."""
-    optimizer_cfg = get_optimizer_config(
+    optimizer_cfg = get_optimizer_cfg(
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         lr_warmup=lr_warmup,
         epoch_based_lr=epoch_based_lr,
         epoch_based_warmup=epoch_based_warmup,
     )
+    optimizer_cfg.value_mode()
     return set_up_optimizers([optimizer_cfg], model)
 
 

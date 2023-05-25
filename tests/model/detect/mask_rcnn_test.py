@@ -6,7 +6,7 @@ from torch import optim
 
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.config.base.models.mask_rcnn import (
+from vis4d.config.common.models.mask_rcnn import (
     CONN_MASK_HEAD_LOSS_2D,
     CONN_ROI_LOSS_2D,
     CONN_RPN_LOSS_2D,

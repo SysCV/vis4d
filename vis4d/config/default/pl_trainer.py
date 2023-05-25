@@ -3,10 +3,10 @@ import inspect
 
 import pytorch_lightning as pl
 
-from vis4d.config.util import ConfigDict
+from vis4d.config import ConfigDict
 
 
-def get_pl_trainer_config(config: ConfigDict) -> ConfigDict:
+def get_default_pl_trainer_cfg(config: ConfigDict) -> ConfigDict:
     """Get PyTorch Lightning Trainer config."""
     pl_trainer = ConfigDict()
 

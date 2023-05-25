@@ -1,10 +1,8 @@
 """Helper functions for creating sweep configurations."""
 from __future__ import annotations
 
-from ml_collections import ConfigDict
-
+from vis4d.config import ConfigDict, class_config
 from vis4d.config.replicator import linspace_sampler
-from vis4d.config.util import class_config
 
 
 def linear_grid_search(

@@ -2,12 +2,19 @@
 import platform
 from datetime import datetime
 
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config import ConfigDict, class_config
 from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
-def set_output_dir(config: ConfigDict) -> ConfigDict:
-    """Set output directory for the experiment with timestamp."""
+def get_default_cfg(
+    exp_name: str, work_dir: str = "vis4d-workspace"
+) -> ConfigDict:
+    """Set default config for the project."""
+    config = ConfigDict()
+
+    config.work_dir = work_dir
+    config.experiment_name = exp_name
+
     timestamp = (
         str(datetime.now())
         .split(".", maxsplit=1)[0]
@@ -33,7 +40,7 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
     return config
 
 
-def get_callbacks_config(
+def get_default_callbacks_cfg(
     config: ConfigDict, refresh_rate: int = 50
 ) -> list[ConfigDict]:
     """Get default callbacks config."""

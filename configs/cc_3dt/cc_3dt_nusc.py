@@ -6,14 +6,13 @@ import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
+from vis4d.config import ConfigDict, class_config, delay_instantiation
 from vis4d.config.default import (
-    get_callbacks_config,
-    get_pl_trainer_config,
-    set_output_dir,
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
 )
-from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config.util import get_inference_dataloaders_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
@@ -68,11 +67,7 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = ConfigDict()
-
-    config.work_dir = "vis4d-workspace"
-    config.experiment_name = "cc_3dt_r50_kf3d"
-    config = set_output_dir(config)
+    config = get_default_cfg(exp_name="cc_3dt_r50_kf3d")
 
     ckpt_path = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
 
@@ -99,7 +94,7 @@ def get_config() -> ConfigDict:
     data.train_dataloader = None
 
     # Test
-    test_dataset_cfg = class_config(
+    test_dataset = class_config(
         NuScenes,
         data_root=dataset_root,
         version=version,
@@ -146,16 +141,17 @@ def get_config() -> ConfigDict:
         ],
     )
 
-    data.test_dataloader = get_dataloader_config(
-        preprocess_cfg=test_preprocess_cfg,
-        dataset_cfg=test_dataset_cfg,
-        data_pipe=VideoDataPipe,
-        batchprocess_cfg=test_batchprocess_cfg,
-        samples_per_gpu=1,
-        workers_per_gpu=params.workers_per_gpu,
-        train=False,
-        collate_fn=multi_sensor_collate,
+    test_dataset_cfg = class_config(
+        VideoDataPipe,
+        datasets=test_dataset,
+        preprocess_fn=test_preprocess_cfg,
+    )
+
+    data.test_dataloader = get_inference_dataloaders_cfg(
+        datasets_cfg=test_dataset_cfg,
         video_based_inference=True,
+        batchprocess_cfg=test_batchprocess_cfg,
+        collate_fn=delay_instantiation(class_config(multi_sensor_collate)),
     )
 
     config.data = data
@@ -182,7 +178,7 @@ def get_config() -> ConfigDict:
     ##                    OPTIMIZERS                    ##
     ######################################################
     config.optimizers = [
-        get_optimizer_config(
+        get_optimizer_cfg(
             optimizer=class_config(
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
@@ -213,7 +209,7 @@ def get_config() -> ConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_callbacks_config(config)
+    callbacks = get_default_callbacks_cfg(config)
 
     # Evaluator
     callbacks.append(
@@ -236,7 +232,7 @@ def get_config() -> ConfigDict:
     ##                  PL CALLBACKS                    ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_config(config)
+    pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 
