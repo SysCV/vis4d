@@ -70,9 +70,14 @@ def main(argv: ArgsType) -> None:
     seed = config.get("seed", None)
 
     # Instantiate classes
-    train_data_connector = instantiate_classes(config.train_data_connector)
+    if mode == "fit":
+        train_data_connector = instantiate_classes(config.train_data_connector)
+        loss = instantiate_classes(config.loss)
+    else:
+        train_data_connector = None
+        loss = None
+
     test_data_connector = instantiate_classes(config.test_data_connector)
-    loss = instantiate_classes(config.loss)
 
     # Callbacks
     callbacks = [
@@ -95,7 +100,7 @@ def main(argv: ArgsType) -> None:
     # Add needed callbacks
     callbacks.append(OptimEpochCallback())
 
-    trainer = PLTrainer(callbacks=callbacks, **trainer_args)
+    trainer = PLTrainer(callbacks=callbacks, **trainer_args.to_dict())
     training_module = TrainingModule(
         config.model,
         config.optimizers,

@@ -1,7 +1,7 @@
-"""Default optimizer configuration."""
+"""Optimizer configuration."""
 from __future__ import annotations
 
-from vis4d.config import ConfigDict
+from ml_collections import ConfigDict
 
 
 def get_optimizer_cfg(

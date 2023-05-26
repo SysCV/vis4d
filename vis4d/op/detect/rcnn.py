@@ -823,10 +823,10 @@ class SampledMaskLoss(nn.Module):
             MaskRCNNHeadLosses: mask loss.
         """
         pos_proposals, pos_classes, pos_mask_targets = self.mask_sampler(
-            target_masks,
-            sampled_target_indices,
-            sampled_targets,
-            sampled_proposals,
+            target_masks=target_masks,
+            sampled_target_indices=sampled_target_indices,
+            sampled_targets=sampled_targets,
+            sampled_proposals=sampled_proposals,
         )
         return self.loss(
             mask_preds, pos_proposals, pos_classes, pos_mask_targets

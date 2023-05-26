@@ -3,12 +3,12 @@ import inspect
 
 import pytorch_lightning as pl
 
-from vis4d.config import ConfigDict
+from vis4d.config import FieldConfigDict
 
 
-def get_default_pl_trainer_cfg(config: ConfigDict) -> ConfigDict:
+def get_default_pl_trainer_cfg(config: FieldConfigDict) -> FieldConfigDict:
     """Get PyTorch Lightning Trainer config."""
-    pl_trainer = ConfigDict()
+    pl_trainer = FieldConfigDict()
 
     # PL Trainer arguments
     for k, v in inspect.signature(pl.Trainer).parameters.items():

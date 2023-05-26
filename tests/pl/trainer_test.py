@@ -4,12 +4,13 @@ from __future__ import annotations
 import shutil
 import unittest
 
+from ml_collections import ConfigDict
 from pytorch_lightning import Callback
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
-from vis4d.config import ConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
@@ -30,7 +31,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.loss_module import LossModule
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.pl.trainer import PLTrainer
@@ -96,7 +97,7 @@ def get_training_module(model: ConfigDict):
     """
     train_data_connector = DataConnector(key_mapping={K.images: K.images})
     test_data_connector = DataConnector(key_mapping={K.images: K.images})
-    loss_fn = WeightedMultiLoss(
+    loss_module = LossModule(
         {
             "loss": SegCrossEntropyLoss(),
             "connector": LossConnector(
@@ -109,13 +110,12 @@ def get_training_module(model: ConfigDict):
     )
 
     optimizer_cfg = get_optimizer_cfg(class_config(optim.SGD, lr=0.01))
-    optimizer_cfg.value_mode()
     return TrainingModule(
-        model,
-        [optimizer_cfg],
-        loss_fn,
-        train_data_connector,
-        test_data_connector,
+        model=model,
+        optimizers=[optimizer_cfg],
+        loss_module=loss_module,
+        train_data_connector=train_data_connector,
+        test_data_connector=test_data_connector,
         seed=1,
     )
 
@@ -131,7 +131,6 @@ class PLTrainerTest(unittest.TestCase):
             SemanticFPN,
             num_classes=80,
         )
-        model_cfg.value_mode()
 
         self.training_module = get_training_module(model=model_cfg)
 

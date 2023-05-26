@@ -1,7 +1,9 @@
 """Helper functions for creating sweep configurations."""
 from __future__ import annotations
 
-from vis4d.config import ConfigDict, class_config
+from ml_collections import ConfigDict
+
+from vis4d.config import class_config
 from vis4d.config.replicator import linspace_sampler
 
 

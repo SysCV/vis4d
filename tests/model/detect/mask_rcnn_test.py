@@ -14,7 +14,7 @@ from vis4d.config.common.models.mask_rcnn import (
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.engine.connectors import LossConnector
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.mask_rcnn import (
     REV_KEYS,
     MaskDetectionOut,
@@ -101,7 +101,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         mask_loss = SampledMaskLoss(positive_mask_sampler, MaskRCNNHeadLoss())
 
-        mask_rcnn_loss = WeightedMultiLoss(
+        mask_rcnn_loss = LossModule(
             [
                 {
                     "loss": rpn_loss,

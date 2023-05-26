@@ -1,6 +1,6 @@
 """Config modules."""
 from .config_dict import (
-    ConfigDict,
+    FieldConfigDict,
     class_config,
     delay_instantiation,
     instantiate_classes,
@@ -9,7 +9,7 @@ from .parser import DEFINE_config_file, pprints_config
 
 __all__ = [
     "class_config",
-    "ConfigDict",
+    "FieldConfigDict",
     "DEFINE_config_file",
     "delay_instantiation",
     "instantiate_classes",

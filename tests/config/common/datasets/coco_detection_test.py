@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import unittest
 
+from ml_collections import ConfigDict
 from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
-from vis4d.config import ConfigDict, class_config, instantiate_classes
+from vis4d.config import class_config, instantiate_classes
 from vis4d.config.common.datasets import get_coco_detection_cfg
 from vis4d.data.datasets.coco import COCO
 
@@ -24,7 +25,6 @@ class TestDataloaderConfig(unittest.TestCase):
             data_root=self.COCO_DATA_ROOT,
             split="train",
         )
-        train_dataset_cfg.value_mode()
         self.assertTrue(isinstance(train_dataset_cfg, ConfigDict))
         coco = instantiate_classes(train_dataset_cfg)
         self.assertTrue(isinstance(coco, COCO))
@@ -39,7 +39,6 @@ class TestDataloaderConfig(unittest.TestCase):
             data_root=self.COCO_DATA_ROOT,
             split="train",
         )
-        train_dataset_cfg.value_mode()
         self.assertTrue(isinstance(train_dataset_cfg, ConfigDict))
         coco = instantiate_classes(train_dataset_cfg)
         self.assertTrue(isinstance(coco, COCO))
@@ -57,7 +56,6 @@ class TestDataloaderConfig(unittest.TestCase):
             train_split="train",
             test_split="train",
         )
-        dataloader_cfg.value_mode()
         self.assertTrue(isinstance(dataloader_cfg, ConfigDict))
         train_dl = instantiate_classes(dataloader_cfg.train_dataloader)
         self.assertTrue(isinstance(train_dl, DataLoader))

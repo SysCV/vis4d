@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.config import ConfigDict, class_config
+from vis4d.config import FieldConfigDict, class_config
 from vis4d.config.common.datasets import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_cfg,
@@ -31,7 +31,7 @@ from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
-def get_config() -> ConfigDict:
+def get_config() -> FieldConfigDict:
     """Returns the Faster-RCNN config dict for the coco detection task.
 
     This is an example that shows how to set up a training experiment for the
@@ -51,7 +51,7 @@ def get_config() -> ConfigDict:
     config = get_default_cfg(exp_name="faster_rcnn_r50_fpn_coco")
 
     # High level hyper parameters
-    params = ConfigDict()
+    params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02

@@ -9,6 +9,7 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.data import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
+from vis4d.engine.loss_module import LossModule
 
 from .optim import Optimizer
 from .util import move_data_to_device
@@ -21,11 +22,11 @@ class Trainer:
         self,
         device: torch.device,
         num_epochs: int,
-        train_data_connector: DataConnector,
-        test_data_connector: DataConnector,
+        train_data_connector: DataConnector | None,
+        test_data_connector: DataConnector | None,
+        train_dataloader: DataLoader[DictData] | None,
+        test_dataloader: list[DataLoader[DictData]] | None,
         callbacks: list[Callback],
-        train_dataloader: DataLoader[DictData] | None = None,
-        test_dataloader: list[DataLoader[DictData]] | None = None,
         epoch: int = 0,
         global_step: int = 0,
         check_val_every_n_epoch: int = 1,
@@ -36,16 +37,16 @@ class Trainer:
             device (torch.device): Device that should be used for training.
             num_epochs (int): Number of training epochs.
             dataloaders (DataLoader[DictData]): Dataloader for training.
-            train_data_connector (DataConnector): Data connector used for
-                generating training inputs from a batch of data.
-            test_data_connector (DataConnector): Data connector used for
+            train_data_connector (DataConnector | None): Data connector used
+                for generating training inputs from a batch of data.
+            test_data_connector (DataConnector | None): Data connector used for
                 generating testing inputs from a batch of data.
+            train_dataloader (DataLoader[DictData] | None): Dataloader for
+                training. Defaults to None.
+            test_dataloader (list[DataLoader[DictData]] | None): Dataloader
+                list for testing.
             callbacks (list[Callback]): Callbacks that should be used during
                 training.
-            train_dataloader (DataLoader[DictData] | None, optional):
-                Dataloader for training. Defaults to None.
-            test_dataloader (list[DataLoader[DictData]] | None, optional):
-                Dataloaders for testing. Defaults to None.
             epoch (int, optional): Starting epoch. Defaults to 0.
             global_step (int, optional): Starting step. Defaults to 0.
             check_val_every_n_epoch (int, optional): Interval for evaluating
@@ -77,7 +78,10 @@ class Trainer:
         )
 
     def fit(
-        self, model: nn.Module, optimizers: list[Optimizer], loss: nn.Module
+        self,
+        model: nn.Module,
+        optimizers: list[Optimizer],
+        loss_module: LossModule,
     ) -> None:
         """Training loop.
 
@@ -86,12 +90,16 @@ class Trainer:
             optimizers (list[Optimizer]): Optimizers that should be used for
                 training. This bundles the optimizers, the learning rate
                 schedulers, and the warmup schedulers.
-            loss (nn.Module): Loss function that should be used for training.
+            loss_module (LossModule): Loss module that should be used for
+                training.
 
         Raises:
             TypeError: If the loss value is not a torch.Tensor or a dict of
                 torch.Tensor.
         """
+        assert (
+            self.train_data_connector is not None
+        ), "No train data connector."
         assert self.train_dataloader is not None, "No train dataloader."
 
         for epoch in range(self.epoch, self.num_epochs):
@@ -123,7 +131,7 @@ class Trainer:
                 # Forward + backward + optimize
                 output = model(**train_input)
 
-                losses = loss(output, data)
+                losses = loss_module(output, data)
 
                 metrics: dict[str, float] = {}
                 if isinstance(losses, Tensor):
@@ -177,6 +185,7 @@ class Trainer:
         Args:
             model (nn.Module): Model that should be tested.
         """
+        assert self.test_data_connector is not None, "No test data connector."
         assert self.test_dataloader is not None, "No test dataloader."
 
         model.eval()

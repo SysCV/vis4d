@@ -14,7 +14,7 @@ from vis4d.engine.callbacks import (
     VisualizerCallback,
 )
 from vis4d.engine.connectors import CallbackConnector, DataConnector
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.loss_module import LossModule
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
@@ -90,19 +90,15 @@ def _get_model_conn_infos(
     return {"train": train_connection_info, "test": test_connection_info}
 
 
-def _get_loss_connection_infos(loss: nn.Module) -> list[DataConnectionInfo]:
+def _get_loss_connection_infos(loss: LossModule) -> list[DataConnectionInfo]:
     """Returns the connection infos for a loss.
 
     Args:
-        loss (nn.Module): Custom loss module with .forward()
+        loss (LossModule): Custom loss module with .forward()
 
     Returns:
         DataConnectionInfo for the loss.
     """
-    assert isinstance(
-        loss, WeightedMultiLoss
-    ), "Loss must be a WeightedMultiLoss"
-
     loss_connection_info = []
     for l in loss.losses:
         loss_out = []
@@ -348,7 +344,7 @@ def prints_datagraph_for_config(
     model: nn.Module,
     train_data_connector: DataConnector,
     test_data_connector: DataConnector,
-    loss: nn.Module,
+    loss: LossModule,
     callbacks: list[Callback],
 ) -> str:
     """Shows the setup of the configuration objects.
@@ -364,7 +360,7 @@ def prints_datagraph_for_config(
         model (nn.Module): Model to plot.
         train_data_connector (DataConnector): Train data connector to plot.
         test_data_connector (DataConnector): Test data connector to plot.
-        loss (nn.Module): Loss to plot.
+        loss (LossModule): Loss to plot.
         callbacks (list[Callback]): Callbacks to plot.
 
     Returns:
@@ -544,7 +540,7 @@ def main(
     test_data_connector = instantiate_classes(config.test_data_connector)
     loss = instantiate_classes(config.loss)
     model = instantiate_classes(config.model)
-    callbacks = instantiate_classes(config.callbacks)
+    callbacks = [instantiate_classes(cb) for cb in config.callbacks]
 
     dg = prints_datagraph_for_config(
         model, train_data_connector, test_data_connector, loss, callbacks

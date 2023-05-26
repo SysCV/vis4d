@@ -31,7 +31,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.loss_module import LossModule
 from vis4d.engine.trainer import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
@@ -120,7 +120,7 @@ class EngineTrainerTest(unittest.TestCase):
     def test_fit(self) -> None:
         """Test trainer training."""
         optimizers = get_optimizer()
-        loss = WeightedMultiLoss(
+        loss_module = LossModule(
             {
                 "loss": SegCrossEntropyLoss(),
                 "connector": LossConnector(
@@ -132,7 +132,7 @@ class EngineTrainerTest(unittest.TestCase):
             }
         )
 
-        self.trainer.fit(self.model, optimizers, loss)
+        self.trainer.fit(self.model, optimizers, loss_module)
 
         # TODO: add callback to check loss
 

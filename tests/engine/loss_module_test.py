@@ -5,15 +5,15 @@ import unittest
 import torch
 
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.loss_module import LossModule
 
 
-class WeightedLossTest(unittest.TestCase):
-    """Weighted loss test class."""
+class LossModuleTest(unittest.TestCase):
+    """Loss module test class."""
 
     def test_forward(self) -> None:
         """Test forward."""
-        loss = WeightedMultiLoss(
+        loss = LossModule(
             [
                 {
                     "loss": torch.nn.MSELoss(),

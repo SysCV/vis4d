@@ -1,11 +1,11 @@
 """Faseter R-CNN base model config."""
 from __future__ import annotations
 
-from ml_collections import FieldReference
+from ml_collections import ConfigDict, FieldReference
 
-from vis4d.config import ConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
@@ -126,7 +126,7 @@ def get_faster_rcnn_cfg(
     )
 
     loss = class_config(
-        WeightedMultiLoss,
+        LossModule,
         losses=[
             {
                 "loss": rpn_loss,

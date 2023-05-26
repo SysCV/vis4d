@@ -2,15 +2,17 @@
 import platform
 from datetime import datetime
 
-from vis4d.config import ConfigDict, class_config
+from ml_collections import ConfigDict
+
+from vis4d.config import FieldConfigDict, class_config
 from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
 def get_default_cfg(
     exp_name: str, work_dir: str = "vis4d-workspace"
-) -> ConfigDict:
+) -> FieldConfigDict:
     """Set default config for the project."""
-    config = ConfigDict()
+    config = FieldConfigDict()
 
     config.work_dir = work_dir
     config.experiment_name = exp_name
@@ -41,7 +43,7 @@ def get_default_cfg(
 
 
 def get_default_callbacks_cfg(
-    config: ConfigDict, refresh_rate: int = 50
+    config: FieldConfigDict, refresh_rate: int = 50
 ) -> list[ConfigDict]:
     """Get default callbacks config."""
     callbacks = []

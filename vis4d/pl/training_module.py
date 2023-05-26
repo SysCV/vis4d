@@ -6,14 +6,16 @@ from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
-from torch import Tensor, nn, optim
+from ml_collections import ConfigDict
+from torch import Tensor, optim
 
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.util import init_random_seed
-from vis4d.config import ConfigDict, instantiate_classes
+from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
+from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import Optimizer, set_up_optimizers
 
 
@@ -69,18 +71,18 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         self,
         model: ConfigDict,
         optimizers: list[ConfigDict],
-        loss: nn.Module,
-        train_data_connector: DataConnector,
-        test_data_connector: DataConnector,
+        loss_module: None | LossModule,
+        train_data_connector: None | DataConnector,
+        test_data_connector: None | DataConnector,
         seed: None | int = None,
     ) -> None:
         """Initialize the TrainingModule.
 
         Args:
-            model: The model to train.
+            model: The model config  to train.
             optimizers: The optimizers to use. Will be wrapped into a pytorch
                 optimizer.
-            loss: The loss function to use.
+            loss_module: The loss function to use.
             train_data_connector: The data connector to use.
             test_data_connector: The data connector to use.
             data_connector: The data connector to use.
@@ -90,7 +92,7 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         super().__init__()
         self.model = model
         self.optims = optimizers
-        self.loss_fn = loss
+        self.loss_module = loss_module
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.seed = seed
@@ -107,24 +109,29 @@ class TrainingModule(pl.LightningModule):  # type: ignore
             seed_everything(seed, workers=True)
             rank_zero_info(f"Global seed set to {seed}")
 
+        # Instantiate the model and optimizers after the seed has been set
         self.model = instantiate_classes(self.model)
-        self.optims = set_up_optimizers(self.optims, self.model)  # type: ignore # pylint: disable=line-too-long
+        self.optims = set_up_optimizers(self.optims, self.model)
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
     ) -> Any:
         """Forward pass through the model."""
         if self.training:
+            assert self.train_data_connector is not None
             return self.model(**self.train_data_connector(data))
+        assert self.test_data_connector is not None
         return self.model(**self.test_data_connector(data))
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int
     ) -> Any:
         """Perform a single training step."""
+        assert self.train_data_connector is not None
         out = self.model(**self.train_data_connector(batch))
 
-        losses = self.loss_fn(out, batch)
+        assert self.loss_module is not None
+        losses = self.loss_module(out, batch)
 
         metrics = {}
         if isinstance(losses, Tensor):
@@ -146,6 +153,7 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
     ) -> DictData:
         """Perform a single validation step."""
+        assert self.test_data_connector is not None
         out = self.model(**self.test_data_connector(batch))
         return out
 
@@ -153,6 +161,7 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
     ) -> DictData:
         """Perform a single test step."""
+        assert self.test_data_connector is not None
         out = self.model(**self.test_data_connector(batch))
         return out
 

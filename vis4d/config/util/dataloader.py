@@ -1,9 +1,9 @@
-"""Default dataloader configurations."""
+"""Dataloader configuration."""
 from __future__ import annotations
 
-from ml_collections import FieldReference
+from ml_collections import ConfigDict, FieldReference
 
-from vis4d.config import ConfigDict, class_config, delay_instantiation
+from vis4d.config import class_config, delay_instantiation
 from vis4d.data.loader import (
     DataPipe,
     build_inference_dataloaders,

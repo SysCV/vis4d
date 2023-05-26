@@ -1,4 +1,4 @@
-"""Loss implementations to be used with the CLI."""
+"""Loss module maps loss function input keys and controls loss weight."""
 from __future__ import annotations
 
 from typing import TypedDict, Union
@@ -12,7 +12,7 @@ from vis4d.data.typing import DictData
 from vis4d.engine.connectors import LossConnector
 from vis4d.op.loss.base import Loss
 
-__all__ = ["WeightedMultiLoss"]
+NestedLossesType = Union[dict[str, "NestedLossesType"], LossesType]
 
 
 class LossDefinition(TypedDict):
@@ -29,9 +29,6 @@ class LossDefinition(TypedDict):
     connector: LossConnector
     weight: NotRequired[float]
     name: NotRequired[str]
-
-
-NestedLossesType = Union[dict[str, "NestedLossesType"], LossesType]
 
 
 def _get_tensors_nested(
@@ -67,8 +64,8 @@ def _get_tensors_nested(
     return named_tensors
 
 
-class WeightedMultiLoss(nn.Module):
-    """Loss that combines multiple losses with weights.
+class LossModule(nn.Module):
+    """Loss module maps input keys and combines losses with weights.
 
     This loss combines multiple losses with weights. The loss values are
     weighted by the corresponding weight and returned as a dictionary.
@@ -77,18 +74,35 @@ class WeightedMultiLoss(nn.Module):
     def __init__(self, losses: list[LossDefinition] | LossDefinition) -> None:
         """Creates an instance of the class.
 
-        By default, each loss will be called with arguments matching the
-        kwargs of the loss function. This behavior can be changed by
-        providing a mapping in in_keys for each loss definition.
+        Each loss will be called with arguments matching the kwargs of the loss
+        function through its connector. By default, the weight is set to 1.0.
 
         Args:
             losses (list[LossDefinition]): List of loss definitions.
 
         Example:
-            >>> loss = WeightedMultiLoss(
+            >>> loss = LossModule(
             >>>     [
-            >>>         {"loss": nn.MSELoss()},
-            >>>         {"loss": nn.L1Loss(), "weight": 0.5},
+            >>>         {
+            >>>             "loss": nn.MSELoss(),
+            >>>             "weight": 0.7,
+            >>>             "connector": LossConnector(
+            >>>                 {
+            >>>                     "input": pred_key("input"),
+            >>>                     "target": data_key("target"),
+            >>>                 }
+            >>>             ),
+            >>>         },
+            >>>         {
+            >>>             "loss": nn.L1Loss(),
+            >>>             "weight": 0.3
+            >>>             "connector": LossConnector(
+            >>>                 {
+            >>>                     "input": pred_key("input"),
+            >>>                     "target": data_key("target"),
+            >>>                 }
+            >>>             ),
+            >>>         },
             >>>     ]
             >>> )
         """
@@ -113,7 +127,7 @@ class WeightedMultiLoss(nn.Module):
             self.losses.append(loss)
 
     def forward(self, output: DictData, batch: DictData) -> LossesType:
-        """Forward of loss function.
+        """Forward of loss module.
 
         This function will call all loss functions and return a dictionary
         containing the loss values. The loss values are weighted by the
@@ -130,6 +144,7 @@ class WeightedMultiLoss(nn.Module):
             LossesType: The loss values.
         """
         loss_dict: LossesType = {}
+
         for loss in self.losses:
             loss_values_as_dict: LossesType = {}
             name = loss["name"]
@@ -152,6 +167,7 @@ class WeightedMultiLoss(nn.Module):
                     loss_value._fields, loss_value
                 ):
                     loss_values_as_dict[name + "." + loss_name] = loss_value
+
             # Assign values
             for key, value in loss_values_as_dict.items():
                 while key in loss_dict:

@@ -4,10 +4,11 @@ from __future__ import annotations
 import unittest
 
 import torch
+from ml_collections import ConfigDict
 from torch import nn
 
 from tests.util import MockModel
-from vis4d.config import ConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.util import get_optimizer_cfg
 from vis4d.engine.optim import (
     LinearLRWarmup,
@@ -37,7 +38,6 @@ def get_optimizer(
         epoch_based_lr=epoch_based_lr,
         epoch_based_warmup=epoch_based_warmup,
     )
-    optimizer_cfg.value_mode()
     return set_up_optimizers([optimizer_cfg], model)
 
 

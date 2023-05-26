@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
+from ml_collections import ConfigDict
 from torch.utils.data import DataLoader
 
-from vis4d.config import ConfigDict, instantiate_classes
+from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 
 

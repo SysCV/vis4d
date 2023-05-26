@@ -5,10 +5,11 @@ import logging
 import re
 import sys
 import traceback
+from typing import Any
 
 import yaml
 from absl import flags
-from ml_collections import FieldReference
+from ml_collections import ConfigDict, FieldReference
 from ml_collections.config_flags.config_flags import (
     _ConfigFlag,
     _ErrorConfig,
@@ -16,7 +17,7 @@ from ml_collections.config_flags.config_flags import (
     _LockConfig,
 )
 
-from .config_dict import ConfigDict, copy_and_resolve_references
+from .config_dict import copy_and_resolve_references
 
 
 class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
@@ -177,40 +178,39 @@ def DEFINE_config_file(  # pylint: disable=invalid-name
 def pprints_config(data: ConfigDict) -> str:
     """Converts a Config Dict into a string with a .yaml like structure.
 
-    This function differs from __repr__ of _ConfigDict in that it will not
+    This function differs from __repr__ of ConfigDict in that it will not
     encode python classes using binary formats but just prints the __repr__
     of these classes.
 
     Args:
-        data (_ConfigDict): Configuration dict to convert to string
+        data (ConfigDict): Configuration dict to convert to string
 
     Returns:
-        str: A string representation of the _ConfigDict
+        str: A string representation of the ConfigDict
     """
     return _pprints_config(copy_and_resolve_references(data))
 
 
-def _pprints_config(
-    data: ConfigDict, prefix: str = "", n_indents: int = 1
+def _pprints_config(  # type: ignore
+    data: Any, prefix: str = "", n_indents: int = 1
 ) -> str:
-    """Converts a Config Dict into a string with a .yaml like structure.
+    """Converts a ConfigDict into a string with a YAML like structure.
 
     This is the recursive implementation of 'pprints_config' and will be called
     recursively for every element in the dict.
 
-    This function differs from __repr__ of _ConfigDict in that it will not
+    This function differs from __repr__ of ConfigDict in that it will not
     encode python classes using binary formats but just prints the __repr__
     of these classes.
 
-
     Args:
-        data (_ConfigDict): Configuration dict or object to convert to
+        data (Any): Configuration dict or object to convert to
             string
         prefix (str): Prefix to print on each new line
         n_indents (int): Number of spaces to append for each nester property.
 
     Returns:
-        str: A string representation of the _ConfigDict
+        str: A string representation of the ConfigDict
     """
     string_repr = ""
     if isinstance(data, FieldReference):

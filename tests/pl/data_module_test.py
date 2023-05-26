@@ -20,7 +20,6 @@ class DataModuleTest(unittest.TestCase):
             train_split="train",
             test_split="train",
         )
-        dataloader_cfg.value_mode()
         self.datamodule = DataModule(dataloader_cfg)
 
     def test_train_dataloader(self) -> None:

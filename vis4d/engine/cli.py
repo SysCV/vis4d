@@ -1,8 +1,4 @@
-"""CLI interface for vis4d.
-
-Example to run this script:
->>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
-"""
+"""CLI interface."""
 from __future__ import annotations
 
 import logging
@@ -118,10 +114,8 @@ def main(argv: ArgsType) -> None:
 
     # Instantiate classes
     train_data_connector = instantiate_classes(config.train_data_connector)
-    test_data_connector = instantiate_classes(config.test_data_connector)
+
     model = instantiate_classes(config.model)
-    optimizers = set_up_optimizers(config.optimizers, model)
-    loss = instantiate_classes(config.loss)
 
     # Callbacks
     callbacks = [instantiate_classes(cb) for cb in config.callbacks]
@@ -139,10 +133,17 @@ def main(argv: ArgsType) -> None:
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
+        train_data_connector = instantiate_classes(
+            config.data.train_data_connector
+        )
+        optimizers = set_up_optimizers(config.optimizers, model)
+        loss = instantiate_classes(config.loss)
     else:
         train_dataloader = None
+        train_data_connector = None
 
     test_dataloader = instantiate_classes(config.data.test_dataloader)
+    test_data_connector = instantiate_classes(config.test_data_connector)
 
     # Setup Model
     if num_gpus == 0:
@@ -167,9 +168,9 @@ def main(argv: ArgsType) -> None:
         num_epochs=config.params.num_epochs,
         train_data_connector=train_data_connector,
         test_data_connector=test_data_connector,
-        callbacks=callbacks,
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,
+        callbacks=callbacks,
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?
