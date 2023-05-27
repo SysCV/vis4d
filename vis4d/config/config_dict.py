@@ -7,6 +7,7 @@ from typing import Any
 
 from ml_collections import ConfigDict, FieldReference, FrozenConfigDict
 
+from vis4d.common.named_tuple import is_namedtuple
 from vis4d.common.typing import ArgsType
 
 
@@ -324,6 +325,10 @@ def copy_and_resolve_references(  # type: ignore
     if isinstance(data, FieldReference):
         data = data.get()
 
+    # Do nothing for the NamedTuple
+    if is_namedtuple(data):
+        return data
+
     if isinstance(data, (list, tuple)):
         return type(data)(
             copy_and_resolve_references(value, visit_map) for value in data
@@ -357,7 +362,7 @@ def copy_and_resolve_references(  # type: ignore
             value = copy_and_resolve_references(value, visit_map)
         elif isinstance(value, list):
             value = [copy_and_resolve_references(v, visit_map) for v in value]
-        elif isinstance(value, tuple):
+        elif isinstance(value, tuple) and not is_namedtuple(value):
             value = tuple(
                 copy_and_resolve_references(v, visit_map) for v in value
             )
@@ -454,7 +459,7 @@ def _instantiate_classes(data: Any) -> Any:  # type: ignore
                 else:
                     data[key][idx] = _instantiate_classes(v)
 
-        elif isinstance(value, (tuple)):
+        elif isinstance(value, (tuple)) and not is_namedtuple(value):
             if isinstance(data, ConfigDict):
                 with data.ignore_type():
                     data[key] = tuple(

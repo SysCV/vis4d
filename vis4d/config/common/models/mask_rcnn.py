@@ -124,7 +124,7 @@ def get_mask_rcnn_cfg(
     mask_loss = class_config(
         SampledMaskLoss,
         mask_sampler=delay_instantiation(class_config(positive_mask_sampler)),
-        loss=class_config(MaskRCNNHeadLoss),
+        loss=class_config(MaskRCNNHeadLoss, num_classes=num_classes),
     )
 
     loss = class_config(
