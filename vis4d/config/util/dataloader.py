@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict, FieldReference
 
-from vis4d.config import class_config, delay_instantiation
+from vis4d.common.typing import GenericFunc
+from vis4d.config import class_config
 from vis4d.data.loader import (
     DataPipe,
     build_inference_dataloaders,
@@ -11,6 +12,8 @@ from vis4d.data.loader import (
     default_collate,
     default_pipeline,
 )
+
+from .callable import get_callable_cfg
 
 
 def get_train_dataloader_cfg(
@@ -20,9 +23,7 @@ def get_train_dataloader_cfg(
     samples_per_gpu: int | FieldReference = 1,
     workers_per_gpu: int | FieldReference = 1,
     batchprocess_cfg: ConfigDict = class_config(default_pipeline),
-    collate_fn: ConfigDict = delay_instantiation(
-        class_config(default_collate)
-    ),
+    collate_fn: GenericFunc = default_collate,
     pin_memory: bool | FieldReference = True,
     shuffle: bool | FieldReference = True,
 ) -> ConfigDict:
@@ -40,8 +41,8 @@ def get_train_dataloader_cfg(
             DataPipe.
         batchprocess_cfg (ConfigDict, optional): The configuration that
             contains the batch processing operations.
-        collate_fn (ConfigDict, optional): The collate function to use.
-            Defaults to delay_instantiation(class_config(default_collate)).
+        collate_fn (GenericFunc, optional): The collate function to use.
+            Defaults to default_collate.
         pin_memory (bool | FieldReference, optional): Whether to pin memory.
             Defaults to True.
         shuffle (bool | FieldReference, optional): Whether to shuffle the
@@ -60,7 +61,7 @@ def get_train_dataloader_cfg(
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         batchprocess_fn=batchprocess_cfg,
-        collate_fn=collate_fn,
+        collate_fn=get_callable_cfg(collate_fn),
         pin_memory=pin_memory,
         shuffle=shuffle,
     )
@@ -72,9 +73,7 @@ def get_inference_dataloaders_cfg(
     workers_per_gpu: int | FieldReference = 1,
     video_based_inference: bool | FieldReference = False,
     batchprocess_cfg: ConfigDict = class_config(default_pipeline),
-    collate_fn: ConfigDict = delay_instantiation(
-        class_config(default_collate)
-    ),
+    collate_fn: GenericFunc = default_collate,
 ) -> ConfigDict:
     """Creates dataloader configuration given dataset for inference.
 
@@ -90,9 +89,8 @@ def get_inference_dataloaders_cfg(
         batchprocess_cfg (ConfigDict, optional): The config that contains the
             batch processing operations. Defaults to class_config(
                 default_pipeline).
-        collate_fn (ConfigDict, optional): The collate function that will be
-            used to stack the batch. Defaults to delay_instantiation(
-                class_config(default_collate)).
+        collate_fn (GenericFunc, optional): The collate function that will be
+            used to stack the batch. Defaults to default_collate.
 
     Returns:
         ConfigDict: The dataloader configuration.
@@ -104,5 +102,5 @@ def get_inference_dataloaders_cfg(
         workers_per_gpu=workers_per_gpu,
         video_based_inference=video_based_inference,
         batchprocess_fn=batchprocess_cfg,
-        collate_fn=collate_fn,
+        collate_fn=get_callable_cfg(collate_fn),
     )

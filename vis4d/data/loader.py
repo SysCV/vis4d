@@ -214,7 +214,17 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
 
 
 def default_collate(batch: list[DictData]) -> DictData:
-    """Default batch collate."""
+    """Default batch collate.
+
+    It will concatenate images and stack seg_masks, extrinsics, intrinsics,
+    and depth_maps. Other keys will be put into a list.
+
+    Args:
+        batch (list[DictData]): List of data dicts.
+
+    Returns:
+        DictData: Collated data dict.
+    """
     data: DictData = {}
     # TODO: It seems dangerous if batches originally contain different keys.
     # e.g. if batch[0] has annotations but batch[1] doesn't.

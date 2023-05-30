@@ -15,13 +15,18 @@ from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
 from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose, compose_batch
-from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
+from vis4d.data.transforms.flip import (
+    FlipBoxes2D,
+    FlipImage,
+    FlipInstanceMasks,
+)
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
+    ResizeInstanceMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
@@ -66,13 +71,18 @@ def get_train_dataloader(
         class_config(ResizeBoxes2D),
     ]
 
+    if K.instance_masks in keys_to_load:
+        preprocess_transforms.append(class_config(ResizeInstanceMasks))
+
+    flip_transforms = [class_config(FlipImage), class_config(FlipBoxes2D)]
+
+    if K.instance_masks in keys_to_load:
+        flip_transforms.append(class_config(FlipInstanceMasks))
+
     preprocess_transforms.append(
         class_config(
             RandomApply,
-            transforms=[
-                class_config(FlipImage),
-                class_config(FlipBoxes2D),
-            ],
+            transforms=flip_transforms,
             probability=0.5,
         )
     )

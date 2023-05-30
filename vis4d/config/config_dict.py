@@ -7,7 +7,7 @@ from typing import Any
 
 from ml_collections import ConfigDict, FieldReference, FrozenConfigDict
 
-from vis4d.common.named_tuple import is_namedtuple
+from vis4d.common.named_tuple import get_all_keys, is_namedtuple
 from vis4d.common.typing import ArgsType
 
 
@@ -325,9 +325,13 @@ def copy_and_resolve_references(  # type: ignore
     if isinstance(data, FieldReference):
         data = data.get()
 
-    # Do nothing for the NamedTuple
     if is_namedtuple(data):
-        return data
+        return type(data)(
+            **{
+                key: copy_and_resolve_references(getattr(data, key))
+                for key in get_all_keys(data)
+            }
+        )
 
     if isinstance(data, (list, tuple)):
         return type(data)(
@@ -358,14 +362,23 @@ def copy_and_resolve_references(  # type: ignore
 
         if id(value) in visit_map:
             value = visit_map[id(value)]
+
         elif isinstance(value, ConfigDict):
             value = copy_and_resolve_references(value, visit_map)
-        elif isinstance(value, list):
-            value = [copy_and_resolve_references(v, visit_map) for v in value]
-        elif isinstance(value, tuple) and not is_namedtuple(value):
-            value = tuple(
+
+        elif is_namedtuple(value):
+            value = type(value)(
+                **{
+                    key: copy_and_resolve_references(getattr(value, key))
+                    for key in get_all_keys(value)
+                }
+            )
+
+        elif isinstance(value, (list, tuple)):
+            value = type(value)(
                 copy_and_resolve_references(v, visit_map) for v in value
             )
+
         elif isinstance(value, dict):
             value = {
                 k: copy_and_resolve_references(v, visit_map)
@@ -451,23 +464,32 @@ def _instantiate_classes(data: Any) -> Any:  # type: ignore
             else:
                 data[key] = _instantiate_classes(value)
 
-        elif isinstance(value, (list)):
-            for idx, v in enumerate(value):
-                if isinstance(data, ConfigDict):
-                    with data.ignore_type():
-                        data[key][idx] = _instantiate_classes(v)
-                else:
-                    data[key][idx] = _instantiate_classes(v)
-
-        elif isinstance(value, (tuple)) and not is_namedtuple(value):
+        elif is_namedtuple(value):
             if isinstance(data, ConfigDict):
                 with data.ignore_type():
-                    data[key] = tuple(
+                    data[key] = type(value)(
+                        **{
+                            key: _instantiate_classes(getattr(value, key))
+                            for key in get_all_keys(value)
+                        }
+                    )
+            else:
+                data[key] = type(value)(
+                    **{
+                        key: _instantiate_classes(getattr(value, key))
+                        for key in get_all_keys(value)
+                    }
+                )
+
+        elif isinstance(value, (list, tuple)):
+            if isinstance(data, ConfigDict):
+                with data.ignore_type():
+                    data[key] = type(value)(
                         _instantiate_classes(value[idx])
                         for idx in range(len(value))
                     )
             else:
-                data[key] = tuple(
+                data[key] = type(value)(
                     _instantiate_classes(value[idx])
                     for idx in range(len(value))
                 )

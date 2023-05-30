@@ -161,7 +161,7 @@ class COCO(Dataset, CacheMappingMixin):
         ),
         split: str = "train2017",
         remove_empty: bool = False,
-        minimum_box_area: float = 0,
+        minimum_box_area: float = 0.0,
         use_pascal_voc_cats: bool = False,
         data_backend: None | DataBackend = None,
     ) -> None:
@@ -173,7 +173,7 @@ class COCO(Dataset, CacheMappingMixin):
             split (split): Which split to load. Default: "train2017".
             remove_empty (bool): Whether to remove images with no annotations.
             minimum_box_area (float): Minimum area of the bounding boxes.
-                Default: 0.
+                Default: 0.0.
             use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
             data_backend (None | DataBackend): Data backend to use.
                 Default: None.
@@ -206,8 +206,8 @@ class COCO(Dataset, CacheMappingMixin):
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats}), "
-            f"remove_empty={self.remove_empty}"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats}, "
+            f"remove_empty={self.remove_empty})"
         )
 
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:

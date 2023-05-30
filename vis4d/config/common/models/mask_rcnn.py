@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict, FieldReference
 
-from vis4d.config import class_config, delay_instantiation
+from vis4d.config import class_config
+from vis4d.config.util import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import (
     LossConnector,
@@ -123,7 +124,7 @@ def get_mask_rcnn_cfg(
 
     mask_loss = class_config(
         SampledMaskLoss,
-        mask_sampler=delay_instantiation(class_config(positive_mask_sampler)),
+        mask_sampler=get_callable_cfg(positive_mask_sampler),
         loss=class_config(MaskRCNNHeadLoss, num_classes=num_classes),
     )
 

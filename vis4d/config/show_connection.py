@@ -15,11 +15,11 @@ from vis4d.engine.callbacks import (
 )
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.loss_module import LossModule
+from vis4d.engine.parser import DEFINE_config_file
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
 from .config_dict import instantiate_classes
-from .parser import DEFINE_config_file
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 

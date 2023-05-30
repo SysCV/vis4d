@@ -51,7 +51,7 @@ class DataConnector:
 class LossConnector:
     """Defines which data to pass to loss module of the training pipeline.
 
-    It extracts the required data from prediciton and data and passes it to
+    It extracts the required data from prediction and data and passes it to
     the next component with the provided new key.
     """
 
@@ -80,7 +80,7 @@ class LossConnector:
 class CallbackConnector:
     """Data connector for the callback.
 
-    It extracts the required data from prediciton and datas and passes it to
+    It extracts the required data from prediction and datas and passes it to
     the next component with the provided new key.
     """
 

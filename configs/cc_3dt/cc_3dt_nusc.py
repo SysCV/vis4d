@@ -6,7 +6,7 @@ import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.config import FieldConfigDict, class_config, delay_instantiation
+from vis4d.config import FieldConfigDict, class_config
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -151,7 +151,7 @@ def get_config() -> FieldConfigDict:
         datasets_cfg=test_dataset_cfg,
         video_based_inference=True,
         batchprocess_cfg=test_batchprocess_cfg,
-        collate_fn=delay_instantiation(class_config(multi_sensor_collate)),
+        collate_fn=multi_sensor_collate,
     )
 
     config.data = data

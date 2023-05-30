@@ -1,6 +1,6 @@
 """Utility functions for image visualization tests."""
 
-COLOR_MAPPING = {
+COCO_COLOR_MAPPING = {
     1: "person",
     2: "bicycle",
     3: "car",

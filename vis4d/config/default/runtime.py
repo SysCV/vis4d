@@ -11,7 +11,23 @@ from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 def get_default_cfg(
     exp_name: str, work_dir: str = "vis4d-workspace"
 ) -> FieldConfigDict:
-    """Set default config for the project."""
+    """Set default config for the project.
+
+    It will set the following fields:
+        - work_dir (str): Default to "vis4d-workspace"
+        - experiment_name (str): Experiment name.
+        - timestamp (str): Current time
+        - version (str): Same as timestamp
+        - output_dir (str): work_dir/experiment_name/version
+
+    Args:
+        exp_name (str): Experiment name.
+        work_dir (str, optional): Working directory. Defaults to
+            "vis4d-workspace".
+
+    Returns:
+        FieldConfigDict: Config for the project.
+    """
     config = FieldConfigDict()
 
     config.work_dir = work_dir
@@ -45,7 +61,20 @@ def get_default_cfg(
 def get_default_callbacks_cfg(
     config: FieldConfigDict, refresh_rate: int = 50
 ) -> list[ConfigDict]:
-    """Get default callbacks config."""
+    """Get default callbacks config.
+
+    It will return a list of callbacks config including:
+        - LoggingCallback
+        - CheckpointCallback
+
+    Args:
+        config (FieldConfigDict): Config for the project.
+        refresh_rate (int, optional): Refresh rate for the logging. Defaults to
+            50.
+
+    Returns:
+        list[ConfigDict]: List of callbacks config.
+    """
     callbacks = []
 
     # Logger

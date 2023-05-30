@@ -37,7 +37,21 @@ class Callback:
     def get_train_callback_inputs(
         self, outputs: DictData, batch: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the data connector results."""
+        """Returns the data connector results for training.
+
+        It extracts the required data from prediction and datas and passes it
+        to the next component with the provided new key.
+
+        Args:
+            outputs (DictData): Outputs of the model.
+            batch (DictData): Batch data.
+
+        Returns:
+            dict[str, Tensor | DictStrArrNested]: Data connector results.
+
+        Raises:
+            AssertionError: If train connector is None.
+        """
         assert self.train_connector is not None, "Train connector is None."
 
         return self.train_connector(outputs, batch)
@@ -45,7 +59,21 @@ class Callback:
     def get_test_callback_inputs(
         self, outputs: DictData, batch: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the data connector results."""
+        """Returns the data connector results for inference.
+
+        It extracts the required data from prediction and datas and passes it
+        to the next component with the provided new key.
+
+        Args:
+            outputs (DictData): Outputs of the model.
+            batch (DictData): Batch data.
+
+        Returns:
+            dict[str, Tensor | DictStrArrNested]: Data connector results.
+
+        Raises:
+            AssertionError: If test connector is None.
+        """
         assert self.test_connector is not None, "Test connector is None."
 
         return self.test_connector(outputs, batch)

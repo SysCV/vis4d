@@ -17,7 +17,7 @@ from ml_collections.config_flags.config_flags import (
     _LockConfig,
 )
 
-from .config_dict import copy_and_resolve_references
+from vis4d.config import copy_and_resolve_references
 
 
 class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
