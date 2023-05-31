@@ -4,7 +4,6 @@ from __future__ import annotations
 import bisect
 import math
 from collections.abc import Callable, Iterable, Iterator
-from re import S
 from typing import Union
 
 import numpy as np
