@@ -4,20 +4,19 @@ from __future__ import annotations
 import lightning.pytorch as pl
 from torch import optim
 
-from vis4d.config.base.datasets.bdd100k.semantic_segmentation import (
+from vis4d.config import FieldConfigDict, class_config
+from vis4d.config.common.datasets.bdd100k.sem_seg import (
     CONN_BDD100K_SEG_EVAL,
-    get_bdd100k_segmentation_config,
+    get_bdd100k_sem_seg_config,
 )
-from vis4d.config.default import get_pl_trainer_config
+from vis4d.config.default import get_default_cfg, get_default_pl_trainer_cfg
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
     CONN_SEG_LOSS,
     CONN_SEG_VIS,
 )
-from vis4d.config.default.optimizer import get_optimizer_config
-from vis4d.config.default.runtime import set_output_dir
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import (
     CheckpointCallback,
@@ -25,7 +24,12 @@ from vis4d.engine.callbacks import (
     LoggingCallback,
     VisualizerCallback,
 )
-from vis4d.engine.connectors import DataConnector
+from vis4d.engine.connectors import (
+    CallbackConnector,
+    DataConnector,
+    LossConnector,
+)
+from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import PolyLR
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
@@ -34,25 +38,21 @@ from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.vis.image import SegMaskVisualizer
 
 
-def get_config() -> ConfigDict:
+def get_config() -> FieldConfigDict:
     """Returns the config dict for the BDD100K semantic segmentation task.
 
     Returns:
-        ConfigDict: The configuration
+        FieldConfigDict: The configuration
     """
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = ConfigDict()
-
-    config.work_dir = "vis4d-workspace"
-    config.experiment_name = "semantic_fpn_r50_40k_bdd100k"
-    config = set_output_dir(config)
+    config = get_default_cfg(exp_name="semantic_fpn_r50_40k_bdd100k")
     config.sync_batchnorm = True
     config.val_check_interval = 2000
 
     ## High level hyper parameters
-    params = ConfigDict()
+    params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
@@ -69,7 +69,7 @@ def get_config() -> ConfigDict:
 
     data_backend = class_config(HDF5Backend)
 
-    config.data = get_bdd100k_segmentation_config(
+    config.data = get_bdd100k_sem_seg_config(
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
@@ -81,16 +81,24 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                   MODEL & LOSS                   ##
     ######################################################
-
     config.model = class_config(SemanticFPN, num_classes=params.num_classes)
-    config.loss = class_config(SegCrossEntropyLoss)
+    config.loss = class_config(
+        LossModule,
+        losses=[
+            {
+                "loss": class_config(SegCrossEntropyLoss),
+                "connector": class_config(
+                    LossConnector, key_mapping=CONN_SEG_LOSS
+                ),
+            },
+        ],
+    )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-
     config.optimizers = [
-        get_optimizer_config(
+        get_optimizer_cfg(
             optimizer=class_config(
                 optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
             ),
@@ -107,12 +115,12 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
+    config.train_data_connector = class_config(
+        DataConnector, key_mapping=CONN_MASKS_TRAIN
+    )
 
-    config.data_connector = class_config(
-        DataConnector,
-        train=CONN_MASKS_TRAIN,
-        test=CONN_MASKS_TEST,
-        loss=CONN_SEG_LOSS,
+    config.test_data_connector = class_config(
+        DataConnector, key_mapping=CONN_MASKS_TEST
     )
 
     ######################################################
@@ -138,7 +146,9 @@ def get_config() -> ConfigDict:
                 BDD100KSegEvaluator,
                 annotation_path="data/bdd100k/labels/sem_seg_val_rle.json",
             ),
-            test_connector=CONN_BDD100K_SEG_EVAL,
+            test_connector=class_config(
+                CallbackConnector, key_mapping=CONN_BDD100K_SEG_EVAL
+            ),
         )
     )
 
@@ -148,7 +158,9 @@ def get_config() -> ConfigDict:
             VisualizerCallback,
             visualizer=class_config(SegMaskVisualizer, vis_freq=20),
             save_prefix=config.output_dir,
-            test_connector=CONN_SEG_VIS,
+            test_connector=class_config(
+                CallbackConnector, key_mapping=CONN_SEG_VIS
+            ),
         )
     )
 
@@ -158,7 +170,7 @@ def get_config() -> ConfigDict:
     ##                     PL CLI                       ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_config(config)
+    pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.epoch_based = False
     pl_trainer.max_steps = params.num_steps
 

@@ -12,13 +12,9 @@ from vis4d.config.common.datasets import (
 )
 from vis4d.config.common.models import get_faster_rcnn_cfg
 from vis4d.config.default import (
-    get_callbacks_config,
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
-    get_optimizer_config,
-    get_pl_trainer_config,
-    set_output_dir,
 )
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,

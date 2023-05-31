@@ -1,1 +1,1 @@
-"""Vis4D Tests."""
+"""Config Tests."""

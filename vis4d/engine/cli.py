@@ -136,9 +136,7 @@ def main(argv: ArgsType) -> None:
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
-        train_data_connector = instantiate_classes(
-            config.data.train_data_connector
-        )
+        train_data_connector = instantiate_classes(config.train_data_connector)
         optimizers = set_up_optimizers(config.optimizers, model)
         loss = instantiate_classes(config.loss)
     else:

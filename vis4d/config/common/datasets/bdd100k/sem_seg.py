@@ -3,13 +3,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ml_collections.config_dict import ConfigDict
+from ml_collections import ConfigDict
 
-from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.util import class_config
+from vis4d.config import class_config
+from vis4d.config.util import (
+    get_inference_dataloaders_cfg,
+    get_train_dataloader_cfg,
+)
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io import DataBackend
+from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose, compose_batch
 from vis4d.data.transforms.crop import (
     CropImage,
@@ -104,13 +108,12 @@ def get_train_dataloader(
         ],
     )
 
-    return get_dataloader_config(
+    return get_train_dataloader_cfg(
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
         batchprocess_cfg=train_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        shuffle=True,
     )
 
 
@@ -158,17 +161,20 @@ def get_test_dataloader(
         ],
     )
 
-    return get_dataloader_config(
-        preprocess_cfg=test_preprocess_cfg,
-        dataset_cfg=test_dataset_cfg,
+    # Test Dataset Config
+    test_dataset_cfg = class_config(
+        DataPipe, datasets=test_dataset_cfg, preprocess_fn=test_preprocess_cfg
+    )
+
+    return get_inference_dataloaders_cfg(
+        datasets_cfg=test_dataset_cfg,
         batchprocess_cfg=test_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        train=False,
     )
 
 
-def get_bdd100k_segmentation_config(
+def get_bdd100k_sem_seg_config(
     data_root: str = "data/bdd100k/images/10k",
     train_split: str = "train",
     train_keys_to_load: Sequence[str] = (K.images, K.seg_masks),
@@ -180,7 +186,7 @@ def get_bdd100k_segmentation_config(
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> ConfigDict:
-    """Get the default config for BDD100K segmentation."""
+    """Get the default config for BDD100K semantic segmentation."""
     data = ConfigDict()
 
     data.train_dataloader = get_train_dataloader(
