@@ -50,21 +50,19 @@ class TestDepthEvaluator(unittest.TestCase):
         gt = pred.copy()
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        metrics, _ = self.evaluator.evaluate(DepthEvaluator.METRIC_ALL)
+        metrics, _ = self.evaluator.evaluate(DepthEvaluator.METRIC_DEPTH)
+        self.assertAlmostEqual(metrics[DepthEvaluator.KEY_RMSE], 0.0, places=3)
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_RMSE], 0.0, places=3
+            metrics[DepthEvaluator.KEY_RMSE_LOG], 0.0, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_RMSE_LOG], 0.0, places=3
+            metrics[DepthEvaluator.KEY_ABS_ERR], 0.0, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_ABS_ERR], 0.0, places=3
+            metrics[DepthEvaluator.KEY_ABS_REL], 0.0, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_ABS_REL], 0.0, places=3
-        )
-        self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_SQ_REL], 0.0, places=3
+            metrics[DepthEvaluator.KEY_SQ_REL], 0.0, places=3
         )
 
     def test_precomputed(self) -> None:
@@ -73,23 +71,23 @@ class TestDepthEvaluator(unittest.TestCase):
         pred, gt = get_test_metrics()
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        metrics, log_str = self.evaluator.evaluate(DepthEvaluator.METRIC_ALL)
+        metrics, log_str = self.evaluator.evaluate(DepthEvaluator.METRIC_DEPTH)
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_SILOG], 1.801, places=3
+            metrics[DepthEvaluator.KEY_SILOG], 1.801, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_RMSE], 3.375, places=3
+            metrics[DepthEvaluator.KEY_RMSE], 3.375, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_RMSE_LOG], 1.00, places=3
+            metrics[DepthEvaluator.KEY_RMSE_LOG], 1.00, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_ABS_ERR], 3.375, places=3
+            metrics[DepthEvaluator.KEY_ABS_ERR], 3.375, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_ABS_REL], 1.208, places=3
+            metrics[DepthEvaluator.KEY_ABS_REL], 1.208, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.METRIC_SQ_REL], 4.007, places=3
+            metrics[DepthEvaluator.KEY_SQ_REL], 4.007, places=3
         )
         assert isinstance(log_str, str)

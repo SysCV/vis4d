@@ -25,7 +25,13 @@ from vis4d.data.transforms import (
 from vis4d.data.transforms.base import compose
 from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import LoggingCallback
-from vis4d.engine.connectors import DataConnector, data_key, pred_key
+from vis4d.engine.connectors import (
+    DataConnector,
+    LossConnector,
+    data_key,
+    pred_key,
+)
+from vis4d.engine.loss_module import LossModule
 from vis4d.engine.trainer import Trainer
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
@@ -80,43 +86,53 @@ def get_test_dataloader(
 class EngineTrainerTest(unittest.TestCase):
     """Engine trainer test class."""
 
-    model = SemanticFPN(num_classes=80)
-    dataset = COCO(
-        get_test_data("coco_test"),
-        keys_to_load=[
-            K.images,
-            K.original_images,
-            K.boxes2d_classes,
-            K.instance_masks,
-        ],
-        split="train",
-    )
-    train_dataloader = get_train_dataloader(dataset, 2)
-    test_dataloader = get_test_dataloader(dataset)
-    data_connector = DataConnector(
-        train={"images": K.images},
-        test={"images": K.images, "original_hw": K.original_hw},
-        loss={
-            "output": pred_key("outputs"),
-            "target": data_key(K.seg_masks),
-        },
-    )
+    def setUp(self) -> None:
+        """Set up test."""
+        dataset = COCO(
+            get_test_data("coco_test"),
+            keys_to_load=[
+                K.images,
+                K.original_images,
+                K.boxes2d_classes,
+                K.instance_masks,
+            ],
+            split="train",
+        )
+        train_dataloader = get_train_dataloader(dataset, 2)
+        test_dataloader = get_test_dataloader(dataset)
+        train_data_connector = DataConnector(key_mapping={"images": K.images})
+        test_data_connector = DataConnector(
+            key_mapping={"images": K.images, "original_hw": K.original_hw}
+        )
 
-    trainer = Trainer(
-        device=torch.device("cpu"),
-        num_epochs=2,
-        data_connector=data_connector,
-        callbacks=[LoggingCallback(refresh_rate=1)],
-        train_dataloader=train_dataloader,
-        test_dataloader=test_dataloader,
-    )
+        self.model = SemanticFPN(num_classes=80)
+
+        self.trainer = Trainer(
+            device=torch.device("cpu"),
+            num_epochs=2,
+            train_data_connector=train_data_connector,
+            test_data_connector=test_data_connector,
+            callbacks=[LoggingCallback(refresh_rate=1)],
+            train_dataloader=train_dataloader,
+            test_dataloader=test_dataloader,
+        )
 
     def test_fit(self) -> None:
         """Test trainer training."""
         optimizers = get_optimizer()
-        loss = SegCrossEntropyLoss()
+        loss_module = LossModule(
+            {
+                "loss": SegCrossEntropyLoss(),
+                "connector": LossConnector(
+                    key_mapping={
+                        "output": pred_key("outputs"),
+                        "target": data_key(K.seg_masks),
+                    }
+                ),
+            }
+        )
 
-        self.trainer.fit(self.model, optimizers, loss)
+        self.trainer.fit(self.model, optimizers, loss_module)
 
         # TODO: add callback to check loss
 

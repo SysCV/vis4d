@@ -3,21 +3,30 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ml_collections.config_dict import ConfigDict
+from ml_collections import ConfigDict
 
-from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.util import class_config
+from vis4d.config import class_config
+from vis4d.config.util import (
+    get_inference_dataloaders_cfg,
+    get_train_dataloader_cfg,
+)
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
+from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose, compose_batch
-from vis4d.data.transforms.flip import FlipBoxes2D, FlipImage
+from vis4d.data.transforms.flip import (
+    FlipBoxes2D,
+    FlipImage,
+    FlipInstanceMasks,
+)
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
+    ResizeInstanceMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
@@ -62,13 +71,18 @@ def get_train_dataloader(
         class_config(ResizeBoxes2D),
     ]
 
+    if K.instance_masks in keys_to_load:
+        preprocess_transforms.append(class_config(ResizeInstanceMasks))
+
+    flip_transforms = [class_config(FlipImage), class_config(FlipBoxes2D)]
+
+    if K.instance_masks in keys_to_load:
+        flip_transforms.append(class_config(FlipInstanceMasks))
+
     preprocess_transforms.append(
         class_config(
             RandomApply,
-            transforms=[
-                class_config(FlipImage),
-                class_config(FlipBoxes2D),
-            ],
+            transforms=flip_transforms,
             probability=0.5,
         )
     )
@@ -88,13 +102,12 @@ def get_train_dataloader(
         ],
     )
 
-    return get_dataloader_config(
+    return get_train_dataloader_cfg(
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
         batchprocess_cfg=train_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        shuffle=True,
     )
 
 
@@ -109,7 +122,7 @@ def get_test_dataloader(
 ) -> ConfigDict:
     """Get the default test dataloader for COCO detection."""
     # Test Dataset
-    test_dataset_cfg = class_config(
+    test_dataset = class_config(
         COCO,
         keys_to_load=keys_to_load,
         data_root=data_root,
@@ -144,17 +157,22 @@ def get_test_dataloader(
         ],
     )
 
-    return get_dataloader_config(
-        preprocess_cfg=test_preprocess_cfg,
-        dataset_cfg=test_dataset_cfg,
+    # Test Dataset Config
+    test_dataset_cfg = class_config(
+        DataPipe,
+        datasets=test_dataset,
+        preprocess_fn=test_preprocess_cfg,
+    )
+
+    return get_inference_dataloaders_cfg(
+        datasets_cfg=test_dataset_cfg,
         batchprocess_cfg=test_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        train=False,
     )
 
 
-def get_coco_detection_config(
+def get_coco_detection_cfg(
     data_root: str = "data/coco",
     train_split: str = "train2017",
     train_keys_to_load: Sequence[str] = (

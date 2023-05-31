@@ -69,7 +69,7 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
         }
 
         for batch in test_loader:
-            scalabel_eval.process_batch(
+            scalabel_eval.process(
                 **get_inputs_for_pred_and_data(
                     self.CONN_BDD100K_EVAL, output, batch
                 )

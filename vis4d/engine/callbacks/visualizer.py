@@ -71,11 +71,7 @@ class VisualizerCallback(Callback):
         if self.visualize_train:
             self.visualizer.process(
                 cur_iter=cur_iter,
-                **self.get_data_connector_results(
-                    outputs,
-                    batch,
-                    train=True,
-                ),
+                **self.get_train_callback_inputs(outputs, batch),
             )
 
             if self.show:
@@ -104,11 +100,7 @@ class VisualizerCallback(Callback):
 
         self.visualizer.process(
             cur_iter=cur_iter,
-            **self.get_data_connector_results(
-                outputs,
-                batch,
-                train=False,
-            ),
+            **self.get_test_callback_inputs(outputs, batch),
         )
 
         if self.show:

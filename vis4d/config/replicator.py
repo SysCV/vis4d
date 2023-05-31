@@ -7,6 +7,8 @@ from typing import Any
 
 from ml_collections import ConfigDict
 
+from vis4d.config import FieldConfigDict
+
 
 def iterable_sampler(  # type: ignore
     samples: Iterable[Any],
@@ -138,6 +140,9 @@ def replicate_config(  # type: ignore
     Raises:
         ValueError: if the replication method is unknown.
     """
+    if isinstance(configuration, FieldConfigDict):
+        configuration.value_mode()  # Make sure it is in value mode
+
     sampling_queue: Queue[  # type: ignore
         tuple[str, Callable[[], Generator[Any, None, None]]]
     ] = Queue()

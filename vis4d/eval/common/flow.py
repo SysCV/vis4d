@@ -21,9 +21,10 @@ from ..metrics.flow import angular_error, end_point_error
 class OpticalFlowEvaluator(Evaluator):
     """Optical flow evaluator."""
 
-    METRIC_ENDPOINT_ERROR = "EPE"
-    METRIC_ANGULAR_ERROR = "AE"
-    METRIC_ALL = "all"
+    METRIC_FLOW = "Flow"
+
+    KEY_ENDPOINT_ERROR = "EPE"
+    KEY_ANGULAR_ERROR = "AE"
 
     def __init__(
         self,
@@ -53,8 +54,7 @@ class OpticalFlowEvaluator(Evaluator):
     def metrics(self) -> list[str]:
         """Supported metrics."""
         return [
-            OpticalFlowEvaluator.METRIC_ENDPOINT_ERROR,
-            OpticalFlowEvaluator.METRIC_ANGULAR_ERROR,
+            OpticalFlowEvaluator.METRIC_FLOW,
         ]
 
     def reset(self) -> None:
@@ -91,8 +91,8 @@ class OpticalFlowEvaluator(Evaluator):
             ae = angular_error(pred, gt, self.epsilon)
             self._metrics_list.append(
                 {
-                    OpticalFlowEvaluator.METRIC_ENDPOINT_ERROR: epe,
-                    OpticalFlowEvaluator.METRIC_ANGULAR_ERROR: ae,
+                    OpticalFlowEvaluator.KEY_ENDPOINT_ERROR: epe,
+                    OpticalFlowEvaluator.KEY_ANGULAR_ERROR: ae,
                 }
             )
 
@@ -117,7 +117,8 @@ class OpticalFlowEvaluator(Evaluator):
             as well as a short string with shortened information.
 
         Raises:
-            RuntimeError: if no data has been registered to be evaluated
+            RuntimeError: if no data has been registered to be evaluated.
+            ValueError: if metric is not supported.
         """
         if len(self._metrics_list) == 0:
             raise RuntimeError(
@@ -127,24 +128,20 @@ class OpticalFlowEvaluator(Evaluator):
         metric_data: MetricLogs = {}
         short_description = ""
 
-        if metric in [
-            OpticalFlowEvaluator.METRIC_ENDPOINT_ERROR,
-            OpticalFlowEvaluator.METRIC_ALL,
-        ]:
+        if metric == OpticalFlowEvaluator.METRIC_FLOW:
             epe = np.mean(
-                [x[self.METRIC_ENDPOINT_ERROR] for x in self._metrics_list]
+                [x[self.KEY_ENDPOINT_ERROR] for x in self._metrics_list]
             )
-            metric_data[self.METRIC_ENDPOINT_ERROR] = epe
+            metric_data[self.KEY_ENDPOINT_ERROR] = float(epe)
             short_description = f"EPE: {epe:.3f}"
-        if metric in [
-            OpticalFlowEvaluator.METRIC_ANGULAR_ERROR,
-            OpticalFlowEvaluator.METRIC_ALL,
-        ]:
+
             ae = np.mean(
-                [x[self.METRIC_ANGULAR_ERROR] for x in self._metrics_list]
+                [x[self.KEY_ANGULAR_ERROR] for x in self._metrics_list]
             )
-            metric_data[self.METRIC_ANGULAR_ERROR] = ae
+            metric_data[self.KEY_ANGULAR_ERROR] = float(ae)
             angular_unit = "rad" if not self.use_degrees else "deg"
             short_description = f"AE: {ae:.3f}{angular_unit}"
+        else:
+            raise ValueError(f"Unsupported metric {metric}")
 
         return metric_data, short_description

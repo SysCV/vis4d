@@ -2,12 +2,37 @@
 import platform
 from datetime import datetime
 
-from vis4d.config.util import ConfigDict, class_config
+from ml_collections import ConfigDict
+
+from vis4d.config import FieldConfigDict, class_config
 from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
-def set_output_dir(config: ConfigDict) -> ConfigDict:
-    """Set output directory for the experiment with timestamp."""
+def get_default_cfg(
+    exp_name: str, work_dir: str = "vis4d-workspace"
+) -> FieldConfigDict:
+    """Set default config for the project.
+
+    It will set the following fields:
+        - work_dir (str): Default to "vis4d-workspace"
+        - experiment_name (str): Experiment name.
+        - timestamp (str): Current time
+        - version (str): Same as timestamp
+        - output_dir (str): work_dir/experiment_name/version
+
+    Args:
+        exp_name (str): Experiment name.
+        work_dir (str, optional): Working directory. Defaults to
+            "vis4d-workspace".
+
+    Returns:
+        FieldConfigDict: Config for the project.
+    """
+    config = FieldConfigDict()
+
+    config.work_dir = work_dir
+    config.experiment_name = exp_name
+
     timestamp = (
         str(datetime.now())
         .split(".", maxsplit=1)[0]
@@ -33,10 +58,23 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
     return config
 
 
-def get_callbacks_config(
-    config: ConfigDict, refresh_rate: int = 50
+def get_default_callbacks_cfg(
+    config: FieldConfigDict, refresh_rate: int = 50
 ) -> list[ConfigDict]:
-    """Get default callbacks config."""
+    """Get default callbacks config.
+
+    It will return a list of callbacks config including:
+        - LoggingCallback
+        - CheckpointCallback
+
+    Args:
+        config (FieldConfigDict): Config for the project.
+        refresh_rate (int, optional): Refresh rate for the logging. Defaults to
+            50.
+
+    Returns:
+        list[ConfigDict]: List of callbacks config.
+    """
     callbacks = []
 
     # Logger

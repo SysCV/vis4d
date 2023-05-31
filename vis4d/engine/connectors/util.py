@@ -120,9 +120,12 @@ def get_inputs_for_pred_and_data(
     for new_key_name, old_key_name in connection_dict.items():
         # Assign field from data
         if old_key_name["source"] == "data":
-            out[new_key_name] = get_dict_nested(
-                data, old_key_name["key"].split(".")
-            )
+            if old_key_name["key"] not in data:
+                raise ValueError(
+                    f"Key {old_key_name['key']} not found in data dict."
+                    f"Available keys: {data.keys()}"
+                )
+            out[new_key_name] = data[old_key_name["key"]]
 
         # Assign field from model prediction
         elif old_key_name["source"] == "prediction":

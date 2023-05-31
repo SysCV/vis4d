@@ -31,7 +31,7 @@ class SHIFTSegEvaluator(SegEvaluator):
             label[label == shift_seg_map[cls]] = 255
         return label
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(  # pylint: disable=arguments-differ
         self, prediction: NDArrayNumber, groundtruth: NDArrayI64
     ) -> None:
         """Process sample and update confusion matrix.

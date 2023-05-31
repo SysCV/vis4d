@@ -106,11 +106,10 @@ def scale_invariant_log(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return (
-        100
-        * np.sqrt(
+    return 100.0 * float(
+        np.sqrt(
             np.var(np.log(prediction + epsilon) - np.log(target + epsilon))
-        ).mean(),
+        ).mean()
     )
 
 

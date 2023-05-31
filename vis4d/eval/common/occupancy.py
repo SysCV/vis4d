@@ -116,7 +116,7 @@ class OccupancyEvaluator(Evaluator):
         """
         pred, gt = threshold_and_flatten(
             array_to_numpy(prediction, n_dims=None, dtype=np.float32),
-            array_to_numpy(groundtruth, n_dims=None, dtype=np.bool8),
+            array_to_numpy(groundtruth, n_dims=None, dtype=np.bool_),
             self.threshold,
         )
 

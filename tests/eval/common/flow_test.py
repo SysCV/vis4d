@@ -50,12 +50,12 @@ class TestOpticalFlowEvaluator(unittest.TestCase):
         gt = pred.copy()
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        metrics, _ = self.evaluator.evaluate(OpticalFlowEvaluator.METRIC_ALL)
+        metrics, _ = self.evaluator.evaluate(OpticalFlowEvaluator.METRIC_FLOW)
         self.assertAlmostEqual(
-            metrics[OpticalFlowEvaluator.METRIC_ENDPOINT_ERROR], 0.0, places=3
+            metrics[OpticalFlowEvaluator.KEY_ENDPOINT_ERROR], 0.0, places=3
         )
         self.assertAlmostEqual(
-            metrics[OpticalFlowEvaluator.METRIC_ANGULAR_ERROR], 0.0, places=3
+            metrics[OpticalFlowEvaluator.KEY_ANGULAR_ERROR], 0.0, places=3
         )
 
     def test_precomputed(self) -> None:
@@ -65,14 +65,14 @@ class TestOpticalFlowEvaluator(unittest.TestCase):
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
         metrics, log_str = self.evaluator.evaluate(
-            OpticalFlowEvaluator.METRIC_ALL
+            OpticalFlowEvaluator.METRIC_FLOW
         )
         self.assertAlmostEqual(
-            metrics[OpticalFlowEvaluator.METRIC_ENDPOINT_ERROR],
+            metrics[OpticalFlowEvaluator.KEY_ENDPOINT_ERROR],
             3.513,
             places=3,
         )
         self.assertAlmostEqual(
-            metrics[OpticalFlowEvaluator.METRIC_ANGULAR_ERROR], 0.772, places=3
+            metrics[OpticalFlowEvaluator.KEY_ANGULAR_ERROR], 0.772, places=3
         )
         assert isinstance(log_str, str)

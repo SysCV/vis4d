@@ -80,7 +80,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
 
         batch = next(iter(test_loader))
 
-        nusc_eval.process_batch(
+        nusc_eval.process(
             **get_multi_sensor_inputs(
                 self.CONN_NUSC_EVAL, output, batch, self.CAMERAS
             )

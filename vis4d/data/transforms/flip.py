@@ -113,6 +113,36 @@ class FlipSegMasks:
         raise ValueError(f"Direction {self.direction} not known!")
 
 
+@Transform(K.instance_masks, K.instance_masks)
+class FlipInstanceMasks:
+    """Flip instance masks."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipInstanceMasks.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+
+    def __call__(self, masks: NDArrayUI8) -> NDArrayUI8:
+        """Execute flipping op.
+
+        Args:
+            masks (NDArrayUI8): [N, H, W] array of masks.
+
+        Returns:
+            NDArrayUI8: [N, H, W] array of flipped masks.
+        """
+        image_ = torch.from_numpy(masks)
+        if self.direction == "horizontal":
+            return image_.flip(2).numpy()
+        if self.direction == "vertical":
+            return image_.flip(1).numpy()
+        raise ValueError(f"Direction {self.direction} not known!")
+
+
 def get_axis(direction: str, axis_mode: AxisMode) -> int:
     """Get axis number of certain direction given axis mode.
 

@@ -11,7 +11,7 @@ from .base import BatchTransform
 def _replace_arrays(data: DictData) -> None:
     """Replace numpy arrays with tensors."""
     for key in data.keys():
-        if key == K.images:
+        if key in [K.images, K.original_images]:
             data[key] = torch.from_numpy(data[key]).permute(0, 3, 1, 2)
         elif isinstance(data[key], np.ndarray):
             data[key] = torch.from_numpy(data[key])

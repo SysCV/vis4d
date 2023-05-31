@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from ml_collections import ConfigDict
 from torch import nn, optim
 
-from vis4d.config.util import ConfigDict, instantiate_classes
+from vis4d.config import instantiate_classes
 
 from .warmup import BaseLRWarmup
 

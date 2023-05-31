@@ -152,53 +152,53 @@ class DepthEvaluator(Evaluator):
             abs_rel = np.mean(
                 [x[self.KEY_ABS_REL] for x in self._metrics_list]
             )
-            metric_data[self.KEY_ABS_REL] = abs_rel
+            metric_data[self.KEY_ABS_REL] = float(abs_rel)
             short_description += f"Absolute relative error: {abs_rel:.3f} "
 
             abs_err = np.mean(
                 [x[self.KEY_ABS_ERR] for x in self._metrics_list]
             )
-            metric_data[self.KEY_ABS_ERR] = abs_err
+            metric_data[self.KEY_ABS_ERR] = float(abs_err)
             short_description += f"Absolute error: {abs_err:.3f}\n"
 
             sq_rel = np.mean([x[self.KEY_SQ_REL] for x in self._metrics_list])
-            metric_data[self.KEY_SQ_REL] = sq_rel
+            metric_data[self.KEY_SQ_REL] = float(sq_rel)
             short_description += f"Squared relative error: {sq_rel:.3f}\n"
 
             rmse = np.mean([x[self.KEY_RMSE] for x in self._metrics_list])
-            metric_data[self.KEY_RMSE] = rmse
+            metric_data[self.KEY_RMSE] = float(rmse)
             short_description += f"RMSE: {rmse:.3f}\n"
 
             rmse_log = np.mean(
                 [x[self.KEY_RMSE_LOG] for x in self._metrics_list]
             )
-            metric_data[self.KEY_RMSE_LOG] = rmse_log
+            metric_data[self.KEY_RMSE_LOG] = float(rmse_log)
             short_description += f"RMSE log: {rmse_log:.3f}\n"
 
             silog = np.mean([x[self.KEY_SILOG] for x in self._metrics_list])
-            metric_data[self.KEY_SILOG] = silog
+            metric_data[self.KEY_SILOG] = float(silog)
             short_description += f"SILog: {silog:.3f}\n"
 
             delta05 = np.mean(
                 [x[self.KEY_DELTA05] for x in self._metrics_list]
             )
-            metric_data[self.KEY_DELTA05] = delta05
+            metric_data[self.KEY_DELTA05] = float(delta05)
             short_description += f"Delta 0.5: {delta05:.3f}\n"
 
             delta1 = np.mean([x[self.KEY_DELTA1] for x in self._metrics_list])
-            metric_data[self.KEY_DELTA1] = delta1
+            metric_data[self.KEY_DELTA1] = float(delta1)
             short_description += f"Delta 1: {delta1:.3f}\n"
 
             delta2 = np.mean([x[self.KEY_DELTA2] for x in self._metrics_list])
-            metric_data[self.KEY_DELTA2] = delta2
+            metric_data[self.KEY_DELTA2] = float(delta2)
             short_description += f"Delta 2: {delta2:.3f}\n"
 
             delta3 = np.mean([x[self.KEY_DELTA3] for x in self._metrics_list])
-            metric_data[self.KEY_DELTA3] = delta3
+            metric_data[self.KEY_DELTA3] = float(delta3)
             short_description += f"Delta 3: {delta3:.3f}\n"
 
             log10 = np.mean([x[self.KEY_LOG10] for x in self._metrics_list])
-            metric_data[self.KEY_LOG10] = log10
+            metric_data[self.KEY_LOG10] = float(log10)
             short_description += f"Log10 error: {log10:.3f}\n"
         else:
             raise RuntimeError(f"Invalid metric {metric}")

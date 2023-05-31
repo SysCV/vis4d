@@ -6,23 +6,20 @@ from typing import NamedTuple
 import torch
 from torch import Tensor
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType, DictStrArrNested
 from vis4d.data.typing import DictData
 
-from .data_connector import DataConnector
+from .base import CallbackConnector, DataConnector, LossConnector
 from .util import SourceKeyDescription, get_field_from_prediction
 
 
 class MultiSensorDataConnector(DataConnector):
-    """Data connector for multi-sensor dataset."""
+    """Data connector for multi-sensor data dict."""
 
     def __init__(
-        self,
-        *args: ArgsType,
-        sensors: list[str],
-        **kwargs: ArgsType,
+        self, *args: ArgsType, sensors: list[str], **kwargs: ArgsType
     ) -> None:
-        """Initializes multi-sensor data connector with all required sensors.
+        """Initializes multi-sensor data connector with required sensors.
 
         Args:
             *args: Arguments to pass to the parent class.
@@ -32,43 +29,38 @@ class MultiSensorDataConnector(DataConnector):
         super().__init__(*args, **kwargs)
         self.sensors = sensors
 
-    def get_train_input(self, data: DictData) -> DictData:
+    def __call__(self, data: DictData) -> DictData:
         """Returns the train input for the model."""
-        if self.train is None:
-            return {}  # No data connections registered for training
+        input_dict: DictData = {}
+        for k, v in self.key_mapping.items():
+            input_dict[k] = [data[sensor][v] for sensor in self.sensors]
 
-        train_input_dict: DictData = {k: [] for k in self.train}
-        for sensor in self.sensors:
-            for k, v in self.train.items():
-                train_input_dict[k].append(data[sensor][v])
-
-        for key in train_input_dict:
-            if isinstance(train_input_dict[key][0], Tensor):
-                train_input_dict[key] = torch.stack(train_input_dict[key])
+        for k, v in input_dict.items():
+            if isinstance(v[0], Tensor):
+                input_dict[k] = torch.stack(input_dict[k])
             else:
-                train_input_dict[key] = sum(train_input_dict[key], [])
+                input_dict[k] = input_dict[k]
 
-        return train_input_dict
+        return input_dict
 
-    def get_test_input(self, data: DictData) -> DictData:
-        """Returns the test input for the model."""
-        if self.test is None:
-            return {}  # No data connections registered for testing
 
-        test_input_dict: DictData = {k: [] for k in self.test}
-        for sensor in self.sensors:
-            for k, v in self.test.items():
-                test_input_dict[k].append(data[sensor][v])
+class MultiSensorLossConnector(LossConnector):
+    """Multi-sensor Data connector for loss module of the training pipeline."""
 
-        for key in test_input_dict:
-            if isinstance(test_input_dict[key][0], Tensor):
-                test_input_dict[key] = torch.stack(test_input_dict[key])
-            else:
-                test_input_dict[key] = sum(test_input_dict[key], [])
+    def __init__(
+        self, *args: ArgsType, sensors: list[str], **kwargs: ArgsType
+    ) -> None:
+        """Initializes multi-sensor data connector with required sensors.
 
-        return test_input_dict
+        Args:
+            *args: Arguments to pass to the parent class.
+            sensors (list[str]): List of all sensors to use.
+            **kwargs: Keyword arguments to pass to the parent class.
+        """
+        super().__init__(*args, **kwargs)
+        self.sensors = sensors
 
-    def get_loss_input(
+    def __call__(
         self, prediction: DictData | NamedTuple, data: DictData
     ) -> DictData:
         """Returns the kwargs that are passed to the loss during training.
@@ -82,11 +74,44 @@ class MultiSensorDataConnector(DataConnector):
         Returns:
             DictData: kwargs that are passed onto the loss.
         """
-        if self.loss is None:
-            return {}  # No data connections registered for loss
-
         return get_multi_sensor_inputs(
-            self.loss, prediction, data, self.sensors
+            self.key_mapping, prediction, data, self.sensors
+        )
+
+
+class MultiSensorCallbackConnector(CallbackConnector):
+    """Multi-sensor data connector for the callback."""
+
+    def __init__(
+        self, *args: ArgsType, sensors: list[str], **kwargs: ArgsType
+    ) -> None:
+        """Initializes multi-sensor data connector with required sensors.
+
+        Args:
+            *args: Arguments to pass to the parent class.
+            sensors (list[str]): List of all sensors to use.
+            **kwargs: Keyword arguments to pass to the parent class.
+        """
+        super().__init__(*args, **kwargs)
+        self.sensors = sensors
+
+    def __call__(
+        self, prediction: DictData, data: DictData
+    ) -> dict[str, Tensor | DictStrArrNested]:
+        """Returns the kwargs that are passed to the callback during training.
+
+        Args:
+            prediction (DictData): The datadict (e.g. output from model) which
+                contains all the model outputs.
+            data (DictData): The datadict (e.g. from the dataloader) which
+                contains all data that was loaded.
+
+        Returns:
+            dict[str, Tensor | DictStrArrNested]: kwargs that are passed
+                onto the callback.
+        """
+        return get_multi_sensor_inputs(
+            self.key_mapping, prediction, data, self.sensors
         )
 
 
@@ -124,7 +149,7 @@ def get_multi_sensor_inputs(
             if isinstance(multi_sensor_data[0], Tensor):
                 out[new_key_name] = torch.stack(multi_sensor_data)
             else:
-                out[new_key_name] = sum(multi_sensor_data, [])
+                out[new_key_name] = multi_sensor_data
 
         # Assign field from prediction
         elif old_key_name["source"] == "prediction":

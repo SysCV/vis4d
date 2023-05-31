@@ -98,7 +98,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         )[0]
 
         data_connector = MultiSensorDataConnector(
-            test=self.CONN_BBOX_3D_TEST,
+            key_mapping=self.CONN_BBOX_3D_TEST,
             sensors=self.CAMERAS,
         )
 
@@ -107,7 +107,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         tracks_list = []
         with torch.no_grad():
             for cur_iter, data in enumerate(test_loader):
-                test_input = data_connector.get_test_input(data)
+                test_input = data_connector(data)
 
                 tracks = cc_3dt(**test_input)
                 assert isinstance(tracks, Track3DOut)
