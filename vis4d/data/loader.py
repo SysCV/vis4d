@@ -35,33 +35,6 @@ _ITERABLE_DATASET = IterableDataset[DictData]  # pylint: disable=invalid-name
 _DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
 
 
-def default_collate(batch: list[DictData]) -> DictData:
-    """Default batch collate."""
-    data: DictData = {}
-    # TODO: It seems dangerous if batches originally contain different keys.
-    # e.g. if batch[0] has annotations but batch[1] doesn't.
-    for key in batch[0]:
-        try:
-            if key in [K.images]:
-                data[key] = torch.cat([b[key] for b in batch])
-            elif key in [K.seg_masks, K.extrinsics, K.intrinsics]:
-                data[key] = torch.stack([b[key] for b in batch], 0)
-            else:
-                data[key] = [b[key] for b in batch]
-        except RuntimeError as e:
-            raise RuntimeError(f"Error collating key {key}") from e
-    return data
-
-
-def multi_sensor_collate(batch: list[DictData]) -> DictData:
-    """Default multi-sensor batch collate."""
-    data = {}
-    sensors = list(batch[0].keys())
-    for sensor in sensors:
-        data[sensor] = default_collate([d[sensor] for d in batch])
-    return data
-
-
 class DataPipe(_CONCAT_DATASET):
     """DataPipe class.
 
@@ -240,6 +213,48 @@ class SubdividingIterableDataset(_ITERABLE_DATASET):
                 ) if self.preprocess_fn else out_data
 
 
+def default_collate(batch: list[DictData]) -> DictData:
+    """Default batch collate.
+
+    It will concatenate images and stack seg_masks, extrinsics, intrinsics,
+    and depth_maps. Other keys will be put into a list.
+
+    Args:
+        batch (list[DictData]): List of data dicts.
+
+    Returns:
+        DictData: Collated data dict.
+    """
+    data: DictData = {}
+    # TODO: It seems dangerous if batches originally contain different keys.
+    # e.g. if batch[0] has annotations but batch[1] doesn't.
+    for key in batch[0]:
+        try:
+            if key in [K.images]:
+                data[key] = torch.cat([b[key] for b in batch])
+            elif key in [
+                K.seg_masks,
+                K.extrinsics,
+                K.intrinsics,
+                K.depth_maps,
+            ]:
+                data[key] = torch.stack([b[key] for b in batch], 0)
+            else:
+                data[key] = [b[key] for b in batch]
+        except RuntimeError as e:
+            raise RuntimeError(f"Error collating key {key}") from e
+    return data
+
+
+def multi_sensor_collate(batch: list[DictData]) -> DictData:
+    """Default multi-sensor batch collate."""
+    data = {}
+    sensors = list(batch[0].keys())
+    for sensor in sensors:
+        data[sensor] = default_collate([d[sensor] for d in batch])
+    return data
+
+
 def default_pipeline(data: list[DictData]) -> DictData:
     """Default data pipeline."""
     return compose_batch([ToTensor()])(data)
@@ -260,13 +275,15 @@ def build_train_dataloader(
 
     def _collate_fn_single(data: list[DictData]) -> DictDataOrList:
         """Collates data from single view dataset."""
-        return collate_fn(batchprocess_fn(data))
+        return collate_fn(batch=batchprocess_fn(data))
 
     def _collate_fn_multi(data: list[list[DictData]]) -> DictDataOrList:
         """Collates data from multi view dataset."""
         views = []
         for view_idx in range(len(data[0])):
-            view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
+            view = collate_fn(
+                batch=batchprocess_fn([d[view_idx] for d in data])
+            )
             views.append(view)
         return views
 
@@ -304,7 +321,7 @@ def build_inference_dataloaders(
 
     def _collate_fn(data: list[DictData]) -> DictDataOrList:
         """Collates data for inference."""
-        return collate_fn(batchprocess_fn(data))
+        return collate_fn(batch=batchprocess_fn(data))
 
     if isinstance(datasets, Dataset):
         datasets_ = [datasets]

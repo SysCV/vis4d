@@ -2,7 +2,7 @@
 
 import unittest
 
-from vis4d.config.util import class_config, instantiate_classes
+from vis4d.config import class_config, instantiate_classes
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,

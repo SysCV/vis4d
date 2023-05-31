@@ -61,9 +61,7 @@ class EvaluatorCallback(Callback):
         dataloader_idx: int = 0,
     ) -> None:
         """Hook to run at the end of a testing batch."""
-        self.evaluator.process(
-            **self.get_data_connector_results(outputs, batch, train=False)
-        )
+        self.evaluator.process(**self.get_test_callback_inputs(outputs, batch))
 
     def on_test_epoch_end(
         self, trainer_state: TrainerState, model: nn.Module

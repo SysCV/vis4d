@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 
-import torch
+from torch import Tensor
 
 from .time import Timer
 from .typing import MetricLogs
@@ -29,7 +29,7 @@ def compose_log_str(
     if metrics is not None:
         for k, v in metrics.items():
             name = k.split("/")[-1]  # remove prefix, e.g. train/loss
-            if isinstance(v, (torch.Tensor, float)):
+            if isinstance(v, (Tensor, float)):
                 # display more digits for small values
                 if abs(v) < 1e-3:  # type: ignore[operator]
                     kv_str = f"{name}: {v:.3e}"

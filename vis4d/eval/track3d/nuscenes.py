@@ -1,4 +1,6 @@
 """NuScenes evaluation code."""
+from __future__ import annotations
+
 import itertools
 import json
 from collections.abc import Callable
@@ -15,6 +17,7 @@ from vis4d.data.datasets.nuscenes import nuscenes_track_map
 from ..base import Evaluator
 
 
+# TODO: Refactor it to work with our own boxes3d
 class NuScenesEvaluator(Evaluator):
     """NuScenes 3D detection and tracking evaluation class."""
 
@@ -210,7 +213,7 @@ class NuScenesEvaluator(Evaluator):
 
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
-        tokens: list[str],
+        tokens: list[str] | str,
         boxes_3d: Tensor,
         scores_3d: Tensor,
         class_ids: Tensor,
@@ -218,8 +221,14 @@ class NuScenesEvaluator(Evaluator):
     ) -> None:
         """Process the results."""
         # Currently only support batch size of 1.
-        token = tokens[0]
-        assert all(token == t for t in tokens), "Tokens should be the same."
+        if isinstance(tokens, list):
+            tokens = sum(tokens, [])
+            token = tokens[0]
+            assert all(
+                token == t for t in tokens
+            ), "Tokens should be the same."
+        else:
+            token = tokens
 
         self._process_detect_3d(token, boxes_3d, scores_3d, class_ids)
         self._process_track_3d(

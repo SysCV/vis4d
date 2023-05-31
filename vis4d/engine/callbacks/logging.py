@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from torch import Tensor, nn
+from torch import nn
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.logging import rank_zero_info
@@ -27,9 +27,16 @@ class LoggingCallback(Callback):
         """Init callback."""
         super().__init__(*args, **kwargs)
         self._refresh_rate = refresh_rate
-        self._metrics: dict[str, list[Tensor]] = defaultdict(list)
+        self._metrics: dict[str, list[float]] = defaultdict(list)
         self.train_timer = Timer()
         self.test_timer = Timer()
+
+    def on_train_epoch_start(
+        self, trainer_state: TrainerState, model: nn.Module
+    ) -> None:
+        """Hook to run at the start of a training epoch."""
+        self.train_timer.reset()
+        self._metrics.clear()
 
     def on_train_batch_end(
         self,
@@ -48,6 +55,7 @@ class LoggingCallback(Callback):
             trainer_state, train=True, batch_idx=batch_idx
         )
 
+        log_dict: None | MetricLogs = None
         if cur_iter % self._refresh_rate == 0:
             prefix = (
                 f"Epoch {trainer_state['current_epoch'] + 1}"
@@ -64,9 +72,6 @@ class LoggingCallback(Callback):
                     prefix, cur_iter, total_iters, self.train_timer, log_dict
                 )
             )
-            self._metrics.clear()
-        else:
-            log_dict = None
 
         return log_dict
 

@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 from ml_collections import ConfigDict
 from torch.utils.data import DataLoader
 
-from vis4d.config.util import instantiate_classes
+from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 
 
@@ -16,10 +16,7 @@ class DataModule(pl.LightningDataModule):  # type: ignore
     pytorch-lightning for training and testing.
     """
 
-    def __init__(
-        self,
-        data_cfg: ConfigDict,
-    ) -> None:
+    def __init__(self, data_cfg: ConfigDict) -> None:
         """Creates an instance of the class."""
         super().__init__()
         self.data_cfg = data_cfg

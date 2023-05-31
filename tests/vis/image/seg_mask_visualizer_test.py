@@ -11,7 +11,7 @@ from PIL import Image
 from tests.util import get_test_file
 from vis4d.vis.image.seg_mask_visualizer import SegMaskVisualizer
 
-from .util import COLOR_MAPPING
+from .util import COCO_COLOR_MAPPING
 
 
 class TestSemanticMaskVis(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestSemanticMaskVis(unittest.TestCase):
             self.class_ids = [np.stack(e["class_id"]) for e in testcase_in]
 
         self.vis = SegMaskVisualizer(
-            n_colors=20, class_id_mapping=COLOR_MAPPING, vis_freq=1
+            n_colors=20, class_id_mapping=COCO_COLOR_MAPPING, vis_freq=1
         )
 
     def tearDown(self) -> None:

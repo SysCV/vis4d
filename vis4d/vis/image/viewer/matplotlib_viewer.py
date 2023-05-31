@@ -17,9 +17,9 @@ class MatplotlibImageViewer(ImageViewerBackend):
         """Shows a list of images.
 
         Args:
-            images (list[NDArrayUI8]): Images to display
+            images (list[NDArrayUI8]): Images to display.
             blocking (bool): If the viewer should be blocking and wait
-                            for human input after each image.
+                for human input after each image.
         """
         for image in images:
             plt.imshow(image)

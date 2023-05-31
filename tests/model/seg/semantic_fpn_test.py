@@ -18,18 +18,20 @@ from .common import get_test_dataloader, get_train_dataloader
 class SemanticFPNTest(unittest.TestCase):
     """Semantic FPN test class."""
 
-    dataset = COCO(
-        get_test_data("coco_test"),
-        keys_to_load=[
-            K.images,
-            K.original_images,
-            K.boxes2d_classes,
-            K.instance_masks,
-        ],
-        split="train",
-        use_pascal_voc_cats=True,
-        minimum_box_area=10,
-    )
+    def setUp(self) -> None:
+        """Set up test cases."""
+        self.dataset = COCO(
+            get_test_data("coco_test"),
+            keys_to_load=[
+                K.images,
+                K.original_images,
+                K.boxes2d_classes,
+                K.instance_masks,
+            ],
+            split="train",
+            use_pascal_voc_cats=True,
+            minimum_box_area=10,
+        )
 
     def test_inference(self) -> None:
         """Test inference of SemanticFPN."""

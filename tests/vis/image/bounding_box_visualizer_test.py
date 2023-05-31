@@ -12,7 +12,7 @@ from tests.util import get_test_file
 from vis4d.common.typing import NDArrayF64, NDArrayI64
 from vis4d.vis.image.bounding_box_visualizer import BoundingBoxVisualizer
 
-from .util import COLOR_MAPPING
+from .util import COCO_COLOR_MAPPING
 
 
 class TestBoundingBoxVis(unittest.TestCase):
@@ -32,7 +32,7 @@ class TestBoundingBoxVis(unittest.TestCase):
         self.tracks = [np.arange(len(b)) for b in self.boxes]
 
         self.vis = BoundingBoxVisualizer(
-            n_colors=20, class_id_mapping=COLOR_MAPPING, vis_freq=1
+            n_colors=20, class_id_mapping=COCO_COLOR_MAPPING, vis_freq=1
         )
 
     def tearDown(self) -> None:

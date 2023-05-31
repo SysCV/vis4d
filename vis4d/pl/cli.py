@@ -12,8 +12,8 @@ from torch.utils.collect_env import get_pretty_env_info
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
-from vis4d.config.parser import DEFINE_config_file
-from vis4d.config.util import instantiate_classes, pprints_config
+from vis4d.config import instantiate_classes
+from vis4d.engine.parser import DEFINE_config_file, pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
@@ -53,11 +53,9 @@ def main(argv: ArgsType) -> None:
     set_tf32(False)
 
     # Setup GPU
-    config.pl_trainer.unlock()
     config.pl_trainer.devices = num_gpus
     if num_gpus > 0:
         config.pl_trainer.accelerator = "gpu"
-    config.pl_trainer.lock()
 
     trainer_args = instantiate_classes(config.pl_trainer)
 
@@ -69,8 +67,14 @@ def main(argv: ArgsType) -> None:
     seed = config.get("seed", None)
 
     # Instantiate classes
-    data_connector = instantiate_classes(config.data_connector)
-    loss = instantiate_classes(config.loss)
+    if mode == "fit":
+        train_data_connector = instantiate_classes(config.train_data_connector)
+        loss = instantiate_classes(config.loss)
+    else:
+        train_data_connector = None
+        loss = None
+
+    test_data_connector = instantiate_classes(config.test_data_connector)
 
     # Callbacks
     callbacks = [
@@ -78,7 +82,7 @@ def main(argv: ArgsType) -> None:
     ]
 
     if "pl_callbacks" in config:
-        pl_callbacks = instantiate_classes(config.pl_callbacks)
+        pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]
     else:
         pl_callbacks = []
 
@@ -93,9 +97,14 @@ def main(argv: ArgsType) -> None:
     # Add needed callbacks
     callbacks.append(OptimEpochCallback())
 
-    trainer = PLTrainer(callbacks=callbacks, **trainer_args)
+    trainer = PLTrainer(callbacks=callbacks, **trainer_args.to_dict())
     training_module = TrainingModule(
-        config.model, config.optimizers, loss, data_connector, seed
+        config.model,
+        config.optimizers,
+        loss,
+        train_data_connector,
+        test_data_connector,
+        seed,
     )
     data_module = DataModule(config.data)
 

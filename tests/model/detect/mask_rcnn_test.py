@@ -6,9 +6,15 @@ from torch import optim
 
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
+from vis4d.config.common.models.mask_rcnn import (
+    CONN_MASK_HEAD_LOSS_2D,
+    CONN_ROI_LOSS_2D,
+    CONN_RPN_LOSS_2D,
+)
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.engine.connectors import LossConnector
+from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.mask_rcnn import (
     REV_KEYS,
     MaskDetectionOut,
@@ -95,11 +101,20 @@ class MaskRCNNTest(unittest.TestCase):
 
         mask_loss = SampledMaskLoss(positive_mask_sampler, MaskRCNNHeadLoss())
 
-        mask_rcnn_loss = WeightedMultiLoss(
+        mask_rcnn_loss = LossModule(
             [
-                {"loss": rpn_loss, "weight": 1.0},
-                {"loss": rcnn_loss, "weight": 1.0},
-                {"loss": mask_loss, "weight": 1.0},
+                {
+                    "loss": rpn_loss,
+                    "connector": LossConnector(CONN_RPN_LOSS_2D),
+                },
+                {
+                    "loss": rcnn_loss,
+                    "connector": LossConnector(CONN_ROI_LOSS_2D),
+                },
+                {
+                    "loss": mask_loss,
+                    "connector": LossConnector(CONN_MASK_HEAD_LOSS_2D),
+                },
             ]
         )
 
@@ -113,12 +128,11 @@ class MaskRCNNTest(unittest.TestCase):
         log_step = 1
         for epoch in range(2):
             for i, data in enumerate(train_loader):
-                inputs, images_hw, gt_boxes, gt_class_ids, gt_masks = (
+                inputs, images_hw, gt_boxes, gt_class_ids = (
                     data[K.images],
                     data[K.input_hw],
                     data[K.boxes2d],
                     data[K.boxes2d_classes],
-                    data[K.instance_masks],
                 )
 
                 # zero the parameter gradients
@@ -126,26 +140,9 @@ class MaskRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 outputs = mask_rcnn(inputs, images_hw, gt_boxes, gt_class_ids)
-                boxes = outputs.boxes
                 assert isinstance(outputs, MaskRCNNOut)
 
-                mask_losses = mask_rcnn_loss(
-                    cls_outs=boxes.rpn.cls,
-                    reg_outs=boxes.rpn.box,
-                    images_hw=images_hw,
-                    class_outs=boxes.roi.cls_score,
-                    regression_outs=boxes.roi.bbox_pred,
-                    boxes=boxes.sampled_proposals.boxes,
-                    boxes_mask=boxes.sampled_targets.labels,
-                    target_boxes=boxes.sampled_targets.boxes,
-                    target_classes=boxes.sampled_targets.labels,
-                    pred_sampled_proposals=boxes.sampled_proposals,
-                    mask_preds=outputs.masks.mask_pred,
-                    target_masks=gt_masks,
-                    sampled_target_indices=boxes.sampled_target_indices,
-                    sampled_targets=boxes.sampled_targets,
-                    sampled_proposals=boxes.sampled_proposals,
-                )
+                mask_losses = mask_rcnn_loss(outputs, data)
 
                 total_loss = sum(mask_losses.values())
                 total_loss.backward()

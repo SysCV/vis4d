@@ -1,11 +1,9 @@
 """Config default."""
-from .optimizer import get_optimizer_config
-from .pl_trainer import get_pl_trainer_config
-from .runtime import get_callbacks_config, set_output_dir
+from .pl_trainer import get_default_pl_trainer_cfg
+from .runtime import get_default_callbacks_cfg, get_default_cfg
 
 __all__ = [
-    "get_callbacks_config",
-    "get_optimizer_config",
-    "get_pl_trainer_config",
-    "set_output_dir",
+    "get_default_cfg",
+    "get_default_callbacks_cfg",
+    "get_default_pl_trainer_cfg",
 ]

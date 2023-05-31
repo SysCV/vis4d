@@ -110,7 +110,7 @@ class Transform:
                             if key != "data"
                             else data
                         ]
-                    except (ValueError, AttributeError):
+                    except ValueError:
                         rank_zero_warn(
                             f"Could not find key {key} in data dictionary. "
                             + f"Skipping transform {self_.__class__.__name__}."

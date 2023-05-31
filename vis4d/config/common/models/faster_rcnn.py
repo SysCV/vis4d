@@ -1,11 +1,11 @@
 """Faseter R-CNN base model config."""
 from __future__ import annotations
 
-from ml_collections import FieldReference
+from ml_collections import ConfigDict, FieldReference
 
-from vis4d.config.util import ConfigDict, class_config
-from vis4d.engine.connectors import data_key, pred_key
-from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.config import class_config
+from vis4d.engine.connectors import LossConnector, data_key, pred_key
+from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
@@ -30,7 +30,6 @@ CONN_ROI_LOSS_2D = {
     "boxes_mask": pred_key("sampled_targets.labels"),
     "target_boxes": pred_key("sampled_targets.boxes"),
     "target_classes": pred_key("sampled_targets.classes"),
-    "pred_sampled_proposals": pred_key("sampled_proposals"),
 }
 
 
@@ -56,7 +55,7 @@ def get_default_rcnn_box_codec_cfg(
     )
 
 
-def get_model_cfg(
+def get_faster_rcnn_cfg(
     num_classes: FieldReference | int,
     basemodel: ConfigDict,
 ) -> tuple[ConfigDict, ConfigDict]:
@@ -122,13 +121,25 @@ def get_model_cfg(
         anchor_generator=anchor_generator,
         box_encoder=rpn_box_encoder,
     )
-    rcnn_loss = class_config(RCNNLoss, box_encoder=rcnn_box_encoder)
+    rcnn_loss = class_config(
+        RCNNLoss, box_encoder=rcnn_box_encoder, num_classes=num_classes
+    )
 
     loss = class_config(
-        WeightedMultiLoss,
+        LossModule,
         losses=[
-            {"loss": rpn_loss, "weight": 1.0},
-            {"loss": rcnn_loss, "weight": 1.0},
+            {
+                "loss": rpn_loss,
+                "connector": class_config(
+                    LossConnector, key_mapping=CONN_RPN_LOSS_2D
+                ),
+            },
+            {
+                "loss": rcnn_loss,
+                "connector": class_config(
+                    LossConnector, key_mapping=CONN_ROI_LOSS_2D
+                ),
+            },
         ],
     )
     return model, loss

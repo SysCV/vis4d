@@ -1,8 +1,4 @@
-"""CLI interface for vis4d.
-
-Example to run this script:
->>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
-"""
+"""CLI interface."""
 from __future__ import annotations
 
 import logging
@@ -29,10 +25,11 @@ from vis4d.common.logging import (
 )
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
-from vis4d.config.parser import DEFINE_config_file
-from vis4d.config.util import instantiate_classes, pprints_config
-from vis4d.engine.optim import set_up_optimizers
-from vis4d.engine.trainer import Trainer
+from vis4d.config import instantiate_classes
+
+from .optim import set_up_optimizers
+from .parser import DEFINE_config_file, pprints_config
+from .trainer import Trainer
 
 # TODO: Currently this does not allow to load multpile config files.
 # Would be nice to extend functionality to chain multiple config files using
@@ -119,10 +116,9 @@ def main(argv: ArgsType) -> None:
         rank_zero_info(pprints_config(config))
 
     # Instantiate classes
-    data_connector = instantiate_classes(config.data_connector)
+    train_data_connector = instantiate_classes(config.train_data_connector)
+
     model = instantiate_classes(config.model)
-    optimizers = set_up_optimizers(config.optimizers, model)
-    loss = instantiate_classes(config.loss)
 
     # Callbacks
     callbacks = [instantiate_classes(cb) for cb in config.callbacks]
@@ -140,10 +136,17 @@ def main(argv: ArgsType) -> None:
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
+        train_data_connector = instantiate_classes(
+            config.data.train_data_connector
+        )
+        optimizers = set_up_optimizers(config.optimizers, model)
+        loss = instantiate_classes(config.loss)
     else:
         train_dataloader = None
+        train_data_connector = None
 
     test_dataloader = instantiate_classes(config.data.test_dataloader)
+    test_data_connector = instantiate_classes(config.test_data_connector)
 
     # Setup Model
     if num_gpus == 0:
@@ -178,12 +181,13 @@ def main(argv: ArgsType) -> None:
 
     trainer = Trainer(
         device=device,
-        data_connector=data_connector,
+        train_dataloader=train_dataloader,
+        test_dataloader=test_dataloader,
+        train_data_connector=train_data_connector,
+        test_data_connector=test_data_connector,
         callbacks=callbacks,
         num_epochs=config.params.get("num_epochs", 0),
         num_steps=config.params.get("num_steps", 0),
-        train_dataloader=train_dataloader,
-        test_dataloader=test_dataloader,
         val_check_interval=config.get("val_check_interval", -1),
     )
 

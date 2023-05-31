@@ -6,10 +6,10 @@ import unittest
 import torch
 
 from tests.util import MockModel, get_test_data
-from vis4d.config.base.datasets.coco_detection import CONN_COCO_BBOX_EVAL
+from vis4d.config.common.datasets import CONN_COCO_BBOX_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
-from vis4d.engine.connectors import DataConnector
+from vis4d.engine.connectors import CallbackConnector
 from vis4d.eval.detect.coco import COCOEvaluator
 
 
@@ -26,7 +26,7 @@ class TestEvaluatorCallback(unittest.TestCase):
             ),
             save_predictions=True,
             save_prefix=self.test_dir,
-            test_connector=CONN_COCO_BBOX_EVAL,
+            test_connector=CallbackConnector(CONN_COCO_BBOX_EVAL),
         )
 
         self.callback.setup()
@@ -35,7 +35,10 @@ class TestEvaluatorCallback(unittest.TestCase):
             current_epoch=0,
             num_epochs=0,
             global_step=0,
-            data_connector=DataConnector(),
+            train_dataloader=None,
+            num_train_batches=None,
+            test_dataloader=None,
+            num_test_batches=None,
         )
 
     def tearDown(self) -> None:
