@@ -28,4 +28,4 @@ def accuracy(
     top_k = min(top_k, prediction.shape[1])
     top_k_idx = np.argsort(prediction, axis=1)[:, -top_k:]
     correct = np.any(top_k_idx == target[:, None], axis=1)
-    return np.mean(correct)
+    return float(np.mean(correct))

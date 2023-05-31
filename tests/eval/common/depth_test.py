@@ -64,6 +64,18 @@ class TestDepthEvaluator(unittest.TestCase):
         self.assertAlmostEqual(
             metrics[DepthEvaluator.KEY_SQ_REL], 0.0, places=3
         )
+        self.assertAlmostEqual(
+            metrics[DepthEvaluator.KEY_DELTA05], 1.0, places=3
+        )
+        self.assertAlmostEqual(
+            metrics[DepthEvaluator.KEY_DELTA1], 1.0, places=3
+        )
+        self.assertAlmostEqual(
+            metrics[DepthEvaluator.KEY_DELTA2], 1.0, places=3
+        )
+        self.assertAlmostEqual(
+            metrics[DepthEvaluator.KEY_DELTA3], 1.0, places=3
+        )
 
     def test_precomputed(self) -> None:
         """Numerical tests with precomputed values."""
@@ -73,13 +85,13 @@ class TestDepthEvaluator(unittest.TestCase):
         self.evaluator.process_batch(pred, gt)
         metrics, log_str = self.evaluator.evaluate(DepthEvaluator.METRIC_DEPTH)
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.KEY_SILOG], 1.801, places=3
+            metrics[DepthEvaluator.KEY_SILOG], 107.738, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.KEY_RMSE], 3.375, places=3
+            metrics[DepthEvaluator.KEY_RMSE], 3.860, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.KEY_RMSE_LOG], 1.00, places=3
+            metrics[DepthEvaluator.KEY_RMSE_LOG], 1.144, places=3
         )
         self.assertAlmostEqual(
             metrics[DepthEvaluator.KEY_ABS_ERR], 3.375, places=3

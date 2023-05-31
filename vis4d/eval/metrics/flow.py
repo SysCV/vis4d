@@ -21,7 +21,7 @@ def end_point_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.sqrt(np.sum((prediction - target) ** 2, axis=-1)))
+    return np.mean(np.sqrt(np.sum((prediction - target) ** 2, axis=-1))).item()
 
 
 def angular_error(
@@ -52,4 +52,4 @@ def angular_error(
                 1.0,
             )
         )
-    )
+    ).item()

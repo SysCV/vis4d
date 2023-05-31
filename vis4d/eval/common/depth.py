@@ -104,9 +104,9 @@ class DepthEvaluator(Evaluator):
             * self.scale
         )
         gts = array_to_numpy(groundtruth, n_dims=None, dtype=np.float32)
-        preds, gts = self._apply_mask(preds, gts)
 
         for pred, gt in zip(preds, gts):
+            pred, gt = self._apply_mask(pred, gt)
             self._metrics_list.append(
                 {
                     self.KEY_ABS_REL: absolute_relative_error(pred, gt),
@@ -138,7 +138,8 @@ class DepthEvaluator(Evaluator):
             as well as a short string with shortened information.
 
         Raises:
-            RuntimeError: if no data has been registered to be evaluated
+            RuntimeError: if no data has been registered to be evaluated.
+            ValueError: if metric is not supported.
         """
         if len(self._metrics_list) == 0:
             raise RuntimeError(
@@ -200,7 +201,10 @@ class DepthEvaluator(Evaluator):
             log10 = np.mean([x[self.KEY_LOG10] for x in self._metrics_list])
             metric_data[self.KEY_LOG10] = float(log10)
             short_description += f"Log10 error: {log10:.3f}\n"
+
         else:
-            raise RuntimeError(f"Invalid metric {metric}")
+            raise ValueError(
+                f"Unsupported metric: {metric}"
+            )  # pragma: no cover
 
         return metric_data, short_description

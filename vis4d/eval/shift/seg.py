@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from vis4d.common.typing import NDArrayI64, NDArrayNumber
 from vis4d.data.datasets.shift import shift_seg_ignore, shift_seg_map
-
-from ..common import SegEvaluator
+from vis4d.eval.common.seg import SegEvaluator
 
 
 class SHIFTSegEvaluator(SegEvaluator):
@@ -31,7 +30,7 @@ class SHIFTSegEvaluator(SegEvaluator):
             label[label == shift_seg_map[cls]] = 255
         return label
 
-    def process_batch(  # pylint: disable=arguments-differ
+    def process_batch(  # type: ignore  # pylint: disable=arguments-differ
         self, prediction: NDArrayNumber, groundtruth: NDArrayI64
     ) -> None:
         """Process sample and update confusion matrix.

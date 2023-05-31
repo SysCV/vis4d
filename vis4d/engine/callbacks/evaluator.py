@@ -22,6 +22,7 @@ class EvaluatorCallback(Callback):
         self,
         *args: ArgsType,
         evaluator: Evaluator,
+        metrics_to_eval: list[str] | None = None,
         save_predictions: bool = False,
         save_prefix: None | str = None,
         **kwargs: ArgsType,
@@ -30,6 +31,9 @@ class EvaluatorCallback(Callback):
 
         Args:
             evaluator (Evaluator): Evaluator.
+            metrics_to_eval (list[str], Optional): Metrics to evaluate. If
+                None, all metrics in the evaluator will be evaluated. Defaults
+                to None.
             save_predictions (bool): If the predictions should be saved.
                 Defaults to False.
             save_prefix (str, Optional): Output directory for saving the
@@ -38,12 +42,16 @@ class EvaluatorCallback(Callback):
         super().__init__(*args, **kwargs)
         self.evaluator = evaluator
         self.save_predictions = save_predictions
+        self.metrics_to_eval = metrics_to_eval or self.evaluator.metrics
 
         if self.save_predictions:
             assert (
                 save_prefix is not None
             ), "If save_predictions is True, save_prefix must be provided."
             self.output_dir = save_prefix
+            for metric in self.metrics_to_eval:
+                output_dir = os.path.join(self.output_dir, metric)
+                os.makedirs(output_dir, exist_ok=True)
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
@@ -61,13 +69,21 @@ class EvaluatorCallback(Callback):
         dataloader_idx: int = 0,
     ) -> None:
         """Hook to run at the end of a testing batch."""
-        self.evaluator.process(**self.get_test_callback_inputs(outputs, batch))
+        self.evaluator.process_batch(
+            **self.get_test_callback_inputs(outputs, batch)
+        )
+        for metric in self.metrics_to_eval:
+            # Save output predictions in current batch.
+            if self.save_predictions:
+                output_dir = os.path.join(self.output_dir, metric)
+                self.evaluator.save_batch(metric, output_dir)
 
     def on_test_epoch_end(
         self, trainer_state: TrainerState, model: nn.Module
     ) -> None | MetricLogs:
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)
+
         if get_rank() == 0:
             log_dict = self.evaluate()
         else:  # pragma: no cover
@@ -77,20 +93,33 @@ class EvaluatorCallback(Callback):
         return log_dict
 
     def evaluate(self) -> MetricLogs:
-        """Evaluate the performance after processing all input/output pairs."""
-        rank_zero_info("Running evaluator %s...", str(self.evaluator))
+        """Evaluate the performance after processing all input/output pairs.
 
-        for metric in self.evaluator.metrics:
-            # Save output
+        Returns:
+            MetricLogs: A dictionary containing the evaluation results. The
+                keys are formatted as {metric_name}/{key_name}, and the
+                values are the corresponding evaluated values.
+        """
+        rank_zero_info("Running evaluator %s...", str(self.evaluator))
+        self.evaluator.process()
+
+        log_dict = {}
+        for metric in self.metrics_to_eval:
+            # Save output predictions. This is done here instead of
+            # on_test_batch_end because the evaluator may not have processed
+            # all batches yet.
             if self.save_predictions:
                 output_dir = os.path.join(self.output_dir, metric)
-                os.makedirs(output_dir, exist_ok=True)
                 self.evaluator.save(metric, output_dir)
 
             # Evaluate metric
-            log_dict, log_str = self.evaluator.evaluate(metric)
-            for k, v in log_dict.items():
-                rank_zero_info("%s: %.3f", k, v)
-            rank_zero_info("Showing results for %s", metric)
-            rank_zero_info(log_str)
+            metric_dict, metric_str = self.evaluator.evaluate(metric)
+            for k, v in metric_dict.items():
+                # Replace / in the key to avoid confusion for logging
+                log_k = metric + "/" + k.replace("/", "_")
+                rank_zero_info("%s: %.4f", log_k, v)
+                log_dict[log_k] = v
+            rank_zero_info("Showing results for metric: %s", metric)
+            rank_zero_info(metric_str)
+
         return log_dict

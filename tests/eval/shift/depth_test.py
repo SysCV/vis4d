@@ -29,8 +29,8 @@ class TestSegEvaluator(unittest.TestCase):
             preds = np.zeros((1, 800, 1280))
             self.evaluator.process_batch(prediction=preds, groundtruth=gts)
 
-        metrics, _ = self.evaluator.evaluate("all")
-        self.assertAlmostEqual(metrics["AbsErr"], 39.11, places=2)
+        metrics, _ = self.evaluator.evaluate(SHIFTDepthEvaluator.METRIC_DEPTH)
+        self.assertAlmostEqual(metrics["AbsErr"], 7.734, places=2)
 
     def test_shift_perfect_prediction(self) -> None:
         """Tests when predictions are correct."""
@@ -39,5 +39,5 @@ class TestSegEvaluator(unittest.TestCase):
             preds = gts
             self.evaluator.process_batch(prediction=preds, groundtruth=gts)
 
-        metrics, _ = self.evaluator.evaluate("all")
+        metrics, _ = self.evaluator.evaluate(SHIFTDepthEvaluator.METRIC_DEPTH)
         self.assertAlmostEqual(metrics["AbsErr"], 0.0, places=2)

@@ -58,7 +58,7 @@ class TestBDD100KSegEvaluator(unittest.TestCase):
         output = {"masks": masks}
 
         for batch in test_loader:
-            scalabel_eval.process(
+            scalabel_eval.process_batch(
                 **get_inputs_for_pred_and_data(
                     self.CONN_BDD100K_EVAL, output, batch
                 )

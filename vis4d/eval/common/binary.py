@@ -36,15 +36,16 @@ def threshold_and_flatten(
     return prediction_bin.ravel().astype(bool), target.ravel().astype(bool)
 
 
-class OccupancyEvaluator(Evaluator):
-    """Creates a new Evaluater that evaluates binary occupancy predictions."""
+class BinaryEvaluator(Evaluator):
+    """Creates a new Evaluater that evaluates binary predictions."""
 
-    METRIC_IOU = "IoU"
-    METRIC_ACCURACY = "Accuracy"
-    METRIC_F1 = "F1"
-    METRIC_PRECISION = "Precision"
-    METRIC_RECALL = "Recall"
-    METRIC_ALL = "all"
+    METRIC_BINARY = "BinaryCls"
+
+    KEY_IOU = "IoU"
+    KEY_ACCURACY = "Accuracy"
+    KEY_F1 = "F1"
+    KEY_PRECISION = "Precision"
+    KEY_RECALL = "Recall"
 
     def __init__(
         self,
@@ -78,10 +79,10 @@ class OccupancyEvaluator(Evaluator):
              prediction: the prediction (binary) (N, Pts)
              target: the groundtruth (binary) (N, Pts)
         """
-        tp = np.sum(np.logical_and(prediction == 1, target == 1)).item()
-        fp = np.sum(np.logical_and(prediction == 1, target == 0)).item()
-        tn = np.sum(np.logical_and(prediction == 0, target == 0)).item()
-        fn = np.sum(np.logical_and(prediction == 0, target == 1)).item()
+        tp = int(np.sum(np.logical_and(prediction == 1, target == 1)))
+        fp = int(np.sum(np.logical_and(prediction == 1, target == 0)))
+        tn = int(np.sum(np.logical_and(prediction == 0, target == 0)))
+        fn = int(np.sum(np.logical_and(prediction == 0, target == 1)))
         self.true_positives.append(tp)
         self.false_positives.append(fp)
         self.true_negatives.append(tn)
@@ -91,7 +92,7 @@ class OccupancyEvaluator(Evaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [OccupancyEvaluator.METRIC_IOU]
+        return [self.METRIC_BINARY]
 
     def reset(self) -> None:
         """Reset the saved predictions to start new round of evaluation."""
@@ -139,7 +140,8 @@ class OccupancyEvaluator(Evaluator):
             as well as a short string with shortened information.
 
         Raises:
-            RuntimeError: if no data has been registered to be evaluated
+            RuntimeError: if no data has been registered to be evaluated.
+            ValueError: if metric is not supported.
         """
         if not self.has_samples:
             raise RuntimeError(
@@ -149,54 +151,41 @@ class OccupancyEvaluator(Evaluator):
         metric_data: MetricLogs = {}
         short_description = ""
 
-        METRIC_ALL = (  # pylint: disable=invalid-name,line-too-long
-            OccupancyEvaluator.METRIC_ALL
-        )
-        # IoU
-        if metric in [OccupancyEvaluator.METRIC_IOU, METRIC_ALL]:
+        if metric == self.METRIC_BINARY:
+            # IoU
             iou = sum(self.true_positives) / (
                 sum(self.n_samples) - sum(self.true_negatives) + 1e-6
             )
-            metric_data[OccupancyEvaluator.METRIC_IOU] = iou
+            metric_data[self.KEY_IOU] = iou
             short_description += f"IoU: {iou:.3f}\n"
 
-        # Accuracy
-        if metric in [OccupancyEvaluator.METRIC_ACCURACY, METRIC_ALL]:
+            # Accuracy
             acc = (sum(self.true_positives) + sum(self.true_negatives)) / sum(
                 self.n_samples
             )
-            metric_data[OccupancyEvaluator.METRIC_ACCURACY] = acc
+            metric_data[self.KEY_ACCURACY] = acc
             short_description += f"Accuracy: {acc:.3f}\n"
 
-        # Precision
-        if metric in [
-            OccupancyEvaluator.METRIC_PRECISION,
-            OccupancyEvaluator.METRIC_F1,
-            METRIC_ALL,
-        ]:
+            # Precision
             tp_fp = sum(self.true_positives) + sum(self.false_positives)
             precision = sum(self.true_positives) / tp_fp if tp_fp != 0 else 1
-            # Add to output struct and string
-            if metric != OccupancyEvaluator.METRIC_F1:
-                metric_data[OccupancyEvaluator.METRIC_PRECISION] = precision
-                short_description += f"Precision: {precision:.3f}\n"
-        # Recall
-        if metric in [
-            OccupancyEvaluator.METRIC_RECALL,
-            OccupancyEvaluator.METRIC_F1,
-            METRIC_ALL,
-        ]:
+            metric_data[self.KEY_PRECISION] = precision
+            short_description += f"Precision: {precision:.3f}\n"
+
+            # Recall
             tp_fn = sum(self.true_positives) + sum(self.false_negatives)
             recall = sum(self.true_positives) / tp_fn if tp_fn != 0 else 1
-            # Add to output struct and string
-            if metric != OccupancyEvaluator.METRIC_F1:
-                metric_data[OccupancyEvaluator.METRIC_RECALL] = recall
-                short_description += f"Recall: {acc:.3f}\n"
+            metric_data[self.KEY_RECALL] = recall
+            short_description += f"Recall: {acc:.3f}\n"
 
-        # F1
-        if metric in [OccupancyEvaluator.METRIC_F1, METRIC_ALL]:
+            # F1
             f1 = 2 * precision * recall / (precision + recall + 1e-8)
-            metric_data[OccupancyEvaluator.METRIC_F1] = f1
+            metric_data[self.KEY_F1] = f1
             short_description += f"F1: {f1:.3f}\n"
+
+        else:
+            raise ValueError(
+                f"Unsupported metric: {metric}"
+            )  # pragma: no cover
 
         return metric_data, short_description

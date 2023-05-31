@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from vis4d.common.typing import NDArrayNumber
-from vis4d.eval.common import OccupancyEvaluator
+from vis4d.eval.common import BinaryEvaluator
 
 
 def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
@@ -239,10 +239,10 @@ def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
     return prediction, gt
 
 
-class TestOccupancyEvaluator(unittest.TestCase):
-    """Tests for OccupancyEvaluator."""
+class TestBinaryEvaluator(unittest.TestCase):
+    """Tests for BinaryEvaluator."""
 
-    evaluator = OccupancyEvaluator()
+    evaluator = BinaryEvaluator()
     batch_size = 4
     n_points = 100
 
@@ -253,22 +253,22 @@ class TestOccupancyEvaluator(unittest.TestCase):
         gt = np.ones((self.batch_size, self.n_points))
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_ACCURACY], 1)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_PRECISION], 1)
+        data, _ = self.evaluator.evaluate(BinaryEvaluator.METRIC_BINARY)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_RECALL], 1)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_ACCURACY], 1)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_PRECISION], 1)
 
     def test_confusion_all_ones_threshold_08(self) -> None:
         """Tests prediction all ones with different threshold."""
         # All ones
-        evaluator = OccupancyEvaluator(threshold=0.3)
+        evaluator = BinaryEvaluator(threshold=0.3)
         pred = np.ones((self.batch_size, self.n_points)) * 0.34
         gt = np.ones((self.batch_size, self.n_points))
         evaluator.process_batch(pred, gt)
-        data, _ = evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_ACCURACY], 1)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_PRECISION], 1)
+        data, _ = evaluator.evaluate(BinaryEvaluator.METRIC_BINARY)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_RECALL], 1)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_ACCURACY], 1)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_PRECISION], 1)
 
     def test_confusion_all_zeros(self) -> None:
         """Tests when data is all zeros."""
@@ -277,30 +277,26 @@ class TestOccupancyEvaluator(unittest.TestCase):
         gt = np.zeros((self.batch_size, self.n_points))
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_ACCURACY], 1)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_PRECISION], 1)
+        data, _ = self.evaluator.evaluate(BinaryEvaluator.METRIC_BINARY)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_RECALL], 1)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_ACCURACY], 1)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_PRECISION], 1)
 
     def test_precomputed(self) -> None:
         """Tests values for precomputed data."""
         prediction, gt = get_test_data()
         self.evaluator.reset()
         self.evaluator.process_batch(prediction, gt)
-        data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 0.47500)
+        data, _ = self.evaluator.evaluate(BinaryEvaluator.METRIC_BINARY)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_RECALL], 0.47500)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_ACCURACY], 0.4500)
         self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_ACCURACY], 0.4500
+            data[BinaryEvaluator.KEY_PRECISION], 0.3584905660377358
         )
         self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_PRECISION], 0.3584905660377358
+            data[BinaryEvaluator.KEY_F1], 0.4086021505376344
         )
-        self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_F1], 0.4086021505376344
-        )
-        self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_IOU], 0.2567567567567
-        )
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_IOU], 0.2567567567567)
 
     def test_batched_precomputed(self) -> None:
         """Tests precomputed values when provided over two batches."""
@@ -314,18 +310,14 @@ class TestOccupancyEvaluator(unittest.TestCase):
             prediction[-n_batch:, ...], gt[-n_batch:, ...]
         )
 
-        data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
+        data, _ = self.evaluator.evaluate(BinaryEvaluator.METRIC_BINARY)
 
-        self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 0.47500)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_RECALL], 0.47500)
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_ACCURACY], 0.4500)
         self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_ACCURACY], 0.4500
+            data[BinaryEvaluator.KEY_PRECISION], 0.3584905660377358
         )
         self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_PRECISION], 0.3584905660377358
+            data[BinaryEvaluator.KEY_F1], 0.4086021505376344
         )
-        self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_F1], 0.4086021505376344
-        )
-        self.assertAlmostEqual(
-            data[OccupancyEvaluator.METRIC_IOU], 0.2567567567567
-        )
+        self.assertAlmostEqual(data[BinaryEvaluator.KEY_IOU], 0.2567567567567)

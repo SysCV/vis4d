@@ -21,7 +21,7 @@ def absolute_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.abs(prediction - target))
+    return np.mean(np.abs(prediction - target)).item()
 
 
 def squared_relative_error(prediction: ArrayLike, target: ArrayLike) -> float:
@@ -36,7 +36,7 @@ def squared_relative_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.square(prediction - target) / np.square(target))
+    return np.mean(np.square(prediction - target) / np.square(target)).item()
 
 
 def absolute_relative_error(prediction: ArrayLike, target: ArrayLike) -> float:
@@ -51,7 +51,7 @@ def absolute_relative_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.abs(prediction - target) / target)
+    return np.mean(np.abs(prediction - target) / target).item()
 
 
 def root_mean_squared_error(prediction: ArrayLike, target: ArrayLike) -> float:
@@ -66,7 +66,7 @@ def root_mean_squared_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.sqrt(np.mean(np.square(prediction - target)))
+    return np.sqrt(np.mean(np.square(prediction - target))).item()
 
 
 def root_mean_squared_error_log(
@@ -88,7 +88,7 @@ def root_mean_squared_error_log(
         np.mean(
             np.square(np.log(prediction + epsilon) - np.log(target + epsilon))
         )
-    )
+    ).item()
 
 
 def scale_invariant_log(
@@ -146,4 +146,4 @@ def log_10_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.abs(np.log10(prediction) - np.log10(target)))
+    return np.mean(np.abs(np.log10(prediction) - np.log10(target))).item()

@@ -17,15 +17,16 @@ from vis4d.common.typing import (
 )
 from vis4d.eval.base import Evaluator
 
-from ..metrics.classify import accuracy
+from ..metrics.cls import accuracy
 
 
 class ClassificationEvaluator(Evaluator):
-    """Image classification evaluator."""
+    """Multi-class classification evaluator."""
 
-    METRICS_ACCURACY = "Acc@1"
-    METRICS_ACCURACY_TOP5 = "Acc@5"
-    METRICS_ALL = "all"
+    METRIC_CLASSIFICATION = "Cls"
+
+    KEY_ACCURACY = "Acc@1"
+    KEY_ACCURACY_TOP5 = "Acc@5"
 
     def __init__(self) -> None:
         """Initialize the classification evaluator."""
@@ -36,8 +37,8 @@ class ClassificationEvaluator(Evaluator):
     def metrics(self) -> list[str]:
         """Supported metrics."""
         return [
-            ClassificationEvaluator.METRICS_ACCURACY,
-            ClassificationEvaluator.METRICS_ACCURACY_TOP5,
+            self.KEY_ACCURACY,
+            self.KEY_ACCURACY_TOP5,
         ]
 
     def reset(self) -> None:
@@ -101,7 +102,8 @@ class ClassificationEvaluator(Evaluator):
             as well as a short string with shortened information.
 
         Raises:
-            RuntimeError: if no data has been registered to be evaluated
+            RuntimeError: if no data has been registered to be evaluated.
+            ValueError: if the metric is not supported.
         """
         if len(self._metrics_list) == 0:
             raise RuntimeError(
@@ -111,27 +113,26 @@ class ClassificationEvaluator(Evaluator):
         metric_data: MetricLogs = {}
         short_description = ""
 
-        if metric in [
-            ClassificationEvaluator.METRICS_ACCURACY,
-            ClassificationEvaluator.METRICS_ALL,
-        ]:
+        if metric == self.METRIC_CLASSIFICATION:
+            # Top1 accuracy
             top1_correct = np.array(
                 [metric["top1_correct"] for metric in self._metrics_list]
             )
             top1_acc = np.mean(top1_correct)
-            metric_data[ClassificationEvaluator.METRICS_ACCURACY] = top1_acc
+            metric_data[self.KEY_ACCURACY] = top1_acc
             short_description += f"Top1 Accuracy: {top1_acc:.4f}\n"
-        if metric in [
-            ClassificationEvaluator.METRICS_ACCURACY_TOP5,
-            ClassificationEvaluator.METRICS_ALL,
-        ]:
+
+            # Top5 accuracy
             top5_correct = np.array(
                 [metric["top5_correct"] for metric in self._metrics_list]
             )
             top5_acc = np.mean(top5_correct)
-            metric_data[
-                ClassificationEvaluator.METRICS_ACCURACY_TOP5
-            ] = top5_acc
+            metric_data[self.KEY_ACCURACY_TOP5] = top5_acc
             short_description += f"Top5 Accuracy: {top5_acc:.4f}\n"
+
+        else:
+            raise ValueError(
+                f"Unsupported metric: {metric}"
+            )  # pragma: no cover
 
         return metric_data, short_description

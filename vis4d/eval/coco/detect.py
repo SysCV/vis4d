@@ -245,12 +245,10 @@ class COCOEvaluator(Evaluator):
                 precision = precisions[:, :, idx, 0, -1]
                 precision = precision[precision > -1]
                 if precision.size:
-                    ap = np.mean(precision)
+                    ap = np.mean(precision).item()
                 else:
                     ap = float("nan")
-                results_per_category.append(
-                    (f'{nm["name"]}', f"{float(ap):0.3f}")
-                )
+                results_per_category.append((f'{nm["name"]}', f"{ap:0.3f}"))
 
             num_columns = min(6, len(results_per_category) * 2)
             results_flatten = list(itertools.chain(*results_per_category))

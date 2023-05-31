@@ -142,4 +142,4 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 ] = metric_value
             short_description += str(results) + "\n"
 
-        return metrics_log, short_description  # type: ignore
+        return metrics_log, short_description

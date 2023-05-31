@@ -29,7 +29,9 @@ class TestSegEvaluator(unittest.TestCase):
             preds = np.zeros((1, 800, 1280, 2))
             self.evaluator.process_batch(prediction=preds, groundtruth=gts)
 
-        metrics, _ = self.evaluator.evaluate("all")
+        metrics, _ = self.evaluator.evaluate(
+            SHIFTOpticalFlowEvaluator.METRIC_FLOW
+        )
         self.assertAlmostEqual(metrics["EPE"], 0.00067, places=4)
 
     def test_shift_perfect_prediction(self) -> None:
@@ -39,5 +41,7 @@ class TestSegEvaluator(unittest.TestCase):
             preds = gts
             self.evaluator.process_batch(prediction=preds, groundtruth=gts)
 
-        metrics, _ = self.evaluator.evaluate("all")
+        metrics, _ = self.evaluator.evaluate(
+            SHIFTOpticalFlowEvaluator.METRIC_FLOW
+        )
         self.assertAlmostEqual(metrics["EPE"], 0.0, places=4)

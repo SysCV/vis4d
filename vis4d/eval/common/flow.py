@@ -84,9 +84,9 @@ class OpticalFlowEvaluator(Evaluator):
             * self.scale
         )
         gts = array_to_numpy(groundtruth, n_dims=None, dtype=np.float32)
-        preds, gts = self._apply_mask(preds, gts)
 
         for pred, gt in zip(preds, gts):
+            pred, gt = self._apply_mask(pred, gt)
             epe = end_point_error(pred, gt)
             ae = angular_error(pred, gt, self.epsilon)
             self._metrics_list.append(
@@ -129,19 +129,24 @@ class OpticalFlowEvaluator(Evaluator):
         short_description = ""
 
         if metric == OpticalFlowEvaluator.METRIC_FLOW:
+            # EPE
             epe = np.mean(
                 [x[self.KEY_ENDPOINT_ERROR] for x in self._metrics_list]
             )
             metric_data[self.KEY_ENDPOINT_ERROR] = float(epe)
             short_description = f"EPE: {epe:.3f}"
 
+            # AE
             ae = np.mean(
                 [x[self.KEY_ANGULAR_ERROR] for x in self._metrics_list]
             )
             metric_data[self.KEY_ANGULAR_ERROR] = float(ae)
             angular_unit = "rad" if not self.use_degrees else "deg"
             short_description = f"AE: {ae:.3f}{angular_unit}"
+
         else:
-            raise ValueError(f"Unsupported metric {metric}")
+            raise ValueError(
+                f"Unsupported metric: {metric}"
+            )  # pragma: no cover
 
         return metric_data, short_description

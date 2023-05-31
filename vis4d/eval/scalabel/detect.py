@@ -21,7 +21,6 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
 
     METRICS_DET = "Det"
     METRICS_INS_SEG = "InsSeg"
-    METRICS_ALL = "all"
 
     def __init__(
         self,
@@ -111,7 +110,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
         metrics_log = {}
         short_description = ""
 
-        if metric in [self.METRICS_DET, self.METRICS_ALL]:
+        if metric == self.METRICS_DET:
             results = evaluate_det(
                 self.gt_frames,
                 self.frames,
@@ -122,7 +121,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
                 metrics_log[f"{self.METRICS_DET}/{metric_name}"] = metric_value
             short_description += str(results) + "\n"
 
-        if metric in [self.METRICS_INS_SEG, self.METRICS_ALL]:
+        if metric == self.METRICS_INS_SEG:
             results = evaluate_ins_seg(
                 self.gt_frames,
                 self.frames,
@@ -135,4 +134,4 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
                 ] = metric_value
             short_description += str(results) + "\n"
 
-        return metrics_log, short_description  # type: ignore
+        return metrics_log, short_description

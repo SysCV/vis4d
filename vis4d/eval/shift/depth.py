@@ -40,4 +40,5 @@ class SHIFTDepthEvaluator(DepthEvaluator):
         if self.use_eval_crop:
             prediction = apply_crop(prediction)
             groundtruth = apply_crop(groundtruth)
+        print(prediction.shape, groundtruth.shape)
         super().process_batch(prediction, groundtruth)

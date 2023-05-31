@@ -1,15 +1,15 @@
 """Common evaluation code."""
 
-from .classify import ClassificationEvaluator
+from .binary import BinaryEvaluator
+from .cls import ClassificationEvaluator
 from .depth import DepthEvaluator
 from .flow import OpticalFlowEvaluator
-from .occupancy import OccupancyEvaluator
-from .segment import SegEvaluator
+from .seg import SegEvaluator
 
 __all__ = [
     "ClassificationEvaluator",
     "DepthEvaluator",
     "OpticalFlowEvaluator",
-    "OccupancyEvaluator",
+    "BinaryEvaluator",
     "SegEvaluator",
 ]
