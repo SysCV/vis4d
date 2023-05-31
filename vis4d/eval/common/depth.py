@@ -30,19 +30,20 @@ from ..metrics.depth import (
 class DepthEvaluator(Evaluator):
     """Depth estimation evaluator."""
 
-    METRIC_DELTA05 = "d05"
-    METRIC_DELTA1 = "d1"
-    METRIC_DELTA2 = "d2"
-    METRIC_DELTA3 = "d3"
-    METRIC_ABS_REL = "AbsRel"
-    METRIC_ABS_ERR = "AbsErr"
-    METRIC_SQ_REL = "SqRel"
-    METRIC_RMSE = "RMSE"
-    METRIC_RMSE_LOG = "RMSELog"
-    METRIC_SILOG = "SILog"
-    METRIC_LOG10 = "Log10"
+    METRIC_DEPTH = "Depth"
 
-    METRIC_ALL = "all"
+    KEY_DELTA05 = "d05"
+    KEY_DELTA1 = "d1"
+    KEY_DELTA2 = "d2"
+    KEY_DELTA3 = "d3"
+
+    KEY_ABS_REL = "AbsRel"
+    KEY_ABS_ERR = "AbsErr"
+    KEY_SQ_REL = "SqRel"
+    KEY_RMSE = "RMSE"
+    KEY_RMSE_LOG = "RMSELog"
+    KEY_SILOG = "SILog"
+    KEY_LOG10 = "Log10"
 
     def __init__(
         self,
@@ -70,19 +71,7 @@ class DepthEvaluator(Evaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [
-            DepthEvaluator.METRIC_ABS_REL,
-            DepthEvaluator.METRIC_ABS_ERR,
-            DepthEvaluator.METRIC_SQ_REL,
-            DepthEvaluator.METRIC_RMSE,
-            DepthEvaluator.METRIC_RMSE_LOG,
-            DepthEvaluator.METRIC_SILOG,
-            DepthEvaluator.METRIC_DELTA05,
-            DepthEvaluator.METRIC_DELTA1,
-            DepthEvaluator.METRIC_DELTA2,
-            DepthEvaluator.METRIC_DELTA3,
-            DepthEvaluator.METRIC_LOG10,
-        ]
+        return [self.METRIC_DEPTH]
 
     def reset(self) -> None:
         """Reset evaluator for new round of evaluation."""
@@ -120,19 +109,17 @@ class DepthEvaluator(Evaluator):
         for pred, gt in zip(preds, gts):
             self._metrics_list.append(
                 {
-                    self.METRIC_ABS_REL: absolute_relative_error(pred, gt),
-                    self.METRIC_ABS_ERR: absolute_error(pred, gt),
-                    self.METRIC_SQ_REL: squared_relative_error(pred, gt),
-                    self.METRIC_RMSE: root_mean_squared_error(pred, gt),
-                    self.METRIC_RMSE_LOG: root_mean_squared_error_log(
-                        pred, gt
-                    ),
-                    self.METRIC_SILOG: scale_invariant_log(pred, gt),
-                    self.METRIC_DELTA05: delta_p(pred, gt, 0.5),
-                    self.METRIC_DELTA1: delta_p(pred, gt, 1.0),
-                    self.METRIC_DELTA2: delta_p(pred, gt, 2.0),
-                    self.METRIC_DELTA3: delta_p(pred, gt, 3.0),
-                    self.METRIC_LOG10: log_10_error(pred, gt),
+                    self.KEY_ABS_REL: absolute_relative_error(pred, gt),
+                    self.KEY_ABS_ERR: absolute_error(pred, gt),
+                    self.KEY_SQ_REL: squared_relative_error(pred, gt),
+                    self.KEY_RMSE: root_mean_squared_error(pred, gt),
+                    self.KEY_RMSE_LOG: root_mean_squared_error_log(pred, gt),
+                    self.KEY_SILOG: scale_invariant_log(pred, gt),
+                    self.KEY_DELTA05: delta_p(pred, gt, 0.5),
+                    self.KEY_DELTA1: delta_p(pred, gt, 1.0),
+                    self.KEY_DELTA2: delta_p(pred, gt, 2.0),
+                    self.KEY_DELTA3: delta_p(pred, gt, 3.0),
+                    self.KEY_LOG10: log_10_error(pred, gt),
                 }
             )
 
@@ -161,86 +148,59 @@ class DepthEvaluator(Evaluator):
         metric_data: MetricLogs = {}
         short_description = ""
 
-        if metric in [
-            DepthEvaluator.METRIC_ABS_REL,
-            DepthEvaluator.METRIC_ALL,
-        ]:
+        if metric == self.METRIC_DEPTH:
             abs_rel = np.mean(
-                [x[self.METRIC_ABS_REL] for x in self._metrics_list]
+                [x[self.KEY_ABS_REL] for x in self._metrics_list]
             )
-            metric_data[self.METRIC_ABS_REL] = abs_rel
+            metric_data[self.KEY_ABS_REL] = abs_rel
             short_description += f"Absolute relative error: {abs_rel:.3f} "
-        if metric in [
-            DepthEvaluator.METRIC_ABS_ERR,
-            DepthEvaluator.METRIC_ALL,
-        ]:
+
             abs_err = np.mean(
-                [x[self.METRIC_ABS_ERR] for x in self._metrics_list]
+                [x[self.KEY_ABS_ERR] for x in self._metrics_list]
             )
-            metric_data[self.METRIC_ABS_ERR] = abs_err
+            metric_data[self.KEY_ABS_ERR] = abs_err
             short_description += f"Absolute error: {abs_err:.3f}\n"
-        if metric in [DepthEvaluator.METRIC_SQ_REL, DepthEvaluator.METRIC_ALL]:
-            sq_rel = np.mean(
-                [x[self.METRIC_SQ_REL] for x in self._metrics_list]
-            )
-            metric_data[self.METRIC_SQ_REL] = sq_rel
+
+            sq_rel = np.mean([x[self.KEY_SQ_REL] for x in self._metrics_list])
+            metric_data[self.KEY_SQ_REL] = sq_rel
             short_description += f"Squared relative error: {sq_rel:.3f}\n"
-        if metric in [DepthEvaluator.METRIC_RMSE, DepthEvaluator.METRIC_ALL]:
-            rmse = np.mean([x[self.METRIC_RMSE] for x in self._metrics_list])
-            metric_data[self.METRIC_RMSE] = rmse
+
+            rmse = np.mean([x[self.KEY_RMSE] for x in self._metrics_list])
+            metric_data[self.KEY_RMSE] = rmse
             short_description += f"RMSE: {rmse:.3f}\n"
-        if metric in [
-            DepthEvaluator.METRIC_RMSE_LOG,
-            DepthEvaluator.METRIC_ALL,
-        ]:
+
             rmse_log = np.mean(
-                [x[self.METRIC_RMSE_LOG] for x in self._metrics_list]
+                [x[self.KEY_RMSE_LOG] for x in self._metrics_list]
             )
-            metric_data[self.METRIC_RMSE_LOG] = rmse_log
+            metric_data[self.KEY_RMSE_LOG] = rmse_log
             short_description += f"RMSE log: {rmse_log:.3f}\n"
-        if metric in [DepthEvaluator.METRIC_SILOG, DepthEvaluator.METRIC_ALL]:
-            silog = np.mean([x[self.METRIC_SILOG] for x in self._metrics_list])
-            metric_data[self.METRIC_SILOG] = silog
+
+            silog = np.mean([x[self.KEY_SILOG] for x in self._metrics_list])
+            metric_data[self.KEY_SILOG] = silog
             short_description += f"SILog: {silog:.3f}\n"
-        if metric in [
-            DepthEvaluator.METRIC_DELTA05,
-            DepthEvaluator.METRIC_ALL,
-        ]:
+
             delta05 = np.mean(
-                [x[self.METRIC_DELTA05] for x in self._metrics_list]
+                [x[self.KEY_DELTA05] for x in self._metrics_list]
             )
-            metric_data[self.METRIC_DELTA05] = delta05
+            metric_data[self.KEY_DELTA05] = delta05
             short_description += f"Delta 0.5: {delta05:.3f}\n"
-        if metric in [
-            DepthEvaluator.METRIC_DELTA1,
-            DepthEvaluator.METRIC_ALL,
-        ]:
-            delta1 = np.mean(
-                [x[self.METRIC_DELTA1] for x in self._metrics_list]
-            )
-            metric_data[self.METRIC_DELTA1] = delta1
+
+            delta1 = np.mean([x[self.KEY_DELTA1] for x in self._metrics_list])
+            metric_data[self.KEY_DELTA1] = delta1
             short_description += f"Delta 1: {delta1:.3f}\n"
-        if metric in [
-            DepthEvaluator.METRIC_DELTA2,
-            DepthEvaluator.METRIC_ALL,
-        ]:
-            delta2 = np.mean(
-                [x[self.METRIC_DELTA2] for x in self._metrics_list]
-            )
-            metric_data[self.METRIC_DELTA2] = delta2
+
+            delta2 = np.mean([x[self.KEY_DELTA2] for x in self._metrics_list])
+            metric_data[self.KEY_DELTA2] = delta2
             short_description += f"Delta 2: {delta2:.3f}\n"
-        if metric in [
-            DepthEvaluator.METRIC_DELTA3,
-            DepthEvaluator.METRIC_ALL,
-        ]:
-            delta3 = np.mean(
-                [x[self.METRIC_DELTA3] for x in self._metrics_list]
-            )
-            metric_data[self.METRIC_DELTA3] = delta3
+
+            delta3 = np.mean([x[self.KEY_DELTA3] for x in self._metrics_list])
+            metric_data[self.KEY_DELTA3] = delta3
             short_description += f"Delta 3: {delta3:.3f}\n"
-        if metric in [DepthEvaluator.METRIC_LOG10, DepthEvaluator.METRIC_ALL]:
-            log10 = np.mean([x[self.METRIC_LOG10] for x in self._metrics_list])
-            metric_data[self.METRIC_LOG10] = log10
+
+            log10 = np.mean([x[self.KEY_LOG10] for x in self._metrics_list])
+            metric_data[self.KEY_LOG10] = log10
             short_description += f"Log10 error: {log10:.3f}\n"
+        else:
+            raise RuntimeError(f"Invalid metric {metric}")
 
         return metric_data, short_description
