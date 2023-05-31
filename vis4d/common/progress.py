@@ -3,22 +3,23 @@ from __future__ import annotations
 
 import datetime
 
-import torch
+from torch import Tensor
 
-from ..common.time import Timer
+from .time import Timer
+from .typing import MetricLogs
 
 
 def compose_log_str(
     prefix: str,
-    batch_idx: int,
-    total_batches: int | float,
+    cur_iter: int,
+    total_iters: int,
     timer: Timer,
-    metrics: None | dict[str, int | float | torch.Tensor] = None,
+    metrics: None | MetricLogs = None,
 ) -> str:
     """Compose log str from given information."""
     time_sec_tot = timer.time()
-    time_sec_avg = time_sec_tot / batch_idx
-    eta_sec = time_sec_avg * (total_batches - batch_idx)
+    time_sec_avg = time_sec_tot / cur_iter
+    eta_sec = time_sec_avg * (total_iters - cur_iter)
     if not eta_sec == float("inf"):
         eta_str = str(datetime.timedelta(seconds=int(eta_sec)))
     else:  # pragma: no cover
@@ -28,7 +29,7 @@ def compose_log_str(
     if metrics is not None:
         for k, v in metrics.items():
             name = k.split("/")[-1]  # remove prefix, e.g. train/loss
-            if isinstance(v, (torch.Tensor, float)):
+            if isinstance(v, (Tensor, float)):
                 # display more digits for small values
                 if abs(v) < 1e-3:  # type: ignore[operator]
                     kv_str = f"{name}: {v:.3e}"
@@ -46,7 +47,7 @@ def compose_log_str(
         if time_sec_avg > 1
         else f"{1/time_sec_avg:.2f}it/s"
     )
-    logging_str = f"{prefix}: {batch_idx - 1}/{total_batches}, {time_str}"
+    logging_str = f"{prefix}: {cur_iter}/{total_iters}, {time_str}"
     if len(metrics_list) > 0:
         logging_str += ", " + ", ".join(metrics_list)
     return logging_str

@@ -14,14 +14,8 @@ import cloudpickle
 import torch
 import torch.distributed as dist
 from torch.distributed import broadcast_object_list
-from typing_extensions import Protocol
 
-
-class AnyCallback(Protocol):
-    """Protocol for callback with any arguments."""
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
-        """Call."""
+from vis4d.common import ArgsType, GenericFunc
 
 
 class PicklableWrapper:  #  mypy: disable=line-too-long
@@ -45,7 +39,7 @@ class PicklableWrapper:  #  mypy: disable=line-too-long
         s = cloudpickle.dumps(self._obj)
         return cloudpickle.loads, (s,)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: ArgsType, **kwargs: ArgsType) -> Any:
         """Call."""
         return self._obj(*args, **kwargs)
 
@@ -176,19 +170,19 @@ def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
     return tensor
 
 
-def rank_zero_only(func: AnyCallback) -> AnyCallback:
+def rank_zero_only(func: GenericFunc) -> GenericFunc:
     """Allows the decorated function to be called only on global rank 0.
 
     Args:
-        func( Callable[[Any], Any]): The function to decorate.
+        func(GenericFunc): The function to decorate.
 
     Returns:
-        Callable[[Any], Any]: The decorated function.
+        GenericFunc: The decorated function.
 
     """
 
     @wraps(func)
-    def wrapped_fn(*args: Any, **kwargs: Any) -> Any:
+    def wrapped_fn(*args: ArgsType, **kwargs: ArgsType) -> Any:
         rank = get_rank()
         if rank == 0:
             return func(*args, **kwargs)

@@ -1,16 +1,38 @@
 """Default runtime configuration for the project."""
-import inspect
 import platform
 from datetime import datetime
 
-import pytorch_lightning as pl
+from ml_collections import ConfigDict
 
-from vis4d.common.callbacks import CheckpointCallback, LoggingCallback
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config import FieldConfigDict, class_config
+from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
-def set_output_dir(config: ConfigDict) -> ConfigDict:
-    """Set output directory for the experiment with timestamp."""
+def get_default_cfg(
+    exp_name: str, work_dir: str = "vis4d-workspace"
+) -> FieldConfigDict:
+    """Set default config for the project.
+
+    It will set the following fields:
+        - work_dir (str): Default to "vis4d-workspace"
+        - experiment_name (str): Experiment name.
+        - timestamp (str): Current time
+        - version (str): Same as timestamp
+        - output_dir (str): work_dir/experiment_name/version
+
+    Args:
+        exp_name (str): Experiment name.
+        work_dir (str, optional): Working directory. Defaults to
+            "vis4d-workspace".
+
+    Returns:
+        FieldConfigDict: Config for the project.
+    """
+    config = FieldConfigDict()
+
+    config.work_dir = work_dir
+    config.experiment_name = exp_name
+
     timestamp = (
         str(datetime.now())
         .split(".", maxsplit=1)[0]
@@ -36,41 +58,31 @@ def set_output_dir(config: ConfigDict) -> ConfigDict:
     return config
 
 
-def get_generic_callback_config(
-    config: ConfigDict, params: ConfigDict
-) -> tuple[dict[str, ConfigDict], dict[str, ConfigDict]]:
-    """Get generic callback config.
+def get_default_callbacks_cfg(
+    config: FieldConfigDict, refresh_rate: int = 50
+) -> list[ConfigDict]:
+    """Get default callbacks config.
 
-    Here we define general, all purpose callbacks. Note, that these callbacks
-    do not need to be registered with the data connector.
+    It will return a list of callbacks config including:
+        - LoggingCallback
+        - CheckpointCallback
+
+    Args:
+        config (FieldConfigDict): Config for the project.
+        refresh_rate (int, optional): Refresh rate for the logging. Defaults to
+            50.
+
+    Returns:
+        list[ConfigDict]: List of callbacks config.
     """
-    logger_callback = {
-        "logger": class_config(LoggingCallback, refresh_rate=50)
-    }
-    ckpt_callback = {
-        "ckpt": class_config(
-            CheckpointCallback,
-            save_prefix=config.output_dir,
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
-        )
-    }
+    callbacks = []
 
-    return logger_callback, ckpt_callback
+    # Logger
+    callbacks.append(class_config(LoggingCallback, refresh_rate=refresh_rate))
 
+    # Checkpoint
+    callbacks.append(
+        class_config(CheckpointCallback, save_prefix=config.output_dir)
+    )
 
-def get_pl_trainer_args() -> ConfigDict:
-    """Get PyTorch Lightning Trainer arguments."""
-    pl_trainer = ConfigDict()
-
-    # PL Trainer arguments
-    for k, v in inspect.signature(pl.Trainer).parameters.items():
-        if not k in {"callbacks", "logger", "devices", "strategy"}:
-            pl_trainer[k] = v.default
-
-    # Default Trainer arguments
-    pl_trainer.find_unused_parameters = False
-    pl_trainer.checkpoint_period = 1
-    pl_trainer.wandb = False
-
-    return pl_trainer
+    return callbacks

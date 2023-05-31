@@ -1,4 +1,4 @@
-"""Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
+"""Wrapper to connect PyTorch Lightning callbacks."""
 from __future__ import annotations
 
 from typing import Any
@@ -6,9 +6,30 @@ from typing import Any
 import lightning.pytorch as pl
 from torch import nn
 
-from vis4d.common.callbacks import Callback
-from vis4d.engine.connectors import DataConnector
+from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.pl.training_module import TrainingModule
+
+
+def get_trainer_state(
+    trainer: pl.Trainer, pl_module: pl.LightningModule, val: bool = False
+) -> TrainerState:
+    """Wrap pl.Trainer and pl.LightningModule into Trainer."""
+    if val:
+        test_dataloader = trainer.val_dataloaders
+        num_test_batches = trainer.num_val_batches
+    else:
+        test_dataloader = trainer.test_dataloaders
+        num_test_batches = trainer.num_test_batches
+
+    return TrainerState(
+        current_epoch=pl_module.current_epoch,
+        num_epochs=trainer.max_epochs,
+        global_step=trainer.global_step,
+        train_dataloader=trainer.train_dataloader,
+        num_train_batches=trainer.num_training_batches,
+        test_dataloader=test_dataloader,
+        num_test_batches=num_test_batches,
+    )
 
 
 def get_model(model: pl.LightningModule) -> nn.Module:
@@ -21,16 +42,9 @@ def get_model(model: pl.LightningModule) -> nn.Module:
 class CallbackWrapper(pl.Callback):  # type: ignore
     """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
 
-    def __init__(
-        self,
-        callback: Callback,
-        data_connector: DataConnector,
-        callback_key: str,
-    ) -> None:
+    def __init__(self, callback: Callback) -> None:
         """Init class."""
         self.callback = callback
-        self.data_connector = data_connector
-        self.callback_key = callback_key
 
     def setup(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str
@@ -42,10 +56,9 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the start of a training epoch."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_train_epoch_start(
-                get_model(pl_module), pl_module.current_epoch
-            )
+        self.callback.on_train_epoch_start(
+            get_trainer_state(trainer, pl_module), get_model(pl_module)
+        )
 
     def on_train_batch_end(  # type: ignore
         self,
@@ -56,42 +69,39 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         batch_idx: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            model_pred = outputs["predictions"]
-            shared_clbk_kwargs = {
-                "metrics": outputs["metrics"],
-                "epoch": pl_module.current_epoch,
-                "num_epochs": trainer.max_epochs if trainer.max_epochs else 0,
-                "cur_iter": batch_idx,
-                "total_iters": int(trainer.num_training_batches),
-            }
-            self.callback.on_train_batch_end(
-                model=get_model(pl_module),
-                shared_inputs=shared_clbk_kwargs,
-                inputs=self.data_connector.get_callback_input(
-                    self.callback_key, model_pred, batch, cb_type="train"
-                ),
-            )
+        trainer_state = get_trainer_state(trainer, pl_module)
+        trainer_state["metrics"] = outputs["metrics"]
+
+        log_dict = self.callback.on_train_batch_end(
+            trainer_state=trainer_state,
+            model=get_model(pl_module),
+            outputs=outputs["predictions"],
+            batch=batch,
+            batch_idx=batch_idx,
+        )
+
+        if log_dict is not None:
+            for k, v in log_dict.items():
+                pl_module.log(f"train/{k}", v, rank_zero_only=True)
 
     def on_train_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the end of a training epoch."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_train_epoch_end(
-                get_model(pl_module), pl_module.current_epoch
-            )
+        self.callback.on_train_epoch_end(
+            get_trainer_state(trainer, pl_module), get_model(pl_module)
+        )
 
     def on_validation_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the start of a validation epoch."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_start(
-                get_model(pl_module), pl_module.current_epoch
-            )
+        self.callback.on_test_epoch_start(
+            get_trainer_state(trainer, pl_module, val=True),
+            get_model(pl_module),
+        )
 
-    def on_validation_batch_end(  # type: ignore # pylint: disable=signature-differs,line-too-long
+    def on_validation_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
@@ -101,43 +111,39 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         dataloader_idx: int = 0,
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            shared_clbk_kwargs = {
-                "epoch": pl_module.current_epoch,
-                "cur_iter": batch_idx,
-                "total_iters": trainer.num_val_batches[dataloader_idx],
-            }
-            self.callback.on_test_batch_end(
-                model=get_model(pl_module),
-                shared_inputs=shared_clbk_kwargs,
-                inputs=self.data_connector.get_callback_input(
-                    self.callback_key, outputs, batch, cb_type="test"
-                ),
-            )
+        self.callback.on_test_batch_end(
+            trainer_state=get_trainer_state(trainer, pl_module, val=True),
+            model=get_model(pl_module),
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
     def on_validation_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            log_dict = self.callback.on_test_epoch_end(
-                get_model(pl_module), pl_module.current_epoch
-            )
+        log_dict = self.callback.on_test_epoch_end(
+            get_trainer_state(trainer, pl_module, val=True),
+            get_model(pl_module),
+        )
 
-            if log_dict is not None:
-                for k, v in log_dict.items():
-                    pl_module.log(k, v, rank_zero_only=True, sync_dist=True)
+        if log_dict is not None:
+            for k, v in log_dict.items():
+                pl_module.log(
+                    f"val/{k}", v, sync_dist=True, rank_zero_only=True
+                )
 
     def on_test_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the start of a testing epoch."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_start(
-                get_model(pl_module), pl_module.current_epoch
-            )
+        self.callback.on_test_epoch_start(
+            get_trainer_state(trainer, pl_module), get_model(pl_module)
+        )
 
-    def on_test_batch_end(  # type: ignore # pylint: disable=signature-differs,line-too-long
+    def on_test_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
@@ -147,29 +153,25 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         dataloader_idx: int = 0,
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
-        shared_clbk_kwargs = {
-            "epoch": pl_module.current_epoch,
-            "cur_iter": batch_idx,
-            "total_iters": trainer.num_test_batches[dataloader_idx],
-        }
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_batch_end(
-                model=get_model(pl_module),
-                shared_inputs=shared_clbk_kwargs,
-                inputs=self.data_connector.get_callback_input(
-                    self.callback_key, outputs, batch, cb_type="test"
-                ),
-            )
+        self.callback.on_test_batch_end(
+            trainer_state=get_trainer_state(trainer, pl_module),
+            model=get_model(pl_module),
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
 
     def on_test_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            log_dict = self.callback.on_test_epoch_end(
-                get_model(pl_module), pl_module.current_epoch
-            )
+        log_dict = self.callback.on_test_epoch_end(
+            get_trainer_state(trainer, pl_module), get_model(pl_module)
+        )
 
-            if log_dict is not None:
-                for k, v in log_dict.items():
-                    pl_module.log(k, v, rank_zero_only=True, sync_dist=True)
+        if log_dict is not None:
+            for k, v in log_dict.items():
+                pl_module.log(
+                    f"test/{k}", v, sync_dist=True, rank_zero_only=True
+                )

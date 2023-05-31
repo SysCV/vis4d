@@ -1,22 +1,22 @@
-"""LightningModule that wraps around the vis4d models, losses and optims."""
+"""LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
 
 import lightning.pytorch as pl
-import torch
 from lightning.pytorch import seed_everything
-from torch import nn, optim
-from torchmetrics import MeanMetric
+from ml_collections import ConfigDict
+from torch import Tensor, optim
 
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.util import init_random_seed
-from vis4d.config.util import ConfigDict, instantiate_classes
+from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
-from vis4d.engine.opt import Optimizer, set_up_optimizers
+from vis4d.engine.loss_module import LossModule
+from vis4d.engine.optim import Optimizer, set_up_optimizers
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -71,17 +71,20 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         self,
         model: ConfigDict,
         optimizers: list[ConfigDict],
-        loss: nn.Module,
-        data_connector: DataConnector,
+        loss_module: None | LossModule,
+        train_data_connector: None | DataConnector,
+        test_data_connector: None | DataConnector,
         seed: None | int = None,
     ) -> None:
         """Initialize the TrainingModule.
 
         Args:
-            model: The model to train.
+            model: The model config  to train.
             optimizers: The optimizers to use. Will be wrapped into a pytorch
                 optimizer.
-            loss: The loss function to use.
+            loss_module: The loss function to use.
+            train_data_connector: The data connector to use.
+            test_data_connector: The data connector to use.
             data_connector: The data connector to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
@@ -89,8 +92,9 @@ class TrainingModule(pl.LightningModule):  # type: ignore
         super().__init__()
         self.model = model
         self.optims = optimizers
-        self.loss_fn = loss
-        self.data_connector = data_connector
+        self.loss_module = loss_module
+        self.train_data_connector = train_data_connector
+        self.test_data_connector = test_data_connector
         self.seed = seed
 
     def setup(self, stage: str) -> None:
@@ -105,67 +109,60 @@ class TrainingModule(pl.LightningModule):  # type: ignore
             seed_everything(seed, workers=True)
             rank_zero_info(f"Global seed set to {seed}")
 
+        # Instantiate the model and optimizers after the seed has been set
         self.model = instantiate_classes(self.model)
-        self.optims = set_up_optimizers(self.optims, self.model)  # type: ignore # pylint: disable=line-too-long
+        self.optims = set_up_optimizers(self.optims, self.model)
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
+    def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
     ) -> Any:
         """Forward pass through the model."""
-        return self.model(**self.data_connector.get_train_input(data))
+        if self.training:
+            assert self.train_data_connector is not None
+            return self.model(**self.train_data_connector(data))
+        assert self.test_data_connector is not None
+        return self.model(**self.test_data_connector(data))
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int
     ) -> Any:
         """Perform a single training step."""
-        out = self.model(**self.data_connector.get_train_input(batch))
-        losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
-        if isinstance(losses, torch.Tensor):
-            losses = {"loss": losses}
+        assert self.train_data_connector is not None
+        out = self.model(**self.train_data_connector(batch))
+
+        assert self.loss_module is not None
+        losses = self.loss_module(out, batch)
+
+        metrics = {}
+        if isinstance(losses, Tensor):
+            total_loss = losses
         else:
-            losses["loss"] = sum(list(losses.values()))
+            total_loss = sum(list(losses.values()))
+            for k, v in losses.items():
+                metrics[k] = v.detach().cpu().item()
 
-        log_dict = {}
-        metric_attributes = []
-        for k, v in losses.items():
-            if not hasattr(self, k):
-                metric = MeanMetric()
-                metric.to(self.device)
-                setattr(self, k, metric)
+        metrics["loss"] = total_loss.detach().cpu().item()
 
-            metric = getattr(self, k)
-            metric(v.detach())
-            log_dict["train/" + k] = metric
-            metric_attributes += [k]
-
-        for (k, v), k_name in zip(log_dict.items(), metric_attributes):
-            self.log(
-                k,
-                v,
-                logger=True,
-                prog_bar=True,
-                on_step=True,
-                on_epoch=False,
-                metric_attribute=k_name,
-            )
         return {
-            "loss": losses["loss"],
-            "metrics": losses,
+            "loss": total_loss,
+            "metrics": metrics,
             "predictions": out,
         }
 
-    def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
+    def validation_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
+    ) -> DictData:
         """Perform a single validation step."""
-        out = self.model(**self.data_connector.get_test_input(batch))
+        assert self.test_data_connector is not None
+        out = self.model(**self.test_data_connector(batch))
         return out
 
-    def test_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
+    def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
-    ) -> Any:
+    ) -> DictData:
         """Perform a single test step."""
-        out = self.model(**self.data_connector.get_test_input(batch))
+        assert self.test_data_connector is not None
+        out = self.model(**self.test_data_connector(batch))
         return out
 
     def configure_optimizers(self) -> list[TorchOptimizer]:

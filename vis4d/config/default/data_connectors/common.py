@@ -9,5 +9,5 @@ CONN_IMAGES_TRAIN = {
 CONN_IMAGES_TEST = {
     K.images: K.images,
     K.input_hw: K.input_hw,
-    "original_hw": "original_hw",
+    "original_hw": K.original_hw,
 }

@@ -140,6 +140,10 @@ class COCO(Dataset, CacheMappingMixin):
 
     KEYS = [
         K.images,
+        K.input_hw,
+        K.original_images,
+        K.original_hw,
+        K.sample_names,
         K.boxes2d,
         K.boxes2d_classes,
         K.instance_masks,
@@ -157,7 +161,7 @@ class COCO(Dataset, CacheMappingMixin):
         ),
         split: str = "train2017",
         remove_empty: bool = False,
-        minimum_box_area: float = 0,
+        minimum_box_area: float = 0.0,
         use_pascal_voc_cats: bool = False,
         data_backend: None | DataBackend = None,
     ) -> None:
@@ -169,7 +173,7 @@ class COCO(Dataset, CacheMappingMixin):
             split (split): Which split to load. Default: "train2017".
             remove_empty (bool): Whether to remove images with no annotations.
             minimum_box_area (float): Minimum area of the bounding boxes.
-                Default: 0.
+                Default: 0.0.
             use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
             data_backend (None | DataBackend): Data backend to use.
                 Default: None.
@@ -188,12 +192,13 @@ class COCO(Dataset, CacheMappingMixin):
 
         # handling keys to load
         self.validate_keys(keys_to_load)
-        self.with_images = K.images in keys_to_load
-        self.with_boxes = (K.boxes2d in keys_to_load) or (
-            K.boxes2d_classes in keys_to_load
+
+        self.load_annotations = (
+            K.boxes2d in keys_to_load
+            or K.boxes2d_classes in keys_to_load
+            or K.instance_masks in keys_to_load
+            or K.seg_masks in keys_to_load
         )
-        self.with_masks = K.instance_masks in keys_to_load
-        self.with_sem_masks = K.seg_masks in keys_to_load
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -201,8 +206,8 @@ class COCO(Dataset, CacheMappingMixin):
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats}), "
-            f"remove_empty={self.remove_empty}"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats}, "
+            f"remove_empty={self.remove_empty})"
         )
 
     def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
@@ -256,13 +261,10 @@ class COCO(Dataset, CacheMappingMixin):
         """
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
-        dict_data = {
-            K.original_hw: [img_h, img_w],
-            K.input_hw: [img_h, img_w],
-            "coco_image_id": data["img"]["id"],
-        }
 
-        if self.with_images:
+        dict_data: DictData = {}
+
+        if K.images in self.keys_to_load:
             img_path = os.path.join(
                 self.data_root, self.split, data["img"]["file_name"]
             )
@@ -272,48 +274,76 @@ class COCO(Dataset, CacheMappingMixin):
             assert (img_h, img_w) == img_.shape[
                 1:3
             ], "Image's shape doesn't match annotation."
-            dict_data[K.images] = img_
 
-        if self.with_boxes or self.with_masks or self.with_sem_masks:
+            dict_data[K.sample_names] = data["img"]["id"]
+            dict_data[K.images] = img_
+            dict_data[K.input_hw] = [img_h, img_w]
+
+        if K.original_images in self.keys_to_load:
+            dict_data[K.original_images] = img_
+            dict_data[K.original_hw] = [img_h, img_w]
+
+        if self.load_annotations:
             boxes = []
             classes = []
             masks = []
 
             for ann in data["anns"]:
-                x1, y1, width, height = ann["bbox"]
-                x2, y2 = x1 + width, y1 + height
-                boxes.append((x1, y1, x2, y2))
-                classes.append(ann["category_id"])
-                mask_ann = ann.get("segmentation", None)
-                if mask_ann is not None and self.with_masks:
-                    if isinstance(mask_ann, list):
-                        rles = maskUtils.frPyObjects(mask_ann, img_h, img_w)
-                        rle = maskUtils.merge(rles)
-                    elif isinstance(mask_ann["counts"], list):
-                        # uncompressed RLE
-                        rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
-                    else:
-                        # RLE
-                        rle = mask_ann
-                    masks.append(maskUtils.decode(rle))
-                else:  # pragma: no cover
-                    masks.append(np.empty((img_h, img_w), dtype=np.uint8))
-            if not boxes:  # pragma: no cover
-                box_tensor = np.empty((0, 4), dtype=np.float32)
-                mask_tensor = np.empty((0, img_h, img_w), dtype=np.uint8)
-            else:
-                box_tensor = np.array(boxes, dtype=np.float32)
-                mask_tensor = np.ascontiguousarray(masks, dtype=np.uint8)
+                if K.boxes2d in self.keys_to_load:
+                    x1, y1, width, height = ann["bbox"]
+                    x2, y2 = x1 + width, y1 + height
+                    boxes.append((x1, y1, x2, y2))
+                if (
+                    K.boxes2d in self.keys_to_load
+                    or K.boxes2d_classes in self.keys_to_load
+                    or K.seg_masks in self.keys_to_load
+                ):
+                    classes.append(ann["category_id"])
+
+                if (
+                    K.seg_masks in self.keys_to_load
+                    or K.instance_masks in self.keys_to_load
+                ):
+                    mask_ann = ann.get("segmentation", None)
+                    if mask_ann is not None:
+                        if isinstance(mask_ann, list):
+                            rles = maskUtils.frPyObjects(
+                                mask_ann, img_h, img_w
+                            )
+                            rle = maskUtils.merge(rles)
+                        elif isinstance(mask_ann["counts"], list):
+                            # uncompressed RLE
+                            rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+                        else:
+                            # RLE
+                            rle = mask_ann
+                        masks.append(maskUtils.decode(rle))
+                    else:  # pragma: no cover
+                        masks.append(np.empty((img_h, img_w), dtype=np.uint8))
+
+            box_tensor = (
+                np.empty((0, 4), dtype=np.float32)
+                if not boxes
+                else np.array(boxes, dtype=np.float32)
+            )
+            mask_tensor = (
+                np.empty((0, img_h, img_w), dtype=np.uint8)
+                if not masks
+                else np.ascontiguousarray(masks, dtype=np.uint8)
+            )
 
             if K.boxes2d in self.keys_to_load:
                 dict_data[K.boxes2d] = box_tensor
+
             if K.boxes2d_classes in self.keys_to_load:
                 dict_data[K.boxes2d_classes] = np.array(
                     classes, dtype=np.int64
                 )
-            if self.with_masks:
+
+            if K.instance_masks in self.keys_to_load:
                 dict_data[K.instance_masks] = mask_tensor
-            if self.with_sem_masks:
+
+            if K.seg_masks in self.keys_to_load:
                 seg_masks = (
                     mask_tensor * np.array(classes)[:, None, None]
                 ).max(axis=0)

@@ -37,9 +37,14 @@ class CommonKeys:
     data pre-processing operations among different datasets.
 
     images (NDArrayF32): Image of shape [1, H, W, C].
-    original_hw (Tuple[int, int]): Original shape of image in (height, width).
     input_hw (Tuple[int, int]): Shape of image in (height, width) after
         transformations.
+    original_images (NDArrayF32): Original image of shape [1, H, W, C].
+    original_hw (Tuple[int, int]): Original shape of image in (height, width).
+
+    sample_names (str): Name of the current sample.
+    sequence_names (str): If the dataset contains videos,  this field indicates
+        the name of the current sequence.
     frame_ids (int): If the dataset contains videos, this field indicates the
         temporal frame index of the current image / sample.
 
@@ -51,6 +56,7 @@ class CommonKeys:
     instance_masks (NDArrayUI8): Instance segmentation masks of shape
         [N, H, W].
     seg_masks (NDArrayUI8): Semantic segmentation masks [H, W].
+    deph_maps (NDArrayF32): Depth maps of shape [H, W].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
@@ -72,8 +78,13 @@ class CommonKeys:
 
     # image based inputs
     images = "images"
-    original_hw = "original_hw"
     input_hw = "input_hw"
+    original_images = "original_images"
+    original_hw = "original_hw"
+
+    # General Info
+    sample_names = "sample_names"  # Sample name for each sample
+    sequence_names = "sequence_names"  # Sequence name for each sample
     frame_ids = "frame_ids"
 
     # 2D annotations

@@ -97,8 +97,8 @@ class FasterRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            FRCNNOut | DetOut: Either raw model outputs (for
-                training) or predicted outputs (for testing).
+            FRCNNOut | DetOut: Either raw model outputs (for training) or
+                predicted outputs (for testing).
         """
         if self.training:
             assert boxes2d is not None and boxes2d_classes is not None

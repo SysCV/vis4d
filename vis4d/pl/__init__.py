@@ -1,4 +1,1 @@
-"""Run vis4d model training and evaluation in pytorch lightening."""
-from .trainer import DefaultTrainer
-
-__all__ = ["DefaultTrainer"]
+"""Run training and evaluation in PyTorch Lightening."""

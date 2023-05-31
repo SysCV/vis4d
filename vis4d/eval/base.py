@@ -1,15 +1,7 @@
 """Vis4D base evaluation."""
 from __future__ import annotations
 
-import os
-import pickle
-import shutil
-import tempfile
-from collections.abc import Callable
-from typing import Any
-
-from vis4d.common import MetricLogs
-from vis4d.data.io import DataBackend, HDF5Backend
+from vis4d.common import ArgsType, GenericFunc, MetricLogs
 
 
 class Evaluator:  # pragma: no cover
@@ -24,9 +16,7 @@ class Evaluator:  # pragma: no cover
         """
         return []
 
-    def gather(  # type: ignore
-        self, gather_func: Callable[[Any], Any]
-    ) -> None:
+    def gather(self, gather_func: GenericFunc) -> None:
         """Gather variables in case of distributed setting (if needed).
 
         Args:
@@ -41,7 +31,7 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
-    def process(self, *args: Any) -> None:  # type: ignore
+    def process(self, *args: ArgsType) -> None:
         """Process a batch of data.
 
         Raises:
@@ -71,57 +61,3 @@ class Evaluator:  # pragma: no cover
             metric (str): Metric to evaluate.
             output_dir (str): Directory to save predictions to.
         """
-
-
-class SaveDataMixin:
-    """Provides utility for saving predictions to file during eval."""
-
-    def __init__(
-        self,
-        save_dir: None | str = None,
-        data_backend: None | DataBackend = None,
-    ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            save_dir (None | str, optional): Directory to save predictions
-                to. If None, a temporary directory will be created. Defaults to
-                None.
-            data_backend (None | DataBackend, optional): Data backend. If
-                None, HDF5Backend will be used. Defaults to None.
-        """
-        if data_backend is None:
-            self.data_backend: DataBackend = HDF5Backend()
-        else:
-            self.data_backend = data_backend
-        if save_dir is None:
-            self.save_dir = tempfile.mkdtemp()
-        else:
-            self.save_dir = save_dir
-
-    def save(self, data: Any, location: str) -> None:  # type: ignore
-        """Save data at given relative location.
-
-        Args:
-            data (Any): Data to save.
-            location (str): Location to save to, which depends on data backend.
-        """
-        pdata = pickle.dumps(data, protocol=-1)
-        self.data_backend.set(os.path.join(self.save_dir, location), pdata)
-
-    def get(self, location: str) -> Any:  # type: ignore
-        """Get data at given relative location.
-
-        Args:
-            location (str): Location to load from, which depends on data
-                backend.
-
-        Returns:
-            Any: Loaded data.
-        """
-        data = self.data_backend.get(os.path.join(self.save_dir, location))
-        return pickle.loads(data)
-
-    def reset(self) -> None:
-        """Delete currently cached data."""
-        shutil.rmtree(self.save_dir)

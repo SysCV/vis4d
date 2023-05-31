@@ -4,7 +4,8 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 
 from vis4d.common.typing import NDArrayUI8
-from vis4d.vis.image.base import ImageViewerBackend
+
+from .base import ImageViewerBackend
 
 
 class MatplotlibImageViewer(ImageViewerBackend):
@@ -16,9 +17,9 @@ class MatplotlibImageViewer(ImageViewerBackend):
         """Shows a list of images.
 
         Args:
-            images (list[NDArrayUI8]): Images to display
+            images (list[NDArrayUI8]): Images to display.
             blocking (bool): If the viewer should be blocking and wait
-                            for human input after each image.
+                for human input after each image.
         """
         for image in images:
             plt.imshow(image)

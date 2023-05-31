@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import traceback
+from typing import Any
 
 import yaml
 from absl import flags
-from ml_collections import ConfigDict
+from ml_collections import ConfigDict, FieldReference
 from ml_collections.config_flags.config_flags import (
     _ConfigFlag,
     _ErrorConfig,
@@ -15,8 +17,9 @@ from ml_collections.config_flags.config_flags import (
     _LockConfig,
 )
 
+from vis4d.config import copy_and_resolve_references
 
-## Parser Setup
+
 class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
     """Parser for config files."""
 
@@ -135,7 +138,7 @@ def DEFINE_config_file(  # pylint: disable=invalid-name
     name: str,
     default: str | None = None,
     help_string: str = "path to config file [.py |.yaml].",
-    lock_config: bool = True,
+    lock_config: bool = False,
     method_name: str = "get_config",
 ) -> flags.FlagHolder:
     """Registers a new flag for a config file.
@@ -146,7 +149,7 @@ def DEFINE_config_file(  # pylint: disable=invalid-name
         help_string (str, optional): Help String.
             Defaults to "path to config file.".
         lock_config (bool, optional): Whether or note to lock the returned
-            config. Defaults to True.
+            config. Defaults to False.
         method_name (str, optional): Name of the method to call in the config.
 
     Returns:
@@ -170,3 +173,76 @@ def DEFINE_config_file(  # pylint: disable=invalid-name
     ).f_globals.get("__name__", None)
     module_name = sys.argv[0] if module_name == "__main__" else module_name
     return flags.DEFINE_flag(flag, flags.FLAGS, module_name=module_name)
+
+
+def pprints_config(data: ConfigDict) -> str:
+    """Converts a Config Dict into a string with a .yaml like structure.
+
+    This function differs from __repr__ of ConfigDict in that it will not
+    encode python classes using binary formats but just prints the __repr__
+    of these classes.
+
+    Args:
+        data (ConfigDict): Configuration dict to convert to string
+
+    Returns:
+        str: A string representation of the ConfigDict
+    """
+    return _pprints_config(copy_and_resolve_references(data))
+
+
+def _pprints_config(  # type: ignore
+    data: Any, prefix: str = "", n_indents: int = 1
+) -> str:
+    """Converts a ConfigDict into a string with a YAML like structure.
+
+    This is the recursive implementation of 'pprints_config' and will be called
+    recursively for every element in the dict.
+
+    This function differs from __repr__ of ConfigDict in that it will not
+    encode python classes using binary formats but just prints the __repr__
+    of these classes.
+
+    Args:
+        data (Any): Configuration dict or object to convert to
+            string
+        prefix (str): Prefix to print on each new line
+        n_indents (int): Number of spaces to append for each nester property.
+
+    Returns:
+        str: A string representation of the ConfigDict
+    """
+    string_repr = ""
+    if isinstance(data, FieldReference):
+        data = data.get()
+
+    if not isinstance(data, (dict, ConfigDict, list, tuple, dict)):
+        return str(data)
+
+    string_repr += "\n"
+
+    if isinstance(data, (ConfigDict, dict)):
+        for key in data:
+            value = data[key]
+            string_repr += (
+                prefix
+                + key
+                + ": "
+                + _pprints_config(value, prefix=prefix + " " * n_indents)
+            ) + "\n"
+
+    elif isinstance(data, (list, tuple)):
+        for value in data:
+            string_repr += prefix + "- "
+            if isinstance(value, (ConfigDict, dict)):
+                string_repr += "\n"
+
+            string_repr += (
+                _pprints_config(value, prefix=prefix + " " + " " * n_indents)
+                + "\n"
+            )
+        string_repr += " \n"  # Add newline after list for better readability.
+
+    # Clean up some formatting issues using regex. Could be done better
+    string_repr = re.sub("\n\n+", "\n", string_repr)
+    return re.sub("- +\n +", "- ", string_repr)

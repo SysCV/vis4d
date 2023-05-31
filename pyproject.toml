@@ -80,7 +80,8 @@ plugins = ["numpy.typing.mypy_plugin"]
         "ml_collections.*",
         "lightning.*",
         "detectron2.*",
-        "absl.*"
+        "absl.*",
+        "terminaltables.*",
     ]
     ignore_missing_imports = true
 

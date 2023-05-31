@@ -29,13 +29,15 @@ NDArrayFloat = Union[NDArrayF32, NDArrayF64]
 NDArrayInt = Union[NDArrayI64, NDArrayI32]
 
 NDArrayNumber = Union[NDArrayFloat, NDArrayInt, NDArrayBool]
-MetricLogs = Dict[str, Union[float, int]]
+MetricLogs = Dict[str, Union[float, int, Tensor]]
 DictStrAny = Dict[str, Any]  # type: ignore
+DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]
 ArgsType = Any  # type: ignore
 ModelOutput = DictStrAny
 TorchCheckpoint = DictStrAny
 LossesType = Dict[str, Tensor]
 TorchLossFunc = Callable[..., Any]  # type: ignore
+GenericFunc = Callable[..., Any]  # type: ignore
 
 ArrayIterableInt = Iterable[Union[int, "ArrayIterableInt"]]
 ArrayIterableFloat = Iterable[Union[float, "ArrayIterableFloat"]]

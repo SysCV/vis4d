@@ -79,5 +79,6 @@ log/
 docs/source/api/*
 docs/source/tutorials/.ipynb_checkpoints/*
 wandb/
+
 # No lightning logs
 lightning_logs/

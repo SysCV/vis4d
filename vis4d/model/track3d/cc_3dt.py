@@ -252,14 +252,14 @@ class CC3DTrack(nn.Module):
 
     def _forward_test(
         self,
-        features_list: list[torch.Tensor],
-        boxes_2d_list: list[torch.Tensor],
-        scores_2d_list: list[torch.Tensor],
-        boxes_3d_list: list[torch.Tensor],
-        scores_3d_list: list[torch.Tensor],
-        class_ids_list: list[torch.Tensor],
+        features_list: list[Tensor],
+        boxes_2d_list: list[Tensor],
+        scores_2d_list: list[Tensor],
+        boxes_3d_list: list[Tensor],
+        scores_3d_list: list[Tensor],
+        class_ids_list: list[Tensor],
         frame_ids: list[int],
-        extrinsics: torch.Tensor,
+        extrinsics: Tensor,
         class_range_map: None | Tensor = None,
         fps: int = 2,
     ) -> Track3DOut:
@@ -411,15 +411,15 @@ class CC3DTrack(nn.Module):
 
     def forward(
         self,
-        features: list[torch.Tensor],
-        boxes_2d: list[torch.Tensor],
-        det_scores: list[torch.Tensor],
-        det_boxes_3d: list[torch.Tensor],
-        det_scores_3d: list[torch.Tensor],
-        det_class_ids: list[torch.Tensor],
+        features: list[Tensor],
+        boxes_2d: list[Tensor],
+        det_scores: list[Tensor],
+        det_boxes_3d: list[Tensor],
+        det_scores_3d: list[Tensor],
+        det_class_ids: list[Tensor],
         frame_ids: list[int],
-        extrinsics: torch.Tensor,
-        class_range_map: None | torch.Tensor = None,
+        extrinsics: Tensor,
+        class_range_map: None | Tensor = None,
         fps: int = 2,
     ) -> Track3DOut:
         """Forward function."""
@@ -508,11 +508,11 @@ class FasterRCNNCC3DT(nn.Module):
 
     def forward(
         self,
-        images: torch.Tensor,
-        images_hw: list[tuple[int, int]],
-        intrinsics: torch.Tensor,
-        extrinsics: torch.Tensor,
-        frame_ids: list[int],
+        images: Tensor,
+        images_hw: list[list[tuple[int, int]]],
+        intrinsics: Tensor,
+        extrinsics: Tensor,
+        frame_ids: list[list[int]],
     ) -> list[CC3DTrackState]:
         """Forward."""
         # TODO implement forward_train
@@ -522,25 +522,32 @@ class FasterRCNNCC3DT(nn.Module):
 
     def _forward_test(
         self,
-        images: torch.Tensor,
-        images_hw: list[tuple[int, int]],
-        intrinsics: torch.Tensor,
-        extrinsics: torch.Tensor,
-        frame_ids: list[int],
+        images: Tensor,
+        images_hw: list[list[tuple[int, int]]],
+        intrinsics: Tensor,
+        extrinsics: Tensor,
+        frame_ids: list[list[int]],
     ) -> list[CC3DTrackState]:
         """Forward inference stage."""
         # Curretnly only work with single batch per gpu
+        # (N, 1, 3, H, W) -> (N, 3, H, W)
+        images = images.squeeze(1)
+        # (N, 1, 3, 3) -> (N, 3, 3)
         intrinsics = intrinsics.squeeze(1)
+        # (N, 1, 4, 4) -> (N, 4, 4)
         extrinsics = extrinsics.squeeze(1)
+        # (N, 1) -> (N,)
+        images_hw_list: list[tuple[int, int]] = sum(images_hw, [])
+        frame_ids_list: list[int] = sum(frame_ids, [])
 
         features = self.basemodel(images)
         features = self.fpn(features)
         _, roi, proposals, _, _, _ = self.faster_rcnn_heads(
-            features, images_hw
+            features, images_hw_list
         )
 
         boxes_2d, scores_2d, class_ids = self.roi2det(
-            *roi, proposals.boxes, images_hw
+            *roi, proposals.boxes, images_hw_list
         )
 
         boxes_3d, scores_3d = self.bbox_3d_head(
@@ -557,7 +564,7 @@ class FasterRCNNCC3DT(nn.Module):
             boxes_3d,
             scores_3d,
             class_ids,
-            frame_ids,
+            frame_ids_list,
             extrinsics,
             self.class_range_map,
             self.dataset_fps,
@@ -566,11 +573,11 @@ class FasterRCNNCC3DT(nn.Module):
 
     def __call__(
         self,
-        images: torch.Tensor,
-        images_hw: list[tuple[int, int]],
-        intrinsics: torch.Tensor,
-        extrinsics: torch.Tensor,
-        frame_ids: list[int],
+        images: Tensor,
+        images_hw: list[list[tuple[int, int]]],
+        intrinsics: Tensor,
+        extrinsics: Tensor,
+        frame_ids: list[list[int]],
     ) -> list[CC3DTrackState]:
         """Type definition for call implementation."""
         return self._call_impl(
