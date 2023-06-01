@@ -37,7 +37,7 @@ class LoggingCallback(Callback):
         model: nn.Module,
         batch: DictData,
         batch_idx: int,
-    ) -> None | MetricLogs:
+    ) -> None:
         """Hook to run at the start of a training batch."""
         if not self.epoch_based and self.train_timer.paused:
             self.train_timer.resume()

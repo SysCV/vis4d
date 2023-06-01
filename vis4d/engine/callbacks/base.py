@@ -117,7 +117,7 @@ class Callback:
         model: nn.Module,
         batch: DictData,
         batch_idx: int,
-    ) -> None | MetricLogs:
+    ) -> None:
         """Hook to run at the start of a training batch.
 
         Args:

@@ -53,7 +53,7 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         """Setup callback."""
         self.callback.setup()
 
-    def on_train_batch_start(
+    def on_train_batch_start(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,

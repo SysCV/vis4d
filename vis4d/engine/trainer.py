@@ -65,7 +65,6 @@ class Trainer:
         self.callbacks = callbacks
         self.num_epochs = num_epochs
         self.num_steps = num_steps
-        self.check_val_every_n_epoch = check_val_every_n_epoch
         self.val_check_interval = val_check_interval
 
         self.epoch = epoch
@@ -78,6 +77,8 @@ class Trainer:
                     " `check_val_every_n_epoch` is None."
                 )
             self.check_val_every_n_epoch = -1
+        else:
+            self.check_val_every_n_epoch = check_val_every_n_epoch
 
         if self.num_epochs > 0 and self.num_steps > 0:
             rank_zero_warn(
