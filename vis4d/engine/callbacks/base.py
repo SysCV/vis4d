@@ -111,6 +111,22 @@ class Callback:
 
         return self.test_connector(outputs, batch)
 
+    def on_train_batch_start(
+        self,
+        trainer_state: TrainerState,
+        model: nn.Module,
+        batch: DictData,
+        batch_idx: int,
+    ) -> None | MetricLogs:
+        """Hook to run at the start of a training batch.
+
+        Args:
+            trainer_state (TrainerState): Trainer state.
+            model: Model that is being trained.
+            batch (DictData): Dataloader output data batch.
+            batch_idx (int): Index of the batch.
+        """
+
     def on_train_epoch_start(
         self, trainer_state: TrainerState, model: nn.Module
     ) -> None:

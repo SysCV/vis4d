@@ -84,7 +84,7 @@ class SemanticFPN(nn.Module):
         Returns:
             SemanticFPNOut: Raw model predictions.
         """
-        features = self.fpn(self.basemodel(images.contiguous()))
+        features = self.fpn(self.basemodel(images))
         out = self.seg_head(features)
         if self.resize:
             out = SemanticFPNOut(

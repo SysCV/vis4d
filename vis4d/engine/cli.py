@@ -94,6 +94,7 @@ def main(argv: ArgsType) -> None:
     >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    assert len(argv) > 1, "Mode must be specified: `fit` or `test`"
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config = _CONFIG.value
@@ -186,6 +187,7 @@ def main(argv: ArgsType) -> None:
         callbacks=callbacks,
         num_epochs=config.params.get("num_epochs", 0),
         num_steps=config.params.get("num_steps", 0),
+        check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
         val_check_interval=config.get("val_check_interval", -1),
     )
 

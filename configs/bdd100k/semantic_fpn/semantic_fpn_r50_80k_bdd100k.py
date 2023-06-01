@@ -47,16 +47,17 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="semantic_fpn_r50_40k_bdd100k")
+    config = get_default_cfg(exp_name="semantic_fpn_r50_80k_bdd100k")
     config.sync_batchnorm = True
-    config.val_check_interval = 2000
+    config.val_check_interval = 4000
+    config.check_val_every_n_epoch = None
 
     ## High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
-    params.num_steps = 40000
+    params.num_steps = 80000
     params.num_classes = 19
     config.params = params
 
@@ -174,12 +175,11 @@ def get_config() -> FieldConfigDict:
     pl_trainer.epoch_based = False
     pl_trainer.max_steps = params.num_steps
 
-    val_freq = 2000
-    pl_trainer.checkpoint_period = val_freq
-    pl_trainer.val_check_interval = val_freq
-    pl_trainer.check_val_every_n_epoch = None
+    pl_trainer.checkpoint_period = config.val_check_interval
+    pl_trainer.val_check_interval = config.val_check_interval
+    pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
 
-    pl_trainer.sync_batchnorm = True
+    pl_trainer.sync_batchnorm = config.sync_batchnorm
     # pl_trainer.precision = 16
 
     config.pl_trainer = pl_trainer

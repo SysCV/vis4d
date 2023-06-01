@@ -20,7 +20,7 @@ class TestPad(unittest.TestCase):
         images, hw = pad_images(images)
         self.assertEqual(images[0].shape, (1, 16, 16, 3))
         self.assertEqual(images[1].shape, (1, 16, 16, 3))
-        self.assertEqual(hw, [(10, 10), (15, 15)])
+        self.assertEqual(hw, [(16, 16), (16, 16)])
         self.assertTrue((images[0][0, 10:, 10:] == 0).all())
         self.assertTrue((images[1][0, 15:, 15:] == 0).all())
 

@@ -45,13 +45,8 @@ class PadImages:
         """Pad images to consistent size."""
         heights = [im.shape[1] for im in images]
         widths = [im.shape[2] for im in images]
-        if self.shape is not None:
-            max_hw = self.shape
-            out_shapes = [max_hw] * len(images)
-        else:
-            max_hw = max(heights), max(widths)
-            max_hw = tuple(_make_divisible(x, self.stride) for x in max_hw)  # type: ignore # pylint: disable=line-too-long
-            out_shapes = [(im.shape[1], im.shape[2]) for im in images]
+        max_hw = _get_max_shape(self.stride, self.shape, heights, widths)
+        out_shapes = [max_hw] * len(images)
 
         # generate params for torch pad
         for i, (image, h, w) in enumerate(zip(images, heights, widths)):
@@ -62,7 +57,7 @@ class PadImages:
         return images, out_shapes
 
 
-@BatchTransform(K.seg_masks, K.seg_masks)
+@BatchTransform([K.seg_masks, K.input_hw], K.seg_masks)
 class PadSegMasks:
     """Pad batch of segmentation masks at the bottom right."""
 
@@ -90,15 +85,18 @@ class PadSegMasks:
         self.value = value
         self.shape = shape
 
-    def __call__(self, masks: list[NDArrayUI8]) -> list[NDArrayUI8]:
+    def __call__(
+        self,
+        masks: list[NDArrayUI8],
+        input_hw: list[tuple[int, int]] | None = None,
+    ) -> list[NDArrayUI8]:
         """Pad images to consistent size."""
         heights = [im.shape[0] for im in masks]
         widths = [im.shape[1] for im in masks]
-        if self.shape is not None:
-            max_hw = self.shape
+        if input_hw is not None:
+            max_hw = input_hw[0]
         else:
-            max_hw = max(heights), max(widths)
-            max_hw = tuple(_make_divisible(x, self.stride) for x in max_hw)  # type: ignore # pylint: disable=line-too-long
+            max_hw = _get_max_shape(self.stride, self.shape, heights, widths)
 
         # generate params for torch pad
         for i, (mask, h, w) in enumerate(zip(masks, heights, widths)):
@@ -107,6 +105,33 @@ class PadSegMasks:
                 mask, pad_param, mode=self.mode, constant_values=self.value
             )
         return masks
+
+
+def _get_max_shape(
+    stride: int,
+    shape: tuple[int, int] | None,
+    heights: list[int],
+    widths: list[int],
+) -> tuple[int, int]:
+    """Get max shape for padding.
+
+    Args:
+        stride (int): Chooses padding size so that the input will be divisible
+            by stride.
+        shape (tuple[int, int], optional): Shape of the padded image (H, W).
+            Defaults to None.
+        heights (list[int]): List of heights of input.
+        widths (list[int]): List of widths of input.
+
+    Returns:
+        tuple[int, int]: Max shape for padding.
+    """
+    if shape is not None:
+        max_hw = shape
+    else:
+        max_hw = max(heights), max(widths)
+        max_hw = tuple(_make_divisible(x, stride) for x in max_hw)  # type: ignore # pylint: disable=line-too-long
+    return max_hw
 
 
 def _make_divisible(x: int, stride: int) -> int:

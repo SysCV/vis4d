@@ -6,6 +6,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common.logging import rank_zero_warn
 from vis4d.data import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
@@ -30,6 +31,7 @@ class Trainer:
         num_steps: int = 0,
         epoch: int = 0,
         global_step: int = 0,
+        check_val_every_n_epoch: int | None = 1,
         val_check_interval: int = -1,
     ) -> None:
         """Initialize the trainer.
@@ -50,6 +52,8 @@ class Trainer:
             num_steps (int): Number of training steps. Defaults to 0.
             epoch (int, optional): Starting epoch. Defaults to 0.
             global_step (int, optional): Starting step. Defaults to 0.
+            check_val_every_n_epoch (int, optional): Evaluate the model every
+                n epochs during training. Defaults to 1.
             val_check_interval (int, optional): Interval for evaluating the
                 model during training. Defaults to -1.
         """
@@ -61,36 +65,64 @@ class Trainer:
         self.callbacks = callbacks
         self.num_epochs = num_epochs
         self.num_steps = num_steps
+        self.check_val_every_n_epoch = check_val_every_n_epoch
         self.val_check_interval = val_check_interval
 
         self.epoch = epoch
         self.global_step = global_step
 
-        assert (self.num_epochs > 0) != (
-            self.num_steps > 0
-        ), "Either num_epochs or num_steps must be > 0, not none or both."
-        if self.num_epochs > 0:
-            self.epoch_based = True
-        else:
-            self.epoch_based = False
-            self.num_epochs = 999
-        if val_check_interval == -1:
-            # default to running validation every epoch / 1000 steps
-            self.val_check_interval = 1 if self.num_epochs > 0 else 1000
+        if check_val_every_n_epoch is None:
+            if val_check_interval < 1:
+                raise ValueError(
+                    "`val_check_interval` must be > 0 if"
+                    " `check_val_every_n_epoch` is None."
+                )
+            self.check_val_every_n_epoch = -1
 
-    def _run_test_on_iteration(self, iteration: int) -> bool:
-        """Return whether to run test on current training iteration.
+        if self.num_epochs > 0 and self.num_steps > 0:
+            rank_zero_warn(
+                "Both num_epochs and num_steps are set. Ignoring num_steps."
+            )
+        self.epoch_based = self.num_epochs > 0
+        if self.check_val_every_n_epoch < 1 and self.val_check_interval < 1:
+            rank_zero_warn("Validation is disabled during training.")
+
+    def _run_test_on_epoch(self, epoch: int) -> bool:
+        """Return whether to run test on current training epoch.
 
         Args:
-            iteration (int): Current training iteration. Can be either epoch
-                or step number.
+            epoch (int): Current training epoch.
 
         Returns:
             bool: Whether to run test.
         """
-        return iteration % self.val_check_interval == (
-            self.val_check_interval - 1
-        )
+        if (
+            self.check_val_every_n_epoch is None
+            or self.check_val_every_n_epoch < 1
+        ):
+            return False
+        return (epoch + 1) % self.check_val_every_n_epoch == 0
+
+    def _run_test_on_step(self, step: int) -> bool:
+        """Return whether to run test on current training step.
+
+        Args:
+            step (int): Current training step.
+
+        Returns:
+            bool: Whether to run test.
+        """
+        if self.val_check_interval < 1:
+            return False
+        return (step + 1) % self.val_check_interval == 0
+
+    def done(self, epoch: int | None = None, step: int | None = None) -> bool:
+        """Return whether training is done."""
+        if self.epoch_based and epoch is not None:
+            return self.epoch >= self.num_epochs - 1
+        if not self.epoch_based and step is not None:
+            return self.global_step >= self.num_steps - 1
+        return False
 
     def fit(
         self,
@@ -117,9 +149,7 @@ class Trainer:
         ), "No train data connector."
         assert self.train_dataloader is not None, "No train dataloader."
 
-        for epoch in range(self.epoch, self.num_epochs):
-            self.epoch = epoch
-
+        while True:
             # Run callbacks for epoch begin
             for callback in self.callbacks:
                 callback.on_train_epoch_start(self.get_state(), model)
@@ -131,7 +161,7 @@ class Trainer:
             if hasattr(self.train_dataloader, "sampler") and isinstance(
                 self.train_dataloader.sampler, DistributedSampler
             ):
-                self.train_dataloader.sampler.set_epoch(epoch)
+                self.train_dataloader.sampler.set_epoch(self.epoch)
 
             # Training loop for one epoch
             for batch_idx, data in enumerate(self.train_dataloader):
@@ -142,6 +172,14 @@ class Trainer:
                 # Input data
                 data = move_data_to_device(data, self.device)
                 train_input = self.train_data_connector(data)
+
+                for callback in self.callbacks:
+                    callback.on_train_batch_start(
+                        trainer_state=self.get_state(),
+                        model=model,
+                        batch=data,
+                        batch_idx=batch_idx,
+                    )
 
                 # Forward + backward + optimize
                 output = model(**train_input)
@@ -177,39 +215,39 @@ class Trainer:
                     )
 
                 # Testing (step-based)
-                if not self.epoch_based:
-                    if (
-                        self._run_test_on_iteration(self.global_step)
-                        and self.test_dataloader is not None
-                    ):
-                        self.test(model)
-
-                    if self.global_step >= self.num_steps - 1:
-                        break
+                if (
+                    self._run_test_on_step(self.global_step)
+                    and self.test_dataloader is not None
+                ):
+                    self.test(model)
 
                     # Set model back to train mode
                     model.train()
+
+                if self.done(step=self.global_step):
+                    break
 
                 self.global_step += 1
 
             # Update learning rate on epoch
             for opt in optimizers:
-                opt.step_on_epoch(epoch)
+                opt.step_on_epoch(self.epoch)
 
             # Run callbacks for epoch end
             for callback in self.callbacks:
                 callback.on_train_epoch_end(self.get_state(), model)
 
             # Testing (epoch-based)
-            if self.epoch_based:
-                if (
-                    self._run_test_on_iteration(epoch)
-                    and self.test_dataloader is not None
-                ):
-                    self.test(model)
+            if (
+                self._run_test_on_epoch(self.epoch)
+                and self.test_dataloader is not None
+            ):
+                self.test(model)
 
-            if self.global_step >= self.num_steps - 1:
+            if self.done(epoch=self.epoch, step=self.global_step):
                 break
+
+            self.epoch += 1
 
     @torch.no_grad()
     def test(self, model: nn.Module) -> None:

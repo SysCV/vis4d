@@ -31,6 +31,27 @@ class LoggingCallback(Callback):
         self.train_timer = Timer()
         self.test_timer = Timer()
 
+    def on_train_batch_start(
+        self,
+        trainer_state: TrainerState,
+        model: nn.Module,
+        batch: DictData,
+        batch_idx: int,
+    ) -> None | MetricLogs:
+        """Hook to run at the start of a training batch."""
+        if not self.epoch_based and self.train_timer.paused:
+            self.train_timer.resume()
+
+    def on_train_epoch_start(
+        self, trainer_state: TrainerState, model: nn.Module
+    ) -> None:
+        """Hook to run at the start of a training epoch."""
+        if self.epoch_based:
+            self.train_timer.reset()
+            self._metrics.clear()
+        elif trainer_state["global_step"] == 0:
+            self.train_timer.reset()
+
     def on_train_batch_end(
         self,
         trainer_state: TrainerState,
@@ -72,8 +93,9 @@ class LoggingCallback(Callback):
         self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the start of a training epoch."""
-        self.train_timer.pause()
         self.test_timer.reset()
+        if not self.epoch_based:
+            self.train_timer.pause()
 
     def on_test_batch_end(
         self,
@@ -98,13 +120,3 @@ class LoggingCallback(Callback):
                     "Testing", cur_iter, total_iters, self.test_timer
                 )
             )
-
-    def on_test_epoch_end(
-        self, trainer_state: TrainerState, model: nn.Module
-    ) -> None:
-        """Hook to run at the end of a testing epoch."""
-        if self.epoch_based:
-            self.train_timer.reset()
-            self._metrics.clear()
-        else:
-            self.train_timer.resume()

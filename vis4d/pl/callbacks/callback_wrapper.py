@@ -53,6 +53,23 @@ class CallbackWrapper(pl.Callback):  # type: ignore
         """Setup callback."""
         self.callback.setup()
 
+    def on_train_batch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
+        batch_idx: int,
+    ) -> None:
+        """Called when the train batch begins."""
+        trainer_state = get_trainer_state(trainer, pl_module)
+
+        self.callback.on_train_batch_start(
+            trainer_state=trainer_state,
+            model=get_model(pl_module),
+            batch=batch,
+            batch_idx=batch_idx,
+        )
+
     def on_train_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
