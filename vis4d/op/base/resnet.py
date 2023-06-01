@@ -203,11 +203,20 @@ class ResNetV1c(ResNet):
                 weights. Defaults to False.
             **kwargs: Arguments for ResNet.
         """
-        assert resnet_name in {"resnet50_v1c", "resnet101_v1c"}
+        assert resnet_name in {
+            "resnet18_v1c",
+            "resnet34_v1c",
+            "resnet50_v1c",
+            "resnet101_v1c",
+        }
         super().__init__(
             resnet_name[:-4], pretrained=pretrained, deep_stem=True, **kwargs
         )
         if pretrained:
+            assert resnet_name in {
+                "resnet50_v1c",
+                "resnet101_v1c",
+            }, "Only resnet50_v1c and resnet101_v1c have pretrained weights."
             state_dict = torch.hub.load_state_dict_from_url(
                 model_urls[resnet_name]
             )

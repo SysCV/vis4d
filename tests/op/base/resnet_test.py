@@ -7,8 +7,10 @@ from vis4d.op.base import ResNet, ResNetV1c
 
 def test_resnet():
     """Test ResNet."""
-    for resnet in (ResNet, ResNetV1c):
+    for r, resnet in enumerate([ResNet, ResNetV1c]):
         for resnet_name in ("resnet18", "resnet34", "resnet50", "resnet101"):
+            if r == 1:
+                resnet_name = f"{resnet_name}_v1c"
             model = resnet(resnet_name, pretrained=False)
             assert (
                 model.deep_stem if resnet == ResNetV1c else not model.deep_stem
