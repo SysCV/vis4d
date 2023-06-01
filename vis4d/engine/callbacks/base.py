@@ -15,7 +15,7 @@ class Callback:
 
     def __init__(
         self,
-        epoch_based: bool = False,
+        epoch_based: bool = True,
         train_connector: None | CallbackConnector = None,
         test_connector: None | CallbackConnector = None,
     ) -> None:

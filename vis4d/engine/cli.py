@@ -120,6 +120,19 @@ def main(argv: ArgsType) -> None:
 
     model = instantiate_classes(config.model)
 
+    if config.get("sync_batchnorm", False):
+        if num_gpus > 1:
+            rank_zero_info(
+                "SyncBN enabled, converting BatchNorm layers to"
+                " SyncBatchNorm layers."
+            )
+            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        else:
+            rank_zero_warn(
+                "use_sync_bn is True, but not in a distributed setting."
+                " BatchNorm layers are not converted."
+            )
+
     # Callbacks
     callbacks = [instantiate_classes(cb) for cb in config.callbacks]
 
@@ -159,19 +172,6 @@ def main(argv: ArgsType) -> None:
         model = DDP(  # pylint: disable=redefined-variable-type
             model, device_ids=[rank]
         )
-
-    if config.get("sync_batchnorm", False):
-        if num_gpus > 1:
-            rank_zero_info(
-                "SyncBN enabled, converting BatchNorm layers to"
-                " SyncBatchNorm layers."
-            )
-            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        else:
-            rank_zero_warn(
-                "use_sync_bn is True, but not in a distributed setting."
-                " BatchNorm layers are not converted."
-            )
 
     # Setup Callbacks
     for cb in callbacks:

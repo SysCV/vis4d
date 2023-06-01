@@ -131,6 +131,8 @@ class SegMaskVisualizer(Visualizer):
         """
         binary_masks = []
         for class_id in np.unique(mask):
+            if class_id == 255:
+                continue
             binary_masks.append(mask == class_id)
         return np.stack(binary_masks, axis=0)
 

@@ -11,6 +11,10 @@ from vis4d.data.transforms.crop import (
     CropImage,
     CropSegMasks,
     GenCropParameters,
+    absolute_crop,
+    absolute_range_crop,
+    relative_crop,
+    relative_range_crop,
 )
 
 
@@ -91,3 +95,32 @@ class TestCrop(unittest.TestCase):
         transform = CropSegMasks()
         data = transform.apply_to_data(data)
         self.assertEqual(data[K.seg_masks].shape, (14, 14))
+
+    def test_absolute_crop(self):
+        """Test the absolute_crop function."""
+        assert absolute_crop(16, 16, (8, 8)) == (8, 8)
+        assert absolute_crop(16, 16, (32, 32)) == (16, 16)
+
+    def test_absolute_range_crop(self):
+        """Test the absolute_range_crop function."""
+        im_h = 100
+        im_w = 200
+        shape = [[10, 20], [40, 50]]
+        crop_h, crop_w = absolute_range_crop(im_h, im_w, shape)
+        assert shape[0][0] <= crop_h <= shape[1][0]
+        assert shape[0][1] <= crop_w <= shape[1][1]
+
+    def test_relative_crop(self):
+        """Test the relative_crop function."""
+        im_h, im_w = 16, 16
+        crop_h, crop_w = 0.5, 0.5
+        crop_h, crop_w = relative_crop(im_h, im_w, (crop_h, crop_w))
+        assert crop_h == crop_w == 8
+
+    def test_relative_range_crop(self):
+        """Test the relative_range_crop function."""
+        im_h, im_w = 10, 10
+        shape = [[0.3, 0.5], [0.5, 0.7]]
+        crop_h, crop_w = relative_range_crop(im_h, im_w, shape)
+        assert 3 <= crop_h <= 5
+        assert 5 <= crop_w <= 7

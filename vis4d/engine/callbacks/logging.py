@@ -31,13 +31,6 @@ class LoggingCallback(Callback):
         self.train_timer = Timer()
         self.test_timer = Timer()
 
-    def on_train_epoch_start(
-        self, trainer_state: TrainerState, model: nn.Module
-    ) -> None:
-        """Hook to run at the start of a training epoch."""
-        self.train_timer.reset()
-        self._metrics.clear()
-
     def on_train_batch_end(
         self,
         trainer_state: TrainerState,
