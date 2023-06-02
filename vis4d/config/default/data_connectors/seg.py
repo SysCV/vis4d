@@ -22,6 +22,6 @@ CONN_SEG_EVAL = {
 }
 
 CONN_BDD100K_SEG_EVAL = {
-    "data_names": data_key("name"),
+    "data_names": data_key("sample_names"),
     "masks_list": pred_key("masks"),
 }

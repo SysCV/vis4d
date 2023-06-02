@@ -111,7 +111,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
         assert self.config is not None, "config is not set"
-        metrics_log = {}
+        metrics_log: MetricLogs = {}
         short_description = ""
 
         if metric in [self.METRICS_TRACK, self.METRICS_ALL]:
@@ -123,9 +123,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 nproc=0,
             )
             for metric_name, metric_value in results.summary().items():
-                metrics_log[
-                    f"{self.METRICS_TRACK}/{metric_name}"
-                ] = metric_value
+                metrics_log[metric_name] = metric_value
             short_description += str(results) + "\n"
 
         if metric in [self.METRICS_SEG_TRACK, self.METRICS_ALL]:
@@ -137,9 +135,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 nproc=0,
             )
             for metric_name, metric_value in results.summary().items():
-                metrics_log[
-                    f"{self.METRICS_SEG_TRACK}/{metric_name}"
-                ] = metric_value
+                metrics_log[metric_name] = metric_value
             short_description += str(results) + "\n"
 
         return metrics_log, short_description

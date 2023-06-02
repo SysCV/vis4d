@@ -115,8 +115,7 @@ class EvaluatorCallback(Callback):
             # Evaluate metric
             metric_dict, metric_str = self.evaluator.evaluate(metric)
             for k, v in metric_dict.items():
-                # Replace / in the key to avoid confusion for logging
-                log_k = metric + "/" + k.replace("/", "_")
+                log_k = metric + "/" + k
                 rank_zero_info("%s: %.4f", log_k, v)
                 log_dict[log_k] = v
             rank_zero_info("Showing results for metric: %s", metric)

@@ -48,10 +48,9 @@ class TestSegEvaluator(unittest.TestCase):
             )
 
         metrics, _ = self.evaluator.evaluate("Det")
-        self.assertAlmostEqual(metrics["Det/AP"], 100.0, places=2)
-        self.assertAlmostEqual(metrics["Det/AP/pedestrian"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["AP"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["AP/pedestrian"], 100.0, places=2)
 
         metrics, _ = self.evaluator.evaluate("InsSeg")
-        print(metrics)
-        self.assertAlmostEqual(metrics["InsSeg/AP"], 100.0, places=2)
-        self.assertAlmostEqual(metrics["InsSeg/AP/pedestrian"], 100, places=2)
+        self.assertAlmostEqual(metrics["AP"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["AP/pedestrian"], 100, places=2)

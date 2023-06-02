@@ -100,7 +100,7 @@ class SegEvaluator(Evaluator):
         """
         confusion_matrix = self.calc_confusion_matrix(
             array_to_numpy(prediction, n_dims=None, dtype=np.float32),
-            array_to_numpy(groundtruth, n_dims=None, dtype=np.int64),
+            array_to_numpy(groundtruth, n_dims=None, dtype=np.int64),  # type: ignore  # pylint: disable=line-too-long
         )
 
         if self._confusion_matrix is None:

@@ -60,8 +60,8 @@ class BDD100KDetTest(unittest.TestCase):
                 "input_hw",
                 "axis_mode",
                 "frame_ids",
-                "name",
-                "videoName",
+                "sample_names",
+                "sequence_names",
                 "boxes2d",
                 "boxes2d_classes",
                 "boxes2d_track_ids",
@@ -75,8 +75,8 @@ class BDD100KDetTest(unittest.TestCase):
 
         self.assertEqual(item["original_hw"], (720, 1280))
         self.assertEqual(item["input_hw"], (720, 1280))
-        self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
-        self.assertEqual(item["videoName"], None)
+        self.assertEqual(item["sample_names"], "913b47b8-3cf1b886.jpg")
+        self.assertEqual(item["sequence_names"], None)
 
         assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
@@ -146,8 +146,8 @@ class BDD100KInsSegTest(unittest.TestCase):
                 "input_hw",
                 "axis_mode",
                 "frame_ids",
-                "name",
-                "videoName",
+                "sample_names",
+                "sequence_names",
                 "boxes2d",
                 "boxes2d_classes",
                 "boxes2d_track_ids",
@@ -162,8 +162,8 @@ class BDD100KInsSegTest(unittest.TestCase):
 
         self.assertEqual(item["original_hw"], (720, 1280))
         self.assertEqual(item["input_hw"], (720, 1280))
-        self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
-        self.assertEqual(item["videoName"], None)
+        self.assertEqual(item["sample_names"], "913b47b8-3cf1b886.jpg")
+        self.assertEqual(item["sequence_names"], None)
 
         assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),
@@ -223,8 +223,8 @@ class BDD100KSemSegTest(unittest.TestCase):
                 "input_hw",
                 "axis_mode",
                 "frame_ids",
-                "name",
-                "videoName",
+                "sample_names",
+                "sequence_names",
                 "seg_masks",
             ),
         )
@@ -232,8 +232,8 @@ class BDD100KSemSegTest(unittest.TestCase):
         self.assertEqual(item[K.seg_masks].shape, (720, 1280))
         self.assertEqual(item["original_hw"], (720, 1280))
         self.assertEqual(item["input_hw"], (720, 1280))
-        self.assertEqual(item["name"], "913b47b8-3cf1b886.jpg")
-        self.assertEqual(item["videoName"], None)
+        self.assertEqual(item["sample_names"], "913b47b8-3cf1b886.jpg")
+        self.assertEqual(item["sequence_names"], None)
 
         assert isclose_on_all_indices_tensor(
             item[K.images].permute(0, 2, 3, 1).reshape(-1, 3),

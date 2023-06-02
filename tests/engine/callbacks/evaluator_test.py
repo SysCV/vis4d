@@ -2,6 +2,7 @@
 import shutil
 import tempfile
 import unittest
+from py import log
 
 import torch
 
@@ -45,20 +46,22 @@ class TestEvaluatorCallback(unittest.TestCase):
         """Removes the tmp directory after the test."""
         shutil.rmtree(self.test_dir)
 
-    def test_on_test_batch_end(self) -> None:
-        """Test on_test_batch_end function."""
+    def test_evaluator_callback(self) -> None:
+        """Test evaluator callback function."""
         self.callback.on_test_batch_end(
             self.trainer_state,
             MockModel(0),
             outputs={
-                "boxes": [torch.zeros((0, 4))],
-                "scores": [torch.zeros((0, 1))],
-                "class_ids": [torch.zeros((0, 1))],
+                "boxes": [torch.zeros((1, 4))],
+                "scores": [torch.zeros((1, 1))],
+                "class_ids": [torch.zeros((1, 1))],
             },
-            batch={K.sample_names: [0]},
+            batch={K.sample_names: [397133]},
             batch_idx=0,
         )
 
-    def test_on_test_epoch_end(self) -> None:
-        """Test on_test_epoch_end function."""
-        self.callback.on_test_epoch_end(self.trainer_state, MockModel(0))
+        log_dict = self.callback.on_test_epoch_end(
+            self.trainer_state, MockModel(0)
+        )
+        print(log_dict)
+        self.assertEqual(log_dict["Det/AP"], 0.0)

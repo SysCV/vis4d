@@ -50,9 +50,9 @@ class TestSegEvaluator(unittest.TestCase):
             )
 
         metrics, _ = self.evaluator.evaluate("MOT")
-        self.assertAlmostEqual(metrics["MOT/MOTA"], 100.0, places=2)
-        self.assertAlmostEqual(metrics["MOT/MOTP"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["MOTA"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["MOTP"], 100.0, places=2)
 
         metrics, _ = self.evaluator.evaluate("MOTS")
-        self.assertAlmostEqual(metrics["MOTS/MOTA"], 100.0, places=2)
-        self.assertAlmostEqual(metrics["MOTS/MOTP"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["MOTA"], 100.0, places=2)
+        self.assertAlmostEqual(metrics["MOTP"], 100.0, places=2)
