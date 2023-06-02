@@ -100,10 +100,12 @@ def predictions_to_coco(
 class COCOEvaluator(Evaluator):
     """COCO detection evaluation class."""
 
+    METRIC_DET = "Det"
+    METRIC_INS_SEG = "InsSeg"
+
     def __init__(
         self,
         data_root: str,
-        iou_type: str = "bbox",
         split: str = "val2017",
         per_class_eval: bool = False,
     ) -> None:
@@ -111,22 +113,18 @@ class COCOEvaluator(Evaluator):
 
         Args:
             data_root (str): Root directory of data.
-            iou_type (str, optional): Type of IoU computation to use. Should be
-                set to either "bbox" for bounding or "segm" for masks. Defaults
-                to "bbox".
             split (str, optional): COCO data split. Defaults to "val2017".
             per_class_eval (bool, optional): Per-class evaluation. Defaults to
                 False.
         """
         super().__init__()
-        assert iou_type in {"bbox", "segm"}
-        self.iou_type = iou_type
         self.per_class_eval = per_class_eval
         self.coco_id2name = {v: k for k, v in coco_det_map.items()}
+        self.annotation_path = (
+            f"{data_root}/annotations/instances_{split}.json"
+        )
         with contextlib.redirect_stdout(io.StringIO()):
-            self._coco_gt = COCO(
-                f"{data_root}/annotations/instances_{split}.json"
-            )
+            self._coco_gt = COCO(self.annotation_path)
         coco_gt_cats = self._coco_gt.loadCats(self._coco_gt.getCatIds())
         self.cat_map = {c["name"]: c["id"] for c in coco_gt_cats}
         self._predictions: list[DictStrAny] = []
@@ -139,7 +137,7 @@ class COCOEvaluator(Evaluator):
         Returns:
             list[str]: Metrics to evaluate.
         """
-        return ["COCO_AP"]
+        return [self.METRIC_DET, self.METRIC_INS_SEG]
 
     def gather(self, gather_func: GenericFunc) -> None:
         """Accumulate predictions across processes."""
@@ -184,18 +182,6 @@ class COCOEvaluator(Evaluator):
 
             self._predictions.extend(coco_preds)
 
-    def process(self) -> None:
-        """Process the accumulated predictions."""
-        if self.iou_type == "segm":
-            # remove bbox for segm evaluation so cocoapi will use mask
-            # area instead of box area
-            _predictions = copy.deepcopy(self._predictions)
-            for pred in _predictions:
-                pred.pop("bbox")
-        else:
-            _predictions = self._predictions
-        self.coco_dt = self._coco_gt.loadRes(_predictions)
-
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate COCO predictions.
 
@@ -210,7 +196,7 @@ class COCOEvaluator(Evaluator):
             tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
                 printed string.
         """
-        if metric != "COCO_AP":
+        if metric not in [self.METRIC_DET, self.METRIC_INS_SEG]:
             raise NotImplementedError(f"Metric {metric} not known!")
 
         if len(self._predictions) == 0:
@@ -218,10 +204,22 @@ class COCOEvaluator(Evaluator):
                 "No predictions to evaluate. Make sure to process batch first!"
             )
 
+        if metric == self.METRIC_DET:
+            iou_type = "bbox"
+            _predictions = self._predictions
+        elif metric == self.METRIC_INS_SEG:
+            # remove bbox for segm evaluation so cocoapi will use mask
+            # area instead of box area
+            iou_type = "segm"
+            _predictions = copy.deepcopy(self._predictions)
+            for pred in _predictions:
+                pred.pop("bbox")
+        self.coco_dt = self._coco_gt.loadRes(_predictions)
+
         with contextlib.redirect_stdout(io.StringIO()):
             assert self.coco_dt is not None
             evaluator = COCOevalV2(
-                self._coco_gt, self.coco_dt, iouType=self.iou_type
+                self._coco_gt, self.coco_dt, iouType=iou_type
             )
             evaluator.evaluate()
             evaluator.accumulate()
@@ -264,4 +262,4 @@ class COCOEvaluator(Evaluator):
 
     def __repr__(self) -> str:
         """Returns the string representation of the object."""
-        return f"CocoEvaluator(iou_type={self.iou_type})"
+        return f"CocoEvaluator(annotation_path={self.annotation_path})"

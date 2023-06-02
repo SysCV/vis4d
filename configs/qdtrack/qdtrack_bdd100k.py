@@ -168,7 +168,7 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             save_prefix=config.output_dir,
             evaluator=class_config(
-                BDD100KTrackingEvaluator,
+                BDD100KTrackEvaluator,
                 annotation_path=annotation_path,
             ),
             run_every_nth_epoch=1,

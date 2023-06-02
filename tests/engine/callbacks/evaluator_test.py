@@ -2,12 +2,11 @@
 import shutil
 import tempfile
 import unittest
-from py import log
 
 import torch
 
 from tests.util import MockModel, get_test_data
-from vis4d.config.common.datasets import CONN_COCO_BBOX_EVAL
+from vis4d.config.common.datasets import CONN_COCO_MASK_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
 from vis4d.engine.connectors import CallbackConnector
@@ -26,8 +25,9 @@ class TestEvaluatorCallback(unittest.TestCase):
                 data_root=get_test_data("coco_test"), split="train"
             ),
             save_predictions=True,
+            metrics_to_eval=[COCOEvaluator.METRIC_DET],
             save_prefix=self.test_dir,
-            test_connector=CallbackConnector(CONN_COCO_BBOX_EVAL),
+            test_connector=CallbackConnector(CONN_COCO_MASK_EVAL),
         )
 
         self.callback.setup()
@@ -52,9 +52,12 @@ class TestEvaluatorCallback(unittest.TestCase):
             self.trainer_state,
             MockModel(0),
             outputs={
-                "boxes": [torch.zeros((1, 4))],
-                "scores": [torch.zeros((1, 1))],
-                "class_ids": [torch.zeros((1, 1))],
+                "boxes": {
+                    "boxes": [torch.zeros((2, 4))],
+                    "scores": [torch.zeros((2, 1))],
+                    "class_ids": [torch.zeros((2, 1))],
+                },
+                "masks": [torch.zeros((2, 10, 10))],
             },
             batch={K.sample_names: [397133]},
             batch_idx=0,
@@ -63,5 +66,4 @@ class TestEvaluatorCallback(unittest.TestCase):
         log_dict = self.callback.on_test_epoch_end(
             self.trainer_state, MockModel(0)
         )
-        print(log_dict)
         self.assertEqual(log_dict["Det/AP"], 0.0)

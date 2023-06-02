@@ -31,7 +31,7 @@ from vis4d.engine.connectors import (
     remap_pred_keys,
 )
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
