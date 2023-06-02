@@ -27,7 +27,9 @@ class TestCOCOEvaluator(unittest.TestCase):
         boxes, scores, classes, _ = generate_boxes(512, 512, 20, batch_size)
         coco_eval.process_batch([37777, 397133], boxes, scores, classes)
         coco_eval.process()
-        score_dict, log_str = coco_eval.evaluate("COCO_AP")
+        metric = coco_eval.METRIC_DET
+        assert coco_eval.metrics == ["Det", "InsSeg"]
+        score_dict, log_str = coco_eval.evaluate(metric)
         for metric in coco_metrics:
             assert metric in score_dict
             assert score_dict[metric] < 0.02
@@ -49,7 +51,7 @@ class TestCOCOEvaluator(unittest.TestCase):
             batch[K.boxes2d_classes],
         )
         coco_eval.process()
-        score_dict, log_str = coco_eval.evaluate("COCO_AP")
+        score_dict, log_str = coco_eval.evaluate(metric)
         for metric in coco_metrics:
             assert metric in score_dict
             assert score_dict[metric] > 0.99
