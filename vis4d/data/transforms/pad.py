@@ -7,10 +7,10 @@ import torch.nn.functional as F
 from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import CommonKeys as K
 
-from .base import BatchTransform
+from .base import Transform
 
 
-@BatchTransform(K.images, K.images)
+@Transform(K.images, K.images)
 class PadImages:
     """Pad batch of images at the bottom right."""
 

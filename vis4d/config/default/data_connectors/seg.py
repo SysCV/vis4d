@@ -2,9 +2,9 @@
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import data_key, pred_key
 
-CONN_MASKS_TRAIN = {K.images: K.images}
+CONN_MASKS_TRAIN = {"images": K.images}
 
-CONN_MASKS_TEST = {K.images: K.images, "original_hw": "original_hw"}
+CONN_MASKS_TEST = {"images": K.images, K.original_hw: "original_hw"}
 
 CONN_SEG_LOSS = {
     "output": pred_key("outputs"),
@@ -22,6 +22,6 @@ CONN_SEG_EVAL = {
 }
 
 CONN_BDD100K_SEG_EVAL = {
-    "data_names": data_key("name"),
+    "data_names": data_key(K.sample_names),
     "masks_list": pred_key("masks"),
 }

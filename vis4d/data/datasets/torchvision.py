@@ -1,17 +1,19 @@
 """Provides functionalities to wrap torchvision datasets."""
 from __future__ import annotations
 
+import numpy as np
+
 from collections.abc import Callable
 from typing import Any
 
-import torch
 from PIL.Image import Image
 from torchvision.datasets import VisionDataset
 from torchvision.transforms import ToTensor
 
-from vis4d.data.const import CommonKeys
-from vis4d.data.datasets.base import Dataset
-from vis4d.data.typing import DictData
+
+from .base import Dataset
+from ..const import CommonKeys as K
+from ..typing import DictData
 
 
 class TorchvisionDataset(Dataset):
@@ -29,10 +31,10 @@ class TorchvisionDataset(Dataset):
     `TorchvisionClassificationDataset` for an example.
     """
 
-    def __init__(  # type: ignore
+    def __init__(
         self,
         torchvision_ds: VisionDataset,
-        data_converter: Callable[[Any], DictData],
+        data_converter: Callable[[Any], DictData],  # type: ignore
     ) -> None:
         """Creates a new instance of the class.
 
@@ -81,14 +83,14 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
     `TorchvisionDataset` class.
 
     The returned sample will have the following key, values:
-    images: torch.Tensor of dimension (C,H,W)
-    categories: torch.Tensor of dimension 1.
+    images: ndarray of dimension (1, H, W, C)
+    categories: ndarray of dimension 1.
 
     Example:
     >>> from torchvision.datasets.mnist import MNIST
     >>> ds = TorchvisionClassificationDataset(
-    >>>        MNIST("data/mnist_ds", train=False)
-    >>>    )
+    >>>     MNIST("data/mnist_ds", train=False)
+    >>> )
     >>> data = next(iter(ds))
     >>> print(data.keys)
     dict_keys(['images', 'categories'])
@@ -122,8 +124,10 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
             """
             img, class_id = img_and_target
             data: DictData = {}
-            data[CommonKeys.images] = img_to_tensor(img)
-            data[CommonKeys.categories] = torch.tensor(class_id).reshape(1, 1)
+            data[K.images] = (
+                img_to_tensor(img).unsqueeze(0).permute(0, 2, 3, 1).numpy()
+            )
+            data[K.categories] = np.array([class_id], dtype=np.int64)
 
             return data
 

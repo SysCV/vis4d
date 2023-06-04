@@ -1,9 +1,15 @@
 """Datasets module."""
-from .base import Dataset, VideoMixin
+from .base import Dataset, VideoDataset
+from .bdd100k import BDD100K, bdd100k_track_map
 from .coco import COCO
+from .torchvision import TorchvisionClassificationDataset, TorchvisionDataset
 
 __all__ = [
     "Dataset",
-    "VideoMixin",
+    "VideoDataset",
+    "BDD100K",
+    "bdd100k_track_map",
     "COCO",
+    "TorchvisionDataset",
+    "TorchvisionClassificationDataset",
 ]

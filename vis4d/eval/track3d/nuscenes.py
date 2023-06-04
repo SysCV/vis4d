@@ -1,6 +1,4 @@
 """NuScenes evaluation code."""
-from __future__ import annotations
-
 import itertools
 import json
 from collections.abc import Callable
@@ -12,7 +10,10 @@ from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
 from vis4d.common import DictStrAny, MetricLogs
-from vis4d.data.datasets.nuscenes import nuscenes_track_map
+from vis4d.data.datasets.nuscenes import (
+    nuscenes_class_map,
+    nuscenes_attribute_map,
+)
 
 from ..base import Evaluator
 
@@ -21,7 +22,10 @@ from ..base import Evaluator
 class NuScenesEvaluator(Evaluator):
     """NuScenes 3D detection and tracking evaluation class."""
 
-    inv_nuscenes_track_map = {v: k for k, v in nuscenes_track_map.items()}
+    inv_nuscenes_class_map = {v: k for k, v in nuscenes_class_map.items()}
+    inv_nuscenes_attribute_map = {
+        v: k for k, v in nuscenes_attribute_map.items()
+    }
 
     DefaultAttribute = {
         "car": "vehicle.parked",
@@ -127,7 +131,7 @@ class NuScenesEvaluator(Evaluator):
                 scores_3d,
                 class_ids,
             ):
-                category = self.inv_nuscenes_track_map[
+                category = self.inv_nuscenes_class_map[
                     int(class_id.cpu().numpy())
                 ]
                 if not category in self.tracking_cats:
@@ -167,16 +171,19 @@ class NuScenesEvaluator(Evaluator):
         boxes_3d: Tensor,
         scores_3d: Tensor,
         class_ids: Tensor,
+        attributes: Tensor | None = None,
     ) -> None:
         """Process 3D detection results."""
         annos = []
         if len(boxes_3d) != 0:
-            for box_3d, score_3d, class_id in zip(
-                boxes_3d,
-                scores_3d,
-                class_ids,
+            for i, (box_3d, score_3d, class_id) in enumerate(
+                zip(
+                    boxes_3d,
+                    scores_3d,
+                    class_ids,
+                )
             ):
-                category = self.inv_nuscenes_track_map[
+                category = self.inv_nuscenes_class_map[
                     int(class_id.cpu().numpy())
                 ]
 
@@ -196,7 +203,12 @@ class NuScenesEvaluator(Evaluator):
 
                 velocity = box_3d[9:12].cpu().numpy().tolist()
 
-                attribute_name = self.get_attributes(category, velocity)
+                if attributes is None:
+                    attribute_name = self.get_attributes(category, velocity)
+                else:
+                    attribute_name = self.inv_nuscenes_attribute_map[
+                        int(attributes[i].cpu().numpy())
+                    ]
 
                 nusc_anno = {
                     "sample_token": token,
@@ -218,6 +230,7 @@ class NuScenesEvaluator(Evaluator):
         scores_3d: Tensor,
         class_ids: Tensor,
         track_ids: Tensor,
+        attributes: Tensor | None = None,
     ) -> None:
         """Process the results."""
         # Currently only support batch size of 1.
@@ -230,7 +243,13 @@ class NuScenesEvaluator(Evaluator):
         else:
             token = tokens
 
-        self._process_detect_3d(token, boxes_3d, scores_3d, class_ids)
+        self._process_detect_3d(
+            token,
+            boxes_3d,
+            scores_3d,
+            class_ids,
+            attributes,
+        )
         self._process_track_3d(
             token, boxes_3d, scores_3d, class_ids, track_ids
         )

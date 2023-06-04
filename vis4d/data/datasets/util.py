@@ -2,25 +2,30 @@
 from __future__ import annotations
 
 import copy
-import hashlib
+
 import os
 import pickle
 from collections.abc import Callable, Sequence
 from io import BytesIO
 from typing import Any
 
-import appdirs
 import numpy as np
 import plyfile
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 
-from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
+from vis4d.common.distributed import rank_zero_only, broadcast
 from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import NDArrayFloat
-from vis4d.data.typing import DictData
+from vis4d.common.typing import (
+    ListAny,
+    DictStrAny,
+    NDArrayFloat,
+    NDArrayI64,
+    NDArrayUI8,
+)
+from ..typing import DictData
 
 if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
@@ -143,6 +148,9 @@ def get_used_data_groups(
     return used_groups
 
 
+# TODO: Add support for generate different timestamp cached mapping files,
+# and let the user whehter generate every time or choose which one to use.
+# By default, use the latest one. Add the SHA hash of the annotations file
 class CacheMappingMixin:
     """Caches a mapping for fast I/O and multi-processing.
 
@@ -152,62 +160,75 @@ class CacheMappingMixin:
     Caching the mapping reduces startup time by loading the mapping instead of
     re-computing it at every startup.
 
-    NOTE: The mapping will detect changes in the dataset by inspecting the
-    string representation (__repr__) of your dataset. Make sure your __repr__
-    implementation contains all parameters relevant to your mapping, so that
-    the mapping will get updated once one of those parameters is changed.
-    Conversely, make sure all non-relevant information is excluded from the
-    string representation, so that the mapping can be loaded and re-used.
+    NOTE: Make sure your annotations file is up-to-date and that the strings
+    used in the mapping are unique. Otherwise, the mapping will be wrong and
+    you will get wrong samples.
     """
 
+    @rank_zero_only
     def _load_mapping_data(
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
-        use_cache: bool = True,
-    ) -> list[DictStrAny]:
-        """Load possibly cached mapping via generate_map_func."""
-        if use_cache:
-            app_dir = os.getenv(
-                "VIS4D_CACHE_DIR", appdirs.user_cache_dir(appname="vis4d")
-            )
-            cache_dir = os.path.join(
-                app_dir,
-                "data_mapping",
-                self.__class__.__name__,
-            )
-            os.makedirs(cache_dir, exist_ok=True)
-            cache_path = os.path.join(cache_dir, self._get_hash() + ".pkl")
-            if not os.path.exists(cache_path):
+        cache_as_binary: bool,
+        cached_file_path: str | None,
+    ) -> DatasetFromList:
+        """Load possibly cached mapping via generate_map_func.
+
+        Args:
+            generate_map_func (Callable[[], list[DictStrAny]]): The function
+                that generates the mapping.
+            cache_as_binary (bool): Whether to cache the mapping as binary.
+            cached_file_path (str | None): The path to the cached mapping file.
+        """
+        if cache_as_binary:
+            assert (
+                cached_file_path is not None
+            ), "cached_file_path must be set if cache_as_binary is True!"
+            if not os.path.exists(cached_file_path):
+                rank_zero_info(
+                    f"Didn't find {cached_file_path} so generating it..."
+                )
                 data = generate_map_func()
-                with open(cache_path, "wb") as file:
+                with open(cached_file_path, "wb") as file:
                     file.write(pickle.dumps(data))
             else:
-                with open(cache_path, "rb") as file:
+                rank_zero_info(f"Found {cached_file_path} so loading it...")
+                with open(cached_file_path, "rb") as file:
                     data = pickle.loads(file.read())
         else:
+            rank_zero_info(f"Generating {self} data mapping...")
             data = generate_map_func()
         return data
 
     def _load_mapping(
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
-        use_cache: bool = True,
-    ) -> Dataset[DictStrAny]:
-        """Load cached mapping or generate if not exists."""
-        timer = Timer()
-        data = self._load_mapping_data(generate_map_func, use_cache)
-        dataset = DatasetFromList(data)
-        rank_zero_info(
-            f"Loading {str(self.__repr__())} takes {timer.time():.2f} seconds."  # pylint: disable=unnecessary-dunder-call, line-too-long
-        )
-        return dataset
+        filter_func: Callable[[ListAny], ListAny] = lambda x: x,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
+    ) -> DatasetFromList:
+        """Load cached mapping or generate if not exists.
 
-    def _get_hash(self, length: int = 16) -> str:
-        """Get hash of current dataset instance."""
-        hasher = hashlib.sha256()
-        hasher.update(str(self.__repr__).encode("utf8"))
-        hash_value = hasher.hexdigest()[:length]
-        return hash_value
+        Args:
+            generate_map_func (Callable[[], list[DictStrAny]]): The function
+                that generates the mapping.
+            filter_func (Callable[[ListAny], ListAny], optional): The function
+                that filters the mapping. Defaults to lambda x: x.
+            cache_as_binary (bool, optional): Whether to cache the mapping as
+                binary. Defaults to True.
+            cached_file_path (str | None, optional): The path to the cached
+                mapping file. Defaults to None.
+        """
+        timer = Timer()
+        dataset = self._load_mapping_data(
+            generate_map_func, cache_as_binary, cached_file_path
+        )
+        if dataset is not None:
+            dataset = filter_func(dataset)
+            dataset = DatasetFromList(dataset)
+        dataset = broadcast(dataset)
+        rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
+        return dataset
 
 
 # reference:
@@ -221,7 +242,7 @@ class DatasetFromList(Dataset):  # type: ignore
     """
 
     def __init__(  # type: ignore
-        self, lst: list[Any], deepcopy: bool = False, serialize: bool = True
+        self, lst: ListAny, deepcopy: bool = False, serialize: bool = True
     ):
         """Creates an instance of the class.
 

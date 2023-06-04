@@ -32,12 +32,6 @@ class BDD100KTrackingEvaluator(Evaluator):
         super().__init__()
         self.annotation_path = annotation_path
         self.frames: list[Frame] = []
-
-        bdd100k_anns = load(self.annotation_path)
-        frames = bdd100k_anns.frames
-        self.config = load_bdd100k_config("box_track")
-        self.gt_frames = bdd100k_to_scalabel(frames, self.config)
-
         self.reset()
 
     def __repr__(self) -> str:
@@ -115,15 +109,22 @@ class BDD100KTrackingEvaluator(Evaluator):
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
+        frames = load(self.annotation_path).frames
+        config = load_bdd100k_config("box_track")
+
+        gt_frames = bdd100k_to_scalabel(frames, config)
+
         if metric == "track":
             results = evaluate_track(
                 acc_single_video_mot,
-                gts=group_and_sort(self.gt_frames),
+                gts=group_and_sort(gt_frames),
                 results=group_and_sort(self.frames),
-                config=self.config.scalabel,
-                nproc=0,
+                config=config.scalabel,
+                nproc=1,
             )
         else:
             raise NotImplementedError
 
-        return {}, str(results)
+        log_dict = {f"{k}": float(v) for k, v in results.summary().items()}
+
+        return log_dict, str(results)

@@ -86,6 +86,7 @@ class CommonKeys:
     sample_names = "sample_names"  # Sample name for each sample
     sequence_names = "sequence_names"  # Sequence name for each sample
     frame_ids = "frame_ids"
+    sample_attributes = "sample_attributes"
 
     # 2D annotations
     boxes2d = "boxes2d"
@@ -115,4 +116,5 @@ class CommonKeys:
     boxes3d = "boxes3d"
     boxes3d_classes = "boxes3d_classes"
     boxes3d_track_ids = "boxes3d_track_ids"
+    boxes3d_velocities = "boxes3d_velocities"
     occupancy3d = "occupancy3d"

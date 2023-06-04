@@ -23,7 +23,7 @@ class ResizeParam(TypedDict):
     interpolation: str
 
 
-@Transform(K.images, ["transforms.resize", K.input_hw])
+@Transform([K.images], ["transforms.resize", K.input_hw])
 class GenerateResizeParameters:
     """Generate the parameters for a resize operation."""
 
@@ -66,10 +66,11 @@ class GenerateResizeParameters:
         self.interpolation = interpolation
 
     def __call__(
-        self, image: NDArrayF32
-    ) -> tuple[ResizeParam, tuple[int, int]]:
+        self, images: list[NDArrayF32]
+    ) -> tuple[list[ResizeParam], list[tuple[int, int]]]:
         """Compute the parameters and put them in the data dict."""
-        im_shape = (image.shape[1], image.shape[2])
+        breakpoint()
+        im_shape = (images[0].shape[1], images[0].shape[2])
         target_shape = _get_target_shape(
             im_shape,
             self.shape,
@@ -82,37 +83,17 @@ class GenerateResizeParameters:
             target_shape[1] / im_shape[1],
             target_shape[0] / im_shape[0],
         )
-        return (
-            ResizeParam(
-                target_shape=target_shape,
-                scale_factor=scale_factor,
-                interpolation=self.interpolation,
-            ),
-            target_shape,
+
+        resize_param = ResizeParam(
+            target_shape=target_shape,
+            scale_factor=scale_factor,
+            interpolation=self.interpolation,
         )
 
+        resize_params = [resize_param for _ in range(len(images))]
+        target_shapes = [target_shape for _ in range(len(images))]
 
-@Transform([K.boxes2d, "transforms.resize.scale_factor"], K.boxes2d)
-class ResizeBoxes2D:
-    """Resize 2D bounding boxes."""
-
-    def __call__(
-        self, boxes: NDArrayF32, scale_factor: tuple[float, float]
-    ) -> NDArrayF32:
-        """Resize 2D bounding boxes.
-
-        Args:
-            boxes (Tensor): The bounding boxes to be resized.
-            scale_factor (tuple[float, float]): scaling factor.
-
-        Returns:
-            Tensor: Resized bounding boxes according to parameters in resize.
-        """
-        boxes_ = torch.from_numpy(boxes)
-        scale_matrix = torch.eye(3)
-        scale_matrix[0, 0] = scale_factor[0]
-        scale_matrix[1, 1] = scale_factor[1]
-        return transform_bbox(scale_matrix, boxes_).numpy()
+        return resize_params, target_shapes
 
 
 @Transform(
@@ -123,14 +104,14 @@ class ResizeBoxes2D:
     ],
     K.images,
 )
-class ResizeImage:
-    """Resize Image."""
+class ResizeImages:
+    """Resize Images."""
 
     def __call__(
         self,
-        image: NDArrayF32,
-        target_shape: tuple[int, int],
-        interpolation: str = "bilinear",
+        images: list[NDArrayF32],
+        target_shapes: list[tuple[int, int]],
+        interpolations: list[str],
     ) -> tuple[NDArrayF32, tuple[int, int]]:
         """Resize an image of dimensions [N, H, W, C].
 
@@ -143,11 +124,40 @@ class ResizeImage:
         Returns:
             Tensor: Resized image according to parameters in resize.
         """
-        image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
-        image_ = _resize_tensor(
-            image_, target_shape, interpolation=interpolation
-        )
-        return image_.permute(0, 2, 3, 1).numpy()
+        for i, (image, target_shape, interpolation) in enumerate(
+            zip(images, target_shapes, interpolations)
+        ):
+            image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
+            image_ = _resize_tensor(
+                image_, target_shape, interpolation=interpolation
+            )
+            images[i] = image_.permute(0, 2, 3, 1).numpy()
+        return images
+
+
+@Transform([K.boxes2d, "transforms.resize.scale_factor"], K.boxes2d)
+class ResizeBoxes2D:
+    """Resize list of 2D bounding boxes."""
+
+    def __call__(
+        self, boxes: list[NDArrayF32], scale_factors: list[tuple[float, float]]
+    ) -> list[NDArrayF32]:
+        """Resize 2D bounding boxes.
+
+        Args:
+            boxes (Tensor): The bounding boxes to be resized.
+            scale_factor (tuple[float, float]): scaling factor.
+
+        Returns:
+            Tensor: Resized bounding boxes according to parameters in resize.
+        """
+        for i, (boxes_, scale_factor) in enumerate(zip(boxes, scale_factors)):
+            boxes_ = torch.from_numpy(boxes_)
+            scale_matrix = torch.eye(3)
+            scale_matrix[0, 0] = scale_factor[0]
+            scale_matrix[1, 1] = scale_factor[1]
+            boxes[i] = transform_bbox(scale_matrix, boxes_).numpy()
+        return boxes
 
 
 @Transform(
@@ -157,24 +167,27 @@ class ResizeInstanceMasks:
     """Resize instance segmentation masks."""
 
     def __call__(
-        self, masks: NDArrayF32, target_shape: tuple[int, int]
+        self, masks: list[NDArrayF32], target_shapes: list[tuple[int, int]]
     ) -> NDArrayF32:
         """Resize masks."""
-        if len(masks) == 0:  # handle empty masks
-            return masks
-        masks_ = torch.from_numpy(masks)
-        masks_ = (
-            _resize_tensor(
-                masks_.float().unsqueeze(1),
-                target_shape,
-                interpolation="nearest",
+        for i, (masks_, target_shape) in enumerate(zip(masks, target_shapes)):
+            if len(masks_) == 0:  # handle empty masks
+                continue
+            masks_ = torch.from_numpy(masks_)
+            masks_ = (
+                _resize_tensor(
+                    masks_.float().unsqueeze(1),
+                    target_shape,
+                    interpolation="nearest",
+                )
+                .type(masks_.dtype)
+                .squeeze(1)
             )
-            .type(masks_.dtype)
-            .squeeze(1)
-        )
-        return masks_.numpy()
+            masks[i] = masks_.numpy()
+        return masks
 
 
+# TODO: Refactor this function
 @Transform([K.seg_masks, "transforms.resize.target_shape"], K.seg_masks)
 class ResizeSegMasks:
     """Resize segmentation masks."""
@@ -204,11 +217,14 @@ class ResizeIntrinsics:
     """Resize Intrinsics."""
 
     def __call__(
-        self, intrinsics: NDArrayF32, scale_factor: tuple[float, float]
+        self,
+        intrinsics: list[NDArrayF32],
+        scale_factors: list[tuple[float, float]],
     ) -> NDArrayF32:
         """Scale camera intrinsics when resizing."""
-        intrinsics[0, 0] *= scale_factor[0]
-        intrinsics[1, 1] *= scale_factor[1]
+        for i, scale_factor in enumerate(scale_factors):
+            intrinsics[i][0, 0] *= scale_factor[0]
+            intrinsics[i][1, 1] *= scale_factor[1]
         return intrinsics
 
 

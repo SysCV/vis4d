@@ -6,6 +6,11 @@ can, in principle, hold arbitrary data. However, we provide `CommonKeys` in
 so that the data pre-processing pipeline can take advantage of pre-defined
 data formats that are necessary to properly pre-process a given data sample.
 """
+from __future__ import annotations
+
+from typing import Union
+
 from vis4d.common.typing import DictStrAny
 
 DictData = DictStrAny
+DictDataOrList = Union[DictData, list[DictData]]

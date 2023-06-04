@@ -11,6 +11,10 @@ from typing import Callable, List
 
 import numpy as np
 
+from torch.utils.data import Dataset
+from .const import CommonKeys as K
+from .typing import DictData
+
 SortingFunc = Callable[[int, List[int], List[int]], List[int]]
 
 
@@ -70,10 +74,10 @@ class ReferenceViewSampler:
     ) -> list[int]:
         """Call function. Wraps _sample_ref_indices with sorting."""
         key_index = indices_in_video.index(key_dataset_index)
-        ref_indices = self._sample_ref_indices(key_index, indices_in_video)
-        return self.sort_fn(key_dataset_index, ref_indices, indices_in_video)
+        return self._sample_ref_indices(key_index, indices_in_video)
 
 
+# TODO: Check whether this is correct
 class SequentialViewSampler(ReferenceViewSampler):
     """Sequential View Sampler."""
 
@@ -112,19 +116,107 @@ class UniformViewSampler(ReferenceViewSampler):
                 Defaults to sort_key_first.
         """
         super().__init__(num_ref_samples, sort_fn)
+        if scope != 0 and scope < num_ref_samples // 2:
+            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
         self.scope = scope
 
     def _sample_ref_indices(
         self, key_index: int, indices_in_video: list[int]
     ) -> list[int]:
         """Uniformly sample reference views."""
-        left = max(0, key_index - self.scope)
-        right = min(key_index + self.scope, len(indices_in_video) - 1)
-        valid_inds = (
-            indices_in_video[left:key_index]
-            + indices_in_video[key_index + 1 : right + 1]
-        )
-        ref_dataset_indices: list[int] = np.random.choice(
-            valid_inds, self.num_ref_samples, replace=False
-        ).tolist()
+        if self.scope > 0:
+            left = max(0, key_index - self.scope)
+            right = min(key_index + self.scope, len(indices_in_video) - 1)
+            valid_inds = (
+                indices_in_video[left:key_index]
+                + indices_in_video[key_index + 1 : right + 1]
+            )
+            ref_dataset_indices: list[int] = np.random.choice(
+                valid_inds, self.num_ref_samples, replace=False
+            ).tolist()
+        else:
+            ref_dataset_indices = [key_index]
         return ref_dataset_indices
+
+
+class ReferenceDataset(Dataset[list[DictData]]):
+    """Dataset that samples reference views from a video dataset."""
+
+    def __init__(
+        self,
+        dataset: Dataset[DictData],
+        sampler: ReferenceViewSampler,
+        frame_order: str = "key_first",
+        skip_nomatch_samples: bool = False,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            dataset (Dataset): Video dataset to sample from.
+            sampler (ReferenceViewSampler): Sampler that samples reference
+                views.
+        """
+        self.dataset = dataset
+        self.sampler = sampler
+        self.frame_order = frame_order
+        self.skip_nomatch_samples = skip_nomatch_samples
+
+    @staticmethod
+    def has_matches(
+        key_data: DictData,
+        ref_data: DictData,
+        match_key: str = K.boxes2d_track_ids,
+    ) -> bool:
+        """Check if key / ref data have matches."""
+        key_target = key_data[match_key]
+        for ref_view in ref_data:
+            ref_target = ref_view[match_key]
+            match = np.equal(
+                np.expand_dims(key_target, axis=1), ref_target[None]
+            )
+            if match.any():
+                return True
+        return False  # pragma: no cover
+
+    def __len__(self) -> int:
+        """Get length of dataset."""
+        return len(self.dataset)
+
+    def get_video_indices(self, index: int) -> list[int]:
+        """Get indices of videos in dataset."""
+        for indices in self.dataset.video_to_indices.values():
+            if index in indices:
+                return indices
+        raise ValueError(f"Index {index} not found in video_to_indices!")
+
+    # TODO: implement sorting
+    def __getitem__(self, index: int) -> list[DictData]:
+        """Get item from dataset."""
+        cur_sample = self.dataset[index]
+        cur_sample[K.sample_attributes] = "key"
+
+        if self.sampler.num_ref_samples > 0:
+            ref_data = []
+
+            if (
+                isinstance(self.sampler, UniformViewSampler)
+                and self.sampler.scope == 0
+            ):
+                ref_indices = [index]
+            else:
+                video_indices = self.get_video_indices(index)
+                ref_indices = self.sampler(index, video_indices)
+
+            for i, ref_index in enumerate(ref_indices):
+                ref_sample = self.dataset[ref_index]
+                ref_sample[K.sample_attributes] = f"ref_{i}"
+                ref_data.append(ref_sample)
+
+            if self.skip_nomatch_samples and not (
+                self.has_matches(cur_sample, ref_data)
+            ):
+                # TODO: implement retry
+                raise NotImplementedError
+
+        assert self.sampler.num_ref_samples == len(ref_data)
+        return [cur_sample, *ref_data]

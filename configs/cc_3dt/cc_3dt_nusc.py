@@ -16,17 +16,18 @@ from vis4d.config.util import get_inference_dataloaders_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
-    nuscenes_class_range_map,
-    nuscenes_track_map,
+    nuscenes_detection_range,
+    nuscenes_class_map,
 )
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.data.loader import VideoDataPipe, multi_sensor_collate
-from vis4d.data.transforms.base import compose, compose_batch
-from vis4d.data.transforms.normalize import BatchNormalizeImages
+from vis4d.data.loader import multi_sensor_collate
+from vis4d.data.data_pipe import DataPipe
+from vis4d.data.transforms.base import compose
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
-    ResizeImage,
+    ResizeImages,
     ResizeIntrinsics,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -74,7 +75,7 @@ def get_config() -> FieldConfigDict:
     # Hyper Parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 4
-    params.workers_per_gpu = 4
+    params.workers_per_gpu = 2
     params.lr = 0.01
     params.num_epochs = 12
     config.params = params
@@ -87,7 +88,9 @@ def get_config() -> FieldConfigDict:
     version = "v1.0-mini"
     train_split = "mini_train"
     test_split = "mini_val"
-    metadata = ["use_camera"]
+    # version = "v1.0-trainval"
+    # train_split = "train"
+    # test_split = "val"
     data_backend = class_config(HDF5Backend)
 
     # TODO: Add train dataset
@@ -97,10 +100,13 @@ def get_config() -> FieldConfigDict:
     test_dataset = class_config(
         NuScenes,
         data_root=dataset_root,
+        keys_to_load=[K.images, K.original_images, K.boxes3d],
         version=version,
         split=test_split,
-        metadata=metadata,
         data_backend=data_backend,
+        cache_as_binary=True,
+        cached_file_path="data/nuscenes/annotations/mini_val.pkl",
+        # cached_file_path="data/nuscenes/annotations/val.pkl",
     )
 
     test_preprocess_cfg = class_config(
@@ -113,7 +119,7 @@ def get_config() -> FieldConfigDict:
                 sensors=NuScenes._CAMERAS,
             ),
             class_config(
-                ResizeImage,
+                ResizeImages,
                 sensors=NuScenes._CAMERAS,
             ),
             class_config(
@@ -124,14 +130,14 @@ def get_config() -> FieldConfigDict:
     )
 
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             class_config(
                 PadImages,
                 sensors=NuScenes._CAMERAS,
             ),
             class_config(
-                BatchNormalizeImages,
+                NormalizeImages,
                 sensors=NuScenes._CAMERAS,
             ),
             class_config(
@@ -142,13 +148,14 @@ def get_config() -> FieldConfigDict:
     )
 
     test_dataset_cfg = class_config(
-        VideoDataPipe,
+        DataPipe,
         datasets=test_dataset,
         preprocess_fn=test_preprocess_cfg,
     )
 
     data.test_dataloader = get_inference_dataloaders_cfg(
         datasets_cfg=test_dataset_cfg,
+        workers_per_gpu=params.workers_per_gpu,
         video_based_inference=True,
         batchprocess_cfg=test_batchprocess_cfg,
         collate_fn=multi_sensor_collate,
@@ -159,8 +166,10 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                        MODEL                     ##
     ######################################################
-    num_classes = len(nuscenes_track_map)
-    class_range_map = torch.Tensor(nuscenes_class_range_map)
+    num_classes = len(nuscenes_class_map)
+    # TODO: Rename it to detection_range_map and use
+    # nuscenes_detection_range_map
+    class_range_map = torch.Tensor(nuscenes_detection_range)
 
     config.model = class_config(
         FasterRCNNCC3DT,

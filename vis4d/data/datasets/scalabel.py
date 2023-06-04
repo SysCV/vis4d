@@ -1,6 +1,9 @@
 """Scalabel type dataset."""
 from __future__ import annotations
 
+import itertools
+from tabulate import tabulate
+from termcolor import colored
 import os
 from collections import defaultdict
 from collections.abc import Callable, Sequence
@@ -11,6 +14,7 @@ import torch
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.distributed import broadcast
 from vis4d.common.time import Timer
 from vis4d.common.typing import (
     DictStrAny,
@@ -29,8 +33,8 @@ from vis4d.op.geometry.rotation import (
     matrix_to_quaternion,
 )
 
-from .base import Dataset, VideoMixin
-from .util import im_decode, ply_decode
+from .base import VideoDataset
+from .util import im_decode, ply_decode, DatasetFromList
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config
@@ -124,11 +128,71 @@ def add_data_path(data_root: str, frames: list[Frame]) -> None:
             ann.url = os.path.join(data_root, ann.url)
 
 
+def print_class_histogram(class_frequencies: dict[str, int]) -> None:
+    """Prints out given class frequencies."""
+    if len(class_frequencies) == 0:  # pragma: no cover
+        return
+
+    class_names = list(class_frequencies.keys())
+    frequencies = list(class_frequencies.values())
+    num_classes = len(class_names)
+
+    n_cols = min(6, len(class_names) * 2)
+
+    def short_name(name: str) -> str:
+        """Make long class names shorter."""
+        if len(name) > 13:
+            return name[:11] + ".."  # pragma: no cover
+        return name
+
+    data = list(
+        itertools.chain(
+            *[
+                [short_name(class_names[i]), int(v)]
+                for i, v in enumerate(frequencies)
+            ]
+        )
+    )
+    total_num_instances = sum(data[1::2])  # type: ignore
+    data.extend([None] * (n_cols - (len(data) % n_cols)))
+    if num_classes > 1:
+        data.extend(["total", total_num_instances])
+    data = itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)])  # type: ignore # pylint: disable=line-too-long
+    table = tabulate(
+        data,  # type: ignore
+        headers=["category", "#instances"] * (n_cols // 2),
+        tablefmt="pipe",
+        numalign="left",
+        stralign="center",
+    )
+    rank_zero_info(
+        f"Distribution of instances among all {num_classes} categories:\n"
+        + colored(table, "cyan")
+    )
+
+
+def discard_labels_outside_set(
+    dataset: list[Frame], class_set: list[str]
+) -> None:
+    """Discard labels outside given set of classes."""
+    for frame in dataset:
+        remove_anns = []
+        if frame.labels is not None:
+            for i, ann in enumerate(frame.labels):
+                if not ann.category in class_set:
+                    remove_anns.append(i)
+            for i in reversed(remove_anns):
+                frame.labels.pop(i)
+
+
 def prepare_labels(
-    frames: list[Frame], global_instance_ids: bool = False
+    frames: list[Frame],
+    class_list: list[str],
+    global_instance_ids: bool = False,
 ) -> None:
     """Add category id and instance id to labels, return class frequencies."""
     instance_ids: dict[str, list[str]] = defaultdict(list)
+    frequencies = {cat: 0 for cat in class_list}
     for frame_id, ann in enumerate(frames):
         if ann.labels is None:  # pragma: no cover
             continue
@@ -142,6 +206,7 @@ def prepare_labels(
                 continue
 
             assert label.category is not None
+            frequencies[label.category] += 1
             video_name = (
                 ann.videoName
                 if ann.videoName is not None
@@ -155,13 +220,40 @@ def prepare_labels(
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
 
+    return frequencies
+
+
+def filter_frames_by_attributes(
+    frames: list[Frame],
+    attributes_to_load: Sequence[dict[str, str | float]] | None,
+) -> list[Frame]:
+    """Filter frames based on attributes."""
+    if attributes_to_load is None:
+        return frames
+    filtered_frames: list[Frame] = []
+    for frame in frames:
+        for attribute_dict in attributes_to_load:
+            if hasattr(frame, "attributes") and frame.attributes is not None:
+                if all(
+                    frame.attributes.get(key) == value
+                    for key, value in attribute_dict.items()
+                ):
+                    filtered_frames.append(frame)
+                    break
+            else:
+                raise ValueError(
+                    "Attribute to load is specified but no attributes "
+                    "are found in the frame."
+                )
+    return filtered_frames
+
 
 # Not using | operator because of a bug in Python 3.9
 # https://bugs.python.org/issue42233
 CategoryMap = Union[dict[str, int], dict[str, dict[str, int]]]
 
 
-class Scalabel(Dataset, CacheMappingMixin):
+class Scalabel(CacheMappingMixin, VideoDataset):
     """Scalabel type dataset.
 
     This class loads scalabel format data into Vis4D.
@@ -177,6 +269,10 @@ class Scalabel(Dataset, CacheMappingMixin):
         config_path: None | str | Config = None,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
+        load_anns: bool = True,
+        skip_empty_samples: bool = False,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -211,8 +307,15 @@ class Scalabel(Dataset, CacheMappingMixin):
             data_backend if data_backend is not None else FileBackend()
         )
         self.config_path = config_path
+        self.skip_empty_samples = skip_empty_samples
+
+        self.cats_name2id: dict[str, dict[str, int]] = {}
+        self.category_map = category_map
+
         self.frames, self.cfg = self._load_mapping(
-            self._generate_mapping  # type: ignore
+            self._generate_mapping,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
         )
 
         assert self.cfg is not None, (
@@ -220,156 +323,11 @@ class Scalabel(Dataset, CacheMappingMixin):
             "via config_path."
         )
 
-        self.cats_name2id: dict[str, dict[str, int]] = {}
-        if category_map is None:
-            class_list = list(
-                c.name for c in get_leaf_categories(self.cfg.categories)
-            )
-            assert len(set(class_list)) == len(
-                class_list
-            ), "Class names are not unique!"
-            category_map = {c: i for i, c in enumerate(class_list)}
-        self._setup_categories(category_map)
+        self._setup_categories()
+        self.video_to_indices = self._generate_video_to_indices()
+        self.load_anns = load_anns
 
-    def _setup_categories(self, category_map: CategoryMap) -> None:
-        """Setup categories."""
-        for target in self.keys_to_load:
-            if isinstance(list(category_map.values())[0], int):
-                self.cats_name2id[target] = category_map  # type: ignore
-            else:
-                assert (
-                    target in category_map
-                ), f"Target={target} not specified in category_mapping"
-                target_map = category_map[target]
-                assert isinstance(target_map, dict)
-                self.cats_name2id[target] = target_map
-
-    def _load_mapping(  # type: ignore
-        self,
-        generate_map_func: Callable[[], list[DictStrAny]],
-        use_cache: bool = True,
-    ) -> tuple[ListAny, Config]:
-        """Load cached mapping or generate if not exists."""
-        timer = Timer()
-        data = self._load_mapping_data(generate_map_func, use_cache)
-        frames, cfg = data.frames, data.config  # type: ignore
-        add_data_path(self.data_root, frames)
-        prepare_labels(frames, global_instance_ids=self.global_instance_ids)
-        frames = DatasetFromList(frames)
-        rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
-        return frames, cfg
-
-    def _generate_mapping(self) -> ScalabelData:
-        """Generate data mapping."""
-        data = load(self.annotation_path)
-        if self.config_path is not None:
-            if isinstance(self.config_path, str):
-                data.config = load_label_config(self.config_path)
-            else:
-                data.config = self.config_path
-        return data
-
-    def _load_inputs(self, frame: Frame) -> DictData:
-        """Load inputs given a scalabel frame."""
-        data: DictData = {}
-        if frame.url is not None and K.images in self.keys_to_load:
-            image = load_image(frame.url, self.data_backend)
-            input_hw = (image.shape[1], image.shape[2])
-            data[K.images] = image
-            data[K.original_hw] = input_hw
-            data[K.input_hw] = input_hw
-            data[K.axis_mode] = AxisMode.OPENCV
-            data[K.frame_ids] = frame.frameIndex
-            # TODO how to properly integrate such metadata?
-            data["name"] = frame.name
-            data["videoName"] = frame.videoName
-
-        if frame.url is not None and K.points3d in self.keys_to_load:
-            data[K.points3d] = load_pointcloud(frame.url, self.data_backend)
-
-        if frame.intrinsics is not None and K.intrinsics in self.keys_to_load:
-            data[K.intrinsics] = load_intrinsics(frame.intrinsics)
-
-        if frame.extrinsics is not None and K.extrinsics in self.keys_to_load:
-            data[K.extrinsics] = load_extrinsics(frame.extrinsics)
-        return data
-
-    def _add_annotations(self, frame: Frame, data: DictData) -> None:
-        """Add annotations given a scalabel frame and a data dictionary."""
-        if frame.labels is None:
-            return
-        labels_used, instid_map = [], {}
-        for label in frame.labels:
-            assert label.attributes is not None and label.category is not None
-            if not check_crowd(label) and not check_ignored(label):
-                labels_used.append(label)
-                if label.id not in instid_map:
-                    instid_map[label.id] = int(label.attributes["instance_id"])
-        # if not labels_used:
-        #     return  # pragma: no cover
-
-        image_size = (
-            ImageSize(height=data[K.input_hw][0], width=data[K.input_hw][1])
-            if K.input_hw in data
-            else frame.size
-        )
-
-        if K.boxes2d in self.keys_to_load:
-            cats_name2id = self.cats_name2id[K.boxes2d]
-            boxes2d, classes, track_ids = boxes2d_from_scalabel(
-                labels_used, cats_name2id, instid_map
-            )
-            data[K.boxes2d] = boxes2d
-            data[K.boxes2d_classes] = classes
-            data[K.boxes2d_track_ids] = track_ids
-
-        if K.instance_masks in self.keys_to_load:
-            # NOTE: instance masks' mapping is consistent with boxes2d
-            cats_name2id = self.cats_name2id[K.instance_masks]
-            instance_masks = instance_masks_from_scalabel(
-                labels_used, cats_name2id, image_size
-            )
-            data[K.instance_masks] = instance_masks
-
-        if K.seg_masks in self.keys_to_load:
-            sem_map = self.cats_name2id[K.seg_masks]
-            semantic_masks = semantic_masks_from_scalabel(
-                labels_used, sem_map, image_size, self.bg_as_class
-            )
-            data[K.seg_masks] = semantic_masks
-
-        if K.boxes3d in self.keys_to_load:
-            boxes3d, classes, track_ids = boxes3d_from_scalabel(
-                labels_used, self.cats_name2id[K.boxes3d], instid_map
-            )
-            data[K.boxes3d] = boxes3d
-            data[K.boxes3d_classes] = classes
-            data[K.boxes3d_track_ids] = track_ids
-
-    def __len__(self) -> int:
-        """Length of dataset."""
-        return len(self.frames)
-
-    def __getitem__(self, index: int) -> DictData:
-        """Get item from dataset at given index."""
-        frame = self.frames[index]
-        data = self._load_inputs(frame)
-        if len(self.keys_to_load) > 0:
-            if len(self.cats_name2id) == 0:
-                raise AttributeError(
-                    "Category mapping is empty but keys_to_load is not. "
-                    "Please specify a category mapping."
-                )  # pragma: no cover
-            # load annotations to input sample
-            self._add_annotations(frame, data)
-        return data
-
-
-class ScalabelVideo(Scalabel, VideoMixin):
-    """Scalabel type dataset with video extension."""
-
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
+    def _generate_video_to_indices(self) -> dict[str, list[int]]:
         """Group all dataset sample indices (int) by their video ID (str).
 
         Returns:
@@ -390,6 +348,201 @@ class ScalabelVideo(Scalabel, VideoMixin):
             zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
             video_to_indices[key] = [idx for _, idx in zip_frame_idx]
         return video_to_indices
+
+    def _setup_categories(self) -> None:
+        """Setup categories."""
+        for target in self.keys_to_load:
+            if isinstance(list(self.category_map.values())[0], int):
+                self.cats_name2id[target] = self.category_map  # type: ignore
+            else:
+                assert (
+                    target in self.category_map
+                ), f"Target={target} not specified in category_mapping"
+                target_map = self.category_map[target]
+                assert isinstance(target_map, dict)
+                self.cats_name2id[target] = target_map
+
+    def _load_mapping(  # type: ignore
+        self,
+        generate_map_func: Callable[[], list[DictStrAny]],
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
+        cache_as_binary: bool = True,
+        cached_file_path: str | None = None,
+    ) -> tuple[ListAny, Config]:
+        """Load cached mapping or generate if not exists."""
+        timer = Timer()
+        data = self._load_mapping_data(
+            generate_map_func, cache_as_binary, cached_file_path
+        )
+        if data is not None:
+            frames, cfg = data.frames, data.config  # type: ignore
+
+            add_data_path(self.data_root, frames)
+            rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
+
+            if self.category_map is None:
+                class_list = list(
+                    c.name for c in get_leaf_categories(cfg.categories)
+                )
+                self.category_map = {c: i for i, c in enumerate(class_list)}
+            else:
+                class_list = list(self.category_map.keys())
+
+            assert len(set(class_list)) == len(
+                class_list
+            ), "Class names are not unique!"
+
+            discard_labels_outside_set(frames, class_list)
+
+            frames = filter_frames_by_attributes(frames, attributes_to_load)
+
+            if self.skip_empty_samples:
+                frames = self._remove_empty_samples(frames)
+
+            t = Timer()
+            frequencies = prepare_labels(
+                frames,
+                class_list,
+                global_instance_ids=self.global_instance_ids,
+            )
+            rank_zero_info(
+                f"Preprocessing {len(frames)} frames takes {t.time():.2f}"
+                " seconds."
+            )
+            print_class_histogram(frequencies)
+            frames = DatasetFromList(frames)
+        else:
+            frames = None
+            cfg = None
+        frames = broadcast(frames)
+        cfg = broadcast(cfg)
+        return frames, cfg
+
+    def _generate_mapping(self) -> ScalabelData:
+        """Generate data mapping."""
+        data = load(self.annotation_path)
+        if self.config_path is not None:
+            if isinstance(self.config_path, str):
+                data.config = load_label_config(self.config_path)
+            else:
+                data.config = self.config_path
+        return data
+
+    def _load_inputs(self, frame: Frame) -> DictData:
+        """Load inputs given a scalabel frame."""
+        data: DictData = {}
+        if K.images in self.keys_to_load:
+            assert frame.url is not None, "url is None!"
+            image = load_image(frame.url, self.data_backend)
+            input_hw = (image.shape[1], image.shape[2])
+            data[K.images] = image
+            data[K.input_hw] = input_hw
+
+            # Original image
+            data[K.original_images] = image
+            data[K.original_hw] = input_hw
+
+            data[K.axis_mode] = AxisMode.OPENCV
+            data[K.frame_ids] = frame.frameIndex
+
+            data[K.sample_names] = frame.name
+            data[K.sequence_names] = frame.videoName
+
+        if K.points3d in self.keys_to_load:
+            assert frame.url is not None, "url is None!"
+            data[K.points3d] = load_pointcloud(frame.url, self.data_backend)
+
+        if frame.intrinsics is not None and K.intrinsics in self.keys_to_load:
+            data[K.intrinsics] = load_intrinsics(frame.intrinsics)
+
+        if frame.extrinsics is not None and K.extrinsics in self.keys_to_load:
+            data[K.extrinsics] = load_extrinsics(frame.extrinsics)
+        return data
+
+    @staticmethod
+    def _remove_empty_samples(frames: list[Frame]) -> list[Frame]:
+        """Remove empty samples."""
+        new_frames = []
+        for frame in frames:
+            if frame.labels is None:
+                continue
+            labels_used = []
+            for label in frame.labels:
+                assert (
+                    label.attributes is not None and label.category is not None
+                )
+                if not check_crowd(label) and not check_ignored(label):
+                    labels_used.append(label)
+
+            if len(labels_used) != 0:
+                frame.labels = labels_used
+                new_frames.append(frame)
+        del frames
+        return new_frames
+
+    def _add_annotations(self, frame: Frame, data: DictData) -> None:
+        """Add annotations given a scalabel frame and a data dictionary."""
+        instid_map = {}
+        for label in frame.labels:
+            if label.id not in instid_map:
+                instid_map[label.id] = int(label.attributes["instance_id"])
+
+        image_size = (
+            ImageSize(height=data[K.input_hw][0], width=data[K.input_hw][1])
+            if K.input_hw in data
+            else frame.size
+        )
+
+        if K.boxes2d in self.keys_to_load:
+            cats_name2id = self.cats_name2id[K.boxes2d]
+            boxes2d, classes, track_ids = boxes2d_from_scalabel(
+                frame.labels, cats_name2id, instid_map
+            )
+            data[K.boxes2d] = boxes2d
+            data[K.boxes2d_classes] = classes
+            data[K.boxes2d_track_ids] = track_ids
+
+        if K.instance_masks in self.keys_to_load:
+            # NOTE: instance masks' mapping is consistent with boxes2d
+            cats_name2id = self.cats_name2id[K.instance_masks]
+            instance_masks = instance_masks_from_scalabel(
+                frame.labels, cats_name2id, image_size
+            )
+            data[K.instance_masks] = instance_masks
+
+        if K.seg_masks in self.keys_to_load:
+            sem_map = self.cats_name2id[K.seg_masks]
+            semantic_masks = semantic_masks_from_scalabel(
+                frame.labels, sem_map, image_size, self.bg_as_class
+            )
+            data[K.seg_masks] = semantic_masks
+
+        if K.boxes3d in self.keys_to_load:
+            boxes3d, classes, track_ids = boxes3d_from_scalabel(
+                frame.labels, self.cats_name2id[K.boxes3d], instid_map
+            )
+            data[K.boxes3d] = boxes3d
+            data[K.boxes3d_classes] = classes
+            data[K.boxes3d_track_ids] = track_ids
+
+    def __len__(self) -> int:
+        """Length of dataset."""
+        return len(self.frames)
+
+    def __getitem__(self, index: int) -> DictData:
+        """Get item from dataset at given index."""
+        frame = self.frames[index]
+        data = self._load_inputs(frame)
+
+        if self.load_anns:
+            if len(self.cats_name2id) == 0:
+                raise AttributeError(
+                    "Category mapping is empty but keys_to_load is not. "
+                    "Please specify a category mapping."
+                )
+            # load annotations to input sample
+            self._add_annotations(frame, data)
+        return data
 
 
 def boxes2d_from_scalabel(

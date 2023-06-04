@@ -16,8 +16,8 @@ from .base import Transform
 
 
 @Transform(K.images, K.images)
-class FlipImage:
-    """Flip a numpy array of shape [N, H, W, C]."""
+class FlipImages:
+    """Flip a list of numpy image array of shape [N, H, W, C]."""
 
     def __init__(self, direction: str = "horizontal"):
         """Creates an instance of FlipImage.
@@ -25,10 +25,15 @@ class FlipImage:
         Args:
             direction (str, optional): Either vertical or horizontal.
                 Defaults to "horizontal".
+
+        Raises:
+            ValueError: If direction is not horizontal or vertical.
         """
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError(f"Direction {self.direction} not known!")
         self.direction = direction
 
-    def __call__(self, image: NDArrayF32) -> NDArrayF32:
+    def __call__(self, images: list[NDArrayF32]) -> list[NDArrayF32]:
         """Execute flipping op.
 
         Args:
@@ -37,17 +42,18 @@ class FlipImage:
         Returns:
             NDArrayF32: [N, H, W, C] array of flipped image.
         """
-        image_ = torch.from_numpy(image)
-        if self.direction == "horizontal":
-            return image_.flip(2).numpy()
-        if self.direction == "vertical":
-            return image_.flip(1).numpy()
-        raise ValueError(f"Direction {self.direction} not known!")
+        for i, image in enumerate(images):
+            image_ = torch.from_numpy(image)
+            if self.direction == "horizontal":
+                images[i] = image_.flip(2).numpy()
+            if self.direction == "vertical":
+                images[i] = image_.flip(1).numpy()
+        return images
 
 
 @Transform(in_keys=(K.boxes2d, K.images), out_keys=(K.boxes2d,))
 class FlipBoxes2D:
-    """Flip 2D bounding boxes."""
+    """Flip a list of 2D bounding boxes."""
 
     def __init__(self, direction: str = "horizontal"):
         """Creates an instance of FlipBoxes2D.
@@ -55,34 +61,42 @@ class FlipBoxes2D:
         Args:
             direction (str, optional): Either vertical or horizontal.
                 Defaults to "horizontal".
+
+        Raises:
+            ValueError: If direction is not horizontal or vertical.
         """
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError(f"Direction {self.direction} not known!")
         self.direction = direction
 
-    def __call__(self, boxes: NDArrayF32, image: NDArrayF32) -> NDArrayF32:
+    def __call__(
+        self, boxes: list[NDArrayF32], images: list[NDArrayF32]
+    ) -> list[NDArrayF32]:
         """Execute flipping op.
 
         Args:
-            boxes (NDArrayF32): [M, 4] array of boxes.
-            image (NDArrayF32): [N, H, W, C] array of image.
+            boxes (list[NDArrayF32]): List of [M, 4] array of boxes.
+            image (list[NDArrayF32]): List of [N, H, W, C] array of image.
 
         Returns:
-            NDArrayF32: [M, 4] array of flipped boxes.
+            list[NDArrayF32]: List of [M, 4] array of flipped boxes.
         """
-        if self.direction == "horizontal":
-            im_width = image.shape[2]
-            tmp = im_width - boxes[..., 2::4]
-            boxes[..., 2::4] = im_width - boxes[..., 0::4]
-            boxes[..., 0::4] = tmp
-            return boxes
-        if self.direction == "vertical":
-            im_height = image.shape[1]
-            tmp = im_height - boxes[..., 3::4]
-            boxes[..., 3::4] = im_height - boxes[..., 1::4]
-            boxes[..., 1::4] = tmp
-            return boxes
-        raise ValueError(f"Direction {self.direction} not known!")
+        for i, (boxes_, image) in enumerate(zip(boxes, images)):
+            if self.direction == "horizontal":
+                im_width = image.shape[2]
+                tmp = im_width - boxes_[..., 2::4]
+                boxes_[..., 2::4] = im_width - boxes_[..., 0::4]
+                boxes_[..., 0::4] = tmp
+            elif self.direction == "vertical":
+                im_height = image.shape[1]
+                tmp = im_height - boxes_[..., 3::4]
+                boxes_[..., 3::4] = im_height - boxes_[..., 1::4]
+                boxes_[..., 1::4] = tmp
+            boxes[i] = boxes_
+        return boxes
 
 
+# TODO: Refactor this class
 @Transform(K.seg_masks, K.seg_masks)
 class FlipSegMasks:
     """Flip segmentation masks."""
@@ -123,24 +137,31 @@ class FlipInstanceMasks:
         Args:
             direction (str, optional): Either vertical or horizontal.
                 Defaults to "horizontal".
+
+        Raises:
+            ValueError: If direction is not horizontal or vertical.
         """
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError(f"Direction {self.direction} not known!")
         self.direction = direction
 
-    def __call__(self, masks: NDArrayUI8) -> NDArrayUI8:
+    def __call__(self, masks: list[NDArrayUI8]) -> NDArrayUI8:
         """Execute flipping op.
 
         Args:
-            masks (NDArrayUI8): [N, H, W] array of masks.
+            masks (list[NDArrayUI8]): List of [N, H, W] array of masks.
 
         Returns:
-            NDArrayUI8: [N, H, W] array of flipped masks.
+            list[NDArrayUI8]: List of [N, H, W] array of flipped masks.
         """
-        image_ = torch.from_numpy(masks)
-        if self.direction == "horizontal":
-            return image_.flip(2).numpy()
-        if self.direction == "vertical":
-            return image_.flip(1).numpy()
-        raise ValueError(f"Direction {self.direction} not known!")
+        for i, mask in enumerate(masks):
+            mask_ = torch.from_numpy(mask)
+            if self.direction == "horizontal":
+                mask = mask_.flip(2).numpy()
+            if self.direction == "vertical":
+                mask = mask_.flip(1).numpy()
+            masks[i] = mask
+        return masks
 
 
 def get_axis(direction: str, axis_mode: AxisMode) -> int:
@@ -162,6 +183,7 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
     return coord_mapping[axis_mode][direction]
 
 
+# TODO: Refactor this class
 @Transform(in_keys=(K.boxes3d, K.axis_mode), out_keys=(K.boxes3d,))
 class FlipBoxes3D:
     """Flip 3D bounding box array."""
@@ -191,6 +213,7 @@ class FlipBoxes3D:
         return boxes
 
 
+# TODO: Refactor this class
 @Transform(in_keys=(K.points3d, K.axis_mode), out_keys=(K.points3d,))
 class FlipPoints3D:
     """Flip pointcloud array."""
@@ -212,6 +235,7 @@ class FlipPoints3D:
         return points3d
 
 
+# TODO: Refactor this class
 @Transform(in_keys=(K.intrinsics, K.images), out_keys=(K.intrinsics,))
 class FlipIntrinsics:
     """Modify intrinsics for image flip."""
