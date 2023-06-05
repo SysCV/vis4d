@@ -4,8 +4,8 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import numpy as np
-from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import Dataset
+from torch.utils.data.distributed import DistributedSampler
 
 from .datasets import Dataset
 from .typing import DictDataOrList

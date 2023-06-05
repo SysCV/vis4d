@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import copy
-
 import os
 import pickle
 from collections.abc import Callable, Sequence
@@ -14,17 +13,18 @@ import plyfile
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 
-from vis4d.common.distributed import rank_zero_only, broadcast
+from vis4d.common.distributed import broadcast, rank_zero_only
 from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 from vis4d.common.typing import (
-    ListAny,
     DictStrAny,
+    ListAny,
     NDArrayFloat,
     NDArrayI64,
     NDArrayUI8,
 )
+
 from ..typing import DictData
 
 if OPENCV_AVAILABLE:

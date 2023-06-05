@@ -11,8 +11,8 @@ from torch import Tensor
 
 from vis4d.common import DictStrAny, MetricLogs
 from vis4d.data.datasets.nuscenes import (
-    nuscenes_class_map,
     nuscenes_attribute_map,
+    nuscenes_class_map,
 )
 
 from ..base import Evaluator

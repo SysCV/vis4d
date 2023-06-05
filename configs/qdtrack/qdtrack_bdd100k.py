@@ -6,33 +6,30 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
+from vis4d.config.common.datasets import get_bdd100k_track_cfg
 from vis4d.config.common.models.faster_rcnn import (
     CONN_ROI_LOSS_2D,
     CONN_RPN_LOSS_2D,
     get_default_rcnn_box_codec_cfg,
     get_default_rpn_box_codec_cfg,
 )
-from vis4d.config.common.datasets import get_bdd100k_track_cfg
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
-
-from vis4d.config import class_config
-from vis4d.config.util import get_optimizer_cfg, get_callable_cfg
+from vis4d.config.util import get_callable_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
-
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
+    LossConnector,
     RefDataConnector,
     data_key,
     pred_key,
-    LossConnector,
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import LinearLRWarmup
@@ -41,8 +38,8 @@ from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.rcnn import RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
-from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 from vis4d.op.loss.common import smooth_l1_loss
+from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 
 CONN_BBOX_2D_TRAIN = {
     "images": K.images,

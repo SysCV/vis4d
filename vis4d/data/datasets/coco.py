@@ -12,12 +12,11 @@ from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.common import DictStrAny
 
-from .base import Dataset
-from .util import im_decode, CacheMappingMixin
-
 from ..const import CommonKeys as K
-from ..typing import DictData
 from ..io import DataBackend, FileBackend
+from ..typing import DictData
+from .base import Dataset
+from .util import CacheMappingMixin, im_decode
 
 # COCO detection
 coco_det_map = {

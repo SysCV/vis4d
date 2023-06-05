@@ -10,8 +10,8 @@ from abc import abstractmethod
 from typing import Callable, List
 
 import numpy as np
-
 from torch.utils.data import Dataset
+
 from .const import CommonKeys as K
 from .typing import DictData
 

@@ -5,23 +5,22 @@ from ml_collections import ConfigDict
 
 from vis4d.config import class_config
 from vis4d.config.util import (
-    get_train_dataloader_cfg,
     get_inference_dataloaders_cfg,
+    get_train_dataloader_cfg,
 )
 from vis4d.data import CommonKeys as K
 from vis4d.data import DataPipe, ReferenceDataset, UniformViewSampler
 from vis4d.data.datasets import BDD100K, bdd100k_track_map
+from vis4d.data.transforms import RandomApply, compose
+from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.post_process import PostProcessBoxes2d
-from vis4d.data.transforms import RandomApply, compose
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
 )
-from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.to_tensor import ToTensor
 
 
@@ -41,7 +40,7 @@ def get_train_dataloader(
         category_map=bdd100k_track_map,
         skip_empty_samples=True,
         cache_as_binary=True,
-        cached_file_path="data/bdd100k/annotations/track_train.pkl",
+        cached_file_path="data/bdd100k/track_train.pkl",
     )
 
     bdd100k_det_train = class_config(
@@ -52,7 +51,7 @@ def get_train_dataloader(
         config_path="det",
         data_backend=data_backend,
         category_map=bdd100k_track_map,
-        annotations="data/bdd100k/annotations/det_train.pkl",
+        annotations="data/bdd100k/det_train.pkl",
         skip_empty_samples=True,
         cache_as_binary=True,
     )
@@ -136,7 +135,7 @@ def get_test_dataloader(
         data_backend=data_backend,
         load_anns=False,
         cache_as_binary=True,
-        cached_file_path="data/bdd100k/annotations/track_val.pkl",
+        cached_file_path="data/bdd100k/track_val.pkl",
     )
 
     preprocess_transforms = [

@@ -7,7 +7,7 @@ import torch
 
 from vis4d.common.typing import NDArrayF32, NDArrayI32
 from vis4d.data.const import CommonKeys as K
-from vis4d.op.box.box2d import bbox_clip, bbox_area
+from vis4d.op.box.box2d import bbox_area, bbox_clip
 
 from .base import Transform
 

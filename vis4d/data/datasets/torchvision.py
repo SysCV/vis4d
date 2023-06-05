@@ -1,19 +1,17 @@
 """Provides functionalities to wrap torchvision datasets."""
 from __future__ import annotations
 
-import numpy as np
-
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 from PIL.Image import Image
 from torchvision.datasets import VisionDataset
 from torchvision.transforms import ToTensor
 
-
-from .base import Dataset
 from ..const import CommonKeys as K
 from ..typing import DictData
+from .base import Dataset
 
 
 class TorchvisionDataset(Dataset):

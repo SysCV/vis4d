@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import itertools
-from tabulate import tabulate
-from termcolor import colored
 import os
 from collections import defaultdict
 from collections.abc import Callable, Sequence
@@ -11,10 +9,12 @@ from typing import Union
 
 import numpy as np
 import torch
+from tabulate import tabulate
+from termcolor import colored
 
+from vis4d.common.distributed import broadcast
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
-from vis4d.common.distributed import broadcast
 from vis4d.common.time import Timer
 from vis4d.common.typing import (
     DictStrAny,
@@ -34,7 +34,7 @@ from vis4d.op.geometry.rotation import (
 )
 
 from .base import VideoDataset
-from .util import im_decode, ply_decode, DatasetFromList
+from .util import DatasetFromList, im_decode, ply_decode
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config

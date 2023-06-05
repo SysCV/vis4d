@@ -23,7 +23,7 @@ class ResizeParam(TypedDict):
     interpolation: str
 
 
-@Transform([K.images], ["transforms.resize", K.input_hw])
+@Transform(K.images, ["transforms.resize", K.input_hw])
 class GenerateResizeParameters:
     """Generate the parameters for a resize operation."""
 
@@ -69,7 +69,6 @@ class GenerateResizeParameters:
         self, images: list[NDArrayF32]
     ) -> tuple[list[ResizeParam], list[tuple[int, int]]]:
         """Compute the parameters and put them in the data dict."""
-        breakpoint()
         im_shape = (images[0].shape[1], images[0].shape[2])
         target_shape = _get_target_shape(
             im_shape,

@@ -1,45 +1,41 @@
 """NuScenes multi-sensor video dataset."""
 from __future__ import annotations
 
-from tqdm import tqdm
-
 import os
 from collections import defaultdict
 from collections.abc import Sequence
 
 import numpy as np
 import torch
-
+from scipy.spatial.transform import Rotation as R
 from torch import Tensor
+from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
-from vis4d.common.typing import DictStrAny, NDArrayF32, NDArrayI64, NDArrayBool
+from vis4d.common.typing import DictStrAny, NDArrayBool, NDArrayF32, NDArrayI64
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io import DataBackend, FileBackend
-
 from vis4d.data.typing import DictData
-from vis4d.op.geometry.transform import inverse_rigid_transform
 from vis4d.op.geometry.projection import generate_depth_map
-
-from scipy.spatial.transform import Rotation as R
+from vis4d.op.geometry.transform import inverse_rigid_transform
 
 from .base import VideoDataset
-from .util import im_decode, CacheMappingMixin
+from .util import CacheMappingMixin, im_decode
 
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
     from nuscenes.eval.detection.utils import category_to_detection_name
-    from nuscenes.utils.data_classes import Quaternion
-    from nuscenes.utils.geometry_utils import (
-        transform_matrix,
-        view_points,
-        box_in_image,
-    )
-    from nuscenes.utils.splits import create_splits_scenes
     from nuscenes.scripts.export_2d_annotations_as_json import (
         post_process_coords,
     )
+    from nuscenes.utils.data_classes import Quaternion
+    from nuscenes.utils.geometry_utils import (
+        box_in_image,
+        transform_matrix,
+        view_points,
+    )
+    from nuscenes.utils.splits import create_splits_scenes
 
 nuscenes_class_map = {
     "bicycle": 0,

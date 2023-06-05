@@ -6,8 +6,8 @@ import torch
 
 from vis4d.common.typing import NDArrayF32
 
-from .base import Transform
 from ..const import CommonKeys as K
+from .base import Transform
 
 
 @Transform(K.images, K.images)

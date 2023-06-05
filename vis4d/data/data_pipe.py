@@ -37,7 +37,9 @@ class DataPipe(ConcatDataset[DictDataOrList]):
         super().__init__(datasets)
         self.preprocess_fn = preprocess_fn
 
-        if any([isinstance(dataset, ReferenceDataset) for dataset in datasets]):
+        if any(
+            [isinstance(dataset, ReferenceDataset) for dataset in datasets]
+        ):
             if not all(
                 [isinstance(dataset, ReferenceDataset) for dataset in datasets]
             ):

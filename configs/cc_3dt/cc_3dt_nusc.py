@@ -14,14 +14,14 @@ from vis4d.config.default import (
 )
 from vis4d.config.util import get_inference_dataloaders_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
-    nuscenes_detection_range,
     nuscenes_class_map,
+    nuscenes_detection_range,
 )
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.loader import multi_sensor_collate
-from vis4d.data.data_pipe import DataPipe
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
@@ -105,8 +105,8 @@ def get_config() -> FieldConfigDict:
         split=test_split,
         data_backend=data_backend,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/annotations/mini_val.pkl",
-        # cached_file_path="data/nuscenes/annotations/val.pkl",
+        cached_file_path="data/nuscenes/mini_val.pkl",
+        # cached_file_path="data/nuscenes/val.pkl",
     )
 
     test_preprocess_cfg = class_config(
