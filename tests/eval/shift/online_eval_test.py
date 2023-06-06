@@ -11,14 +11,14 @@ from tests.eval.utils import get_dataloader
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.shift import SHIFT
-from vis4d.eval.shift import SHIFTOnlineEvaluator
+from vis4d.eval.shift import SHIFTMultitaskEvaluator
 
 
 class TestOnlineEvaluator(unittest.TestCase):
     """Tests for SHIFTOnlineEvaluator."""
 
     base_dir = get_test_data("shift_test")
-    online_evaluator = SHIFTOnlineEvaluator(
+    online_evaluator = SHIFTMultitaskEvaluator(
         output_dir=f"{base_dir}/submission", submission_file="test.zip"
     )
     dataset = SHIFT(

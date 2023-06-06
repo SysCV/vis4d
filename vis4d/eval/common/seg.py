@@ -130,7 +130,7 @@ class SegEvaluator(Evaluator):
 
         Args:
             metric (str): Metric to use. See @property metric.
-        
+
         Returns:
             (dict, str) containing the raw data and a short description string.
 
@@ -159,7 +159,7 @@ class SegEvaluator(Evaluator):
             short_description += f"mIoU: {m_iou:.3f}% \n"
             short_description += iou_class_str + "\n"
 
-        if metric == self.METRIC_CONFUSION_MATRIX
+        elif metric == self.METRIC_CONFUSION_MATRIX:
             headers = ["Confusion"] + [
                 self._get_class_name_for_idx(i)
                 for i in range(self._confusion_matrix.shape[0])
@@ -174,7 +174,7 @@ class SegEvaluator(Evaluator):
             # TODO, change MetricLogs type for more complex log types as e.g.
             #       confusion matrix
             short_description += table.table + "\n"
-        
+
         else:
             raise ValueError(f"Metric {metric} not supported")
         return metric_data, short_description
