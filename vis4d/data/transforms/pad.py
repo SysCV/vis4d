@@ -1,6 +1,8 @@
 """Pad transformation."""
 from __future__ import annotations
 
+from typing import TypedDict
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -11,7 +13,13 @@ from vis4d.data.const import CommonKeys as K
 from .base import BatchTransform
 
 
-@BatchTransform(K.images, [K.images, K.input_hw])
+class PadParam(TypedDict):
+    """Parameters for Resize."""
+
+    target_shape: tuple[int, int]
+
+
+@BatchTransform(K.images, [K.images, "transforms.pad"])
 class PadImages:
     """Pad batch of images at the bottom right."""
 
@@ -41,12 +49,11 @@ class PadImages:
 
     def __call__(
         self, images: list[NDArrayF32]
-    ) -> tuple[list[NDArrayF32], list[tuple[int, int]]]:
+    ) -> tuple[list[NDArrayF32], list[PadParam]]:
         """Pad images to consistent size."""
         heights = [im.shape[1] for im in images]
         widths = [im.shape[2] for im in images]
         max_hw = _get_max_shape(self.stride, self.shape, heights, widths)
-        out_shapes = [max_hw] * len(images)
 
         # generate params for torch pad
         for i, (image, h, w) in enumerate(zip(images, heights, widths)):
@@ -54,10 +61,13 @@ class PadImages:
             image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
             image_ = F.pad(image_, pad_param, self.mode, self.value)
             images[i] = image_.permute(0, 2, 3, 1).numpy()
-        return images, out_shapes
+
+        pad_params = [PadParam(target_shape=max_hw)] * len(images)
+
+        return images, pad_params
 
 
-@BatchTransform([K.seg_masks, K.input_hw], K.seg_masks)
+@BatchTransform([K.seg_masks, "transforms.pad.target_shape"], K.seg_masks)
 class PadSegMasks:
     """Pad batch of segmentation masks at the bottom right."""
 
@@ -88,13 +98,13 @@ class PadSegMasks:
     def __call__(
         self,
         masks: list[NDArrayUI8],
-        input_hw: list[tuple[int, int]] | None = None,
+        target_shapes: list[tuple[int, int]] | None = None,
     ) -> list[NDArrayUI8]:
         """Pad images to consistent size."""
         heights = [im.shape[0] for im in masks]
         widths = [im.shape[1] for im in masks]
-        if input_hw is not None:
-            max_hw = input_hw[0]
+        if target_shapes is not None:
+            max_hw = target_shapes[0]
         else:
             max_hw = _get_max_shape(self.stride, self.shape, heights, widths)
 

@@ -17,10 +17,10 @@ class TestPad(unittest.TestCase):
             np.random.rand(1, 15, 15, 3).astype(np.float32),
         ]
         pad_images = PadImages(stride=4)
-        images, hw = pad_images(images)
+        images, pad_params = pad_images(images)
         self.assertEqual(images[0].shape, (1, 16, 16, 3))
         self.assertEqual(images[1].shape, (1, 16, 16, 3))
-        self.assertEqual(hw, [(16, 16), (16, 16)])
+        self.assertEqual(pad_params[0]["target_shape"], (16, 16))
         self.assertTrue((images[0][0, 10:, 10:] == 0).all())
         self.assertTrue((images[1][0, 15:, 15:] == 0).all())
 
@@ -29,10 +29,10 @@ class TestPad(unittest.TestCase):
             np.random.rand(1, 15, 15, 3).astype(np.float32),
         ]
         pad_images = PadImages(shape=(17, 17))
-        images, hw = pad_images(images)
+        images, pad_params = pad_images(images)
         self.assertEqual(images[0].shape, (1, 17, 17, 3))
         self.assertEqual(images[1].shape, (1, 17, 17, 3))
-        self.assertEqual(hw, [(17, 17), (17, 17)])
+        self.assertEqual(pad_params[0]["target_shape"], (17, 17))
         self.assertTrue((images[0][0, 10:, 10:] == 0).all())
         self.assertTrue((images[1][0, 15:, 15:] == 0).all())
 

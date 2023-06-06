@@ -7,7 +7,6 @@ from typing import TypeVar, no_type_check
 import torch
 
 from vis4d.common.dict import get_dict_nested, set_dict_nested
-from vis4d.common.logging import rank_zero_warn
 from vis4d.data.typing import DictData
 
 TFunctor = TypeVar("TFunctor", bound=object)  # pylint: disable=invalid-name
@@ -221,21 +220,15 @@ class BatchTransform:
                 for key in self_.in_keys:
                     key_data = []
                     for data in batch:
-                        try:
-                            # Optionally allow the function to get the full
-                            # data dict as aux input.
-                            key_data += [
-                                get_dict_nested(data, key.split("."))
-                                if key != "data"
-                                else data
-                            ]
-                        except ValueError:
-                            rank_zero_warn(
-                                f"Could not find key {key} in data dictionary."
-                                + " Skipping transform"
-                                + f" {self_.__class__.__name__}."
+                        # Optionally allow the function to get the full
+                        # data dict as aux input.
+                        key_data += [
+                            get_dict_nested(
+                                data, key.split("."), allow_missing=True
                             )
-                            return batch
+                            if key != "data"
+                            else data
+                        ]
                     in_batch.append(key_data)
 
                 result = self_(*in_batch)
