@@ -179,7 +179,6 @@ class COCODetectEvaluator(Evaluator):
                 classes,
                 masks,
             )
-
             self._predictions.extend(coco_preds)
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
@@ -214,13 +213,11 @@ class COCODetectEvaluator(Evaluator):
             _predictions = copy.deepcopy(self._predictions)
             for pred in _predictions:
                 pred.pop("bbox")
-        self.coco_dt = self._coco_gt.loadRes(_predictions)
+        coco_dt = self._coco_gt.loadRes(_predictions)
 
         with contextlib.redirect_stdout(io.StringIO()):
-            assert self.coco_dt is not None
-            evaluator = COCOevalV2(
-                self._coco_gt, self.coco_dt, iouType=iou_type
-            )
+            assert coco_dt is not None
+            evaluator = COCOevalV2(self._coco_gt, coco_dt, iouType=iou_type)
             evaluator.evaluate()
             evaluator.accumulate()
 
