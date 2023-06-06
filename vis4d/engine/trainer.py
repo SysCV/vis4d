@@ -6,7 +6,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.logging import rank_zero_warn
+from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.data import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
@@ -27,12 +27,12 @@ class Trainer:
         train_data_connector: DataConnector | None,
         test_data_connector: DataConnector | None,
         callbacks: list[Callback],
-        num_epochs: int = 0,
-        num_steps: int = 0,
+        num_epochs: int = 1000,
+        num_steps: int = -1,
         epoch: int = 0,
         global_step: int = 0,
         check_val_every_n_epoch: int | None = 1,
-        val_check_interval: int = -1,
+        val_check_interval: int | None = None,
     ) -> None:
         """Initialize the trainer.
 
@@ -48,14 +48,16 @@ class Trainer:
                 generating testing inputs from a batch of data.
             callbacks (list[Callback]): Callbacks that should be used during
                 training.
-            num_epochs (int): Number of training epochs. Defaults to 0.
-            num_steps (int): Number of training steps. Defaults to 0.
+            num_epochs (int, optional): Number of training epochs. Defaults to
+                1000.
+            num_steps (int, optional): Number of training steps. Defaults to
+                -1.
             epoch (int, optional): Starting epoch. Defaults to 0.
             global_step (int, optional): Starting step. Defaults to 0.
-            check_val_every_n_epoch (int, optional): Evaluate the model every
-                n epochs during training. Defaults to 1.
-            val_check_interval (int, optional): Interval for evaluating the
-                model during training. Defaults to -1.
+            check_val_every_n_epoch (int | None, optional): Evaluate the model
+                every n epochs during training. Defaults to 1.
+            val_check_interval (int | None, optional): Interval for evaluating
+                the model during training. Defaults to None.
         """
         self.device = device
         self.train_dataloader = train_dataloader
@@ -63,30 +65,24 @@ class Trainer:
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.callbacks = callbacks
+
+        if num_epochs == -1 and num_steps == -1:
+            rank_zero_info(
+                "Neither `num_epochs` nor `num_steps` is specified. "
+                + "Training will run indefinitely."
+            )
+
         self.num_epochs = num_epochs
         self.num_steps = num_steps
+
+        if check_val_every_n_epoch is None and val_check_interval is None:
+            rank_zero_warn("Validation is disabled during training.")
+
+        self.check_val_every_n_epoch = check_val_every_n_epoch
         self.val_check_interval = val_check_interval
 
         self.epoch = epoch
         self.global_step = global_step
-
-        if check_val_every_n_epoch is None:
-            if val_check_interval < 1:
-                raise ValueError(
-                    "`val_check_interval` must be > 0 if"
-                    " `check_val_every_n_epoch` is None."
-                )
-            self.check_val_every_n_epoch = -1
-        else:
-            self.check_val_every_n_epoch = check_val_every_n_epoch
-
-        if self.num_epochs > 0 and self.num_steps > 0:
-            rank_zero_warn(
-                "Both num_epochs and num_steps are set. Ignoring num_steps."
-            )
-        self.epoch_based = self.num_epochs > 0
-        if self.check_val_every_n_epoch < 1 and self.val_check_interval < 1:
-            rank_zero_warn("Validation is disabled during training.")
 
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
@@ -97,10 +93,7 @@ class Trainer:
         Returns:
             bool: Whether to run test.
         """
-        if (
-            self.check_val_every_n_epoch is None
-            or self.check_val_every_n_epoch < 1
-        ):
+        if self.check_val_every_n_epoch is None:
             return False
         return (epoch + 1) % self.check_val_every_n_epoch == 0
 
@@ -113,16 +106,24 @@ class Trainer:
         Returns:
             bool: Whether to run test.
         """
-        if self.val_check_interval < 1:
+        if self.val_check_interval is None:
             return False
         return (step + 1) % self.val_check_interval == 0
 
-    def done(self, epoch: int | None = None, step: int | None = None) -> bool:
+    def done(self) -> bool:
         """Return whether training is done."""
-        if self.epoch_based and epoch is not None:
-            return self.epoch >= self.num_epochs - 1
-        if not self.epoch_based and step is not None:
-            return self.global_step >= self.num_steps - 1
+        if _is_max_limit_reached(self.global_step, self.num_steps):
+            rank_zero_info(
+                f"`Trainer.fit` stopped: `num_steps={self.num_steps!r}` "
+                + "reached."
+            )
+            return True
+        if _is_max_limit_reached(self.epoch, self.num_epochs):
+            rank_zero_info(
+                f"`Trainer.fit` stopped: `num_epochs={self.num_epochs!r}` "
+                + "reached."
+            )
+            return True
         return False
 
     def fit(
@@ -225,8 +226,8 @@ class Trainer:
                     # Set model back to train mode
                     model.train()
 
-                if self.done(step=self.global_step):
-                    break
+                if self.done():
+                    return
 
                 self.global_step += 1
 
@@ -245,8 +246,8 @@ class Trainer:
             ):
                 self.test(model)
 
-            if self.done(epoch=self.epoch, step=self.global_step):
-                break
+            if self.done():
+                return
 
             self.epoch += 1
 
@@ -319,3 +320,16 @@ class Trainer:
             trainer_state["metrics"] = metrics
 
         return trainer_state
+
+
+def _is_max_limit_reached(current: int, maximum: int = -1) -> bool:
+    """Check if the limit has been reached (if enabled).
+
+    Args:
+        current: the current value
+        maximum: the maximum value (or -1 to disable limit)
+
+    Returns:
+        bool: whether the limit has been reached
+    """
+    return maximum != -1 and current >= maximum

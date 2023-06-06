@@ -185,10 +185,10 @@ def main(argv: ArgsType) -> None:
         train_data_connector=train_data_connector,
         test_data_connector=test_data_connector,
         callbacks=callbacks,
-        num_epochs=config.params.get("num_epochs", 0),
-        num_steps=config.params.get("num_steps", 0),
+        num_epochs=config.params.get("num_epochs", -1),
+        num_steps=config.params.get("num_steps", -1),
         check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
-        val_check_interval=config.get("val_check_interval", -1),
+        val_check_interval=config.get("val_check_interval", None),
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?

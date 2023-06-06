@@ -25,7 +25,7 @@ class TestSegPreprocessing(unittest.TestCase):
             )
         )
         for data in dataloader:
-            self.assertEqual(data[K.input_hw][0], (512, 1024))
+            self.assertEqual(tuple(data[K.input_hw][0]), (512, 1024))
             self.assertEqual(data[K.images].shape, (1, 3, 512, 1024))
             self.assertEqual(data[K.seg_masks].shape, (1, 512, 1024))
 
