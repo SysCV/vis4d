@@ -21,7 +21,7 @@ from vis4d.common.logging import _info, rank_zero_info, setup_logger
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.config.parser import DEFINE_config_file, pprints_config
+from vis4d.engine.parser import DEFINE_config_file, pprints_config
 
 from .optim import set_up_optimizers
 from .trainer import Trainer

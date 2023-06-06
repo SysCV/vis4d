@@ -8,7 +8,7 @@ from absl import app
 from torch import nn
 
 from vis4d.common.typing import ArgsType
-from vis4d.config.parser import DEFINE_config_file
+from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.callbacks import (
     Callback,
     EvaluatorCallback,

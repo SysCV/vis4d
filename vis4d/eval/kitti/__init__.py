@@ -1,5 +1,5 @@
 """KITTI evaluator."""
 
-from .depth import KITTIEvaluator
+from .depth import KITTIDepthEvaluator
 
-__all__ = ["KITTIEvaluator"]
+__all__ = ["KITTIDepthEvaluator"]
