@@ -12,13 +12,9 @@ from vis4d.config.common.datasets import (
 )
 from vis4d.config.common.models import get_faster_rcnn_cfg
 from vis4d.config.default import (
-    get_callbacks_config,
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
-    get_optimizer_config,
-    get_pl_trainer_config,
-    set_output_dir,
 )
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
@@ -30,7 +26,7 @@ from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.detect.coco import COCODetectEvaluator
+from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 

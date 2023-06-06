@@ -8,7 +8,6 @@ from absl import app
 from torch import nn
 
 from vis4d.common.typing import ArgsType
-from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.callbacks import (
     Callback,
     EvaluatorCallback,
@@ -16,6 +15,7 @@ from vis4d.engine.callbacks import (
 )
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.loss_module import LossModule
+from vis4d.engine.parser import DEFINE_config_file
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
