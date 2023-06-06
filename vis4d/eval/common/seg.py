@@ -15,7 +15,6 @@ class SegEvaluator(Evaluator):
 
     METRIC_MIOU = "mIoU"
     METRIC_CONFUSION_MATRIX = "confusion_matrix"
-    METRIC_ALL = "all"
 
     def __init__(
         self,
@@ -130,7 +129,13 @@ class SegEvaluator(Evaluator):
         short description string containing a readable result.
 
         Args:
-            metric (str): Metric to use. See @property metric
+            metric (str): Metric to use. See @property metric.
+        
+        Returns:
+            (dict, str) containing the raw data and a short description string.
+
+        Raises:
+            ValueError: If metric is not supported.
         """
         assert (
             self._confusion_matrix is not None
@@ -138,10 +143,7 @@ class SegEvaluator(Evaluator):
             Please call the process() function before calling evaluate()"""
 
         metric_data, short_description = {}, ""
-        if metric in [
-            self.METRIC_MIOU,
-            self.METRIC_ALL,
-        ]:
+        if metric == self.METRIC_MIOU:
             # Calculate miou from confusion matrix
             tp = np.diag(self._confusion_matrix)
             fp = np.sum(self._confusion_matrix, axis=0) - tp
@@ -157,10 +159,7 @@ class SegEvaluator(Evaluator):
             short_description += f"mIoU: {m_iou:.3f}% \n"
             short_description += iou_class_str + "\n"
 
-        if metric in [
-            self.METRIC_CONFUSION_MATRIX,
-            self.METRIC_ALL,
-        ]:
+        if metric == self.METRIC_CONFUSION_MATRIX
             headers = ["Confusion"] + [
                 self._get_class_name_for_idx(i)
                 for i in range(self._confusion_matrix.shape[0])
@@ -175,4 +174,7 @@ class SegEvaluator(Evaluator):
             # TODO, change MetricLogs type for more complex log types as e.g.
             #       confusion matrix
             short_description += table.table + "\n"
+        
+        else:
+            raise ValueError(f"Metric {metric} not supported")
         return metric_data, short_description

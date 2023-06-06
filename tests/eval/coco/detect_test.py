@@ -9,17 +9,17 @@ from tests.engine.trainer_test import get_test_dataloader
 from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
-from vis4d.eval.coco import COCOEvaluator
+from vis4d.eval.coco import COCODetectEvaluator
 
 
-class TestCOCOEvaluator(unittest.TestCase):
+class TestCOCODetectEvaluator(unittest.TestCase):
     """COCO evaluator testcase class."""
 
     def test_coco_eval(self) -> None:
         """Testcase for COCO evaluation."""
         batch_size = 2
         coco_metrics = ["AP", "AP50", "AP75", "APs", "APm", "APl"]
-        coco_eval = COCOEvaluator(
+        coco_eval = COCODetectEvaluator(
             get_test_data("coco_test"), split="train", per_class_eval=True
         )
 

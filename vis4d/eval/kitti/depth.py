@@ -44,7 +44,7 @@ def apply_eigen_crop(mask: NDArrayNumber) -> NDArrayNumber:
     return mask
 
 
-class KITTIEvaluator(DepthEvaluator):
+class KITTIDepthEvaluator(DepthEvaluator):
     """KITTI depth evaluation class."""
 
     METRIC_DEPTH = "depth"

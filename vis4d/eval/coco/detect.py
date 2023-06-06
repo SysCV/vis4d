@@ -97,7 +97,7 @@ def predictions_to_coco(
     return predictions
 
 
-class COCOEvaluator(Evaluator):
+class COCODetectEvaluator(Evaluator):
     """COCO detection evaluation class."""
 
     METRIC_DET = "Det"

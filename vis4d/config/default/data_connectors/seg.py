@@ -17,11 +17,11 @@ CONN_MULTI_SEG_LOSS = {
 }
 
 CONN_SEG_EVAL = {
-    "prediction": pred_key("masks"),
+    "prediction": pred_key(K.seg_masks),
     "groundtruth": data_key(K.seg_masks),
 }
 
 CONN_BDD100K_SEG_EVAL = {
-    "data_names": data_key("sample_names"),
-    "masks_list": pred_key("masks"),
+    "data_names": data_key(K.sample_names),
+    "masks_list": pred_key(K.seg_masks),
 }

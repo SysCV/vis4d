@@ -10,7 +10,7 @@ from vis4d.config.common.datasets import CONN_COCO_MASK_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
 from vis4d.engine.connectors import CallbackConnector
-from vis4d.eval.coco import COCOEvaluator
+from vis4d.eval.coco import COCODetectEvaluator
 
 
 class TestEvaluatorCallback(unittest.TestCase):
@@ -21,11 +21,11 @@ class TestEvaluatorCallback(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         self.callback = EvaluatorCallback(
-            evaluator=COCOEvaluator(
+            evaluator=COCODetectEvaluator(
                 data_root=get_test_data("coco_test"), split="train"
             ),
             save_predictions=True,
-            metrics_to_eval=[COCOEvaluator.METRIC_DET],
+            metrics_to_eval=[COCODetectEvaluator.METRIC_DET],
             save_prefix=self.test_dir,
             test_connector=CallbackConnector(CONN_COCO_MASK_EVAL),
         )

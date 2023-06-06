@@ -239,8 +239,10 @@ class TestSegEvaluator(unittest.TestCase):
         gt = pred.copy()
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_MIOU)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
+        _, disc = self.evaluator.evaluate(SegEvaluator.METRIC_CONFUSION_MATRIX)
+        self.assertTrue(isinstance(disc, str))
 
     def test_perfect_prediction_without_amax(self) -> None:
         """Tests when predictions are correct with shape [N,C,*]."""
@@ -250,7 +252,7 @@ class TestSegEvaluator(unittest.TestCase):
         gt = pred_amax.copy()
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_MIOU)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
     def test_ignore_label_prediction(self) -> None:
@@ -267,7 +269,7 @@ class TestSegEvaluator(unittest.TestCase):
 
         evaluator.reset()
         evaluator.process_batch(pred, gt)
-        data, _ = evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        data, _ = evaluator.evaluate(SegEvaluator.METRIC_MIOU)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 100)
 
     def test_precomputed(self) -> None:
@@ -276,5 +278,5 @@ class TestSegEvaluator(unittest.TestCase):
         pred, gt = get_test_data()
         self.evaluator.reset()
         self.evaluator.process_batch(pred, gt)
-        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_ALL)
+        data, _ = self.evaluator.evaluate(SegEvaluator.METRIC_MIOU)
         self.assertEqual(data[SegEvaluator.METRIC_MIOU], 5.230499415482852)
