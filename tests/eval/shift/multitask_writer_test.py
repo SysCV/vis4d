@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import os
+import tempfile
 import unittest
 import zipfile
-import tempfile
+
 import torch
 
 from tests.eval.utils import get_dataloader
