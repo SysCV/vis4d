@@ -38,6 +38,14 @@ CONN_COCO_BBOX_EVAL = {
     "pred_classes": pred_key("class_ids"),
 }
 
+CONN_COCO_MASK_EVAL = {
+    "coco_image_id": data_key(K.sample_names),
+    "pred_boxes": pred_key("boxes.boxes"),
+    "pred_scores": pred_key("boxes.scores"),
+    "pred_classes": pred_key("boxes.class_ids"),
+    "pred_masks": pred_key("masks"),
+}
+
 
 def get_train_dataloader(
     data_root: str,

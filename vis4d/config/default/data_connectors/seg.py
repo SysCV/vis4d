@@ -17,7 +17,7 @@ CONN_MULTI_SEG_LOSS = {
 }
 
 CONN_SEG_EVAL = {
-    "prediction": pred_key("masks"),
+    "prediction": pred_key(K.seg_masks),
     "groundtruth": data_key(K.seg_masks),
 }
 

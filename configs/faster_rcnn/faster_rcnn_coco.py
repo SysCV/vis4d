@@ -26,7 +26,7 @@ from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
@@ -143,7 +143,7 @@ def get_config() -> FieldConfigDict:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                COCOEvaluator,
+                COCODetectEvaluator,
                 data_root=data_root,
                 split=test_split,
             ),

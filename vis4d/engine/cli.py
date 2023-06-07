@@ -117,8 +117,6 @@ def main(argv: ArgsType) -> None:
         rank_zero_info(pprints_config(config))
 
     # Instantiate classes
-    train_data_connector = instantiate_classes(config.train_data_connector)
-
     model = instantiate_classes(config.model)
 
     if config.get("sync_batchnorm", False):

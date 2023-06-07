@@ -25,7 +25,7 @@ SEMANTIC_MASK_INDICES = np.array([0, 419, 581117, 1023997])
 SEMANTIC_MASK_VALUES = np.array([13, 5, 14, 22])
 
 DEPTH_MAP_INDICES = np.array([0, 419, 581117, 1023997])
-DEPTH_MAP_VALUES = np.array([16777.2109, 134.4130, 320.8880, 42.8810])
+DEPTH_MAP_VALUES = np.array([999.9996, 8.011639, 19.126415, 2.5559065])
 
 OPTICAL_FLOW_INDICES = np.array([0, 419, 581117, 1023997])
 OPTICAL_FLOW_VALUES = np.array(
@@ -109,20 +109,28 @@ class SHIFTTest(unittest.TestCase):
         """Test if sample loaded correctly."""
         for view in ("front", "left_90"):
             self.assertEqual(
-                tuple(self.dataset_multiview[0][view].keys()),
-                (
+                set(self.dataset_multiview[0][view].keys()),
+                {
                     K.images,
+                    K.original_hw,
                     K.input_hw,
+                    K.axis_mode,
+                    K.frame_ids,
+                    K.sample_names,
+                    K.sequence_names,
                     K.intrinsics,
+                    K.boxes3d,
+                    K.boxes3d_classes,
+                    K.boxes3d_track_ids,
+                    K.extrinsics,
                     K.boxes2d,
                     K.boxes2d_classes,
                     K.boxes2d_track_ids,
-                    K.boxes3d,
                     K.instance_masks,
                     K.seg_masks,
                     K.depth_maps,
                     K.optical_flows,
-                ),
+                },
             )
             self.assertEqual(
                 self.dataset_multiview[0][view][K.images].shape,
@@ -174,8 +182,13 @@ class SHIFTTest(unittest.TestCase):
 
         for view in ("center",):
             self.assertEqual(
-                tuple(self.dataset_multiview[0][view].keys()),
-                (K.boxes3d, K.points3d),
+                set(self.dataset_multiview[0][view].keys()),
+                {
+                    K.boxes3d,
+                    K.boxes3d_classes,
+                    K.boxes3d_track_ids,
+                    K.points3d,
+                },
             )
             item = self.dataset_multiview[0][view][K.points3d]
             self.assertEqual(item.shape, (51111, 4))

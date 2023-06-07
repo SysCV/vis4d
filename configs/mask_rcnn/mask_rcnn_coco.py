@@ -31,7 +31,7 @@ from vis4d.engine.connectors import (
     remap_pred_keys,
 )
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
@@ -162,7 +162,7 @@ def get_config() -> FieldConfigDict:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                COCOEvaluator,
+                COCODetectEvaluator,
                 data_root=data_root,
                 split=test_split,
             ),

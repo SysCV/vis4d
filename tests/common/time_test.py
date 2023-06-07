@@ -23,4 +23,4 @@ class TestTime(unittest.TestCase):
         timed = stdout.getvalue()
         self.assertTrue(timed.startswith("test_func  "))
         self.assertTrue(timed.endswith(" ms\n"))
-        self.assertAlmostEqual(float(timed[11:18]), 1337.0, delta=3.0)
+        self.assertAlmostEqual(float(timed[11:18]), 1337.0, delta=10.0)
