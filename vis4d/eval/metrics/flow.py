@@ -39,17 +39,8 @@ def angular_error(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(
-        np.arccos(
-            np.clip(
-                np.abs(np.sum(prediction * target, axis=-1))
-                / (
-                    np.linalg.norm(prediction, axis=-1)
-                    * np.linalg.norm(target, axis=-1)
-                    + epsilon
-                ),
-                0.0,
-                1.0,
-            )
-        )
-    ).item()
+    product = np.sum(prediction * target, axis=-1)
+    pred_norm = np.linalg.norm(prediction, axis=-1)
+    target_norm = np.linalg.norm(target, axis=-1)
+    cos_angle = np.abs(product) / (pred_norm * target_norm + epsilon)
+    return np.mean(np.arccos(np.clip(cos_angle, 0.0, 1.0))).item()
