@@ -26,9 +26,9 @@ from vis4d.common.logging import (
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.engine.parser import DEFINE_config_file, pprints_config
 
 from .optim import set_up_optimizers
+from .parser import DEFINE_config_file, pprints_config
 from .trainer import Trainer
 
 # TODO: Currently this does not allow to load multpile config files.
@@ -117,8 +117,6 @@ def main(argv: ArgsType) -> None:
         rank_zero_info(pprints_config(config))
 
     # Instantiate classes
-    train_data_connector = instantiate_classes(config.train_data_connector)
-
     model = instantiate_classes(config.model)
 
     if config.get("sync_batchnorm", False):
