@@ -1,1 +1,1 @@
-"""Config tests."""
+"""Config Tests."""

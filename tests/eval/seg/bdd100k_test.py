@@ -7,6 +7,7 @@ import unittest
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import generate_semantic_masks, get_test_data
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.engine.connectors import (
@@ -29,7 +30,7 @@ class TestBDD100KSegEvaluator(unittest.TestCase):
     """BDD100K segmentation evaluator testcase class."""
 
     CONN_BDD100K_EVAL = {
-        "data_names": data_key("name"),
+        "data_names": data_key(K.sample_names),
         "masks_list": pred_key("masks"),
     }
 

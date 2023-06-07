@@ -280,9 +280,8 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[K.input_hw] = input_hw
             data[K.axis_mode] = AxisMode.OPENCV
             data[K.frame_ids] = frame.frameIndex
-            # TODO how to properly integrate such metadata?
-            data["name"] = frame.name
-            data["videoName"] = frame.videoName
+            data[K.sample_names] = frame.name
+            data[K.sequence_names] = frame.videoName
 
         if frame.url is not None and K.points3d in self.keys_to_load:
             data[K.points3d] = load_pointcloud(frame.url, self.data_backend)
