@@ -48,6 +48,8 @@ class CommonKeys:
     frame_ids (int): If the dataset contains videos, this field indicates the
         temporal frame index of the current image / sample.
 
+    categories (NDArrayF32): Class labels of shape [C, ].
+
     boxes2d (NDArrayF32): 2D bounding boxes of shape [N, 4] in xyxy format.
     boxes2d_classes (NDArrayI32): Semantic classes of 2D bounding boxes, shape
         [N,].

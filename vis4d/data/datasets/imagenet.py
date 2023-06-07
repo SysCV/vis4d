@@ -8,15 +8,14 @@ import tarfile
 from collections.abc import Sequence
 
 import numpy as np
-import torch
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
 from .base import Dataset
-from .util import im_decode
+from .util import im_decode, to_onehot
 
 
 class ImageNet(Dataset):
@@ -28,28 +27,27 @@ class ImageNet(Dataset):
     PAPER = "http://www.image-net.org/papers/imagenet_cvpr09.pdf"
     LICENSE = "http://www.image-net.org/terms-of-use"
 
-    KEYS = [Keys.images, Keys.categories]
+    KEYS = [K.images, K.categories]
 
     def __init__(
         self,
         data_root: str,
-        keys_to_load: Sequence[str] = (Keys.images, Keys.categories),
+        keys_to_load: Sequence[str] = (K.images, K.categories),
         split: str = "train",
         num_classes: int = 1000,
-        use_sample_lists: bool = True,
+        use_sample_lists: bool = False,
     ) -> None:
         """Initialize ImageNet dataset.
 
         Args:
             data_root (str): Path to root directory of dataset.
             keys_to_load (list[str], optional): List of keys to load. Defaults
-                to (Keys.images, Keys.categories).
+                to (K.images, K.categories).
             split (str, optional): Dataset split to load. Defaults to "train".
             num_classes (int, optional): Number of classes to load. Defaults to
                 1000.
-            use_sample_lists (bool, optional): Whether to load the sample lists
-                from the pickle files. If False, the lists will be generated on
-                the fly, which is much slower. Defaults to True.
+            use_sample_lists (bool, optional): Whether to use sample lists for
+                loading the dataset. Defaults to False.
 
         NOTE: The dataset is expected to be in the following format:
             data_root
@@ -72,8 +70,8 @@ class ImageNet(Dataset):
         self.split = split
         self.num_classes = num_classes
         self.use_sample_lists = use_sample_lists
-        self.data_infos = []
-        self._classes = []
+        self.data_infos: list[tuple[tarfile.TarInfo, int]] = []
+        self._classes: list[str] = []
         self._load_data_infos()
 
     def _load_data_infos(self) -> None:
@@ -130,12 +128,12 @@ class ImageNet(Dataset):
             image = im_decode(im_bytes.read())
 
         data_dict = {}
-        if Keys.images in self.keys_to_load:
-            data_dict[Keys.images] = np.ascontiguousarray(
-                image.transpose(2, 0, 1)
-            ).astype(np.float32)[np.newaxis, ...]
-        if Keys.categories in self.keys_to_load:
-            data_dict[Keys.categories] = torch.tensor(
-                class_idx, dtype=torch.long
-            ).unsqueeze(0)
+        if K.images in self.keys_to_load:
+            data_dict[K.images] = np.ascontiguousarray(
+                image, dtype=np.float32
+            )[np.newaxis, ...]
+        if K.categories in self.keys_to_load:
+            data_dict[K.categories] = to_onehot(
+                np.array(class_idx, dtype=np.int64), self.num_classes
+            )
         return data_dict

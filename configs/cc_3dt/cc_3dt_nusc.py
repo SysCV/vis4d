@@ -25,7 +25,7 @@ from vis4d.data.transforms.base import compose, compose_batch
 from vis4d.data.transforms.normalize import BatchNormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeImage,
     ResizeIntrinsics,
 )
@@ -107,7 +107,7 @@ def get_config() -> FieldConfigDict:
         compose,
         transforms=[
             class_config(
-                GenerateResizeParameters,
+                GenResizeParameters,
                 shape=(900, 1600),
                 keep_ratio=True,
                 sensors=NuScenes._CAMERAS,

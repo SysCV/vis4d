@@ -19,7 +19,7 @@ from vis4d.data.transforms.base import compose, compose_batch
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
 )
@@ -95,7 +95,7 @@ def get_config() -> ConfigDict:
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(720, 1280),
             keep_ratio=True,
         ),

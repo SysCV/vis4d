@@ -19,7 +19,7 @@ from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
 from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import NDArrayFloat
+from vis4d.common.typing import NDArrayF32, NDArrayFloat, NDArrayInt
 from vis4d.data.typing import DictData
 
 if OPENCV_AVAILABLE:
@@ -141,6 +141,20 @@ def get_used_data_groups(
         if any(key in keys for key in group_keys):
             used_groups.append(group_name)
     return used_groups
+
+
+def to_onehot(categories: NDArrayInt, num_classes: int) -> NDArrayF32:
+    """Transform integer categorical labels to onehot vectors.
+
+    Args:
+        categories (NDArrayInt): Integer categorical labels of shape (N, ).
+        num_classes (int): Number of classes.
+
+    Returns:
+        category_vector (NDArrayF32): Onehot vector of shape (N, num_classes).
+    """
+    _eye = np.eye(num_classes, dtype=np.float32)
+    return _eye[categories]
 
 
 class CacheMappingMixin:

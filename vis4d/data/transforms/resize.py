@@ -6,6 +6,7 @@ from typing import TypedDict
 
 import torch
 import torch.nn.functional as F
+import torchvision.transforms.functional as V
 from torch import Tensor
 
 from vis4d.common.typing import NDArrayF32
@@ -24,7 +25,7 @@ class ResizeParam(TypedDict):
 
 
 @Transform(K.images, ["transforms.resize", K.input_hw])
-class GenerateResizeParameters:
+class GenResizeParameters:
     """Generate the parameters for a resize operation."""
 
     def __init__(
@@ -70,7 +71,7 @@ class GenerateResizeParameters:
     ) -> tuple[ResizeParam, tuple[int, int]]:
         """Compute the parameters and put them in the data dict."""
         im_shape = (image.shape[1], image.shape[2])
-        target_shape = _get_target_shape(
+        target_shape = get_target_shape(
             im_shape,
             self.shape,
             self.keep_ratio,
@@ -131,6 +132,7 @@ class ResizeImage:
         image: NDArrayF32,
         target_shape: tuple[int, int],
         interpolation: str = "bilinear",
+        antialias: bool = False,
     ) -> tuple[NDArrayF32, tuple[int, int]]:
         """Resize an image of dimensions [N, H, W, C].
 
@@ -139,15 +141,48 @@ class ResizeImage:
             target_shape (tuple[int, int]): The target shape after resizing.
             interpolation (str): One of nearest, bilinear, bicubic. Defaults to
                 bilinear.
+            antialias (bool): Whether to use antialiasing. Defaults to False.
 
         Returns:
             Tensor: Resized image according to parameters in resize.
         """
         image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
-        image_ = _resize_tensor(
-            image_, target_shape, interpolation=interpolation
+        image_ = resize_tensor(
+            image_,
+            target_shape,
+            interpolation=interpolation,
+            antialias=antialias,
         )
         return image_.permute(0, 2, 3, 1).numpy()
+
+
+# NOTE: This has a different behavior than the GenResizeParameters.
+# It supports resize the image the match the short edge while keeping the
+# aspect ratio. Need to merge GenResizeParameters later.
+@Transform(in_keys=(K.images,), out_keys=(K.images, K.input_hw))
+class ResizeImageTorchVision:
+    """Resize image with antialiasing using torchvision.transforms."""
+
+    def __init__(self, shape: tuple[int, int] | int):
+        """Init the transform.
+
+        Args:
+            shape (tuple[int, int] | int): Image shape to
+                be resized to in (H, W) format or an integer representing the
+                size of the short edge of the image. If an integer is given,
+                the other edge of the image will be resized to maintain the
+                original aspect ratio.
+        """
+        self.shape = shape
+
+    def __call__(
+        self, image: NDArrayF32
+    ) -> tuple[torch.Tensor, tuple[int, int]]:
+        """Resize an image of dimensions [N, H, W, C]."""
+        image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
+        image_ = V.resize(image_, self.shape)
+        resized_hw = (image_.shape[-2], image_.shape[-1])
+        return image_.permute(0, 2, 3, 1).numpy(), resized_hw
 
 
 @Transform(
@@ -164,7 +199,7 @@ class ResizeInstanceMasks:
             return masks
         masks_ = torch.from_numpy(masks)
         masks_ = (
-            _resize_tensor(
+            resize_tensor(
                 masks_.float().unsqueeze(1),
                 target_shape,
                 interpolation="nearest",
@@ -187,7 +222,7 @@ class ResizeSegMasks:
             return masks
         masks_ = torch.from_numpy(masks)
         masks_ = (
-            _resize_tensor(
+            resize_tensor(
                 masks_.float().unsqueeze(0).unsqueeze(0),
                 target_shape,
                 interpolation="nearest",
@@ -212,21 +247,26 @@ class ResizeIntrinsics:
         return intrinsics
 
 
-def _resize_tensor(
+def resize_tensor(
     inputs: Tensor,
     shape: tuple[int, int],
     interpolation: str = "bilinear",
+    antialias: bool = False,
 ) -> Tensor:
     """Resize Tensor."""
     assert interpolation in {"nearest", "bilinear", "bicubic"}
     align_corners = None if interpolation == "nearest" else False
     output = F.interpolate(
-        inputs, shape, mode=interpolation, align_corners=align_corners
+        inputs,
+        shape,
+        mode=interpolation,
+        align_corners=align_corners,
+        antialias=antialias,
     )
     return output
 
 
-def _get_resize_shape(
+def get_resize_shape(
     original_shape: tuple[int, int],
     new_shape: tuple[int, int],
     keep_ratio: bool = True,
@@ -246,7 +286,7 @@ def _get_resize_shape(
     return new_h, new_w
 
 
-def _get_target_shape(
+def get_target_shape(
     input_shape: tuple[int, int],
     shape: tuple[int, int] | list[tuple[int, int]],
     keep_ratio: bool = False,
@@ -288,5 +328,5 @@ def _get_target_shape(
         assert isinstance(shape, list)
         shape = random.choice(shape)
 
-    shape = _get_resize_shape(input_shape, shape, keep_ratio, align_long_edge)
+    shape = get_resize_shape(input_shape, shape, keep_ratio, align_long_edge)
     return shape

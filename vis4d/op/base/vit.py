@@ -145,7 +145,7 @@ class VisionTransformer(nn.Module):
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
                 drop_path=dpr[i],
-                norm_layer=norm_layer,  # type: ignore[arg-type]
+                norm_layer=norm_layer,
                 act_layer=act_layer,
             )
             for i in range(depth)
