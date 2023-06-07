@@ -282,7 +282,6 @@ def instantiate_classes(data: ConfigDict | FieldReference, **kwargs: ArgsType) -
     Returns:
         ConfigDict | Any: The instantiated objects.
     """
-
     if isinstance(data, FieldReference):  # De-Reference the field reference
         data = data.get()
 
