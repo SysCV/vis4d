@@ -79,7 +79,7 @@ class TransformerBlockMLP(nn.Module):
         in_features: int,
         hidden_features: int | None = None,
         out_features: int | None = None,
-        act_layer: nn.Module = nn.GELU,
+        act_layer: nn.Module = nn.GELU(),
         bias: bool = True,
         drop: float = 0.0,
     ):
@@ -101,7 +101,7 @@ class TransformerBlockMLP(nn.Module):
         hidden_features = hidden_features or in_features
 
         self.fc1 = nn.Linear(in_features, hidden_features, bias=bias)
-        self.act = act_layer()
+        self.act = act_layer
         self.drop1 = nn.Dropout(drop)
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias)
         self.drop2 = nn.Dropout(drop)

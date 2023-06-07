@@ -82,6 +82,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "detectron2.*",
         "absl.*",
         "terminaltables.*",
+        "timm.*"
     ]
     ignore_missing_imports = true
 

@@ -76,10 +76,12 @@ class PatchEmbed(nn.Module):
         """Forward function."""
         _, _, height, width = x.shape
         assert height == self.img_size[0], (
-            f"Input image height ({height}) doesn't match model ({self.img_size}).",
+            f"Input image height ({height}) doesn't match model"
+            f"({self.img_size})."
         )
         assert width == self.img_size[1], (
-            f"Input image width ({width}) doesn't match model ({self.img_size}).",
+            f"Input image width ({width}) doesn't match model"
+            f"({self.img_size})."
         )
         x = self.proj(x)
         if self.flatten:

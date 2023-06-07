@@ -13,8 +13,8 @@ def drop_path(
     drop_prob: float = 0.0,
     training: bool = False,
     scale_by_keep: bool = True,
-):
-    """DropPath regularizer (Stochastic Depth) per sample.
+) -> torch.Tensor:
+    """Drop path regularizer (Stochastic Depth) per sample.
 
     Args:
         x (torch.Tensor): Input tensor of shape (batch_size, ...).
@@ -39,7 +39,9 @@ def drop_path(
 class DropPath(nn.Module):
     """DropPath regularizer (Stochastic Depth) per sample."""
 
-    def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True):
+    def __init__(
+        self, drop_prob: float = 0.0, scale_by_keep: bool = True
+    ) -> None:
         """Init DropPath.
 
         Args:

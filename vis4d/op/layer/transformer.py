@@ -31,7 +31,7 @@ class _LayerScale(nn.Module):
         self.inplace = inplace
         self.gamma = nn.Parameter(init_values * torch.ones(dim))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
         return x.mul_(self.gamma) if self.inplace else x * self.gamma
 
@@ -47,10 +47,10 @@ class TransformerBlock(nn.Module):
         qkv_bias: bool = False,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        init_values: tuple[float, float] | None = None,
+        init_values: float | None = None,
         drop_path: float = 0.0,
-        act_layer: nn.Module = nn.GELU,
-        norm_layer: nn.Module = nn.LayerNorm,
+        act_layer: nn.Module = nn.GELU(),
+        norm_layer: nn.Module | None = None,
     ):
         """Init transformer block.
 
@@ -71,11 +71,13 @@ class TransformerBlock(nn.Module):
                 to 0.0.
             act_layer (nn.Module, optional): Activation layer. Defaults to
                 nn.GELU.
-            norm_layer (nn.Module, optional): Normalization layer. Defaults to
+            norm_layer (nn.Module, optional): Normalization layer. If None, use
                 nn.LayerNorm.
         """
         super().__init__()
-        self.norm1 = norm_layer(dim)
+        self.norm1 = (
+            norm_layer(dim) if norm_layer else nn.LayerNorm(dim, eps=1e-6)
+        )
         self.attn = Attention(
             dim,
             num_heads=num_heads,
@@ -92,7 +94,9 @@ class TransformerBlock(nn.Module):
             DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         )
 
-        self.norm2 = norm_layer(dim)
+        self.norm2 = (
+            norm_layer(dim) if norm_layer else nn.LayerNorm(dim, eps=1e-6)
+        )
         self.mlp = TransformerBlockMLP(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
