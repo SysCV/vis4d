@@ -21,7 +21,8 @@ CONN_SEG_EVAL = {
     "groundtruth": data_key(K.seg_masks),
 }
 
-CONN_BDD100K_SEG_EVAL = {
-    "data_names": data_key(K.sample_names),
-    "masks_list": pred_key(K.seg_masks),
+CONN_SEG_VIS = {
+    K.images: data_key(K.images),
+    "image_names": data_key(K.sample_names),
+    "masks": pred_key("masks"),
 }

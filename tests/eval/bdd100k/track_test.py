@@ -7,6 +7,7 @@ import unittest
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import generate_boxes, get_test_data
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
 from vis4d.engine.connectors import (
@@ -29,9 +30,9 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
     """BDD100K tracking evaluator testcase class."""
 
     CONN_BDD100K_EVAL = {
-        "frame_ids": data_key("frame_ids"),
-        "data_names": data_key("sample_names"),
-        "video_names": data_key("sequence_names"),
+        "frame_ids": data_key(K.frame_ids),
+        "data_names": data_key(K.sample_names),
+        "video_names": data_key(K.sequence_names),
         "boxes_list": pred_key("boxes"),
         "class_ids_list": pred_key("class_ids"),
         "scores_list": pred_key("scores"),

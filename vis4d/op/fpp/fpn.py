@@ -30,7 +30,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
         self,
         in_channels_list: list[int],
         out_channels: int,
-        extra_blocks: ExtraFPNBlock = LastLevelMaxPool(),
+        extra_blocks: ExtraFPNBlock | None = LastLevelMaxPool(),
         start_index: int = 2,
     ) -> None:
         """Init without additional components.
