@@ -66,7 +66,8 @@ def root_mean_squared_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.sqrt(np.mean(np.square(prediction - target))).item()
+    squared_diff = np.square(prediction - target)
+    return np.sqrt(np.mean(squared_diff)).item()
 
 
 def root_mean_squared_error_log(
@@ -84,9 +85,9 @@ def root_mean_squared_error_log(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    squared_diff = np.square(
-        np.log(prediction + epsilon) - np.log(target + epsilon)
-    )
+    log_pred = np.log(prediction + epsilon)
+    log_target = np.log(target + epsilon)
+    squared_diff = np.square(log_pred - log_target)
     return np.sqrt(np.mean(squared_diff)).item()
 
 
@@ -105,11 +106,8 @@ def scale_invariant_log(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return 100.0 * float(
-        np.sqrt(
-            np.var(np.log(prediction + epsilon) - np.log(target + epsilon))
-        ).mean()
-    )
+    log_diff = np.log(prediction + epsilon) - np.log(target + epsilon)
+    return 100.0 * float(np.sqrt(np.var(log_diff)).mean())
 
 
 def delta_p(
@@ -145,4 +143,5 @@ def log_10_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.abs(np.log10(prediction) - np.log10(target))).item()
+    log10_diff = np.log10(prediction) - np.log10(target)
+    return np.mean(np.abs(log10_diff)).item()
