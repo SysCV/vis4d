@@ -4,22 +4,23 @@ from __future__ import annotations
 import os
 import unittest
 import zipfile
-
+import tempfile
 import torch
 
 from tests.eval.utils import get_dataloader
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.shift import SHIFT
-from vis4d.eval.shift import SHIFTMultitaskEvaluator
+from vis4d.eval.shift import SHIFTMultitaskWriter
 
 
-class TestOnlineEvaluator(unittest.TestCase):
-    """Tests for SHIFTOnlineEvaluator."""
+class TestMultitaskEvaluator(unittest.TestCase):
+    """Tests for SHIFTMultitaskWriter."""
 
     base_dir = get_test_data("shift_test")
-    online_evaluator = SHIFTMultitaskEvaluator(
-        output_dir=f"{base_dir}/submission", submission_file="test.zip"
+    temp_dir = tempfile.mkdtemp()
+    online_evaluator = SHIFTMultitaskWriter(
+        output_dir=temp_dir, submission_file="test.zip"
     )
     dataset = SHIFT(
         data_root=base_dir,
@@ -57,10 +58,10 @@ class TestOnlineEvaluator(unittest.TestCase):
 
         self.online_evaluator.save("", "")
 
-        assert os.path.exists(f"{self.base_dir}/submission/test.zip")
-        assert zipfile.is_zipfile(f"{self.base_dir}/submission/test.zip")
+        assert os.path.exists(f"{self.temp_dir}/test.zip")
+        assert zipfile.is_zipfile(f"{self.temp_dir}/test.zip")
 
-        with zipfile.ZipFile(f"{self.base_dir}/submission/test.zip") as zf:
+        with zipfile.ZipFile(f"{self.temp_dir}/test.zip") as zf:
             files = [f.filename for f in zf.filelist]
         self.assertTrue("semseg/007b-4e72/00000100_semseg_front.png" in files)
         self.assertTrue("depth/007b-4e72/00000100_depth_front.png" in files)

@@ -23,7 +23,7 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.typing import Dataset, Frame, Label
 
 
-class SHIFTMultitaskEvaluator(Evaluator):
+class SHIFTMultitaskWriter(Evaluator):
     """SHIFT result writer for online evaluation."""
 
     inverse_cat_map = {v: k for k, v in shift_det_map.items()}

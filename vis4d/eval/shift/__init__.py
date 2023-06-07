@@ -3,7 +3,7 @@
 from .depth import SHIFTDepthEvaluator
 from .detect import SHIFTDetectEvaluator
 from .flow import SHIFTOpticalFlowEvaluator
-from .multitask_writer import SHIFTMultitaskEvaluator
+from .multitask_writer import SHIFTMultitaskWriter
 from .seg import SHIFTSegEvaluator
 from .track import SHIFTTrackEvaluator
 
@@ -13,5 +13,5 @@ __all__ = [
     "SHIFTOpticalFlowEvaluator",
     "SHIFTSegEvaluator",
     "SHIFTTrackEvaluator",
-    "SHIFTMultitaskEvaluator",
+    "SHIFTMultitaskWriter",
 ]
