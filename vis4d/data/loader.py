@@ -237,6 +237,7 @@ def default_collate(batch: list[DictData]) -> DictData:
                 K.extrinsics,
                 K.intrinsics,
                 K.depth_maps,
+                K.optical_flows,
             ]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
@@ -247,12 +248,28 @@ def default_collate(batch: list[DictData]) -> DictData:
 
 
 def multi_sensor_collate(batch: list[DictData]) -> DictData:
-    """Default multi-sensor batch collate."""
-    data = {}
+    """Default multi-sensor batch collate.
+
+    Args:
+        batch (list[DictData]): List of data dicts. Each data dict contains
+            data from multiple sensors.
+
+    Returns:
+        DictData: Collated data dict.
+    """
+    collated_batch = {}
     sensors = list(batch[0].keys())
+
+    # For each sensor, collate the batch.
     for sensor in sensors:
-        data[sensor] = default_collate([d[sensor] for d in batch])
-    return data
+        # Only collate if all items are a dict, otherwise keep as it is.
+        inner_batch = [b[sensor] for b in batch]
+        if all(isinstance(item, dict) for item in inner_batch):
+            collated_batch[sensor] = default_collate(inner_batch)
+        else:
+            collated_batch[sensor] = inner_batch
+
+    return collated_batch
 
 
 def default_pipeline(data: list[DictData]) -> DictData:

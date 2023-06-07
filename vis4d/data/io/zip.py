@@ -6,6 +6,7 @@ the given Zip file contains the whole dataset associated to this backend.
 from __future__ import annotations
 
 import os
+import zipfile
 from typing import Literal
 from zipfile import ZipFile
 
@@ -26,25 +27,39 @@ class ZipBackend(DataBackend):
         self.db_cache: dict[str, tuple[ZipFile, str]] = {}
 
     @staticmethod
-    def _get_zip_path(filepath: str) -> tuple[str, list[str]]:
+    def _get_zip_path(
+        filepath: str, allow_omitted_ext: bool = True
+    ) -> tuple[str, list[str]]:
         """Get .zip path and keys from filepath.
 
         Args:
             filepath (str): The filepath to retrieve the data from.
                 Should have the following format: 'path/to/file.zip/key1/key2'
+            allow_omitted_ext (bool, optional): Whether to allow omitted
+                extension, in which case the backend will try to append
+                '.zip' to the filepath. Defaults to True.
 
         Returns:
-            tuple[str, list[str]]: The .zip path and the keys to retrieve.
+            tuple[str, list[str]]: The .hdf5 path and the keys to retrieve.
+
+        Examples:
+            >>> _get_zip_path("path/to/file.zip/key1/key2")
+            ("path/to/file.zip", ["key2", "key1"])
+            >>> _get_zip_path("path/to/file/key1/key2", True)
+            ("path/to/file.zip", ["key2", "key1"]) # if file.hdf5 exists and
+                                                    # is a valid hdf5 file
         """
         filepath_as_list = filepath.split("/")
         keys = []
 
-        while filepath != ".zip" and not os.path.exists(filepath):
+        while True:
+            if filepath.endswith(".zip") or filepath == "":
+                break
+            if allow_omitted_ext and zipfile.is_zipfile(filepath + ".zip"):
+                filepath = filepath + ".zip"
+                break
             keys.append(filepath_as_list.pop())
             filepath = "/".join(filepath_as_list)
-            # in case data_root is not explicitly set to a .zip file
-            if not filepath.endswith(".zip"):
-                filepath = filepath + ".zip"
         return filepath, keys
 
     def exists(self, filepath: str) -> bool:
@@ -63,13 +78,17 @@ class ZipBackend(DataBackend):
         url = "/".join(reversed(keys))
         return url in file.namelist()
 
-    def set(self, filepath: str, content: bytes) -> None:
+    def set(
+        self, filepath: str, content: bytes, mode: Literal["w", "a"] = "w"
+    ) -> None:
         """Write the file content to the zip file.
 
         Args:
             filepath: path/to/file.zip/key1/key2/key3
             content: Bytes to be written to entry key3 within group key2
-            within another group key1, for example.
+                within another group key1, for example.
+            mode: Mode to open the file in. "w" for writing a file, "a" for
+                appending to existing file.
 
         Raises:
             ValueError: If filepath is not a valid .zip file
@@ -79,7 +98,7 @@ class ZipBackend(DataBackend):
             raise ValueError(f"{filepath} not a valid .zip filepath!")
 
         zip_path, keys = self._get_zip_path(filepath)
-        zip_file = self._get_client(zip_path, "a")
+        zip_file = self._get_client(zip_path, mode)
         url = "/".join(reversed(keys))
         zip_file.writestr(url, content)
 
@@ -97,6 +116,7 @@ class ZipBackend(DataBackend):
         """
         assert len(mode) == 1, "Mode must be a single character for zip file."
         if zip_path not in self.db_cache:
+            os.makedirs(os.path.dirname(zip_path), exist_ok=True)
             client = ZipFile(zip_path, mode)
             self.db_cache[zip_path] = (client, mode)
         else:
@@ -177,3 +197,9 @@ class ZipBackend(DataBackend):
         zip_file = self._get_client(zip_path, "r")
         url = "/".join(reversed(keys))
         return url in zip_file.namelist()
+
+    def close(self) -> None:
+        """Close all opened Zip files."""
+        for client, _ in self.db_cache.values():
+            client.close()
+        self.db_cache = {}
