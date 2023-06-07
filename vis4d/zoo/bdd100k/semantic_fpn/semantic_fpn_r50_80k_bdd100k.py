@@ -19,7 +19,6 @@ from vis4d.config.default.data_connectors.seg import (
 from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import (
-    CheckpointCallback,
     EvaluatorCallback,
     LoggingCallback,
     VisualizerCallback,
