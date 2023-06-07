@@ -1,11 +1,11 @@
 """Init layers module."""
 
+from .attention import Attention
 from .conv2d import Conv2d, UnetDownConv, UnetUpConv, add_conv_branch
 from .deform_conv import DeformConv
-from .mlp import ResnetBlockFC, TransformerBlockMLP
-from .attention import Attention
-from .patch_embed import PatchEmbed
 from .drop import DropPath
+from .mlp import ResnetBlockFC, TransformerBlockMLP
+from .patch_embed import PatchEmbed
 from .transformer import TransformerBlock
 
 __all__ = [

@@ -6,11 +6,11 @@ Modified from vision_transformer
 from __future__ import annotations
 
 import torch
-from torch import nn as nn
+from torch import nn
 
 
 class PatchEmbed(nn.Module):
-    """2D Image to Patch Embedding"""
+    """2D Image to Patch Embedding."""
 
     def __init__(
         self,
@@ -74,12 +74,12 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward function."""
-        _, _, H, W = x.shape
-        assert H == self.img_size[0], (
-            f"Input image height ({H}) doesn't match model ({self.img_size}).",
+        _, _, height, width = x.shape
+        assert height == self.img_size[0], (
+            f"Input image height ({height}) doesn't match model ({self.img_size}).",
         )
-        assert W == self.img_size[1], (
-            f"Input image width ({W}) doesn't match model ({self.img_size}).",
+        assert width == self.img_size[1], (
+            f"Input image width ({width}) doesn't match model ({self.img_size}).",
         )
         x = self.proj(x)
         if self.flatten:

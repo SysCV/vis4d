@@ -5,7 +5,7 @@ Modified from timm (https://github.com/huggingface/pytorch-image-models).
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .attention import Attention
 from .drop import DropPath
@@ -37,6 +37,8 @@ class _LayerScale(nn.Module):
 
 
 class TransformerBlock(nn.Module):
+    """Transformer block."""
+
     def __init__(
         self,
         dim: int,

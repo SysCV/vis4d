@@ -2,18 +2,30 @@
 from __future__ import annotations
 
 from functools import partial
+from typing import NamedTuple
 
 import torch
+from timm.models.helpers import named_apply
+from timm.models.layers import trunc_normal_
 from torch import nn
 
+from ..layer import PatchEmbed, TransformerBlock
 from .base import BaseModel
-from ..layer import TransformerBlock, PatchEmbed
-from timm.models.layers import trunc_normal_
-from timm.models.helpers import named_apply
 
 
-def _init_weights_vit_timm(module: nn.Module):
-    """ViT weight initialization, original timm impl (for reproducibility)"""
+class ViTOut(NamedTuple):
+    """Output of the ViT operator.
+
+    features: Final output of the network.
+    intermediate_features: Intermediate features of each transformer block.
+    """
+
+    features: torch.Tensor
+    intermediate_features: torch.Tensor
+
+
+def _init_weights_vit_timm(module: nn.Module) -> None:
+    """ViT weight initialization, original timm impl (for reproducibility)."""
     if isinstance(module, nn.Linear):
         trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
@@ -38,7 +50,7 @@ class VisionTransformer(BaseModel):
         self,
         img_size: int = 224,
         patch_size: int = 16,
-        in_chans: int = 3,
+        in_channels: int = 3,
         num_classes: int = 1000,
         embed_dim: int = 768,
         depth: int = 12,
@@ -56,13 +68,14 @@ class VisionTransformer(BaseModel):
         norm_layer: nn.Module = partial(nn.LayerNorm, eps=1e-6),
         act_layer: nn.Module = nn.GELU,
         block_fn: nn.Module = TransformerBlock,
-    ):
+    ) -> None:  # pylint: disable=too-many-arguments
         """Init VisionTransformer.
 
         Args:
             img_size (int, optional): Input image size. Defaults to 224.
             patch_size (int, optional): Patch size. Defaults to 16.
-            in_chans (int, optional): Number of input channels. Defaults to 3.
+            in_channels (int, optional): Number of input channels. Defaults to
+                3.
             num_classes (int, optional): Number of classes. Defaults to 1000.
             embed_dim (int, optional): Embedding dimension. Defaults to 768.
             depth (int, optional): Depth. Defaults to 12.
@@ -101,7 +114,7 @@ class VisionTransformer(BaseModel):
         self.patch_embed = embed_layer(
             img_size=img_size,
             patch_size=patch_size,
-            in_chans=in_chans,
+            in_channels=in_channels,
             embed_dim=embed_dim,
             bias=not pre_norm,  # disable bias if pre-norm is used (e.g. CLIP)
         )
@@ -170,18 +183,32 @@ class VisionTransformer(BaseModel):
             x = x + self.pos_embed
         return self.pos_drop(x)
 
-    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
+    @property
+    def out_channels(self) -> list[int]:
+        """Return the number of output channels per feature level."""
+        return [self.embed_dim] * (self.depth + 1)
+
+    def __call__(self, images: torch.Tensor) -> ViTOut:
+        """Applies the ViT encoder.
+
+        Args:
+            data (tensor): Input Images into the network shape [N, C, W, H]
+
+        """
+        return self._call_impl(images)
+
+    def forward(self, images: torch.Tensor) -> ViTOut:
         """Forward pass.
 
         Args:
             images (torch.Tensor): Input images tensor of shape (B, C, H, W).
 
         Returns:
-            feats (list[torch.Tensor]): List of output feature tensors from
-                each transformer block. All tensors are of shape (B, N, C'),
-                where N is the number of patches and C' is the embedding
-                dimension. The number of patches N is determined by the image
-                size and patch size.
+            ViTOut: Output of the ViT model, features and intermediate features
+                - features: features after the last transformer block, in shape
+                     (B, num_patches, dim)
+                - intermediate_features: features after each transformer block,
+                    list of L tensors, each in shape (B, num_patches, dim).
         """
         feats = []
         x = self.patch_embed(images)
@@ -190,4 +217,7 @@ class VisionTransformer(BaseModel):
         for blk in self.blocks:
             x = blk(x)
             feats.append(x)
-        return feats
+
+        return ViTOut(
+            features=feats[-1], intermediate_features=torch.stack(feats[:-1])
+        )

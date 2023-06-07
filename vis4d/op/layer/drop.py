@@ -5,7 +5,7 @@ Modified from timm (https://github.com/huggingface/pytorch-image-models).
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 def drop_path(
@@ -43,12 +43,12 @@ class DropPath(nn.Module):
         """Init DropPath.
 
         Args:
-            drop_prob (float, optional): Probability of an element to be zeroed.
+            drop_prob (float, optional): Probability of an item to be masked.
                 Defaults to 0.0.
             scale_by_keep (bool, optional): If to scale by keep probability.
                 Defaults to True.
         """
-        super(DropPath, self).__init__()
+        super().__init__()
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
 
