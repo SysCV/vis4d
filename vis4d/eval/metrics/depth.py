@@ -84,11 +84,10 @@ def root_mean_squared_error_log(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.sqrt(
-        np.mean(
-            np.square(np.log(prediction + epsilon) - np.log(target + epsilon))
-        )
-    ).item()
+    squared_diff = np.square(
+        np.log(prediction + epsilon) - np.log(target + epsilon)
+    )
+    return np.sqrt(np.mean(squared_diff)).item()
 
 
 def scale_invariant_log(
