@@ -6,7 +6,12 @@ import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
+from vis4d.config.common.types import (
+    DataConfig,
+    ExperimentConfig,
+    ExperimentParameters,
+)
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -58,11 +63,11 @@ CONN_NUSC_EVAL = {
 }
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for cc-3dt on nuScenes.
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -72,7 +77,7 @@ def get_config() -> FieldConfigDict:
     ckpt_path = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
 
     # Hyper Parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 4
     params.workers_per_gpu = 4
     params.lr = 0.01
@@ -82,7 +87,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data = FieldConfigDict()
+    data = DataConfig()
     dataset_root = "data/nuscenes"
     version = "v1.0-mini"
     train_split = "mini_train"

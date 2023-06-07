@@ -4,13 +4,18 @@ from __future__ import annotations
 import pytorch_lightning as pl
 
 from vis4d.common.callbacks import EvaluatorCallback
+from vis4d.config.common.types import (
+    DataConfig,
+    ExperimentConfig,
+    ExperimentParameters,
+)
 from vis4d.config.default.dataloader import get_dataloader_config
 from vis4d.config.default.runtime import (
     get_generic_callback_config,
     get_pl_trainer_args,
     set_output_dir,
 )
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -45,16 +50,16 @@ CONN_BDD100K_EVAL = {
 }
 
 
-def get_config() -> ConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for qdtrack on bdd100k.
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = ConfigDict()
+    config = ExperimentConfig()
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "qdtrack_bdd100k"
     config = set_output_dir(config)
@@ -64,7 +69,7 @@ def get_config() -> ConfigDict:
     )
 
     # Hyper Parameters
-    params = ConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 4
     params.workers_per_gpu = 4
     params.lr = 0.01
@@ -74,7 +79,7 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data = ConfigDict()
+    data = DataConfig()
     dataset_root = "data/bdd100k/images/track/val/"
     annotation_path = "data/bdd100k/labels/box_track_20/val/"
     config_path = "box_track"

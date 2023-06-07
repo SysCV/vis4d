@@ -14,6 +14,7 @@ from vis4d.config.base.datasets.coco_detection import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_config,
 )
+from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_VIS,
     CONN_BOX_LOSS_2D,
@@ -34,7 +35,7 @@ from vis4d.op.detect.retinanet import (
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
-def get_config() -> ConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for the coco detection task.
 
     This is a simple example that shows how to set up a training experiment
@@ -46,12 +47,12 @@ def get_config() -> ConfigDict:
     >>> python -m vis4d.engine.cli --config vis4d/config/example/mask_rcnn_coco.py --config.num_epochs 100 --config.params.lr 0.001
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = ConfigDict()
+    config = ExperimentConfig()
 
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "retinanet_coco"
@@ -60,7 +61,7 @@ def get_config() -> ConfigDict:
     config.num_epochs = 10
 
     ## High level hyper parameters
-    params = ConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01

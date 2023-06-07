@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from torch import optim
 
+from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default.data.seg import seg_preprocessing
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
@@ -20,7 +21,7 @@ from vis4d.model.seg.fcn_resnet import FCNResNet
 from vis4d.op.loss import MultiLevelSegLoss
 
 
-def get_config() -> ConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for the coco detection task.
 
     This is a simple example that shows how to set up a training experiment
@@ -32,7 +33,7 @@ def get_config() -> ConfigDict:
     >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -42,7 +43,7 @@ def get_config() -> ConfigDict:
     # This includes the experiment name, the dataset root, the splits
     # and the high level hyper parameters.
 
-    config = ConfigDict()
+    config = ExperimentConfig()
     config.experiment_name = "fcn_coco"
     config.save_prefix = "vis4d-workspace/test/" + config.get_ref(
         "experiment_name"
@@ -55,7 +56,7 @@ def get_config() -> ConfigDict:
     config.num_epochs = 40
 
     ## High level hyper parameters
-    params = ConfigDict()
+    params = ExperimentParameters()
     params.batch_size = 8
     params.lr = 0.0001
     params.augment_proba = 0.5
