@@ -14,20 +14,39 @@ def get_trainer_state(
     trainer: pl.Trainer, pl_module: pl.LightningModule, val: bool = False
 ) -> TrainerState:
     """Wrap pl.Trainer and pl.LightningModule into Trainer."""
+    # Resolve float("inf") to -1
     if val:
         test_dataloader = trainer.val_dataloaders
-        num_test_batches = trainer.num_val_batches
+        num_test_batches = [
+            num_batch if isinstance(num_batch, int) else -1
+            for num_batch in trainer.num_val_batches
+        ]
     else:
         test_dataloader = trainer.test_dataloaders
-        num_test_batches = trainer.num_test_batches
+        num_test_batches = [
+            num_batch if isinstance(num_batch, int) else -1
+            for num_batch in trainer.num_test_batches
+        ]
+
+    # Map max_epochs=None to -1
+    if trainer.max_epochs is None:
+        num_epochs = -1
+    else:
+        num_epochs = trainer.max_epochs
+
+    # Resolve float("inf") to -1
+    if isinstance(trainer.num_training_batches, float):
+        num_train_batches = -1
+    else:
+        num_train_batches = trainer.num_training_batches
 
     return TrainerState(
         current_epoch=pl_module.current_epoch,
-        num_epochs=trainer.max_epochs,
+        num_epochs=num_epochs,
         global_step=trainer.global_step,
         num_steps=trainer.max_steps,
         train_dataloader=trainer.train_dataloader,
-        num_train_batches=trainer.num_training_batches,
+        num_train_batches=num_train_batches,
         test_dataloader=test_dataloader,
         num_test_batches=num_test_batches,
     )
@@ -40,7 +59,7 @@ def get_model(model: pl.LightningModule) -> nn.Module:
     return model
 
 
-class CallbackWrapper(pl.Callback):  # type: ignore
+class CallbackWrapper(pl.Callback):
     """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
 
     def __init__(self, callback: Callback) -> None:

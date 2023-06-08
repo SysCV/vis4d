@@ -1,4 +1,4 @@
-"""COCO data loading config for object detection."""
+"""BDD100K dataset config for semantic segmentation."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -174,7 +174,7 @@ def get_test_dataloader(
     )
 
 
-def get_bdd100k_sem_seg_config(
+def get_bdd100k_sem_seg_cfg(
     data_root: str = "data/bdd100k/images/10k",
     train_split: str = "train",
     train_keys_to_load: Sequence[str] = (K.images, K.seg_masks),

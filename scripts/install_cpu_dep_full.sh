@@ -4,3 +4,4 @@ python3 -m pip install --ignore-installed -r requirements/optional.txt
 python3 -m pip install --ignore-installed -r requirements/dev.txt
 python3 -m pip install --ignore-installed -r requirements/visualization.txt
 python3 -m pip install --ignore-installed -r requirements/datasets.txt
+python3 -m pip install -r requirements/external.txt
