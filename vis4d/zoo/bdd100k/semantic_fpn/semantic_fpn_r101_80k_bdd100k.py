@@ -83,8 +83,9 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                   MODEL & LOSS                   ##
     ######################################################
-    basemodel = ResNetV1c(
-        "resnet101_v1c",
+    basemodel = class_config(
+        ResNetV1c,
+        resnet_name="resnet101_v1c",
         pretrained=True,
         trainable_layers=5,
         norm_freezed=False,

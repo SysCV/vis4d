@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytorch_lightning as pl
-import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
@@ -14,11 +13,7 @@ from vis4d.config.default import (
 )
 from vis4d.config.util import get_inference_dataloaders_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.nuscenes import (
-    NuScenes,
-    nuscenes_class_range_map,
-    nuscenes_track_map,
-)
+from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_range_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.loader import VideoDataPipe, multi_sensor_collate
 from vis4d.data.transforms.base import compose, compose_batch
@@ -159,13 +154,10 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                        MODEL                     ##
     ######################################################
-    num_classes = len(nuscenes_track_map)
-    class_range_map = torch.Tensor(nuscenes_class_range_map)
-
     config.model = class_config(
         FasterRCNNCC3DT,
-        num_classes=num_classes,
-        class_range_map=class_range_map,
+        num_classes=10,
+        class_range_map=nuscenes_class_range_map,
         weights=ckpt_path,
     )
 
