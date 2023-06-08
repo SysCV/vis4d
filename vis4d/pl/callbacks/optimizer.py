@@ -19,9 +19,6 @@ class OptimEpochCallback(pl.Callback):
         if not isinstance(optimizers, Iterable):
             optimizers = [optimizers]
 
-        assert all(
-            isinstance(opt, TorchOptimizer) for opt in optimizers
-        ), "All optimizers must be of type TorchOptimizer."
-
         for optimizer in optimizers:
+            assert isinstance(optimizer, TorchOptimizer)
             optimizer.step_on_epoch(pl_module.current_epoch)
