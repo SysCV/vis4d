@@ -4,14 +4,16 @@ from __future__ import annotations
 import os.path as osp
 
 import lightning.pytorch as pl
-from lightning.pytorch.strategies import DDPStrategy, Strategy
+from lightning.pytorch.loggers import Logger, TensorBoardLogger
+from lightning.pytorch.loggers.wandb import WandbLogger
+from lightning.pytorch.strategies.ddp import DDPStrategy
 
 from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 
 
-class PLTrainer(pl.Trainer):  # type: ignore
+class PLTrainer(pl.Trainer):
     """Trainer for PyTorch Lightning."""
 
     def __init__(
@@ -52,21 +54,21 @@ class PLTrainer(pl.Trainer):  # type: ignore
         if "logger" not in kwargs or (
             isinstance(kwargs["logger"], bool) and kwargs["logger"]
         ):
+            exp_logger: Logger | None = None
             if wandb:  # pragma: no cover
-                exp_logger = pl.loggers.WandbLogger(
+                exp_logger = WandbLogger(
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,
                 )
             elif TENSORBOARD_AVAILABLE:
-                exp_logger = pl.loggers.TensorBoardLogger(
+                exp_logger = TensorBoardLogger(
                     save_dir=work_dir,
                     name=exp_name,
                     version=version,
                     default_hp_metric=False,
                 )
             else:
-                exp_logger = None
                 rank_zero_info(
                     "Neither `tensorboard` nor `tensorboardX` is "
                     "available. Running without experiment logger. To log "
@@ -109,7 +111,7 @@ class PLTrainer(pl.Trainer):  # type: ignore
             kwargs["devices"] = "auto"
         elif kwargs["devices"] > 1:  # pragma: no cover
             if kwargs["accelerator"] == "gpu":
-                ddp_plugin: Strategy = DDPStrategy(
+                ddp_plugin = DDPStrategy(
                     find_unused_parameters=find_unused_parameters
                 )
                 kwargs["strategy"] = ddp_plugin

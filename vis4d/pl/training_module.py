@@ -60,7 +60,7 @@ class TorchOptimizer(optim.Optimizer):
         self.optim.zero_grad()
 
 
-class TrainingModule(pl.LightningModule):  # type: ignore
+class TrainingModule(pl.LightningModule):
     """LightningModule that wraps around the vis4d implementations.
 
     This is a wrapper around the vis4d implementations that allows to use
