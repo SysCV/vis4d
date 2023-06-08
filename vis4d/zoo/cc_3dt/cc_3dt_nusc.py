@@ -85,7 +85,7 @@ def get_config() -> FieldConfigDict:
     data = FieldConfigDict()
     dataset_root = "data/nuscenes"
     version = "v1.0-mini"
-    train_split = "mini_train"
+    # train_split = "mini_train"
     test_split = "mini_val"
     metadata = ["use_camera"]
     data_backend = class_config(HDF5Backend)
@@ -110,15 +110,15 @@ def get_config() -> FieldConfigDict:
                 GenerateResizeParameters,
                 shape=(900, 1600),
                 keep_ratio=True,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
             class_config(
                 ResizeImage,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
             class_config(
                 ResizeIntrinsics,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
         ],
     )
@@ -128,15 +128,15 @@ def get_config() -> FieldConfigDict:
         transforms=[
             class_config(
                 PadImages,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
             class_config(
                 BatchNormalizeImages,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
             class_config(
                 ToTensor,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
         ],
     )
@@ -202,7 +202,7 @@ def get_config() -> FieldConfigDict:
     config.test_data_connector = class_config(
         MultiSensorDataConnector,
         key_mapping=CONN_BBOX_3D_TEST,
-        sensors=NuScenes._CAMERAS,
+        sensors=NuScenes.CAMERAS,
     )
 
     ######################################################
@@ -221,7 +221,7 @@ def get_config() -> FieldConfigDict:
             test_connector=class_config(
                 MultiSensorCallbackConnector,
                 key_mapping=CONN_NUSC_EVAL,
-                sensors=NuScenes._CAMERAS,
+                sensors=NuScenes.CAMERAS,
             ),
         )
     )
@@ -229,7 +229,7 @@ def get_config() -> FieldConfigDict:
     config.callbacks = callbacks
 
     ######################################################
-    ##                  PL CALLBACKS                    ##
+    ##                     PL CLI                       ##
     ######################################################
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)

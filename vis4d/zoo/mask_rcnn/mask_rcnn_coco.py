@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Mask RCNN COCO training example."""
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets import (
+from vis4d.config.common.datasets.coco import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_cfg,
 )
@@ -166,6 +167,7 @@ def get_config() -> FieldConfigDict:
                 data_root=data_root,
                 split=test_split,
             ),
+            metrics_to_eval=["Det"],
             test_connector=class_config(
                 CallbackConnector,
                 key_mapping=remap_pred_keys(CONN_COCO_BBOX_EVAL, "boxes"),

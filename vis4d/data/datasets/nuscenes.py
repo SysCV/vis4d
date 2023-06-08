@@ -90,7 +90,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         K.boxes3d_track_ids,
     ]
 
-    _SENSORS = [
+    SENSORS = [
         "LIDAR_TOP",
         "CAM_FRONT",
         "CAM_FRONT_LEFT",
@@ -100,7 +100,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         "CAM_BACK_RIGHT",
     ]
 
-    _CAMERAS = [
+    CAMERAS = [
         "CAM_FRONT",
         "CAM_FRONT_LEFT",
         "CAM_FRONT_RIGHT",
@@ -443,8 +443,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
         # load camera frames
         if self._METADATA["use_camera"]:
-            for cam in NuScenes._CAMERAS:
-                if cam in self._SENSORS:
+            for cam in NuScenes.CAMERAS:
+                if cam in self.SENSORS:
                     cam_token = sample["data"][cam]
                     cam_data = self.data.get("sample_data", cam_token)
                     ego_pose_cam = self.data.get(

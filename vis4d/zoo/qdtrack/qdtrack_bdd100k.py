@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import pytorch_lightning as pl
 
-from vis4d.common.callbacks import EvaluatorCallback
-from vis4d.config.default.dataloader import get_dataloader_config
-from vis4d.config.default.runtime import (
-    get_generic_callback_config,
-    get_pl_trainer_args,
-    set_output_dir,
+from vis4d.config import FieldConfigDict, class_config
+from vis4d.config.default import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
 )
-from vis4d.config.util import ConfigDict, class_config
+from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -24,7 +23,13 @@ from vis4d.data.transforms.resize import (
     ResizeImage,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.engine.connectors import DataConnector, data_key, pred_key
+from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.connectors import (
+    CallbackConnector,
+    DataConnector,
+    data_key,
+    pred_key,
+)
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
@@ -45,7 +50,7 @@ CONN_BDD100K_EVAL = {
 }
 
 
-def get_config() -> ConfigDict:
+def get_config() -> FieldConfigDict:
     """Returns the config dict for qdtrack on bdd100k.
 
     Returns:
@@ -54,17 +59,14 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = ConfigDict()
-    config.work_dir = "vis4d-workspace"
-    config.experiment_name = "qdtrack_bdd100k"
-    config = set_output_dir(config)
+    config = get_default_cfg(exp_name="qdtrack_bdd100k")
 
     ckpt_path = (
         "https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt"
     )
 
     # Hyper Parameters
-    params = ConfigDict()
+    params = FieldConfigDict()
     params.samples_per_gpu = 4
     params.workers_per_gpu = 4
     params.lr = 0.01
@@ -74,7 +76,7 @@ def get_config() -> ConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data = ConfigDict()
+    data = FieldConfigDict()
     dataset_root = "data/bdd100k/images/track/val/"
     annotation_path = "data/bdd100k/labels/box_track_20/val/"
     config_path = "box_track"
@@ -84,7 +86,7 @@ def get_config() -> ConfigDict:
     data.train_dataloader = None
 
     # Test
-    test_dataset_cfg = class_config(
+    test_dataset = class_config(
         BDD100K,
         data_root=dataset_root,
         keys_to_load=(K.images),
@@ -118,14 +120,18 @@ def get_config() -> ConfigDict:
         ],
     )
 
-    data.test_dataloader = get_dataloader_config(
-        preprocess_cfg=test_preprocess_cfg,
-        dataset_cfg=test_dataset_cfg,
-        data_pipe=VideoDataPipe,
-        batchprocess_cfg=test_batchprocess_cfg,
+    test_dataset_cfg = class_config(
+        VideoDataPipe,
+        datasets=test_dataset,
+        preprocess_fn=test_preprocess_cfg,
+    )
+
+    data.test_dataloader = get_inference_dataloaders_cfg(
+        datasets_cfg=test_dataset_cfg,
         samples_per_gpu=1,
         workers_per_gpu=params.workers_per_gpu,
-        train=False,
+        video_based_inference=True,
+        batchprocess_cfg=test_batchprocess_cfg,
     )
 
     config.data = data
@@ -154,48 +160,42 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-    config.data_connector = class_config(
-        DataConnector,
-        test=CONN_BBOX_2D_TEST,
-        callbacks={"bdd100k_eval_test": CONN_BDD100K_EVAL},
+    # TODO: Add train data connector
+    config.train_data_connector = None
+
+    config.test_data_connector = class_config(
+        DataConnector, key_mapping=CONN_BBOX_2D_TEST
     )
 
     ######################################################
-    ##                     EVALUATOR                    ##
+    ##                     CALLBACKS                    ##
     ######################################################
-    eval_callbacks = {
-        "bdd100k_eval": class_config(
+    # Logger and Checkpoint
+    callbacks = get_default_callbacks_cfg(config)
+
+    # Evaluator
+    callbacks.append(
+        class_config(
             EvaluatorCallback,
-            save_prefix=config.output_dir,
             evaluator=class_config(
                 BDD100KTrackEvaluator,
                 annotation_path=annotation_path,
             ),
-            run_every_nth_epoch=1,
-            num_epochs=params.num_epochs,
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                CallbackConnector,
+                key_mapping=CONN_BDD100K_EVAL,
+            ),
         ),
-    }
-
-    ######################################################
-    ##                GENERIC CALLBACKS                 ##
-    ######################################################
-    # Generic callbacks
-    logger_callback, ckpt_callback = get_generic_callback_config(
-        config, params
     )
 
-    # Assign the defined callbacks to the config
-    config.shared_callbacks = {**logger_callback, **eval_callbacks}
-
-    config.train_callbacks = {**ckpt_callback}
-
-    config.test_callbacks = {}
+    config.callbacks = callbacks
 
     ######################################################
-    ##                  PL CALLBACKS                    ##
+    ##                     PL CLI                       ##
     ######################################################
     # PL Trainer args
-    pl_trainer = get_pl_trainer_args()
+    pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 

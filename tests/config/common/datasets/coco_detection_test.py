@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
 from vis4d.config import class_config, instantiate_classes
-from vis4d.config.common.datasets import get_coco_detection_cfg
+from vis4d.config.common.datasets.coco import get_coco_detection_cfg
 from vis4d.data.datasets.coco import COCO
 
 

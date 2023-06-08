@@ -78,7 +78,7 @@ class FieldConfigDict(ConfigDict):  # type: ignore # pylint: disable=too-many-in
             )
         )
 
-    def to_yaml(self, **kwargs):
+    def to_yaml(self, **kwargs: ArgsType) -> str:
         """Returns a YAML representation of the object.
 
         ConfigDict serializes types of fields as well as the values of fields

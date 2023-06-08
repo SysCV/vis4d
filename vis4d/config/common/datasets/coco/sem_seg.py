@@ -1,4 +1,5 @@
-"""COCO data loading config for object detection."""
+# pylint: disable=duplicate-code
+"""COCO data loading config for for semantic segmentation."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -15,36 +16,16 @@ from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
 from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose, compose_batch
-from vis4d.data.transforms.flip import (
-    FlipBoxes2D,
-    FlipImage,
-    FlipInstanceMasks,
-)
+from vis4d.data.transforms.flip import FlipImage, FlipSegMasks
 from vis4d.data.transforms.normalize import NormalizeImage
-from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.pad import PadImages, PadSegMasks
+from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
-    ResizeBoxes2D,
     ResizeImage,
-    ResizeInstanceMasks,
+    ResizeSegMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.engine.connectors import data_key, pred_key
-
-CONN_COCO_BBOX_EVAL = {
-    "coco_image_id": data_key(K.sample_names),
-    "pred_boxes": pred_key("boxes"),
-    "pred_scores": pred_key("scores"),
-    "pred_classes": pred_key("class_ids"),
-}
-
-CONN_COCO_MASK_EVAL = {
-    "coco_image_id": data_key(K.sample_names),
-    "pred_boxes": pred_key("boxes.boxes"),
-    "pred_scores": pred_key("boxes.scores"),
-    "pred_classes": pred_key("boxes.class_ids"),
-    "pred_masks": pred_key("masks"),
-}
 
 
 def get_train_dataloader(
@@ -73,24 +54,24 @@ def get_train_dataloader(
             GenerateResizeParameters,
             shape=image_size,
             keep_ratio=True,
-            align_long_edge=True,
+            scale_range=(0.5, 2.0),
         ),
         class_config(ResizeImage),
-        class_config(ResizeBoxes2D),
+        class_config(ResizeSegMasks),
     ]
-
-    if K.instance_masks in keys_to_load:
-        preprocess_transforms.append(class_config(ResizeInstanceMasks))
-
-    flip_transforms = [class_config(FlipImage), class_config(FlipBoxes2D)]
-
-    if K.instance_masks in keys_to_load:
-        flip_transforms.append(class_config(FlipInstanceMasks))
 
     preprocess_transforms.append(
         class_config(
             RandomApply,
-            transforms=flip_transforms,
+            transforms=[class_config(FlipImage), class_config(FlipSegMasks)],
+            probability=0.5,
+        )
+    )
+
+    preprocess_transforms.append(
+        class_config(
+            RandomApply,
+            transforms=[class_config(ColorJitter)],
             probability=0.5,
         )
     )
@@ -98,14 +79,14 @@ def get_train_dataloader(
     preprocess_transforms.append(class_config(NormalizeImage))
 
     train_preprocess_cfg = class_config(
-        compose,
-        transforms=preprocess_transforms,
+        compose, transforms=preprocess_transforms
     )
 
     train_batchprocess_cfg = class_config(
         compose_batch,
         transforms=[
             class_config(PadImages),
+            class_config(PadSegMasks),
             class_config(ToTensor),
         ],
     )
@@ -141,35 +122,30 @@ def get_test_dataloader(
     # Test Preprocessing
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
-            shape=image_size,
-            keep_ratio=True,
-            align_long_edge=True,
+            GenerateResizeParameters, shape=image_size, keep_ratio=True
         ),
         class_config(ResizeImage),
-        class_config(ResizeBoxes2D),
+        class_config(ResizeSegMasks),
     ]
 
     preprocess_transforms.append(class_config(NormalizeImage))
 
     test_preprocess_cfg = class_config(
-        compose,
-        transforms=preprocess_transforms,
+        compose, transforms=preprocess_transforms
     )
 
     test_batchprocess_cfg = class_config(
         compose_batch,
         transforms=[
-            class_config(PadImages),
+            class_config(PadImages, shape=image_size),
+            class_config(PadSegMasks, shape=image_size),
             class_config(ToTensor),
         ],
     )
 
     # Test Dataset Config
     test_dataset_cfg = class_config(
-        DataPipe,
-        datasets=test_dataset,
-        preprocess_fn=test_preprocess_cfg,
+        DataPipe, datasets=test_dataset, preprocess_fn=test_preprocess_cfg
     )
 
     return get_inference_dataloaders_cfg(
@@ -180,27 +156,18 @@ def get_test_dataloader(
     )
 
 
-def get_coco_detection_cfg(
+def get_coco_sem_seg_cfg(
     data_root: str = "data/coco",
     train_split: str = "train2017",
-    train_keys_to_load: Sequence[str] = (
-        K.images,
-        K.boxes2d,
-        K.boxes2d_classes,
-    ),
+    train_keys_to_load: Sequence[str] = (K.images, K.seg_masks),
     test_split: str = "val2017",
-    test_keys_to_load: Sequence[str] = (
-        K.images,
-        K.original_images,
-        K.boxes2d,
-        K.boxes2d_classes,
-    ),
+    test_keys_to_load: Sequence[str] = (K.images, K.seg_masks),
     data_backend: None | ConfigDict = None,
-    image_size: tuple[int, int] = (800, 1333),
+    image_size: tuple[int, int] = (520, 520),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> ConfigDict:
-    """Get the default config for COCO detection."""
+    """Get the default config for COCO semantic segmentation."""
     data = ConfigDict()
 
     data.train_dataloader = get_train_dataloader(
