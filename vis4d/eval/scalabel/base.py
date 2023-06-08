@@ -11,13 +11,16 @@ from vis4d.eval.base import Evaluator
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load
-    from scalabel.label.typing import Frame
+    from scalabel.label.typing import Config, Frame
+    from scalabel.label.utils import get_leaf_categories
 
 
 class ScalabelEvaluator(Evaluator):
     """Scalabel base evaluation class."""
 
-    def __init__(self, annotation_path: str) -> None:
+    def __init__(
+        self, annotation_path: str, config: Config | None = None
+    ) -> None:
         """Initialize the evaluator."""
         super().__init__()
         self.annotation_path = annotation_path
@@ -25,11 +28,14 @@ class ScalabelEvaluator(Evaluator):
 
         dataset = load(self.annotation_path, validate_frames=False)
         self.gt_frames = dataset.frames
-        self.config = dataset.config
+        if config is not None:
+            self.config: Config | None = config
+        else:
+            self.config = dataset.config
         if self.config is not None and self.config.categories is not None:
+            categories = get_leaf_categories(self.config.categories)
             self.inverse_cat_map = {
-                cat_id: cat.name
-                for cat_id, cat in enumerate(self.config.categories)
+                cat_id: cat.name for cat_id, cat in enumerate(categories)
             }
         else:
             self.inverse_cat_map = {}

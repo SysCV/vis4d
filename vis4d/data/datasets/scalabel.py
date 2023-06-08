@@ -1,6 +1,7 @@
 """Scalabel type dataset."""
 from __future__ import annotations
 
+import itertools
 import os
 from collections import defaultdict
 from collections.abc import Callable, Sequence
@@ -8,6 +9,8 @@ from typing import Union
 
 import numpy as np
 import torch
+from tabulate import tabulate
+from termcolor import colored
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
@@ -124,11 +127,60 @@ def add_data_path(data_root: str, frames: list[Frame]) -> None:
             ann.url = os.path.join(data_root, ann.url)
 
 
-def prepare_labels(
-    frames: list[Frame], global_instance_ids: bool = False
+def discard_labels_outside_set(
+    dataset: list[Frame], class_set: list[str]
 ) -> None:
-    """Add category id and instance id to labels, return class frequencies."""
+    """Discard labels outside given set of classes.
+
+    Args:
+        dataset (list[Frame]): List of frames to filter.
+        class_set (list[str]): List of classes to keep.
+    """
+    for frame in dataset:
+        remove_anns = []
+        if frame.labels is not None:
+            for i, ann in enumerate(frame.labels):
+                if not ann.category in class_set:
+                    remove_anns.append(i)
+            for i in reversed(remove_anns):
+                frame.labels.pop(i)
+
+
+def remove_empty_samples(frames: list[Frame]) -> list[Frame]:
+    """Remove empty samples."""
+    new_frames = []
+    for frame in frames:
+        if frame.labels is None:
+            continue
+        labels_used = []
+        for label in frame.labels:
+            assert label.attributes is not None and label.category is not None
+            if not check_crowd(label) and not check_ignored(label):
+                labels_used.append(label)
+
+        if len(labels_used) != 0:
+            frame.labels = labels_used
+            new_frames.append(frame)
+    rank_zero_info(f"Filtered {len(frames) - len(new_frames)} empty frames.")
+    del frames
+    return new_frames
+
+
+def prepare_labels(
+    frames: list[Frame],
+    class_list: list[str],
+    global_instance_ids: bool = False,
+) -> dict[str, int]:
+    """Add category id and instance id to labels, return class frequencies.
+
+    Args:
+        frames (list[Frame]): List of frames.
+        class_list (list[str]): List of classes.
+        global_instance_ids (bool): Whether to use global instance ids.
+            Defaults to False.
+    """
     instance_ids: dict[str, list[str]] = defaultdict(list)
+    frequencies = {cat: 0 for cat in class_list}
     for frame_id, ann in enumerate(frames):
         if ann.labels is None:  # pragma: no cover
             continue
@@ -142,6 +194,7 @@ def prepare_labels(
                 continue
 
             assert label.category is not None
+            frequencies[label.category] += 1
             video_name = (
                 ann.videoName
                 if ann.videoName is not None
@@ -154,6 +207,56 @@ def prepare_labels(
 
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
+
+    return frequencies
+
+
+def print_class_histogram(class_frequencies: dict[str, int]) -> None:
+    """Prints out given class frequencies.
+
+    Args:
+        class_frequencies (dict[str, int]): class frequencies (number of
+            instances per class).
+    """
+    if len(class_frequencies) == 0:  # pragma: no cover
+        return
+
+    class_names = list(class_frequencies.keys())
+    frequencies = list(class_frequencies.values())
+    num_classes = len(class_names)
+
+    n_cols = min(6, len(class_names) * 2)
+
+    def short_name(name: str) -> str:
+        """Make long class names shorter."""
+        if len(name) > 13:
+            return name[:11] + ".."  # pragma: no cover
+        return name
+
+    data = list(
+        itertools.chain(
+            *[
+                [short_name(class_names[i]), int(v)]
+                for i, v in enumerate(frequencies)
+            ]
+        )
+    )
+    total_num_instances = sum(data[1::2])  # type: ignore
+    data.extend([None] * (n_cols - (len(data) % n_cols)))
+    if num_classes > 1:
+        data.extend(["total", total_num_instances])
+    data_zip = itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)])
+    table = tabulate(
+        data_zip,
+        headers=["category", "#instances"] * (n_cols // 2),
+        tablefmt="pipe",
+        numalign="left",
+        stralign="center",
+    )
+    rank_zero_info(
+        f"Distribution of instances among all {num_classes} categories:\n"
+        + colored(table, "cyan")
+    )
 
 
 # Not using | operator because of a bug in Python 3.9
@@ -175,6 +278,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
         config_path: None | str | Config = None,
+        remove_empty: bool = True,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
     ) -> None:
@@ -194,6 +298,8 @@ class Scalabel(Dataset, CacheMappingMixin):
             config_path (None | str | Config, optional): Path to the dataset
                 config, can be added if it is not provided together with the
                 labels or should be modified. Defaults to None.
+            remove_empty (bool): Whether to remove images with no annotations.
+                Defaults to True.
             global_instance_ids (bool): Whether to convert tracking IDs of
                 annotations into dataset global IDs or stay with local,
                 per-video IDs. Defaults to false.
@@ -205,12 +311,17 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.data_root = data_root
         self.annotation_path = annotation_path
         self.keys_to_load = keys_to_load
+        self.remove_empty = remove_empty
         self.global_instance_ids = global_instance_ids
         self.bg_as_class = bg_as_class
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
         self.config_path = config_path
+
+        self.cats_name2id: dict[str, dict[str, int]] = {}
+        self.category_map = category_map
+
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping  # type: ignore
         )
@@ -220,27 +331,19 @@ class Scalabel(Dataset, CacheMappingMixin):
             "via config_path."
         )
 
-        self.cats_name2id: dict[str, dict[str, int]] = {}
-        if category_map is None:
-            class_list = list(
-                c.name for c in get_leaf_categories(self.cfg.categories)
-            )
-            assert len(set(class_list)) == len(
-                class_list
-            ), "Class names are not unique!"
-            category_map = {c: i for i, c in enumerate(class_list)}
-        self._setup_categories(category_map)
+        self._setup_categories()
 
-    def _setup_categories(self, category_map: CategoryMap) -> None:
+    def _setup_categories(self) -> None:
         """Setup categories."""
+        assert self.category_map is not None
         for target in self.keys_to_load:
-            if isinstance(list(category_map.values())[0], int):
-                self.cats_name2id[target] = category_map  # type: ignore
+            if isinstance(list(self.category_map.values())[0], int):
+                self.cats_name2id[target] = self.category_map  # type: ignore
             else:
                 assert (
-                    target in category_map
+                    target in self.category_map
                 ), f"Target={target} not specified in category_mapping"
-                target_map = category_map[target]
+                target_map = self.category_map[target]
                 assert isinstance(target_map, dict)
                 self.cats_name2id[target] = target_map
 
@@ -254,10 +357,36 @@ class Scalabel(Dataset, CacheMappingMixin):
         data = self._load_mapping_data(generate_map_func, use_cache)
         frames, cfg = data.frames, data.config  # type: ignore
         add_data_path(self.data_root, frames)
-        prepare_labels(frames, global_instance_ids=self.global_instance_ids)
-        frames = DatasetFromList(frames)
         rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
-        return frames, cfg
+
+        if self.category_map is None:
+            class_list = list(
+                c.name for c in get_leaf_categories(cfg.categories)
+            )
+            self.category_map = {c: i for i, c in enumerate(class_list)}
+        else:
+            class_list = list(self.category_map.keys())
+
+        assert len(set(class_list)) == len(
+            class_list
+        ), "Class names are not unique!"
+
+        discard_labels_outside_set(frames, class_list)
+
+        if self.remove_empty:
+            frames = remove_empty_samples(frames)
+
+        timer.reset()
+        frequencies = prepare_labels(
+            frames, class_list, global_instance_ids=self.global_instance_ids
+        )
+        rank_zero_info(
+            f"Preprocessing {len(frames)} frames takes {timer.time():.2f}"
+            " seconds."
+        )
+        print_class_histogram(frequencies)
+        frames_dset = DatasetFromList(frames)
+        return frames_dset, cfg  # type: ignore
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
@@ -276,8 +405,9 @@ class Scalabel(Dataset, CacheMappingMixin):
             image = load_image(frame.url, self.data_backend)
             input_hw = (image.shape[1], image.shape[2])
             data[K.images] = image
-            data[K.original_hw] = input_hw
             data[K.input_hw] = input_hw
+            data[K.original_images] = image
+            data[K.original_hw] = input_hw
             data[K.axis_mode] = AxisMode.OPENCV
             data[K.frame_ids] = frame.frameIndex
             data[K.sample_names] = frame.name

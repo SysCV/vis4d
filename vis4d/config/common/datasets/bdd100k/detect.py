@@ -1,0 +1,205 @@
+"""COCO data loading config for object detection."""
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+from ml_collections import ConfigDict
+
+from vis4d.config import class_config
+from vis4d.config.util import (
+    get_inference_dataloaders_cfg,
+    get_train_dataloader_cfg,
+)
+from vis4d.data.const import CommonKeys as K
+from vis4d.data.datasets.bdd100k import BDD100K
+from vis4d.data.io import DataBackend
+from vis4d.data.loader import DataPipe
+from vis4d.data.transforms.base import RandomApply, compose, compose_batch
+from vis4d.data.transforms.flip import (
+    FlipBoxes2D,
+    FlipImage,
+    FlipInstanceMasks,
+)
+from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.resize import (
+    GenerateResizeParameters,
+    ResizeBoxes2D,
+    ResizeImage,
+    ResizeInstanceMasks,
+)
+from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.engine.connectors import data_key, pred_key
+
+CONN_BDD100K_DET_EVAL = {
+    "frame_ids": data_key("frame_ids"),
+    "sample_names": data_key("sample_names"),
+    "sequence_names": data_key("sequence_names"),
+    "pred_boxes": pred_key("boxes"),
+    "pred_scores": pred_key("scores"),
+    "pred_classes": pred_key("class_ids"),
+}
+
+
+def get_train_dataloader(
+    data_root: str,
+    anno_path: str,
+    keys_to_load: Sequence[str],
+    data_backend: None | DataBackend = None,
+    image_size: tuple[int, int] = (720, 1280),
+    samples_per_gpu: int = 2,
+    workers_per_gpu: int = 2,
+) -> ConfigDict:
+    """Get the default train dataloader for BDD100K segmentation."""
+    # Train Dataset
+    train_dataset_cfg = class_config(
+        BDD100K,
+        data_root=data_root,
+        annotation_path=anno_path,
+        config_path="det",
+        keys_to_load=keys_to_load,
+        data_backend=data_backend,
+        remove_empty=True,
+    )
+
+    # Train Preprocessing
+    preprocess_transforms = [
+        class_config(
+            GenerateResizeParameters,
+            shape=image_size,
+            keep_ratio=True,
+            align_long_edge=True,
+        ),
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
+    ]
+    if K.instance_masks in keys_to_load:
+        preprocess_transforms.append(class_config(ResizeInstanceMasks))
+
+    flip_transforms = [class_config(FlipImage), class_config(FlipBoxes2D)]
+    if K.instance_masks in keys_to_load:
+        flip_transforms.append(class_config(FlipInstanceMasks))
+
+    preprocess_transforms.append(
+        class_config(
+            RandomApply,
+            transforms=flip_transforms,
+            probability=0.5,
+        )
+    )
+
+    preprocess_transforms.append(class_config(NormalizeImage))
+
+    train_preprocess_cfg = class_config(
+        compose, transforms=preprocess_transforms
+    )
+
+    train_batchprocess_cfg = class_config(
+        compose_batch,
+        transforms=[class_config(PadImages), class_config(ToTensor)],
+    )
+
+    return get_train_dataloader_cfg(
+        preprocess_cfg=train_preprocess_cfg,
+        dataset_cfg=train_dataset_cfg,
+        batchprocess_cfg=train_batchprocess_cfg,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
+    )
+
+
+def get_test_dataloader(
+    data_root: str,
+    anno_path: str,
+    keys_to_load: Sequence[str],
+    data_backend: None | DataBackend = None,
+    image_size: tuple[int, int] = (720, 1280),
+    samples_per_gpu: int = 1,
+    workers_per_gpu: int = 1,
+) -> ConfigDict:
+    """Get the default test dataloader for BDD100K segmentation."""
+    # Test Dataset
+    test_dataset_cfg = class_config(
+        BDD100K,
+        data_root=data_root,
+        annotation_path=anno_path,
+        config_path="det",
+        keys_to_load=keys_to_load,
+        data_backend=data_backend,
+    )
+
+    # Test Preprocessing
+    preprocess_transforms = [
+        class_config(
+            GenerateResizeParameters,
+            shape=image_size,
+            keep_ratio=True,
+            align_long_edge=True,
+        ),
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
+    ]
+
+    preprocess_transforms.append(class_config(NormalizeImage))
+
+    test_preprocess_cfg = class_config(
+        compose, transforms=preprocess_transforms
+    )
+
+    test_batchprocess_cfg = class_config(
+        compose_batch,
+        transforms=[class_config(PadImages), class_config(ToTensor)],
+    )
+
+    # Test Dataset Config
+    test_dataset_cfg = class_config(
+        DataPipe, datasets=test_dataset_cfg, preprocess_fn=test_preprocess_cfg
+    )
+
+    return get_inference_dataloaders_cfg(
+        datasets_cfg=test_dataset_cfg,
+        batchprocess_cfg=test_batchprocess_cfg,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
+    )
+
+
+def get_bdd100k_detection_config(
+    data_root: str = "data/bdd100k/images/100k",
+    train_split: str = "train",
+    train_keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+    test_split: str = "val",
+    test_keys_to_load: Sequence[str] = (
+        K.images,
+        K.original_images,
+        K.boxes2d,
+    ),
+    data_backend: None | ConfigDict = None,
+    image_size: tuple[int, int] = (720, 1280),
+    samples_per_gpu: int = 2,
+    workers_per_gpu: int = 2,
+) -> ConfigDict:
+    """Get the default config for BDD100K detection."""
+    data = ConfigDict()
+
+    data.train_dataloader = get_train_dataloader(
+        data_root=f"{data_root}/{train_split}",
+        anno_path=f"data/bdd100k/labels/det_20/det_{train_split}.json",
+        keys_to_load=train_keys_to_load,
+        data_backend=data_backend,
+        image_size=image_size,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
+    )
+
+    data.test_dataloader = get_test_dataloader(
+        data_root=f"{data_root}/{test_split}",
+        anno_path=f"data/bdd100k/labels/det_20/det_{test_split}.json",
+        keys_to_load=test_keys_to_load,
+        data_backend=data_backend,
+        image_size=image_size,
+        samples_per_gpu=1,
+        workers_per_gpu=1,
+    )
+
+    return data

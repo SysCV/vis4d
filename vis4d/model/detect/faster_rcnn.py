@@ -66,14 +66,13 @@ class FasterRCNN(nn.Module):
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
-        if weights == "mmdet":
-            weights = (
-                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/"
-                "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights is not None:
-            load_model_checkpoint(self, weights)
+        if weights is not None:
+            if weights.startswith("mmdet://") or weights.startswith(
+                "bdd100k://"
+            ):
+                load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
+            else:
+                load_model_checkpoint(self, weights)
 
     def forward(
         self,
