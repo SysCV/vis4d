@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Semantic FPN BDD100K training example."""
 from __future__ import annotations
 
@@ -5,9 +6,9 @@ import lightning.pytorch as pl
 from torch import optim
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets.bdd100k.sem_seg import (
+from vis4d.config.common.datasets.bdd100k import (
     CONN_BDD100K_SEG_EVAL,
-    get_bdd100k_sem_seg_config,
+    get_bdd100k_sem_seg_cfg,
 )
 from vis4d.config.default import get_default_cfg, get_default_pl_trainer_cfg
 from vis4d.config.default.data_connectors.seg import (
@@ -19,7 +20,6 @@ from vis4d.config.default.data_connectors.seg import (
 from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import (
-    CheckpointCallback,
     EvaluatorCallback,
     LoggingCallback,
     VisualizerCallback,
@@ -32,7 +32,7 @@ from vis4d.engine.connectors import (
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import PolyLR
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.seg.bdd100k import BDD100KSegEvaluator
+from vis4d.eval.bdd100k import BDD100KSegEvaluator
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.vis.image import SegMaskVisualizer
@@ -70,7 +70,7 @@ def get_config() -> FieldConfigDict:
 
     data_backend = class_config(HDF5Backend)
 
-    config.data = get_bdd100k_sem_seg_config(
+    config.data = get_bdd100k_sem_seg_cfg(
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,

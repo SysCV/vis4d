@@ -1,4 +1,5 @@
-"""Mask RCNN COCO training example."""
+# pylint: disable=duplicate-code
+"""RetinaNet COCO training example."""
 from __future__ import annotations
 
 import lightning.pytorch as pl
@@ -6,38 +7,43 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets import (
+from vis4d.config.common.datasets.coco import (
     CONN_COCO_BBOX_EVAL,
     get_coco_detection_cfg,
 )
-from vis4d.config.common.models import get_mask_rcnn_cfg
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
 from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
+    CONN_BOX_LOSS_2D,
+    CONN_IMAGES_TEST,
+    CONN_IMAGES_TRAIN,
 )
 from vis4d.config.util import get_optimizer_cfg
-from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
-    remap_pred_keys,
+    LossConnector,
 )
+from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
-from vis4d.op.base import ResNet
+from vis4d.model.detect.retinanet import RetinaNet
+from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
+from vis4d.op.detect.retinanet import (
+    RetinaNetHeadLoss,
+    get_default_anchor_generator,
+)
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
 def get_config() -> FieldConfigDict:
-    """Returns the Mask-RCNN config dict for the coco detection task.
+    """Returns the RetinaNet config dict for the coco detection task.
 
     This is an example that shows how to set up a training experiment for the
     COCO detection task.
@@ -45,7 +51,7 @@ def get_config() -> FieldConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
+    >>> python -m vis4d.engine.cli fit --config vis4d/zoo/retinanet/retinanet_rcnn_coco.py --config.num_epochs 100 --config.params.lr 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -53,13 +59,13 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="mask_rcnn_r50_fpn_coco")
+    config = get_default_cfg(exp_name="retinanet_r50_fpn_coco")
 
     # High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
-    params.lr = 0.02
+    params.lr = 0.01
     params.num_epochs = 12
     params.num_classes = 80
     config.params = params
@@ -76,20 +82,7 @@ def get_config() -> FieldConfigDict:
     config.data = get_coco_detection_cfg(
         data_root=data_root,
         train_split=train_split,
-        train_keys_to_load=(
-            K.images,
-            K.boxes2d,
-            K.boxes2d_classes,
-            K.instance_masks,
-        ),
         test_split=test_split,
-        test_keys_to_load=(
-            K.images,
-            K.original_images,
-            K.boxes2d,
-            K.boxes2d_classes,
-            K.instance_masks,
-        ),
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
@@ -98,12 +91,34 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                  MODEL & LOSS                    ##
     ######################################################
-    basemodel = class_config(
-        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+    config.model = class_config(
+        RetinaNet,
+        num_classes=params.num_classes,
+        # weights="mmdet",
     )
 
-    config.model, config.loss = get_mask_rcnn_cfg(
-        num_classes=params.num_classes, basemodel=basemodel
+    box_encoder = class_config(
+        DeltaXYWHBBoxEncoder,
+        target_means=(0.0, 0.0, 0.0, 0.0),
+        target_stds=(1.0, 1.0, 1.0, 1.0),
+    )
+
+    anchor_generator = class_config(get_default_anchor_generator)
+
+    retina_loss = class_config(
+        RetinaNetHeadLoss,
+        box_encoder=box_encoder,
+        anchor_generator=anchor_generator,
+    )
+
+    config.loss = class_config(
+        LossModule,
+        losses={
+            "loss": retina_loss,
+            "connector": class_config(
+                LossConnector, key_mapping=CONN_BOX_LOSS_2D
+            ),
+        },
     )
 
     ######################################################
@@ -130,12 +145,12 @@ def get_config() -> FieldConfigDict:
     ######################################################
     config.train_data_connector = class_config(
         DataConnector,
-        key_mapping=CONN_BBOX_2D_TRAIN,
+        key_mapping=CONN_IMAGES_TRAIN,
     )
 
     config.test_data_connector = class_config(
         DataConnector,
-        key_mapping=CONN_BBOX_2D_TEST,
+        key_mapping=CONN_IMAGES_TEST,
     )
 
     ######################################################
@@ -152,7 +167,7 @@ def get_config() -> FieldConfigDict:
             save_prefix=config.output_dir,
             test_connector=class_config(
                 CallbackConnector,
-                key_mapping=remap_pred_keys(CONN_BBOX_2D_VIS, "boxes"),
+                key_mapping=CONN_BBOX_2D_VIS,
             ),
         )
     )
@@ -166,9 +181,10 @@ def get_config() -> FieldConfigDict:
                 data_root=data_root,
                 split=test_split,
             ),
+            metrics_to_eval=["Det"],
             test_connector=class_config(
                 CallbackConnector,
-                key_mapping=remap_pred_keys(CONN_COCO_BBOX_EVAL, "boxes"),
+                key_mapping=CONN_COCO_BBOX_EVAL,
             ),
         )
     )

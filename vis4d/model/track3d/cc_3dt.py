@@ -449,7 +449,7 @@ class FasterRCNNCC3DT(nn.Module):
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         motion_model: str = "KF3D",
         pure_det: bool = False,
-        class_range_map: None | Tensor = None,
+        class_range_map: None | list[int] = None,
         dataset_fps: int = 2,
         weights: None | str = None,
     ) -> None:
@@ -466,7 +466,8 @@ class FasterRCNNCC3DT(nn.Module):
             motion_model (str): Motion model. Defaults to "KF3D".
             pure_det (bool): Whether to save pure detection results. Defaults
                 to False.
-            class_range_map (None | Tensor): Class range map. Defaults to None.
+            class_range_map (None | list[int]): Class range map. Defaults to
+                None.
             dataset_fps (int): Dataset fps. Defaults to 2.
             weights (None | str): Weights path. Defaults to None.
         """
@@ -555,7 +556,11 @@ class FasterRCNNCC3DT(nn.Module):
         )
 
         if self.class_range_map is not None:
-            self.class_range_map.to(images.device)
+            class_range_map = torch.Tensor(self.class_range_map).to(
+                images.device
+            )
+        else:
+            class_range_map = None
 
         outs = self.track(
             features,
@@ -566,7 +571,7 @@ class FasterRCNNCC3DT(nn.Module):
             class_ids,
             frame_ids_list,
             extrinsics,
-            self.class_range_map,
+            class_range_map,
             self.dataset_fps,
         )
         return outs
