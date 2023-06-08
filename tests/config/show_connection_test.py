@@ -22,6 +22,15 @@ class TestShowConfig(unittest.TestCase):
         test_data_connector = instantiate_classes(config.test_data_connector)
         loss = instantiate_classes(config.loss)
         model = instantiate_classes(config.model)
+
+        # Change the data root of evaluator callback to the test data
+        config.callbacks[
+            3
+        ].init_args.evaluator.init_args.data_root = (
+            "tests/vis4d-test-data/coco_test"
+        )
+        config.callbacks[3].init_args.evaluator.init_args.split = "train"
+
         callbacks = [instantiate_classes(cb) for cb in config.callbacks]
 
         dg = prints_datagraph_for_config(
