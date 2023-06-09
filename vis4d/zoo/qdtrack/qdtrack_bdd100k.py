@@ -6,7 +6,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets import get_bdd100k_track_cfg
+from vis4d.config.common.datasets.bdd100k import get_bdd100k_track_cfg
 from vis4d.config.common.models.faster_rcnn import (
     CONN_ROI_LOSS_2D,
     CONN_RPN_LOSS_2D,
@@ -33,7 +33,7 @@ from vis4d.engine.connectors import (
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.track.bdd100k import BDD100KTrackingEvaluator
+from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.rcnn import RCNNLoss
@@ -232,7 +232,7 @@ def get_config() -> FieldConfigDict:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                BDD100KTrackingEvaluator,
+                BDD100KTrackEvaluator,
                 annotation_path="data/bdd100k/labels/box_track_20/val/",
             ),
             test_connector=class_config(

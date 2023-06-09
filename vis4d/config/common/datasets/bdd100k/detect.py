@@ -15,18 +15,18 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io import DataBackend
 from vis4d.data.loader import DataPipe
-from vis4d.data.transforms.base import RandomApply, compose, compose_batch
+from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import (
     FlipBoxes2D,
-    FlipImage,
+    FlipImages,
     FlipInstanceMasks,
 )
-from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
-    ResizeImage,
+    ResizeImages,
     ResizeInstanceMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -86,13 +86,13 @@ def get_train_dataloader(
             )
         ]
     preprocess_transforms += [
-        class_config(ResizeImage),
+        class_config(ResizeImages),
         class_config(ResizeBoxes2D),
     ]
     if K.instance_masks in keys_to_load:
         preprocess_transforms.append(class_config(ResizeInstanceMasks))
 
-    flip_transforms = [class_config(FlipImage), class_config(FlipBoxes2D)]
+    flip_transforms = [class_config(FlipImages), class_config(FlipBoxes2D)]
     if K.instance_masks in keys_to_load:
         flip_transforms.append(class_config(FlipInstanceMasks))
 
@@ -104,14 +104,14 @@ def get_train_dataloader(
         )
     )
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImages))
 
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     train_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 
@@ -152,18 +152,18 @@ def get_test_dataloader(
             keep_ratio=True,
             align_long_edge=True,
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
         class_config(ResizeBoxes2D),
     ]
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImages))
 
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 

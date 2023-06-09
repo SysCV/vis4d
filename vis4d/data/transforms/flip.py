@@ -96,7 +96,6 @@ class FlipBoxes2D:
         return boxes
 
 
-# TODO: Refactor this class
 @Transform(K.seg_masks, K.seg_masks)
 class FlipSegMasks:
     """Flip segmentation masks."""
@@ -107,7 +106,12 @@ class FlipSegMasks:
         Args:
             direction (str, optional): Either vertical or horizontal.
                 Defaults to "horizontal".
+
+        Raises:
+            ValueError: If direction is not horizontal or vertical.
         """
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError(f"Direction {self.direction} not known!")
         self.direction = direction
 
     def __call__(self, masks: NDArrayUI8) -> NDArrayUI8:
@@ -119,12 +123,14 @@ class FlipSegMasks:
         Returns:
             NDArrayUI8: [H, W] array of flipped masks.
         """
-        image_ = torch.from_numpy(masks)
-        if self.direction == "horizontal":
-            return image_.flip(1).numpy()
-        if self.direction == "vertical":
-            return image_.flip(0).numpy()
-        raise ValueError(f"Direction {self.direction} not known!")
+        for i, mask in enumerate(masks):
+            mask_ = torch.from_numpy(mask)
+            if self.direction == "horizontal":
+                mask = mask_.flip(1).numpy()
+            if self.direction == "vertical":
+                mask = mask_.flip(0).numpy()
+            masks[i] = mask
+        return masks
 
 
 @Transform(K.instance_masks, K.instance_masks)

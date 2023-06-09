@@ -9,10 +9,12 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
+from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
+from vis4d.op.loss.common import l1_loss
 
 from ..layer import Conv2d
 from ..typing import Proposals
@@ -337,6 +339,8 @@ class RPNLoss(DenseAnchorHeadLoss):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: DeltaXYWHBBoxEncoder,
+        loss_cls: TorchLossFunc = F.binary_cross_entropy_with_logits,
+        loss_bbox: TorchLossFunc = l1_loss,
     ):
         """Creates an instance of the class.
 
@@ -352,9 +356,14 @@ class RPNLoss(DenseAnchorHeadLoss):
             min_positive_iou=0.3,
         )
         sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
-        loss_cls = F.binary_cross_entropy_with_logits
+
         super().__init__(
-            anchor_generator, box_encoder, matcher, sampler, loss_cls
+            anchor_generator,
+            box_encoder,
+            matcher,
+            sampler,
+            loss_cls,
+            loss_bbox,
         )
 
     def forward(

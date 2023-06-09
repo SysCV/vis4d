@@ -337,8 +337,8 @@ class QDSimilarityHead(nn.Module):
             for fc in self.fcs:
                 x = fc(x)
 
-        embeddings: list[Tensor] = self.fc_embed(x).split(
-            [len(b) for b in boxes]
+        embeddings: list[Tensor] = list(
+            self.fc_embed(x).split([len(b) for b in boxes])
         )
         return embeddings
 
@@ -409,7 +409,7 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
             QDTrackInstanceSimilarityLosses: Scalar loss tensors.
         """
         if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
-            dummy_loss = torch.sum([e.sum() * 0.0 for e in key_embeddings])  # type: ignore  # pylint: disable=line-too-long
+            dummy_loss = sum([e.sum() * 0.0 for e in key_embeddings])
             return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)
 
         loss_track = torch.tensor(0.0, device=key_embeddings[0].device)

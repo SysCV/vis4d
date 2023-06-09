@@ -15,7 +15,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
 from vis4d.data.loader import DataPipe
-from vis4d.data.transforms.base import RandomApply, compose, compose_batch
+from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipImage, FlipSegMasks
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages, PadSegMasks
@@ -83,7 +83,7 @@ def get_train_dataloader(
     )
 
     train_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             class_config(PadImages),
             class_config(PadSegMasks),
@@ -135,7 +135,7 @@ def get_test_dataloader(
     )
 
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             class_config(PadImages, shape=image_size),
             class_config(PadSegMasks, shape=image_size),

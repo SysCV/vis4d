@@ -14,7 +14,7 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     build_train_dataloader,
 )
-from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
@@ -43,7 +43,7 @@ def get_train_dataloader(
     if with_mask:
         resize_trans += [ResizeInstanceMasks()]
     preprocess_fn = compose([*resize_trans, NormalizeImage()])
-    batchprocess_fn = compose_batch([PadImages(), ToTensor()])
+    batchprocess_fn = compose([PadImages(), ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_train_dataloader(
         datapipe,
@@ -65,7 +65,7 @@ def get_test_dataloader(
             NormalizeImage(),
         ]
     )
-    batchprocess_fn = compose_batch([PadImages(), ToTensor()])
+    batchprocess_fn = compose([PadImages(), ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
         datapipe,

@@ -30,6 +30,19 @@ def get_train_dataloader(
     workers_per_gpu: int,
 ):
     """Get the default train dataloader for BDD100K tracking."""
+    bdd100k_det_train = class_config(
+        BDD100K,
+        data_root="data/bdd100k/images/100k/train/",
+        keys_to_load=(K.images, K.boxes2d),
+        annotation_path="data/bdd100k/labels/det_20/det_train.json",
+        config_path="det",
+        data_backend=data_backend,
+        category_map=bdd100k_track_map,
+        skip_empty_samples=True,
+        cache_as_binary=True,
+        cached_file_path="data/bdd100k/det_train.pkl",
+    )
+
     bdd100k_track_train = class_config(
         BDD100K,
         data_root="data/bdd100k/images/track/train/",
@@ -41,19 +54,6 @@ def get_train_dataloader(
         skip_empty_samples=True,
         cache_as_binary=True,
         cached_file_path="data/bdd100k/track_train.pkl",
-    )
-
-    bdd100k_det_train = class_config(
-        BDD100K,
-        data_root="data/bdd100k/images/100k/train/",
-        keys_to_load=(K.images, K.boxes2d),
-        annotation_path="data/bdd100k/labels/det_20/det_train.json",
-        config_path="det",
-        data_backend=data_backend,
-        category_map=bdd100k_track_map,
-        annotations="data/bdd100k/det_train.pkl",
-        skip_empty_samples=True,
-        cache_as_binary=True,
     )
 
     train_dataset_cfg = [

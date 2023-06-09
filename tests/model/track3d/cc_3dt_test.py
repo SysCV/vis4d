@@ -16,7 +16,7 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     multi_sensor_collate,
 )
-from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import BatchNormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
@@ -71,7 +71,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
             ]
         )
 
-        batch_fn = compose_batch(
+        batch_fn = compose(
             [
                 PadImages(sensors=self.CAMERAS),
                 BatchNormalizeImages(sensors=self.CAMERAS),

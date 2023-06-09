@@ -9,7 +9,7 @@ from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
-from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -41,7 +41,7 @@ class QDTrackTest(unittest.TestCase):
             BDD100K(data_root, annotations, config_path=config),
             preprocess_fn=compose([NormalizeImage()]),
         )
-        batch_fn = compose_batch([PadImages(), ToTensor()])
+        batch_fn = compose([PadImages(), ToTensor()])
         batch_size = 2
         test_loader = build_inference_dataloaders(
             test_data,

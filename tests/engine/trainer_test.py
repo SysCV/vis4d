@@ -15,7 +15,7 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms import (
-    compose_batch,
+    compose,
     mask,
     normalize,
     pad,
@@ -41,9 +41,7 @@ from .optim.optimizer_test import get_optimizer
 
 def seg_pipeline(data: list[DictData]) -> DictData:
     """Default data pipeline."""
-    return compose_batch([pad.PadImages(value=255), to_tensor.ToTensor()])(
-        data
-    )
+    return compose([pad.PadImages(value=255), to_tensor.ToTensor()])(data)
 
 
 def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:

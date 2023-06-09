@@ -23,7 +23,6 @@ from vis4d.data.loader import (
 from vis4d.data.reference import UniformViewSampler
 from vis4d.data.transforms import (
     compose,
-    compose_batch,
     mask,
     normalize,
     pad,
@@ -90,9 +89,7 @@ class DataLoaderTest(unittest.TestCase):
                 normalize.NormalizeImage(),
             ]
         )
-        batchprocess_fn = compose_batch(
-            [pad.PadImages(), to_tensor.ToTensor()]
-        )
+        batchprocess_fn = compose([pad.PadImages(), to_tensor.ToTensor()])
 
         datapipe = DataPipe(coco, preprocess_fn)
         train_loader = build_train_dataloader(
@@ -119,9 +116,7 @@ class DataLoaderTest(unittest.TestCase):
                 normalize.NormalizeImage(),
             ]
         )
-        batchprocess_fn = compose_batch(
-            [pad.PadImages(), to_tensor.ToTensor()]
-        )
+        batchprocess_fn = compose([pad.PadImages(), to_tensor.ToTensor()])
 
         datapipe = DataPipe(coco, preprocess_fn)
         test_loaders = build_inference_dataloaders(
@@ -173,7 +168,7 @@ def test_segment_train_loader() -> None:
             mask.ConvertInstanceMaskToSegMask(),
         ]
     )
-    batchprocess_fn = compose_batch([to_tensor.ToTensor()])
+    batchprocess_fn = compose([to_tensor.ToTensor()])
     datapipe = DataPipe(coco, preprocess_fn)
     train_loader = build_train_dataloader(
         datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
@@ -210,7 +205,7 @@ def test_segment_inference_loader() -> None:
             mask.ConvertInstanceMaskToSegMask(),
         ]
     )
-    batchprocess_fn = compose_batch([to_tensor.ToTensor()])
+    batchprocess_fn = compose([to_tensor.ToTensor()])
     datapipe = DataPipe(coco, preprocess_fn)
     test_loader = build_inference_dataloaders(
         datapipe, batchprocess_fn=batchprocess_fn

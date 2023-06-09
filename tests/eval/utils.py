@@ -13,7 +13,7 @@ from vis4d.data.loader import (
     default_pipeline,
     multi_sensor_collate,
 )
-from vis4d.data.transforms import compose_batch
+from vis4d.data.transforms import compose
 from vis4d.data.transforms.to_tensor import ToTensor
 
 
@@ -25,9 +25,7 @@ def get_dataloader(
     """Get data loader for testing."""
     datapipe = VideoDataPipe(datasets)
     if sensors is not None:
-        batchprocess_fn = compose_batch(
-            [ToTensor(sensors=sensors)]  # type: ignore
-        )
+        batchprocess_fn = compose([ToTensor(sensors=sensors)])  # type: ignore
         collate_fn = multi_sensor_collate
     else:
         batchprocess_fn = default_pipeline  # type: ignore

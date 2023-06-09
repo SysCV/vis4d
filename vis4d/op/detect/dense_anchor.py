@@ -11,7 +11,7 @@ from vis4d.common import TorchLossFunc
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
-from vis4d.op.loss.common import l1_loss
+
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.util import unmap
 
@@ -198,7 +198,8 @@ class DenseAnchorHeadLoss(nn.Module):
         box_encoder: DeltaXYWHBBoxEncoder,
         box_matcher: Matcher,
         box_sampler: Sampler,
-        loss_cls: TorchLossFunc | None = None,
+        loss_cls: TorchLossFunc,
+        loss_bbox: TorchLossFunc,
         allowed_border: int = 0,
     ) -> None:
         """Creates an instance of the class.
@@ -220,6 +221,7 @@ class DenseAnchorHeadLoss(nn.Module):
         self.matcher = box_matcher
         self.sampler = box_sampler
         self.loss_cls = loss_cls
+        self.loss_bbox = loss_bbox
 
     def _loss_single_scale(
         self,
@@ -258,17 +260,19 @@ class DenseAnchorHeadLoss(nn.Module):
             )
         else:
             cls_score = cls_score.squeeze(1)
-        assert self.loss_cls is not None
+
         loss_cls = self.loss_cls(cls_score, labels, reduction="none")
         loss_cls = SumWeightedLoss(label_weights, num_total_samples)(loss_cls)
+
         # regression loss
         bbox_targets = bbox_targets.reshape(-1, 4)
         bbox_weights = bbox_weights.reshape(-1, 4)
         bbox_pred = reg_out.permute(0, 2, 3, 1).reshape(-1, 4)
-        loss_bbox = l1_loss(
-            bbox_pred,
-            bbox_targets,
-            SumWeightedLoss(bbox_weights, num_total_samples),
+
+        loss_bbox = self.loss_bbox(
+            pred=bbox_pred,
+            target=bbox_targets,
+            reducer=SumWeightedLoss(bbox_weights, num_total_samples),
         )
         return loss_cls, loss_bbox
 

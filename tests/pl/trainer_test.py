@@ -16,7 +16,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_train_dataloader
 from vis4d.data.transforms import (
-    compose_batch,
+    compose,
     mask,
     normalize,
     pad,
@@ -40,9 +40,7 @@ from vis4d.pl.training_module import TrainingModule
 
 def seg_pipeline(data: list[DictData]) -> DictData:
     """Default data pipeline."""
-    return compose_batch([pad.PadImages(value=255), to_tensor.ToTensor()])(
-        data
-    )
+    return compose([pad.PadImages(value=255), to_tensor.ToTensor()])(data)
 
 
 def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
