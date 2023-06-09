@@ -5,6 +5,7 @@ import importlib
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
+import yaml
 from ml_collections import ConfigDict, FieldReference, FrozenConfigDict
 
 from vis4d.common.named_tuple import get_all_keys, is_namedtuple
@@ -63,6 +64,56 @@ class FieldConfigDict(ConfigDict):  # type: ignore # pylint: disable=too-many-in
         """
         super().__init__(initial_dictionary, type_safe, convert_dict)
         object.__setattr__(self, "_return_refs", True)
+
+    @classmethod
+    def from_yaml(cls, path: str) -> FieldConfigDict:
+        """Creates a config from a .yaml file.
+
+        Args:
+            path: The path to the .yaml file that should be loaded.
+        """
+        return cls(
+            yaml.load(
+                open(path, "r", encoding="utf-8"), Loader=yaml.UnsafeLoader
+            )
+        )
+
+    def to_yaml(self, **kwargs: ArgsType) -> str:
+        """Returns a YAML representation of the object.
+
+        ConfigDict serializes types of fields as well as the values of fields
+        themselves. Deserializing the YAML representation hence requires using
+        YAML's UnsafeLoader:
+
+        ```
+        yaml.load(cfg.to_yaml(), Loader=yaml.UnsafeLoader)
+        ```
+
+        or equivalently:
+
+        ```
+        yaml.unsafe_load(cfg.to_yaml())
+        ```
+
+        Please see the PyYAML documentation and https://msg.pyyaml.org/load
+        for more details on the consequences of this.
+
+        Args:
+          **kwargs: Keyword arguments for yaml.dump.
+
+        Returns:
+          YAML representation of the object.
+        """
+        return copy_and_resolve_references(self.value_mode()).to_yaml(**kwargs)
+
+    def dump(self, output_path: str) -> None:
+        """Writes the config to a .yaml file.
+
+        Args:
+            output_path: The path to the output file.
+        """
+        with open(output_path, "w", encoding="utf-8") as file:
+            file.write(self.to_yaml())
 
     def set_ref_mode(self, ref_mode: bool) -> None:
         """Sets the config to return references instead of values."""

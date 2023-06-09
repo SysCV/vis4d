@@ -37,7 +37,7 @@ bdd100k_seg_map = {
     "vegetation": 8,
     "terrain": 9,
     "sky": 10,
-    "pedestrian": 11,
+    "person": 11,
     "rider": 12,
     "car": 13,
     "truck": 14,

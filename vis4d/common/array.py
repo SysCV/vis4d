@@ -12,9 +12,11 @@ from vis4d.common.typing import (
     NDArrayFloat,
     NDArrayInt,
     NDArrayNumber,
+    NDArrayUInt,
     NumpyBool,
     NumpyFloat,
     NumpyInt,
+    NumpyUInt,
 )
 
 
@@ -27,6 +29,13 @@ def array_to_numpy(
 
 @overload
 def array_to_numpy(
+    data: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
+) -> NDArrayFloat:
+    ...
+
+
+@overload
+def array_to_numpy(
     data: ArrayLike, n_dims: int | None, dtype: type[NumpyInt]
 ) -> NDArrayInt:
     ...
@@ -34,8 +43,8 @@ def array_to_numpy(
 
 @overload
 def array_to_numpy(
-    data: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
-) -> NDArrayFloat:
+    data: ArrayLike, n_dims: int | None, dtype: type[NumpyUInt]
+) -> NDArrayUInt:
     ...
 
 
@@ -73,7 +82,10 @@ def array_to_numpy(data: None) -> None:
 def array_to_numpy(
     data: ArrayLike | None,
     n_dims: int | None = None,
-    dtype: type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] = np.float32,
+    dtype: type[NumpyBool]
+    | type[NumpyFloat]
+    | type[NumpyInt]
+    | type[NumpyUInt] = np.float32,
 ) -> NDArrayNumber | None:
     """Converts a given array like object to a numpy array.
 
@@ -166,10 +178,20 @@ def arrays_to_numpy(
     ...
 
 
+@overload
+def arrays_to_numpy(
+    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyUInt]
+) -> tuple[NDArrayUInt, ...]:
+    ...
+
+
 def arrays_to_numpy(
     *args: ArrayLike | None,
     n_dims: int | None = None,
-    dtype: type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] = np.float32,
+    dtype: type[NumpyBool]
+    | type[NumpyFloat]
+    | type[NumpyInt]
+    | type[NumpyUInt] = np.float32,
 ) -> tuple[NDArrayNumber | None, ...]:
     """Converts a given sequence of optional ArrayLike objects to numpy.
 

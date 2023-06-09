@@ -9,6 +9,7 @@ from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.model.detect.retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
+from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.retinanet import get_default_box_codec
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
@@ -45,16 +46,20 @@ class RetinaNetTest(unittest.TestCase):
         retina_net.eval()
         with torch.no_grad():
             dets = retina_net(inputs, images_hw, original_hw=images_hw)
+        assert isinstance(dets, DetOut)
 
         testcase_gt = torch.load(get_test_file("retinanet.pt"))
-        for k in testcase_gt:
-            assert k in dets
-            for i in range(len(testcase_gt[k])):
-                assert (
-                    torch.isclose(dets[k][i], testcase_gt[k][i], atol=1e-4)
-                    .all()
-                    .item()
-                )
+
+        def _assert_eq(
+            prediction: list[torch.Tensor], gts: list[torch.Tensor]
+        ) -> None:
+            """Assert prediction and ground truth are equal."""
+            for pred, gt in zip(prediction, gts):
+                assert torch.isclose(pred, gt, atol=1e-4).all().item()
+
+        _assert_eq(dets.boxes, testcase_gt["boxes2d"])
+        _assert_eq(dets.scores, testcase_gt["boxes2d_scores"])
+        _assert_eq(dets.class_ids, testcase_gt["boxes2d_classes"])
 
     def test_train(self) -> None:
         """Test RetinaNet training."""

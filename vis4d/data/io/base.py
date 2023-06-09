@@ -5,6 +5,7 @@ files which are more suitable for data centers. The naive backend is the
 FileBackend, which loads from / saves to file naively.
 """
 from abc import abstractmethod
+from typing import Literal
 
 
 class DataBackend:
@@ -16,12 +17,15 @@ class DataBackend:
     """
 
     @abstractmethod
-    def set(self, filepath: str, content: bytes) -> None:
+    def set(
+        self, filepath: str, content: bytes, mode: Literal["w", "a"]
+    ) -> None:
         """Set the file content at the given filepath.
 
         Args:
             filepath (str): The filepath to store the data at.
             content (bytes): The content to store as bytes.
+            mode (str): The mode to open the file in.
         """
         raise NotImplementedError
 
@@ -71,4 +75,9 @@ class DataBackend:
         Returns:
             list[str]: A list of all files in the directory.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close all opened files in the backend."""
         raise NotImplementedError
