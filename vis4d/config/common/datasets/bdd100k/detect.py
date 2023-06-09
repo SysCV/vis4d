@@ -45,7 +45,7 @@ CONN_BDD100K_DET_EVAL = {
 def get_train_dataloader(
     data_root: str,
     anno_path: str,
-    keys_to_load: Sequence[str],
+    keys_to_load: Sequence[str] = (K.images, K.boxes2d),
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
     multi_scale: bool = False,
@@ -127,7 +127,7 @@ def get_train_dataloader(
 def get_test_dataloader(
     data_root: str,
     anno_path: str,
-    keys_to_load: Sequence[str],
+    keys_to_load: Sequence[str] = (K.images, K.boxes2d),
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
     samples_per_gpu: int = 1,
