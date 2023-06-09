@@ -86,7 +86,8 @@ def get_train_dataloader(
             )
         ]
     preprocess_transforms += [
-        class_config(ResizeImage), class_config(ResizeBoxes2D)
+        class_config(ResizeImage),
+        class_config(ResizeBoxes2D),
     ]
     if K.instance_masks in keys_to_load:
         preprocess_transforms.append(class_config(ResizeInstanceMasks))
