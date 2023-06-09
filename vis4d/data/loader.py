@@ -113,15 +113,15 @@ def build_train_dataloader(
         shuffle = False
 
     if isinstance(dataset, DataPipe) and dataset.has_reference:
-        collate_fn = _collate_fn_multi
+        _collate_fn = _collate_fn_multi
     else:
-        collate_fn = _collate_fn_single
+        _collate_fn = _collate_fn_single
 
     dataloader = DataLoader(
         dataset,
         batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
-        collate_fn=collate_fn,
+        collate_fn=_collate_fn,
         sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
