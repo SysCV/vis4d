@@ -58,6 +58,7 @@ def get_default_rcnn_box_codec_cfg(
 def get_faster_rcnn_cfg(
     num_classes: FieldReference | int,
     basemodel: ConfigDict,
+    weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Return default config for faster_rcnn model and loss.
 
@@ -67,6 +68,7 @@ def get_faster_rcnn_cfg(
     Args:
         num_classes (FieldReference | int): Number of classes.
         basemodel (ConfigDict): Base model config.
+        weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################
     ##                        MODEL                     ##
@@ -110,7 +112,7 @@ def get_faster_rcnn_cfg(
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         rcnn_box_decoder=rcnn_box_decoder,
-        # weights="mmdet",
+        weights=weights,
     )
 
     ######################################################

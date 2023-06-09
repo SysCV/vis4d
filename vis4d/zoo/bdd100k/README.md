@@ -2,6 +2,30 @@
 
 We provide various models trained using Vis4D on the [BDD100K dataset](https://www.vis.xyz/bdd100k/).
 
+## Object Detection
+
+
+The object detection task involves localization (predicting a bounding box for each object) and classification (predicting the object category).
+
+The BDD100K dataset contains bounding box annotations for 100K images (70K/10K/20K for train/val/test). Each annotation contains bounding box labels for 10 object classes. For details about downloading the data and the annotation format for this task, see the [official documentation](https://doc.bdd100k.com/download.html).
+
+### Faster R-CNN
+
+[Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks](https://arxiv.org/abs/1506.01497) [NeurIPS 2015]
+
+Authors: [Shaoqing Ren](https://www.shaoqingren.com/), [Kaiming He](http://kaiminghe.com/), [Ross Girshick](https://www.rossgirshick.info/), [Jian Sun](http://www.jiansun.org/)
+
+<details>
+<summary>Abstract</summary>
+State-of-the-art object detection networks depend on region proposal algorithms to hypothesize object locations. Advances like SPPnet and Fast R-CNN have reduced the running time of these detection networks, exposing region proposal computation as a bottleneck. In this work, we introduce a Region Proposal Network (RPN) that shares full-image convolutional features with the detection network, thus enabling nearly cost-free region proposals. An RPN is a fully convolutional network that simultaneously predicts object bounds and objectness scores at each position. The RPN is trained end-to-end to generate high-quality region proposals, which are used by Fast R-CNN for detection. We further merge RPN and Fast R-CNN into a single network by sharing their convolutional features---using the recently popular terminology of neural networks with 'attention' mechanisms, the RPN component tells the unified network where to look. For the very deep VGG-16 model, our detection system has a frame rate of 5fps (including all steps) on a GPU, while achieving state-of-the-art object detection accuracy on PASCAL VOC 2007, 2012, and MS COCO datasets with only 300 proposals per image. In ILSVRC and COCO 2015 competitions, Faster R-CNN and RPN are the foundations of the 1st-place winning entries in several tracks. Code has been made publicly available.
+</details>
+
+#### Results
+
+| Backbone | Lr schd | MS-train | Box AP-val | Scores-val | Box AP-test | Scores-test | Config | Weights | Preds | Visuals |
+| :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| R-50-FPN | 1x |  | 31.2 | [scores]() |  | [scores]() | [config](./faster_rcnn/faster_rcnn_r50_1x_bdd100k.py) | [model](h) | [preds]() | [visuals]() |
+
 ## Semantic Segmentation
 
 The semantic segmentation task involves predicting a segmentation mask for each image indicating a class label for every pixel.
