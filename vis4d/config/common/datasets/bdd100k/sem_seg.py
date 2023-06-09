@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """BDD100K dataset config for semantic segmentation."""
 from __future__ import annotations
 

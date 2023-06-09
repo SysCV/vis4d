@@ -1,4 +1,5 @@
-"""COCO data loading config for object detection."""
+# pylint: disable=duplicate-code
+"""BDD100K dataset config for object detection."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -47,6 +48,7 @@ def get_train_dataloader(
     keys_to_load: Sequence[str],
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
+    multi_scale: bool = False,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> ConfigDict:
@@ -63,15 +65,28 @@ def get_train_dataloader(
     )
 
     # Train Preprocessing
-    preprocess_transforms = [
-        class_config(
-            GenerateResizeParameters,
-            shape=image_size,
-            keep_ratio=True,
-            align_long_edge=True,
-        ),
-        class_config(ResizeImage),
-        class_config(ResizeBoxes2D),
+    if multi_scale:
+        ms_shapes = [(image_size[0] - 24 * i, image_size[1]) for i in range(6)]
+        preprocess_transforms = [
+            class_config(
+                GenerateResizeParameters,
+                shape=ms_shapes,
+                keep_ratio=True,
+                multiscale_mode="list",
+                align_long_edge=True,
+            )
+        ]
+    else:
+        preprocess_transforms = [
+            class_config(
+                GenerateResizeParameters,
+                shape=image_size,
+                keep_ratio=True,
+                align_long_edge=True,
+            )
+        ]
+    preprocess_transforms += [
+        class_config(ResizeImage), class_config(ResizeBoxes2D)
     ]
     if K.instance_masks in keys_to_load:
         preprocess_transforms.append(class_config(ResizeInstanceMasks))
@@ -176,6 +191,7 @@ def get_bdd100k_detection_config(
     ),
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (720, 1280),
+    multi_scale: bool = False,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> ConfigDict:
@@ -188,6 +204,7 @@ def get_bdd100k_detection_config(
         keys_to_load=train_keys_to_load,
         data_backend=data_backend,
         image_size=image_size,
+        multi_scale=multi_scale,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
     )

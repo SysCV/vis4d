@@ -278,7 +278,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
         config_path: None | str | Config = None,
-        remove_empty: bool = True,
+        remove_empty: bool = False,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
     ) -> None:
@@ -299,7 +299,7 @@ class Scalabel(Dataset, CacheMappingMixin):
                 config, can be added if it is not provided together with the
                 labels or should be modified. Defaults to None.
             remove_empty (bool): Whether to remove images with no annotations.
-                Defaults to True.
+                Defaults to False.
             global_instance_ids (bool): Whether to convert tracking IDs of
                 annotations into dataset global IDs or stay with local,
                 per-video IDs. Defaults to false.

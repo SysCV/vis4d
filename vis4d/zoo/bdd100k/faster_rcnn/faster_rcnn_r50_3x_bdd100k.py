@@ -6,7 +6,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets.bdd100k.detect import (
+from vis4d.config.common.datasets.bdd100k import (
     CONN_BDD100K_DET_EVAL,
     get_bdd100k_detection_config,
 )
@@ -26,7 +26,7 @@ from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.bdd100k.detect import BDD100KDetectEvaluator
+from vis4d.eval.bdd100k import BDD100KDetectEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
@@ -40,14 +40,14 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="faster_rcnn_r50_1x_bdd100k")
+    config = get_default_cfg(exp_name="faster_rcnn_r50_3x_bdd100k")
 
     # High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02
-    params.num_epochs = 12
+    params.num_epochs = 36
     params.num_classes = 10
     config.params = params
 
@@ -65,6 +65,7 @@ def get_config() -> FieldConfigDict:
         train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
+        multi_scale=True,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )
@@ -89,7 +90,7 @@ def get_config() -> FieldConfigDict:
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
             lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
+                MultiStepLR, milestones=[24, 33], gamma=0.1
             ),
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
