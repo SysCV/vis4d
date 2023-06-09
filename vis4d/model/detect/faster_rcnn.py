@@ -67,6 +67,11 @@ class FasterRCNN(nn.Module):
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
         if weights is not None:
+            if weights == "mmdet":
+                weights = (
+                    "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/"
+                    "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
+                )
             if weights.startswith("mmdet://") or weights.startswith(
                 "bdd100k://"
             ):

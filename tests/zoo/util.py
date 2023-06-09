@@ -32,7 +32,7 @@ def content_equal(
     lines1 = content1.splitlines()
     lines2 = content2.splitlines()
     if len(lines1) != len(lines2):
-        print("File length missmatch:", len(lines1), "!=", len(lines2))
+        print("File length mismatch:", len(lines1), "!=", len(lines2))
         return False
 
     for line_id, line1 in enumerate(lines1):
@@ -47,7 +47,7 @@ def content_equal(
 
         if not skip and line1 != lines2[line_id]:
             print(
-                "Line missmatch #", line_id, ":", line1, "!=", lines2[line_id]
+                "Line mismatch #", line_id, ":", line1, "!=", lines2[line_id]
             )
             return False
 

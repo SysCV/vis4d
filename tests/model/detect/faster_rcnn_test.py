@@ -96,11 +96,7 @@ class FasterRCNNTest(unittest.TestCase):
             batch[K.input_hw],
         )
 
-        weights = (
-            "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/"
-            "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
-        )
-        faster_rcnn = FasterRCNN(num_classes=80, weights=weights)
+        faster_rcnn = FasterRCNN(num_classes=80, weights="mmdet")
 
         faster_rcnn.eval()
         with torch.no_grad():
