@@ -174,7 +174,12 @@ def print_class_histogram(class_frequencies: dict[str, int]) -> None:
 def discard_labels_outside_set(
     dataset: list[Frame], class_set: list[str]
 ) -> None:
-    """Discard labels outside given set of classes."""
+    """Discard labels outside given set of classes.
+
+    Args:
+        dataset (list[Frame]): List of frames to filter.
+        class_set (list[str]): List of classes to keep.
+    """
     for frame in dataset:
         remove_anns = []
         if frame.labels is not None:
@@ -185,12 +190,39 @@ def discard_labels_outside_set(
                 frame.labels.pop(i)
 
 
+def remove_empty_samples(frames: list[Frame]) -> list[Frame]:
+    """Remove empty samples."""
+    new_frames = []
+    for frame in frames:
+        if frame.labels is None:
+            continue
+        labels_used = []
+        for label in frame.labels:
+            assert label.attributes is not None and label.category is not None
+            if not check_crowd(label) and not check_ignored(label):
+                labels_used.append(label)
+
+        if len(labels_used) != 0:
+            frame.labels = labels_used
+            new_frames.append(frame)
+    rank_zero_info(f"Filtered {len(frames) - len(new_frames)} empty frames.")
+    del frames
+    return new_frames
+
+
 def prepare_labels(
     frames: list[Frame],
     class_list: list[str],
     global_instance_ids: bool = False,
-) -> None:
-    """Add category id and instance id to labels, return class frequencies."""
+) -> dict[str, int]:
+    """Add category id and instance id to labels, return class frequencies.
+
+    Args:
+        frames (list[Frame]): List of frames.
+        class_list (list[str]): List of classes.
+        global_instance_ids (bool): Whether to use global instance ids.
+            Defaults to False.
+    """
     instance_ids: dict[str, list[str]] = defaultdict(list)
     frequencies = {cat: 0 for cat in class_list}
     for frame_id, ann in enumerate(frames):
@@ -351,6 +383,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
 
     def _setup_categories(self) -> None:
         """Setup categories."""
+        assert self.category_map is not None
         for target in self.keys_to_load:
             if isinstance(list(self.category_map.values())[0], int):
                 self.cats_name2id[target] = self.category_map  # type: ignore
@@ -397,7 +430,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
             frames = filter_frames_by_attributes(frames, attributes_to_load)
 
             if self.skip_empty_samples:
-                frames = self._remove_empty_samples(frames)
+                frames = remove_empty_samples(frames)
 
             t = Timer()
             frequencies = prepare_labels(
@@ -458,27 +491,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         if frame.extrinsics is not None and K.extrinsics in self.keys_to_load:
             data[K.extrinsics] = load_extrinsics(frame.extrinsics)
         return data
-
-    @staticmethod
-    def _remove_empty_samples(frames: list[Frame]) -> list[Frame]:
-        """Remove empty samples."""
-        new_frames = []
-        for frame in frames:
-            if frame.labels is None:
-                continue
-            labels_used = []
-            for label in frame.labels:
-                assert (
-                    label.attributes is not None and label.category is not None
-                )
-                if not check_crowd(label) and not check_ignored(label):
-                    labels_used.append(label)
-
-            if len(labels_used) != 0:
-                frame.labels = labels_used
-                new_frames.append(frame)
-        del frames
-        return new_frames
 
     def _add_annotations(self, frame: Frame, data: DictData) -> None:
         """Add annotations given a scalabel frame and a data dictionary."""

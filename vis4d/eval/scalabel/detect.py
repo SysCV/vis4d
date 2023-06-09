@@ -1,4 +1,4 @@
-"""Scalabel tracking evaluator."""
+"""Scalabel detection evaluator."""
 from __future__ import annotations
 
 import numpy as np
@@ -13,7 +13,7 @@ if SCALABEL_AVAILABLE:
     from scalabel.eval.detect import evaluate_det
     from scalabel.eval.ins_seg import evaluate_ins_seg
     from scalabel.label.transforms import mask_to_rle, xyxy_to_box2d
-    from scalabel.label.typing import Frame, Label
+    from scalabel.label.typing import Config, Frame, Label
 
 
 class ScalabelDetectEvaluator(ScalabelEvaluator):
@@ -25,15 +25,16 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
     def __init__(
         self,
         annotation_path: str,
+        config: Config | None = None,
         mask_threshold: float = 0.0,
     ) -> None:
         """Initialize the evaluator."""
-        super().__init__(annotation_path=annotation_path)
+        super().__init__(annotation_path=annotation_path, config=config)
         self.mask_threshold = mask_threshold
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
-        return "Scalabel Tracking Evaluator"
+        return "Scalabel Detection Evaluator"
 
     @property
     def metrics(self) -> list[str]:

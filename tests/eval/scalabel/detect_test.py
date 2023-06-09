@@ -1,4 +1,4 @@
-"""Testcases for BDD100K tracking evaluator."""
+"""Testcases for BDD100K detection evaluator."""
 from __future__ import annotations
 
 import os.path as osp
@@ -16,8 +16,8 @@ from vis4d.eval.scalabel import ScalabelDetectEvaluator
 from ..utils import get_dataloader
 
 
-class TestBDD100KTrackEvaluator(unittest.TestCase):
-    """BDD100K tracking evaluator testcase class."""
+class TestBDD100KDetectEvaluator(unittest.TestCase):
+    """BDD100K detection evaluator testcase class."""
 
     CONN_SHIFT_EVAL = {
         "frame_ids": data_key("frame_ids"),
@@ -38,7 +38,7 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
             "discrete/images/val/front/det_2d.json",
         )
         scalabel_eval = ScalabelDetectEvaluator(annotation_path=annotations)
-        assert str(scalabel_eval) == "Scalabel Tracking Evaluator"
+        assert str(scalabel_eval) == "Scalabel Detection Evaluator"
         assert scalabel_eval.metrics == ["Det", "InsSeg"]
 
         # test gt

@@ -112,8 +112,9 @@ class SHIFTTest(unittest.TestCase):
                 set(self.dataset_multiview[0][view].keys()),
                 {
                     K.images,
-                    K.original_hw,
                     K.input_hw,
+                    K.original_images,
+                    K.original_hw,
                     K.axis_mode,
                     K.frame_ids,
                     K.sample_names,
