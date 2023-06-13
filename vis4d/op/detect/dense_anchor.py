@@ -8,14 +8,13 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from vis4d.common import TorchLossFunc
+from vis4d.op.box.anchor import AnchorGenerator, anchor_inside_image
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.util import unmap
-
-from .anchor_generator import AnchorGenerator, anchor_inside_image
 
 
 class DetectorTargets(NamedTuple):

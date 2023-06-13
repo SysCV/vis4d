@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
@@ -16,7 +17,6 @@ from vis4d.op.box.samplers import RandomSampler
 
 from ..layer import Conv2d
 from ..typing import Proposals
-from .anchor_generator import AnchorGenerator
 from .dense_anchor import DenseAnchorHeadLoss, DenseAnchorHeadLosses
 
 

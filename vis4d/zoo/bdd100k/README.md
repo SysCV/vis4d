@@ -4,7 +4,6 @@ We provide various models trained using Vis4D on the [BDD100K dataset](https://w
 
 ## Object Detection
 
-
 The object detection task involves localization (predicting a bounding box for each object) and classification (predicting the object category).
 
 The BDD100K dataset contains bounding box annotations for 100K images (70K/10K/20K for train/val/test). Each annotation contains bounding box labels for 10 object classes. For details about downloading the data and the annotation format for this task, see the [official documentation](https://doc.bdd100k.com/download.html).
@@ -22,9 +21,10 @@ State-of-the-art object detection networks depend on region proposal algorithms 
 
 #### Results
 
-| Backbone | Lr schd | MS-train | Box AP-val | Scores-val | Box AP-test | Scores-test | Config | Weights | Preds | Visuals |
-| :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| R-50-FPN | 1x |  | 31.2 | [scores]() |  | [scores]() | [config](./faster_rcnn/faster_rcnn_r50_1x_bdd100k.py) | [model](h) | [preds]() | [visuals]() |
+| Backbone | Lr schd | MS-train | Box AP-val | Scores-val | Box AP-test | Scores-test |                        Config                         |  Weights   |   Preds   |   Visuals   |
+| :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------------------------------------------------: | :--------: | :-------: | :---------: |
+| R-50-FPN |   1x    |          |    31.2    | [scores]() |             | [scores]()  | [config](./faster_rcnn/faster_rcnn_r50_1x_bdd100k.py) | [model](h) | [preds]() | [visuals]() |
+| R-50-FPN |   3x    |    ✓     |    32.4    | [scores]() |             | [scores]()  | [config](./faster_rcnn/faster_rcnn_r50_3x_bdd100k.py) | [model](h) | [preds]() | [visuals]() |
 
 ## Semantic Segmentation
 
@@ -45,6 +45,6 @@ The recently introduced panoptic segmentation task has renewed our community's i
 
 #### Results
 
-| Base Network | Iters | Input | mIoU-val | Scores-val | mIoU-test | Scores-test | Config | Weights | Preds | Visuals |
-| :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| R-50-FPN  |  40K  | 512 \* 1024 |  59.2   | [scores]() |  | [scores]() | [config](./semantic_fpn/semantic_fpn_r50_40k_bdd100k.py) | [model]() | [preds]() | [visuals]() |
+| Base Network | Iters |    Input    | mIoU-val | Scores-val | mIoU-test | Scores-test |                          Config                          |  Weights  |   Preds   |   Visuals   |
+| :----------: | :---: | :---------: | :------: | :--------: | :-------: | :---------: | :------------------------------------------------------: | :-------: | :-------: | :---------: |
+|   R-50-FPN   |  40K  | 512 \* 1024 |   59.2   | [scores]() |           | [scores]()  | [config](./semantic_fpn/semantic_fpn_r50_40k_bdd100k.py) | [model]() | [preds]() | [visuals]() |

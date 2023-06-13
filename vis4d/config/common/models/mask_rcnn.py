@@ -14,9 +14,9 @@ from vis4d.engine.connectors import (
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.mask_rcnn import MaskRCNN
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import (
     MaskRCNNHead,

@@ -7,11 +7,11 @@ from torch import nn
 from vis4d.common import LossesType
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.retinanet import (
     Dense2Det,

@@ -7,10 +7,10 @@ from vis4d.config import class_config
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss

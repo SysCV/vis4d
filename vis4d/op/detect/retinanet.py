@@ -8,12 +8,12 @@ import torch
 from torch import nn
 from torchvision.ops import batched_nms, sigmoid_focal_loss
 
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import PseudoSampler, Sampler
 
-from .anchor_generator import AnchorGenerator
 from .common import DetOut
 from .dense_anchor import DenseAnchorHeadLoss
 
