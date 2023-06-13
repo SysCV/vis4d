@@ -9,7 +9,7 @@ from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 
 
-class DataModule(pl.LightningDataModule):  # type: ignore
+class DataModule(pl.LightningDataModule):
     """DataModule that wraps around the vis4d implementations.
 
     This is a wrapper around the vis4d implementations that allows to use

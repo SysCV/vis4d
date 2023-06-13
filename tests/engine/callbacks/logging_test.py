@@ -16,6 +16,7 @@ class TestLoggingCallback(unittest.TestCase):
             current_epoch=0,
             num_epochs=0,
             global_step=0,
+            num_steps=0,
             train_dataloader=None,
             num_train_batches=1,
             test_dataloader=None,

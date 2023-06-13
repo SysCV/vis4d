@@ -17,10 +17,7 @@ class CheckpointCallback(Callback):
     """Callback for model checkpointing."""
 
     def __init__(
-        self,
-        *args: ArgsType,
-        save_prefix: str,
-        **kwargs: ArgsType,
+        self, *args: ArgsType, save_prefix: str, **kwargs: ArgsType
     ) -> None:
         """Init callback.
 

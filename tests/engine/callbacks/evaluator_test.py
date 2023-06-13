@@ -6,11 +6,11 @@ import unittest
 import torch
 
 from tests.util import MockModel, get_test_data
-from vis4d.config.common.datasets import CONN_COCO_BBOX_EVAL
+from vis4d.config.common.datasets.coco import CONN_COCO_MASK_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
 from vis4d.engine.connectors import CallbackConnector
-from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.eval.coco import COCODetectEvaluator
 
 
 class TestEvaluatorCallback(unittest.TestCase):
@@ -21,12 +21,13 @@ class TestEvaluatorCallback(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
 
         self.callback = EvaluatorCallback(
-            evaluator=COCOEvaluator(
+            evaluator=COCODetectEvaluator(
                 data_root=get_test_data("coco_test"), split="train"
             ),
             save_predictions=True,
+            metrics_to_eval=[COCODetectEvaluator.METRIC_DET],
             save_prefix=self.test_dir,
-            test_connector=CallbackConnector(CONN_COCO_BBOX_EVAL),
+            test_connector=CallbackConnector(CONN_COCO_MASK_EVAL),
         )
 
         self.callback.setup()
@@ -45,20 +46,24 @@ class TestEvaluatorCallback(unittest.TestCase):
         """Removes the tmp directory after the test."""
         shutil.rmtree(self.test_dir)
 
-    def test_on_test_batch_end(self) -> None:
-        """Test on_test_batch_end function."""
+    def test_evaluator_callback(self) -> None:
+        """Test evaluator callback function."""
         self.callback.on_test_batch_end(
             self.trainer_state,
             MockModel(0),
             outputs={
-                "boxes": [torch.zeros((0, 4))],
-                "scores": [torch.zeros((0, 1))],
-                "class_ids": [torch.zeros((0, 1))],
+                "boxes": {
+                    "boxes": [torch.zeros((2, 4))],
+                    "scores": [torch.zeros((2, 1))],
+                    "class_ids": [torch.zeros((2, 1))],
+                },
+                "masks": [torch.zeros((2, 10, 10))],
             },
-            batch={K.sample_names: [0]},
+            batch={K.sample_names: [397133]},
             batch_idx=0,
         )
 
-    def test_on_test_epoch_end(self) -> None:
-        """Test on_test_epoch_end function."""
-        self.callback.on_test_epoch_end(self.trainer_state, MockModel(0))
+        log_dict = self.callback.on_test_epoch_end(
+            self.trainer_state, MockModel(0)
+        )
+        self.assertEqual(log_dict["Det/AP"], 0.0)

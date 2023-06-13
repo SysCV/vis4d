@@ -7,7 +7,7 @@ from vis4d.common import DictStrAny
 
 
 def get_dict_nested(  # type: ignore
-    dictionary: DictStrAny, keys: list[str]
+    dictionary: DictStrAny, keys: list[str], allow_missing: bool = False
 ) -> Any:
     """Get a value from a nested dictionary.
 
@@ -15,6 +15,9 @@ def get_dict_nested(  # type: ignore
         dictionary (DictStrAny): The dictionary to get the value from.
         keys (list[str]): A list of keys specifying the location in the nested
             dictionary where the value is located.
+        allow_missing (bool, optional): Whether to allow missing keys. Defaults
+            to False. If False, a ValueError is raised if a key is not present,
+            otherwise None is returned.
 
     Returns:
         list[str]: The value from the dictionary.
@@ -32,6 +35,8 @@ def get_dict_nested(  # type: ignore
     """
     for key in keys:
         if key not in dictionary:
+            if allow_missing:
+                return None
             raise ValueError(
                 f"Key {key} not in dictionary! Current keys: "
                 f"{dictionary.keys()}"

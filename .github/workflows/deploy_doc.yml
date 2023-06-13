@@ -27,7 +27,7 @@ jobs:
           cd docs
           make html
       - name: deploy website to AWS
-        uses: kersvers/s3-sync-with-cloudfront-invalidation@v1.0.0
+        uses: jakejarvis/s3-sync-action@master
         with:
           args: --acl public-read --follow-symlinks --exclude ".DS_Store"
         env:

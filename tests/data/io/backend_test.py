@@ -78,3 +78,26 @@ class TestBackends(unittest.TestCase):
         my_str = "Hello world!"
         gen_str = str_decode(my_str.encode(sys.getdefaultencoding()))
         self.assertTrue(my_str == gen_str)
+
+    def test_get_path(self) -> None:
+        """Test file path parsing."""
+        backend_hdf5 = HDF5Backend()
+        backend_zip = ZipBackend()
+
+        (
+            path,
+            keys,
+        ) = backend_hdf5._get_hdf5_path(  # pylint: disable=protected-access
+            "/usr/test.hdf5/test/test.jpg", allow_omitted_ext=False
+        )
+        self.assertEqual(path, "/usr/test.hdf5")
+        self.assertEqual(keys, ["test.jpg", "test"])
+
+        (
+            path,
+            keys,
+        ) = backend_zip._get_zip_path(  # pylint: disable=protected-access
+            "/usr/test.zip/test/test.jpg", allow_omitted_ext=False
+        )
+        self.assertEqual(path, "/usr/test.zip")
+        self.assertEqual(keys, ["test.jpg", "test"])

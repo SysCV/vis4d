@@ -55,7 +55,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         """Inference test."""
         cc_3dt = FasterRCNNCC3DT(
             num_classes=len(nuscenes_track_map),
-            class_range_map=torch.Tensor(nuscenes_class_range_map),
+            class_range_map=nuscenes_class_range_map,
             weights=self.model_weights,
         )
 
@@ -117,8 +117,6 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
                 if cur_iter == 1:
                     break
 
-        # TODO: The current results don't use bev nms due to detetron2
-        # dependency. We will need to update the test case.
         testcase_gt_list = torch.load(get_test_file("cc_3dt.pt"))
         for tracks, testcase_gt in zip(tracks_list, testcase_gt_list):
             for pred, expected in zip(tracks, testcase_gt):

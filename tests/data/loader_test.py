@@ -62,12 +62,13 @@ class DataLoaderTest(unittest.TestCase):
         assert len(batch) == 2
         assert set(batch[0].keys()) == {
             "images",
-            "original_hw",
             "input_hw",
+            "original_images",
+            "original_hw",
             "axis_mode",
             "frame_ids",
-            "name",
-            "videoName",
+            "sample_names",
+            "sequence_names",
             "boxes2d",
             "boxes2d_classes",
             "boxes2d_track_ids",
