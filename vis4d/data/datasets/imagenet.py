@@ -127,11 +127,14 @@ class ImageNet(Dataset):
             assert im_bytes is not None, f"Could not extract {member.name}!"
             image = im_decode(im_bytes.read())
 
-        data_dict = {}
+        data_dict: DictData = {}
         if K.images in self.keys_to_load:
             data_dict[K.images] = np.ascontiguousarray(
                 image, dtype=np.float32
             )[np.newaxis, ...]
+            image_hw = image.shape[:2]
+            data_dict[K.input_hw] = image_hw
+            data_dict[K.original_hw] = image_hw
         if K.categories in self.keys_to_load:
             data_dict[K.categories] = to_onehot(
                 np.array(class_idx, dtype=np.int64), self.num_classes

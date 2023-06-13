@@ -24,7 +24,7 @@ from vis4d.data.transforms.flip import (
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
-    GenResizeParameters,
+    GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
     ResizeInstanceMasks,
@@ -71,7 +71,7 @@ def get_train_dataloader(
     # Train Preprocessing
     preprocess_transforms = [
         class_config(
-            GenResizeParameters,
+            GenerateResizeParameters,
             shape=image_size,
             keep_ratio=True,
             align_long_edge=True,
@@ -142,7 +142,7 @@ def get_test_dataloader(
     # Test Preprocessing
     preprocess_transforms = [
         class_config(
-            GenResizeParameters,
+            GenerateResizeParameters,
             shape=image_size,
             keep_ratio=True,
             align_long_edge=True,

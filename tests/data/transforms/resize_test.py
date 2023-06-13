@@ -4,7 +4,7 @@ import numpy as np
 
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.resize import (
-    GenResizeParameters,
+    GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImage,
     ResizeInstanceMasks,
@@ -22,7 +22,9 @@ def test_resize() -> None:
             boxes2d=np.ones((1, 4), dtype=np.float32),
         )
     )
-    tr1 = GenResizeParameters(shape=(16, 16), in_keys=["img"], sensors=["cam"])
+    tr1 = GenerateResizeParameters(
+        shape=(16, 16), in_keys=["img"], sensors=["cam"]
+    )
     data = tr1.apply_to_data(data)
     tr2 = ResizeImage(
         in_keys=[

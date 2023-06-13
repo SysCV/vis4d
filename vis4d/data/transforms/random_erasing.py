@@ -55,10 +55,10 @@ class RandomErasing:
 
     def __call__(self, images: NDArrayNumber) -> NDArrayNumber:
         """Execute the transform."""
-        fill = np.array(self.mean).reshape((3, 1, 1))
+        fill = np.array(self.mean)
         for i in range(images.shape[0]):
             image = images[i]
-            h, w = image.shape[1:3]
+            h, w = image.shape[0:2]
             area = h * w
 
             for _ in range(self.num_attempt):
@@ -74,9 +74,9 @@ class RandomErasing:
                     x_erase = np.random.randint(0, w - w_erase)
                     y_erase = np.random.randint(0, h - h_erase)
                     image[
-                        :,
                         y_erase : y_erase + h_erase,
                         x_erase : x_erase + w_erase,
+                        :,
                     ] = fill
                     break
         return images

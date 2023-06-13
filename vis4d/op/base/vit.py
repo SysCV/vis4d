@@ -1,25 +1,13 @@
 """Residual networks for classification."""
 from __future__ import annotations
 
-from typing import NamedTuple
-
 import torch
 from timm.models.helpers import named_apply
 from timm.models.layers import trunc_normal_
 from torch import nn
 
 from ..layer import PatchEmbed, TransformerBlock
-
-
-class ViTOut(NamedTuple):
-    """Output of the ViT operator.
-
-    features: Final output of the network.
-    intermediate_features: Intermediate features of each transformer block.
-    """
-
-    features: torch.Tensor
-    intermediate_features: list[torch.Tensor]
+from .base import BaseModel
 
 
 def _init_weights_vit_timm(module: nn.Module) -> None:
@@ -32,7 +20,7 @@ def _init_weights_vit_timm(module: nn.Module) -> None:
         module.init_weights()  # type: ignore[operator]
 
 
-class VisionTransformer(nn.Module):
+class VisionTransformer(BaseModel):
     """Vision Transformer (ViT) model without classification head.
 
     A PyTorch impl of : `An Image is Worth 16x16 Words: Transformers for
@@ -185,7 +173,7 @@ class VisionTransformer(nn.Module):
         """Return the number of output channels per feature level."""
         return [self.embed_dim] * (self.num_depth + 1)
 
-    def __call__(self, data: torch.Tensor) -> ViTOut:
+    def __call__(self, data: torch.Tensor) -> list[torch.Tensor]:
         """Applies the ViT encoder.
 
         Args:
@@ -194,25 +182,26 @@ class VisionTransformer(nn.Module):
         """
         return self._call_impl(data)
 
-    def forward(self, images: torch.Tensor) -> ViTOut:
+    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """Forward pass.
 
         Args:
             images (torch.Tensor): Input images tensor of shape (B, C, H, W).
 
         Returns:
-            ViTOut: Output of the ViT model, features and intermediate features
-                - features: features after the last transformer block, in shape
-                     (B, num_patches, dim)
-                - intermediate_features: features after each transformer block,
-                    list of L tensors, each in shape (B, num_patches, dim).
+            feats (list[torch.Tensor]): Features of the input images extracted
+                by the ViT encoder. feats[0] is the input images, and feats[1]
+                is the output of the patch embedding layer. The rest of the
+                elements are the outputs of each transformer block, with the
+                shape (B, N, dim), where N is the number of patches, and dim
+                is the embedding dimension. The final element is the output of
+                the ViT encoder.
         """
-        feats = []
+        feats = [images]
         x = self.patch_embed(images)
-        x = self._pos_embed(x)
-        x = self.norm_pre(x)
+        x = self.norm_pre(self._pos_embed(x))
+        feats.append(x)
         for blk in self.blocks:
             x = blk(x)
             feats.append(x)
-
-        return ViTOut(features=feats[-1], intermediate_features=feats[:-1])
+        return feats

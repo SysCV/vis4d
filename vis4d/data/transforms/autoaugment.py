@@ -28,10 +28,13 @@ AugOp = Union[AutoAugment, RandAugment, AugMixAugment]
 def _apply_aug(images: NDArrayUI8, aug_op: AugOp) -> NDArrayUI8:
     """Apply augmentation to a batch of images with shape [N, H, W, C]."""
     assert images.shape[-1] == 3, "Images must be in RGB format."
-    pil_imgs = [Image.fromarray(image) for image in images]
-    for i, img in enumerate(pil_imgs):
-        pil_imgs[i] = aug_op(img)
-    return np.stack([np.array(img) for img in pil_imgs])
+    imgs: list[Image.Image] = []
+    for img in images:
+        # convert to uint8 if necessary
+        if img.dtype != np.uint8:
+            img = img.astype(np.uint8)
+        imgs.append(aug_op(Image.fromarray(img)))
+    return np.stack([np.array(img).astype(np.float32) for img in imgs])
 
 
 @Transform(K.images, K.images)

@@ -25,7 +25,7 @@ class ResizeParam(TypedDict):
 
 
 @Transform(K.images, ["transforms.resize", K.input_hw])
-class GenResizeParameters:
+class GenerateResizeParameters:
     """Generate the parameters for a resize operation."""
 
     def __init__(
@@ -35,6 +35,7 @@ class GenResizeParameters:
         multiscale_mode: str = "range",
         scale_range: tuple[float, float] = (1.0, 1.0),
         align_long_edge: bool = False,
+        allow_overflow: bool = False,
         interpolation: str = "bilinear",
     ) -> None:
         """Creates an instance of the class.
@@ -56,6 +57,10 @@ class GenResizeParameters:
                 long edge of the original image, e.g. original shape=(100, 80),
                 shape to be resized=(100, 200) will yield (125, 100) as new
                 shape. Defaults to False.
+            allow_overflow (bool, optional): If set to True, we scale the image
+                to the smallest size such that it is no smaller than shape.
+                Otherwise, we scale the image to the largest size such that it
+                is no larger than shape. Defaults to False.
             interpolation (str, optional): Interpolation method. One of
                 ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
         """
@@ -64,6 +69,7 @@ class GenResizeParameters:
         self.multiscale_mode = multiscale_mode
         self.scale_range = scale_range
         self.align_long_edge = align_long_edge
+        self.allow_overflow = allow_overflow
         self.interpolation = interpolation
 
     def __call__(
@@ -78,6 +84,7 @@ class GenResizeParameters:
             self.multiscale_mode,
             self.scale_range,
             self.align_long_edge,
+            self.allow_overflow,
         )
         scale_factor = (
             target_shape[1] / im_shape[1],
@@ -156,9 +163,9 @@ class ResizeImage:
         return image_.permute(0, 2, 3, 1).numpy()
 
 
-# NOTE: This has a different behavior than the GenResizeParameters.
+# NOTE: This has a different behavior than the GenerateResizeParameters.
 # It supports resize the image the match the short edge while keeping the
-# aspect ratio. Need to merge GenResizeParameters later.
+# aspect ratio. Need to merge GenerateResizeParameters later.
 @Transform(in_keys=(K.images,), out_keys=(K.images, K.input_hw))
 class ResizeImageTorchVision:
     """Resize image with antialiasing using torchvision.transforms."""
@@ -271,16 +278,23 @@ def get_resize_shape(
     new_shape: tuple[int, int],
     keep_ratio: bool = True,
     align_long_edge: bool = False,
+    allow_overflow: bool = False,
 ) -> tuple[int, int]:
     """Get shape for resize, considering keep_ratio and align_long_edge."""
     h, w = original_shape
     new_h, new_w = new_shape
     if keep_ratio:
+        if allow_overflow:
+            comp_fn = max
+        else:
+            comp_fn = min
         if align_long_edge:
             long_edge, short_edge = max(new_shape), min(new_shape)
-            scale_factor = min(long_edge / max(h, w), short_edge / min(h, w))
+            scale_factor = comp_fn(
+                long_edge / max(h, w), short_edge / min(h, w)
+            )
         else:
-            scale_factor = min(new_w / w, new_h / h)
+            scale_factor = comp_fn(new_w / w, new_h / h)
         new_h = int(h * scale_factor + 0.5)
         new_w = int(w * scale_factor + 0.5)
     return new_h, new_w
@@ -293,6 +307,7 @@ def get_target_shape(
     multiscale_mode: str = "range",
     scale_range: tuple[float, float] = (1.0, 1.0),
     align_long_edge: bool = False,
+    allow_overflow: bool = False,
 ) -> tuple[int, int]:
     """Generate possibly random target shape."""
     assert multiscale_mode in {"list", "range"}
@@ -328,5 +343,7 @@ def get_target_shape(
         assert isinstance(shape, list)
         shape = random.choice(shape)
 
-    shape = get_resize_shape(input_shape, shape, keep_ratio, align_long_edge)
+    shape = get_resize_shape(
+        input_shape, shape, keep_ratio, align_long_edge, allow_overflow
+    )
     return shape

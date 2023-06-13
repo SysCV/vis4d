@@ -18,7 +18,7 @@ class ViTClassifer(nn.Module):
         variant: str = "",
         num_classes: int = 1000,
         use_global_pooling: bool = False,
-        pretrained: bool = False,
+        pretrained: bool | str = False,
         num_prefix_tokens: int = 1,
         **kwargs: ArgsType,
     ) -> None:
@@ -26,20 +26,20 @@ class ViTClassifer(nn.Module):
 
         Args:
             variant (str): Name of the ViT variant. Defaults to "". If set,
-                the specified ViT will be loaded from timm or torchvision.
-                For timm, the variant name should be in the format of
-                "vit_{type}_{patch}_{image_size}". For torchvision, the variant
-                name should be in the format of "vit_{type}_{patch}". For
-                example, "vit_small_patch16_224" for timm and "vit_s_16" for
-                torchvision. For timm, you can also leave the variant name
-                empty and specify the model parameters in the kwargs.
+                the specified ViT model will be loaded from timm's model zoo.
+                All other model-related arguments will be ignored. Otherwise,
+                a ViT model will be built from scratch.
             num_classes (int, optional): Number of classes. Defaults to 1000.
             use_global_pooling (bool, optional): If to use global pooling.
                 Defaults to False. If set to True, the output of the ViT will
                 be averaged over the spatial dimensions. Otherwise, the first
                 token will be used for classification.
-            pretrained (bool, optional): Whether to load ImageNet pre-trained
-                weights. Defaults to False.
+            pretrained (bool | str, optional): Whether to load pretrained ViT
+                weights. If the variant is specified and pretrained is True,
+                the corresponding pretrained weights will be loaded from timm's
+                model zoo. If pretrained is a string, it will be treated as the
+                URL to the pretrained weights. Defaults to False, which means
+                no pretrained weights will be loaded.
             num_prefix_tokens (int, optional): Number of prefix tokens.
                 Defaults to 1.
             **kwargs: Keyword arguments passed to the ViT model.

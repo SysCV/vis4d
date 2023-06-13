@@ -238,6 +238,7 @@ def default_collate(batch: list[DictData]) -> DictData:
                 K.intrinsics,
                 K.depth_maps,
                 K.optical_flows,
+                K.categories,
             ]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:

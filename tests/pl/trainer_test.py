@@ -49,7 +49,7 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for training."""
     preprocess_fn = compose(
         [
-            resize.GenResizeParameters((64, 64)),
+            resize.GenerateResizeParameters((64, 64)),
             resize.ResizeImage(),
             resize.ResizeInstanceMasks(),
             normalize.NormalizeImage(),
