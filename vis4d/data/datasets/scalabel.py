@@ -25,7 +25,7 @@ from vis4d.common.typing import (
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
-from vis4d.data.io import DataBackend, FileBackend
+from vis4d.data.io import DataBackend
 from vis4d.data.typing import DictData
 from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,

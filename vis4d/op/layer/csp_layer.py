@@ -5,7 +5,7 @@ Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .conv2d import Conv2d
 

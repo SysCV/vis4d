@@ -9,3 +9,9 @@ CONN_BBOX_2D_VIS = {
     "scores": pred_key("scores"),
     "class_ids": pred_key("class_ids"),
 }
+
+CONN_INS_MASK_2D_VIS = {
+    "images": data_key(K.original_images),
+    "image_names": data_key(K.sample_names),
+    "masks": pred_key("masks.masks"),
+}

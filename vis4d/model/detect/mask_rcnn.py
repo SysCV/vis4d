@@ -103,15 +103,19 @@ class MaskRCNN(nn.Module):
         self.transform_outs = RoI2Det(rcnn_box_decoder)
         self.det2mask = Det2Mask()
 
-        if weights == "mmdet":
-            weights = (
-                "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
-                "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
-                "20200505_003907-3e542a40.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights is not None:
-            load_model_checkpoint(self, weights)
+        if weights is not None:
+            if weights == "mmdet":
+                weights = (
+                    "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
+                    "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
+                    "20200505_003907-3e542a40.pth"
+                )
+            if weights.startswith("mmdet://") or weights.startswith(
+                "bdd100k://"
+            ):
+                load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
+            else:
+                load_model_checkpoint(self, weights)
 
     def forward(
         self,

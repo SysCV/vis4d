@@ -7,7 +7,7 @@ from __future__ import annotations
 import math
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from vis4d.op.layer import Conv2d, CSPLayer
 
@@ -38,6 +38,7 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
         in_channels: list[int],
         out_channels: int,
         num_csp_blocks: int = 3,
+        start_index: int = 2,
         init_cfg=dict(
             type="Kaiming",
             layer="Conv2d",
@@ -51,6 +52,7 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
         super().__init__()  # TODO: init_cfg
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.start_index = start_index
 
         # build top-down blocks
         self.upsample = nn.Upsample(scale_factor=2, mode="nearest")
@@ -129,6 +131,10 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
         Returns:
             list[Tensor]: YOLOXPAFPN features.
         """
+        images, features = (
+            features[: self.start_index],
+            features[self.start_index :],
+        )
         assert len(features) == len(self.in_channels)
 
         # top-down path
@@ -163,7 +169,7 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
         for idx, conv in enumerate(self.out_convs):
             outs[idx] = conv(outs[idx])
 
-        return outs
+        return images + outs
 
     def __call__(self, features: list[torch.Tensor]) -> list[torch.Tensor]:
         """Type definition for call implementation."""

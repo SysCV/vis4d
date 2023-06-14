@@ -12,8 +12,6 @@ from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.common import DictStrAny
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.io.base import DataBackend
-from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
 from .base import Dataset

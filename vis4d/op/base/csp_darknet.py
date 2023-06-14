@@ -2,6 +2,8 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+from __future__ import annotations
+
 import math
 from collections.abc import Sequence
 
@@ -9,6 +11,7 @@ import torch
 import torch.nn as nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from vis4d.common import DictStrAny
 from vis4d.op.layer import Conv2d, CSPLayer
 
 
@@ -18,14 +21,8 @@ class Focus(nn.Module):
     Args:
         in_channels (int): The input channels of this Module.
         out_channels (int): The output channels of this Module.
-        kernel_size (int): The kernel size of the convolution. Default: 1
-        stride (int): The stride of the convolution. Default: 1
-        conv_cfg (dict): Config dict for convolution layer. Default: None,
-            which means using conv2d.
-        norm_cfg (dict): Config dict for normalization layer.
-            Default: dict(type='BN', momentum=0.03, eps=0.001).
-        act_cfg (dict): Config dict for activation layer.
-            Default: dict(type='Swish').
+        kernel_size (int): The kernel size of the convolution. Default: 1.
+        stride (int): The stride of the convolution. Default: 1.
     """
 
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1):
@@ -42,7 +39,8 @@ class Focus(nn.Module):
             activation=nn.SiLU(inplace=True),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         # shape of x (b,c,w,h) -> y(b,4c,w/2,h/2)
         patch_top_left = x[..., ::2, ::2]
         patch_top_right = x[..., ::2, 1::2]
@@ -68,14 +66,6 @@ class SPPBottleneck(nn.Module):
         out_channels (int): The output channels of this Module.
         kernel_sizes (tuple[int]): Sequential of kernel sizes of pooling
             layers. Default: (5, 9, 13).
-        conv_cfg (dict): Config dict for convolution layer. Default: None,
-            which means using conv2d.
-        norm_cfg (dict): Config dict for normalization layer.
-            Default: dict(type='BN').
-        act_cfg (dict): Config dict for activation layer.
-            Default: dict(type='Swish').
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-            Default: None.
     """
 
     def __init__(self, in_channels, out_channels, kernel_sizes=(5, 9, 13)):
@@ -107,7 +97,8 @@ class SPPBottleneck(nn.Module):
             activation=nn.SiLU(inplace=True),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         x = self.conv1(x)
         x = torch.cat([x] + [pooling(x) for pooling in self.poolings], dim=1)
         x = self.conv2(x)
@@ -133,16 +124,12 @@ class CSPDarknet(nn.Module):
         arch_ovewrite(list): Overwrite default arch settings. Default: None.
         spp_kernal_sizes: (tuple[int]): Sequential of kernel sizes of SPP
             layers. Default: (5, 9, 13).
-        conv_cfg (dict): Config dict for convolution layer. Default: None.
-        norm_cfg (dict): Dictionary to construct and config norm layer.
-            Default: dict(type='BN', requires_grad=True).
-        act_cfg (dict): Config dict for activation layer.
-            Default: dict(type='LeakyReLU', negative_slope=0.1).
         norm_eval (bool): Whether to set norm layers to eval mode, namely,
             freeze running stats (mean and var). Note: Effect on Batch Norm
             and its variants only.
         init_cfg (dict or list[dict], optional): Initialization config dict.
             Default: None.
+
     Example:
         >>> from mmdet.models import CSPDarknet
         >>> import torch
@@ -183,9 +170,9 @@ class CSPDarknet(nn.Module):
         widen_factor: float = 1.0,
         out_indices: Sequence[int] = (2, 3, 4),
         frozen_stages: int = -1,
-        arch_ovewrite=None,
-        spp_kernal_sizes=(5, 9, 13),
-        norm_eval=False,
+        arch_ovewrite: DictStrAny | None = None,
+        spp_kernal_sizes: Sequence[int] = (5, 9, 13),
+        norm_eval: bool = False,
         init_cfg=dict(
             type="Kaiming",
             layer="Conv2d",
@@ -256,7 +243,8 @@ class CSPDarknet(nn.Module):
             self.add_module(f"stage{i + 1}", nn.Sequential(*stage))
             self.layers.append(f"stage{i + 1}")
 
-    def _freeze_stages(self):
+    def _freeze_stages(self) -> None:
+        """Freeze stages."""
         if self.frozen_stages >= 0:
             for i in range(self.frozen_stages + 1):
                 m = getattr(self, self.layers[i])
@@ -264,7 +252,8 @@ class CSPDarknet(nn.Module):
                 for param in m.parameters():
                     param.requires_grad = False
 
-    def train(self, mode=True):
+    def train(self, mode=True) -> None:
+        """Override the train mode for the model."""
         super().train(mode)
         self._freeze_stages()
         if mode and self.norm_eval:
@@ -272,11 +261,13 @@ class CSPDarknet(nn.Module):
                 if isinstance(m, _BatchNorm):
                     m.eval()
 
-    def forward(self, x):
-        outs = []
+    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
+        """Forward pass."""
+        outs = [images, images]
+        x = images
         for i, layer_name in enumerate(self.layers):
             layer = getattr(self, layer_name)
             x = layer(x)
             if i in self.out_indices:
                 outs.append(x)
-        return tuple(outs)
+        return outs

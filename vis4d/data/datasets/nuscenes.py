@@ -14,7 +14,6 @@ from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import Dataset, VideoMixin
 from vis4d.data.datasets.util import CacheMappingMixin, im_decode
-from vis4d.data.io import DataBackend, FileBackend
 from vis4d.data.typing import DictData
 from vis4d.op.box.box3d import boxes3d_to_corners
 from vis4d.op.geometry.projection import project_points

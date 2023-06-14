@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""Faster RCNN COCO training example."""
+"""Mask RCNN BDD100K training example."""
 from __future__ import annotations
 
 import lightning.pytorch as pl
@@ -7,10 +7,11 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets.coco.yolox import (
-    CONN_COCO_BBOX_EVAL,
-    get_coco_yolox_cfg,
+from vis4d.config.common.datasets.bdd100k import (
+    CONN_BDD100K_INS_EVAL,
+    get_bdd100k_detection_config,
 )
+from vis4d.config.common.models import get_mask_rcnn_cfg
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -19,20 +20,25 @@ from vis4d.config.default import (
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
-    CONN_BBOX_2D_VIS,
+    CONN_INS_MASK_2D_VIS,
 )
 from vis4d.config.util import get_optimizer_cfg
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
-from vis4d.engine.connectors import CallbackConnector, DataConnector
+from vis4d.engine.connectors import (
+    CallbackConnector,
+    DataConnector,
+    remap_pred_keys,
+)
 from vis4d.engine.optim.warmup import LinearLRWarmup
-from vis4d.eval.coco import COCODetectEvaluator
-from vis4d.model.detect.yolox import YOLOX
-from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.eval.bdd100k import BDD100KDetectEvaluator
+from vis4d.op.base import ResNet
+from vis4d.vis.image import SegMaskVisualizer
 
 
 def get_config() -> FieldConfigDict:
-    """Returns the YOLOX config dict for the coco detection task.
+    """Returns the Mask R-CNN config dict for BDD100K instance segmentation.
 
     Returns:
         FieldConfigDict: The configuration
@@ -40,30 +46,33 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="yolox_x_coco")
+    config = get_default_cfg(exp_name="mask_rcnn_r50_3x_bdd100k")
 
     # High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
-    params.lr = 0.01
-    params.num_epochs = 12
-    params.num_classes = 80
+    params.lr = 0.02
+    params.num_epochs = 36
+    params.num_classes = 8
     config.params = params
 
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data_root = "data/coco"
-    train_split = "train2017"
-    test_split = "val2017"
+    data_root = "data/bdd100k/images/10k"
+    train_split = "train"
+    test_split = "val"
 
     data_backend = class_config(HDF5Backend)
 
-    config.data = get_coco_yolox_cfg(
+    config.data = get_bdd100k_detection_config(
         data_root=data_root,
         train_split=train_split,
+        train_keys_to_load=(K.images, K.boxes2d, K.instance_masks),
         test_split=test_split,
+        test_keys_to_load=(K.images, K.original_images),
+        ins_seg=True,
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
@@ -72,8 +81,14 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                  MODEL & LOSS                    ##
     ######################################################
-    config.model = class_config(
-        YOLOX, num_classes=params.num_classes, weights="mmdet"
+    basemodel = class_config(
+        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+    )
+
+    config.model, config.loss = get_mask_rcnn_cfg(
+        num_classes=params.num_classes,
+        basemodel=basemodel,
+        weights="bdd100k://ins_seg/models/mask_rcnn_r50_fpn_3x_ins_seg_bdd100k.pth",
     )
 
     ######################################################
@@ -82,10 +97,10 @@ def get_config() -> FieldConfigDict:
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
-                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
+                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
             lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
+                MultiStepLR, milestones=[24, 33], gamma=0.1
             ),
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
@@ -116,10 +131,10 @@ def get_config() -> FieldConfigDict:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
+            visualizer=class_config(SegMaskVisualizer, vis_freq=25),
             save_prefix=config.output_dir,
             test_connector=class_config(
-                CallbackConnector, key_mapping=CONN_BBOX_2D_VIS
+                CallbackConnector, key_mapping=CONN_INS_MASK_2D_VIS
             ),
         )
     )
@@ -129,11 +144,12 @@ def get_config() -> FieldConfigDict:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                COCODetectEvaluator, data_root=data_root, split=test_split
+                BDD100KDetectEvaluator,
+                annotation_path="data/bdd100k/labels/ins_seg_val_rle.json",
+                config_path="ins_seg",
             ),
-            metrics_to_eval=["Det"],
             test_connector=class_config(
-                CallbackConnector, key_mapping=CONN_COCO_BBOX_EVAL
+                CallbackConnector, key_mapping=CONN_BDD100K_INS_EVAL
             ),
         )
     )

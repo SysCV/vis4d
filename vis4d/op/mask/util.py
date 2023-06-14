@@ -207,6 +207,26 @@ def clip_mask(mask: Tensor, target_shape: tuple[int, int]) -> Tensor:
     return mask[:, : target_shape[0], : target_shape[1]]
 
 
+def remove_overlap(mask: Tensor, score: Tensor) -> Tensor:
+    """Remove overlapping pixels between masks.
+
+    Args:
+        mask (Tensor): Mask with shape [N, H, W].
+        score (Tensor): Score with shape [N].
+
+    Returns:
+        Tensor: Mask with shape [N, H, W].
+    """
+    foreground = torch.zeros(
+        mask.shape[1:], dtype=torch.bool, device=mask.device
+    )
+    sort_idx = score.argsort(descending=True)
+    for i in sort_idx:
+        mask[i] = torch.logical_and(mask[i], ~foreground)
+        foreground = torch.logical_or(mask[i], foreground)
+    return mask
+
+
 def postprocess_segms(
     segms: Tensor,
     images_hw: list[tuple[int, int]],

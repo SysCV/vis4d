@@ -39,6 +39,12 @@ class YOLOX(nn.Module):
 
         Args:
             num_classes (int): Number of classes.
+            basemodel (BaseModel, optional): Base model. Defaults to None. If
+                None, will use CSPDarknet.
+            fpn (FeaturePyramidProcessing, optional): Feature Pyramid
+                Processing. Defaults to None. If None, will use YOLOXPAFPN.
+            yolox_head (YOLOXHead, optional): YOLOX head. Defaults to None. If
+                None, will use YOLOXHead.
             weights (None | str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
