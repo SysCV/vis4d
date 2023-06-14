@@ -43,7 +43,7 @@ def release_model_weights(
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
 
-    # Get the hexadecimal representation of the hash - only take first 6 characters for brevity
+    # Get the hexadecimal representation of the hash
     short_hash = sha256_hash.hexdigest()[:6]
     os.rename(
         os.path.join(path, filename),
@@ -54,13 +54,14 @@ def release_model_weights(
 def main() -> None:
     """Main function."""
     parser = argparse.ArgumentParser(
-        description="Save PyTorch Lightning model weights with a filename hash."
+        description="Save trained model checkpoint with a filename hash."
     )
+    parser.add_argument("path", type=str, help="The path to the checkpoint.")
     parser.add_argument(
-        "path", type=str, help="The path to the PyTorch Lightning model."
-    )
-    parser.add_argument(
-        "--outdir", type=str, help="The path to output the model."
+        "--outdir",
+        type=str,
+        help="The path to output the model.",
+        default=".vis4d-workspace/release",
     )
     parser.add_argument(
         "--name", type=str, help="The path to output the model."

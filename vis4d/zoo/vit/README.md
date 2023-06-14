@@ -61,8 +61,8 @@ vit_classifer = ViTClassifer(
 
 | Model                                           |   Train data   | Params (M) | Top-1 (%) | Top-5 (%) |                    Config                    |                           Download                           |
 | :---------------------------------------------- | :----------: | :--------: | :-------: | :-------: | :------------------------------------------: | :----------------------------------------------------------: |
-| vit-tiny-patch16  | ImageNet-1k |   22.04   |   72.51   |   90.75   | [config](vit_tiny_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_tiny_patch16_imagenet1k_ccdf98.pth) |
-| vit-small-patch16  | ImageNet-1k |   44.30   |   78.31   |   93.53   | [config](vit_small_imagenet.py)  | [model]() |
+| vit-tiny-patch16  | ImageNet-1k |   11.45   |   72.51   |   90.75   | [config](vit_tiny_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_tiny_patch16_imagenet1k_ccdf98.pth) |
+| vit-small-patch16  | ImageNet-1k |   44.15   |   78.31   |   93.53   | [config](vit_small_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_small_patch16_imagenet1k_3773a7.pth) |
 | vit-base-patch16\* | ImageNet-1k |   86.57   |   82.37	  |   96.15   | [config](vit_base_imagenet.py)  | [model]() |
 
 
