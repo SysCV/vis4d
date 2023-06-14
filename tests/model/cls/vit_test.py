@@ -112,7 +112,7 @@ class ViTClassifierTest(unittest.TestCase):
         vit_classifer = ViTClassifer(
             variant="vit_small_patch16_224",
             num_classes=1000,
-            weights="timm://vit_small_patch16_224.augreg_in21k",
+            weights="timm://vit_small_patch16_224.augreg_in21k_ft_in1k",
         )
         vit_classifer.eval()
 
