@@ -9,7 +9,7 @@ from copy import deepcopy
 from typing import Any
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from vis4d.common.named_tuple import is_namedtuple
 
@@ -218,3 +218,55 @@ def move_data_to_device(  # type: ignore
     return apply_to_collection(
         batch, dtype=TransferableDataType, function=batch_to
     )
+
+
+class ModelEMA(nn.Module):
+    """Torch module with Exponential Moving Average (EMA)."""
+
+    def __init__(
+        self,
+        model: nn.Module,
+        decay: float = 0.9998,
+        device: torch.device | None = None,
+    ):
+        """Init ModelEMA class.
+
+        Args:
+            model (nn.Module): model to apply EMA.
+            decay (float): Decay factor for EMA. Defaults to 0.9998.
+            device (torch.device | None): Device to use. Defaults to None.
+        """
+        super().__init__()
+        self.module = deepcopy(model)
+        self.module.eval()
+        self.decay = decay
+        self.device = device
+        if self.device is not None:
+            self.module.to(device=device)
+
+    def _update(
+        self, model: nn.Module, update_fn: Callable[[Tensor, Tensor], Tensor]
+    ) -> None:
+        """Update model params."""
+        with torch.no_grad():
+            for ema_v, model_v in zip(
+                self.module.state_dict().values(), model.state_dict().values()
+            ):
+                if self.device is not None:
+                    model_v = model_v.to(device=self.device)
+                ema_v.copy_(update_fn(ema_v, model_v))
+
+    def update(self, model: nn.Module) -> None:
+        """Update model params with EMA."""
+        self._update(
+            model,
+            update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,
+        )
+
+    def set(self, model: nn.Module) -> None:
+        """Copy model params into EMA."""
+        self._update(model, update_fn=lambda e, m: m)
+
+    def forward(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
+        """Forward pass."""
+        return self.module(*args, **kwargs)

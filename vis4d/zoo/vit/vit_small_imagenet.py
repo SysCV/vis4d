@@ -45,6 +45,7 @@ def get_config() -> FieldConfigDict:
     config = get_default_cfg(exp_name="vit_small_16_imagenet1k")
     config.sync_batchnorm = True
     config.check_val_every_n_epoch = 1
+    config.ema_decay_rate = 0.99996
 
     ## High level hyper parameters
     params = FieldConfigDict()
