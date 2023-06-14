@@ -39,7 +39,8 @@ class ImageNetTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         self.assertEqual(
-            tuple(self.dataset[0].keys()), ("images", "categories")
+            set(self.dataset[0].keys()),
+            {"images", "categories", "input_hw", "original_hw"},
         )
         assert (self.dataset[0][K.categories] == np.array([1.0, 0.0])).all()
         assert (self.dataset[1][K.categories] == np.array([0.0, 1.0])).all()

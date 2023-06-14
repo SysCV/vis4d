@@ -14,7 +14,7 @@ def test_random_erasing() -> None:
         mean=(1.0, 0.0, 0.0),
     )
     batch_size = 4
-    x = np.zeros((batch_size, 3, 10, 10), dtype=np.float32)
+    x = np.zeros((batch_size, 10, 10, 3), dtype=np.float32)
 
     x = transform(x)
 
@@ -22,9 +22,9 @@ def test_random_erasing() -> None:
     # regardless of the location of the erased region.
     for i in range(batch_size):
         assert np.isclose(x[i].sum(), np.array(25.0))
-        assert np.isclose(x[i, 1:].sum(), np.array(0.0))
+        assert np.isclose(x[i, :, :, 1:].sum(), np.array(0.0))
 
-    assert x.shape == (batch_size, 3, 10, 10)
+    assert x.shape == (batch_size, 10, 10, 3)
 
 
 def test_random_erasing_bypass() -> None:
@@ -34,7 +34,7 @@ def test_random_erasing_bypass() -> None:
         max_area=0,
     )
     batch_size = 4
-    x_ori = np.random.randn(batch_size, 3, 10, 10).astype(np.float32)
+    x_ori = np.random.randn(batch_size, 10, 10, 3).astype(np.float32)
 
     x = transform(x_ori)
 

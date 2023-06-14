@@ -20,6 +20,64 @@ def _init_weights_vit_timm(module: nn.Module) -> None:
         module.init_weights()  # type: ignore[operator]
 
 
+ViT_PRESET = {  # pylint: disable=consider-using-namedtuple-or-dataclass
+    "vit_tiny_patch16_224": {
+        "patch_size": 16,
+        "embed_dim": 192,
+        "depth": 12,
+        "num_heads": 3,
+    },
+    "vit_small_patch16_224": {
+        "patch_size": 16,
+        "embed_dim": 384,
+        "depth": 12,
+        "num_heads": 6,
+    },
+    "vit_base_patch16_224": {
+        "patch_size": 16,
+        "embed_dim": 768,
+        "depth": 12,
+        "num_heads": 12,
+    },
+    "vit_large_patch16_224": {
+        "patch_size": 16,
+        "embed_dim": 1024,
+        "depth": 24,
+        "num_heads": 16,
+    },
+    "vit_huge_patch16_224": {
+        "patch_size": 16,
+        "embed_dim": 1280,
+        "depth": 32,
+        "num_heads": 16,
+    },
+    "vit_small_patch32_224": {
+        "patch_size": 32,
+        "embed_dim": 384,
+        "depth": 12,
+        "num_heads": 6,
+    },
+    "vit_base_patch32_224": {
+        "patch_size": 32,
+        "embed_dim": 768,
+        "depth": 12,
+        "num_heads": 12,
+    },
+    "vit_large_patch32_224": {
+        "patch_size": 32,
+        "embed_dim": 1024,
+        "depth": 24,
+        "num_heads": 16,
+    },
+    "vit_huge_patch32_224": {
+        "patch_size": 32,
+        "embed_dim": 1280,
+        "depth": 32,
+        "num_heads": 16,
+    },
+}
+
+
 class VisionTransformer(BaseModel):
     """Vision Transformer (ViT) model without classification head.
 

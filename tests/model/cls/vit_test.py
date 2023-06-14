@@ -112,7 +112,7 @@ class ViTClassifierTest(unittest.TestCase):
         vit_classifer = ViTClassifer(
             variant="vit_small_patch16_224",
             num_classes=1000,
-            pretrained=True,
+            weights="timm://vit_small_patch16_224.augreg_in21k",
         )
         vit_classifer.eval()
 
@@ -132,7 +132,7 @@ class ViTClassifierTest(unittest.TestCase):
         # for the test images.
         assert outs.probs.argmax(1).tolist() == [3, 3, 2]
         assert outs.logits.argmax(1).tolist() == [3, 3, 2]
-        assert all(outs.logits[:, 3] > 10.0)
+        assert all(outs.logits[:, 3] > 7.0)
 
     def test_vit_training(self) -> None:
         """Test training of ViTClassifer."""
@@ -147,10 +147,10 @@ class ViTClassifierTest(unittest.TestCase):
         )
         train_loader = get_train_dataloader(dataset, 2, (224, 224))
         vit_classifer = ViTClassifer(
-            variant="",
+            variant="vit_small_patch16_224",
             num_classes=2,
             embed_dim=192,
-            pretrained=False,
+            weights=None,
         )
         params = vit_classifer.parameters()
         vit_classifer.train()
@@ -190,7 +190,7 @@ class ViTClassifierTest(unittest.TestCase):
             num_heads=3,
             class_token=False,
             use_global_pooling=True,
-            pretrained=False,
+            weights=None,
         )
         params = vit_classifer.parameters()
         vit_classifer.train()
