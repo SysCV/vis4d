@@ -605,8 +605,9 @@ class Det2Mask(nn.Module):
                 orig_hw[::-1],
                 self.mask_threshold,
             )
-            masks = remove_overlap(pasted_masks, scores)
-            all_masks.append(masks)
+            if self.no_overlap:
+                pasted_masks = remove_overlap(pasted_masks, scores)
+            all_masks.append(pasted_masks)
             all_scores.append(scores)
             all_class_ids.append(class_ids)
         return MaskOut(

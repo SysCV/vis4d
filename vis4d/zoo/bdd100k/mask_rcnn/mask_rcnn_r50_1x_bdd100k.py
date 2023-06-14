@@ -42,15 +42,14 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="mask_rcnn_r50_3x_bdd100k")
-    config.check_val_every_n_epoch = 3
+    config = get_default_cfg(exp_name="mask_rcnn_r50_1x_bdd100k")
 
     # High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02
-    params.num_epochs = 36
+    params.num_epochs = 12
     params.num_classes = 8
     config.params = params
 
@@ -83,7 +82,9 @@ def get_config() -> FieldConfigDict:
     )
 
     config.model, config.loss = get_mask_rcnn_cfg(
-        num_classes=params.num_classes, basemodel=basemodel, no_overlap=True
+        num_classes=params.num_classes,
+        basemodel=basemodel,
+        no_overlap=True,
     )
 
     ######################################################
@@ -95,7 +96,7 @@ def get_config() -> FieldConfigDict:
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
             lr_scheduler=class_config(
-                MultiStepLR, milestones=[24, 33], gamma=0.1
+                MultiStepLR, milestones=[8, 11], gamma=0.1
             ),
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
@@ -157,7 +158,6 @@ def get_config() -> FieldConfigDict:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
-    pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

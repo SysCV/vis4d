@@ -54,7 +54,24 @@ REV_KEYS = [
 
 
 class MaskRCNN(nn.Module):
-    """Mask RCNN model."""
+    """Mask RCNN model.
+
+    Args:
+        num_classes (int): Number of classes.
+        basemodel (BaseModel, optional): Base model network. Defaults to
+            None. If None, will use ResNet50.
+        faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+            Defaults to None. if None, will use default FasterRCNNHead.
+        mask_head (MaskRCNNHead, optional): Mask RCNN head. Defaults to
+            None. if None, will use default MaskRCNNHead.
+        rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+            bounding boxes. Defaults to None.
+        no_overlap (bool, optional): Whether to remove overlapping pixels
+            between masks. Defaults to False.
+        weights (None | str, optional): Weights to load for model. If set
+            to "mmdet", will load MMDetection pre-trained weights.
+            Defaults to None.
+    """
 
     def __init__(
         self,
@@ -63,24 +80,10 @@ class MaskRCNN(nn.Module):
         faster_rcnn_head: FasterRCNNHead | None = None,
         mask_head: MaskRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
+        no_overlap: bool = False,
         weights: None | str = None,
     ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            num_classes (int): Number of classes.
-            basemodel (BaseModel, optional): Base model network. Defaults to
-                None. If None, will use ResNet50.
-            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
-                Defaults to None. if None, will use default FasterRCNNHead.
-            mask_head (MaskRCNNHead, optional): Mask RCNN head. Defaults to
-                None. if None, will use default MaskRCNNHead.
-            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
-                bounding boxes. Defaults to None.
-            weights (None | str, optional): Weights to load for model. If set
-                to "mmdet", will load MMDetection pre-trained weights.
-                Defaults to None.
-        """
+        """Creates an instance of the class."""
         super().__init__()
         self.basemodel = (
             ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
@@ -101,7 +104,7 @@ class MaskRCNN(nn.Module):
             self.mask_head = mask_head
 
         self.transform_outs = RoI2Det(rcnn_box_decoder)
-        self.det2mask = Det2Mask()
+        self.det2mask = Det2Mask(no_overlap=no_overlap)
 
         if weights is not None:
             if weights == "mmdet":

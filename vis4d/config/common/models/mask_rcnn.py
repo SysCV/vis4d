@@ -52,6 +52,7 @@ CONN_ROI_LOSS_2D = remap_pred_keys(_CONN_ROI_LOSS_2D, "boxes")
 def get_mask_rcnn_cfg(
     num_classes: FieldReference | int,
     basemodel: ConfigDict,
+    no_overlap: bool = False,
     weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Return default config for mask_rcnn model and loss.
@@ -62,6 +63,8 @@ def get_mask_rcnn_cfg(
     Args:
         num_classes (FieldReference | int): Number of classes.
         basemodel (ConfigDict): Base model config.
+        no_overlap (bool, optional): Whether to remove overlapping pixels
+            between masks. Defaults to False.
         weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################
@@ -109,6 +112,7 @@ def get_mask_rcnn_cfg(
         faster_rcnn_head=faster_rcnn_head,
         mask_head=mask_head,
         rcnn_box_decoder=rcnn_box_decoder,
+        no_overlap=no_overlap,
         weights=weights,
     )
 

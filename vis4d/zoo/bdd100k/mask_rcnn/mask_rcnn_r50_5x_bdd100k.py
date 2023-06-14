@@ -42,15 +42,15 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="mask_rcnn_r50_3x_bdd100k")
-    config.check_val_every_n_epoch = 3
+    config = get_default_cfg(exp_name="mask_rcnn_r50_5x_bdd100k")
+    config.check_val_every_n_epoch = 5
 
     # High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02
-    params.num_epochs = 36
+    params.num_epochs = 60
     params.num_classes = 8
     config.params = params
 
@@ -70,6 +70,7 @@ def get_config() -> FieldConfigDict:
         test_split=test_split,
         test_keys_to_load=(K.images, K.original_images),
         ins_seg=True,
+        multi_scale=True,
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
@@ -95,7 +96,7 @@ def get_config() -> FieldConfigDict:
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
             lr_scheduler=class_config(
-                MultiStepLR, milestones=[24, 33], gamma=0.1
+                MultiStepLR, milestones=[40, 55], gamma=0.1
             ),
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
