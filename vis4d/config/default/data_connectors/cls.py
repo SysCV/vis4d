@@ -12,6 +12,6 @@ CONN_CLS_LOSS = {
 }
 
 CONN_CLS_EVAL = {
-    "predictions": pred_key("probs"),
-    "labels": data_key("categories"),
+    "prediction": pred_key("probs"),
+    "groundtruth": data_key("categories"),
 }

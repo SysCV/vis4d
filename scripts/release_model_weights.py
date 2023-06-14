@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import os
 import hashlib
+import os
+
 import torch
-from pytorch_lightning import LightningModule
 
 
 def load_lightning_model(filepath: str) -> dict[str, torch.Tensor]:
-    """
-    Load a PyTorch Lightning model from a checkpoint.
+    """Load a PyTorch Lightning model from a checkpoint.
 
     Args:
         filepath (str): The path to the PyTorch Lightning checkpoint.
@@ -24,8 +23,7 @@ def load_lightning_model(filepath: str) -> dict[str, torch.Tensor]:
 def release_model_weights(
     state_dict: dict[str, torch.Tensor], path: str, filename: str
 ) -> None:
-    """
-    Saves the model weights and append a 6-digit hash to the filename.
+    """Saves the model weights and append a 6-digit hash to the filename.
 
     Args:
         state_dict (dict[str, torch.Tensor]): The model weights to save.
@@ -39,7 +37,6 @@ def release_model_weights(
     # Create a hash of the file
     sha256_hash = hashlib.sha256()
     with open(os.path.join(path, filename), "rb") as f:
-        # Read and update hash in chunks of 4K
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
 
@@ -47,7 +44,7 @@ def release_model_weights(
     short_hash = sha256_hash.hexdigest()[:6]
     os.rename(
         os.path.join(path, filename),
-        os.path.join(path, f"{filename}_{short_hash}.pth"),
+        os.path.join(path, f"{filename}_{short_hash}.pt"),
     )
 
 
@@ -64,12 +61,14 @@ def main() -> None:
         default=".vis4d-workspace/release",
     )
     parser.add_argument(
-        "--name", type=str, help="The path to output the model."
+        "--name", type=str, help="The base name of the released file."
     )
     args = parser.parse_args()
 
     state_dict = load_lightning_model(args.path)
     release_model_weights(state_dict, args.outdir, args.name)
+
+    # TODO: Add support for vis4d.engine's checkpoint.
 
 
 if __name__ == "__main__":

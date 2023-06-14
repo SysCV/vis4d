@@ -61,9 +61,9 @@ vit_classifer = ViTClassifer(
 
 | Model                                           |   Train data   | Params (M) | Top-1 (%) | Top-5 (%) |                    Config                    |                           Download                           |
 | :---------------------------------------------- | :----------: | :--------: | :-------: | :-------: | :------------------------------------------: | :----------------------------------------------------------: |
-| vit-tiny-patch16  | ImageNet-1k |   11.45   |   72.51   |   90.75   | [config](vit_tiny_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_tiny_patch16_imagenet1k_ccdf98.pth) |
-| vit-small-patch16  | ImageNet-1k |   44.15   |   78.31   |   93.53   | [config](vit_small_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_small_patch16_imagenet1k_3773a7.pth) |
-| vit-base-patch16\* | ImageNet-1k |   86.57   |   82.37	  |   96.15   | [config](vit_base_imagenet.py)  | [model]() |
+| vit-tiny-patch16  | ImageNet-1k |   5.7   |   72.51   |   90.75   | [config](vit_tiny_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_tiny_patch16_imagenet1k_ccdf98.pth) |
+| vit-small-patch16  | ImageNet-1k |   22.3   |   78.31   |   93.53   | [config](vit_small_imagenet.py)  | [model](https://dl.cv.ethz.ch/vis4d/vit/vit_small_patch16_imagenet1k_3773a7.pth) |
+| vit-base-patch16\* | ImageNet-1k |   86.7   |   82.37	  |   96.15   | [config](vit_base_imagenet.py)  | [model]() |
 
 
 *Models with * are converted from the [official repo](https://github.com/google-research/vision_transformer/blob/88a52f8892c80c10de99194990a517b4d80485fd/vit_jax/models.py#L208). The config files of these models are only for inference. We haven't reprodcue the training results.*

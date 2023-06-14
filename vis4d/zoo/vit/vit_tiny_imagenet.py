@@ -143,10 +143,7 @@ def get_config() -> FieldConfigDict:
     callbacks.append(
         class_config(
             EvaluatorCallback,
-            evaluator=class_config(
-                ClassificationEvaluator,
-                num_classes=params.num_classes,
-            ),
+            evaluator=class_config(ClassificationEvaluator),
             metrics_to_eval=["Cls"],
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_IMAGENET_CLS_EVAL

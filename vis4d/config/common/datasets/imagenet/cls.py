@@ -30,8 +30,8 @@ from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 
 CONN_IMAGENET_CLS_EVAL = {
-    "predictions": pred_key("probs"),
-    "groundtruths": data_key("categories"),
+    "prediction": pred_key("probs"),
+    "groundtruth": data_key("categories"),
 }
 
 
