@@ -7,21 +7,24 @@ import os
 import torch
 
 
-def load_lightning_model(filepath: str) -> dict[str, torch.Tensor]:
-    """Load a PyTorch Lightning model from a checkpoint.
+def load_model_weight(filepath: str) -> dict[str, torch.Tensor]:
+    """Load a model weight from a checkpoint.
 
     Args:
         filepath (str): The path to the PyTorch Lightning checkpoint.
 
     Returns:
-        model (LightningModule): The loaded PyTorch Lightning model.
+        checkpoint (dict[str, torch.Tensor]): The model weights.
     """
     checkpoint = torch.load(filepath, map_location=torch.device("cpu"))
     return checkpoint
 
 
-def release_model_weights(
-    state_dict: dict[str, torch.Tensor], path: str, filename: str
+def save_weights_with_hash(
+    state_dict: dict[str, torch.Tensor],
+    path: str,
+    filename: str,
+    digits: int = 6,
 ) -> None:
     """Saves the model weights and append a 6-digit hash to the filename.
 
@@ -29,6 +32,8 @@ def release_model_weights(
         state_dict (dict[str, torch.Tensor]): The model weights to save.
         path (str): The directory path to save the model.
         filename (str): The filename to save the model.
+        digits (int, optional): The number of digits to use for the hash.
+            Defaults to 6.
     """
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, filename), "wb") as f:
@@ -41,7 +46,7 @@ def release_model_weights(
             sha256_hash.update(byte_block)
 
     # Get the hexadecimal representation of the hash
-    short_hash = sha256_hash.hexdigest()[:6]
+    short_hash = sha256_hash.hexdigest()[:digits]
     os.rename(
         os.path.join(path, filename),
         os.path.join(path, f"{filename}_{short_hash}.pt"),
@@ -65,10 +70,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    state_dict = load_lightning_model(args.path)
-    release_model_weights(state_dict, args.outdir, args.name)
+    state_dict = load_model_weight(args.path)
+    save_weights_with_hash(state_dict, args.outdir, args.name)
 
-    # TODO: Add support for vis4d.engine's checkpoint.
+    # TODO: Add support for pl's checkpoint.
 
 
 if __name__ == "__main__":
