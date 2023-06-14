@@ -29,6 +29,7 @@ class Focus(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1):
+        """Init."""
         super().__init__()
         self.conv = Conv2d(
             in_channels * 4,
@@ -78,6 +79,7 @@ class SPPBottleneck(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_sizes=(5, 9, 13)):
+        """Init."""
         super().__init__()
         mid_channels = in_channels // 2
         self.conv1 = Conv2d(
@@ -193,6 +195,7 @@ class CSPDarknet(nn.Module):
             nonlinearity="leaky_relu",
         ),
     ):
+        """Init."""
         super().__init__()  # TODO: init_cfg
         arch_setting = self.arch_settings[arch]
         if arch_ovewrite:
@@ -262,7 +265,7 @@ class CSPDarknet(nn.Module):
                     param.requires_grad = False
 
     def train(self, mode=True):
-        super(CSPDarknet, self).train(mode)
+        super().train(mode)
         self._freeze_stages()
         if mode and self.norm_eval:
             for m in self.modules():

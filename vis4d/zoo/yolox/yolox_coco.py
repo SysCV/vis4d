@@ -131,9 +131,7 @@ def get_config() -> FieldConfigDict:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                COCODetectEvaluator,
-                data_root=data_root,
-                split=test_split,
+                COCODetectEvaluator, data_root=data_root, split=test_split
             ),
             metrics_to_eval=["Det"],
             test_connector=class_config(

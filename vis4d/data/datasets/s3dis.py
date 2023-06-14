@@ -103,7 +103,6 @@ class S3DIS(Dataset, CacheMappingMixin):
         self,
         data_root: str,
         split: str = "trainNoArea5",
-        data_backend: DataBackend | None = None,
         keys_to_load: Sequence[str] = (
             K.points3d,
             K.colors3d,
@@ -111,6 +110,7 @@ class S3DIS(Dataset, CacheMappingMixin):
             K.instances3d,
         ),
         cache_points: bool = True,
+        **kwargs,
     ) -> None:
         """Creates a new S3DIS dataset.
 
@@ -119,8 +119,6 @@ class S3DIS(Dataset, CacheMappingMixin):
             split (str): which split to load. Must either be trainNoArea[1-6]
                 or testArea[1-6].  e.g. trainNoArea5 will load all areas except
                 area 5 and testArea5 will only load area 5.
-            data_backend (Optional[DataBackend]): Which data backend to use.
-                if not specified, will use FileBackend
             keys_to_load (list[str]): What kind of data should be loaded
                 (e.g. colors, xyz, semantics, ...)
             cache_points (bool): If true caches loaded points instead of
@@ -129,13 +127,10 @@ class S3DIS(Dataset, CacheMappingMixin):
         Raises:
             ValueError: If requested split is malformed.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.data_root = data_root
         self.split = split
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
 
         self.areas: list[str] = [
             "Area_1",

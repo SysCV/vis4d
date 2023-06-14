@@ -70,10 +70,12 @@ def load_extrinsics(extrinsics: Extrinsics) -> NDArrayF32:
     return get_matrix_from_extrinsics(extrinsics).astype(np.float32)
 
 
-def load_image(url: str, backend: DataBackend) -> NDArrayF32:
+def load_image(
+    url: str, backend: DataBackend, image_channel_mode: str
+) -> NDArrayF32:
     """Load image tensor from url."""
     im_bytes = backend.get(url)
-    image = im_decode(im_bytes)
+    image = im_decode(im_bytes, mode=image_channel_mode)
     return np.ascontiguousarray(image, dtype=np.float32)[None]
 
 
@@ -275,12 +277,12 @@ class Scalabel(Dataset, CacheMappingMixin):
         data_root: str,
         annotation_path: str,
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
-        data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
         config_path: None | str | Config = None,
         remove_empty: bool = False,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
+        **kwargs,
     ) -> None:
         """Creates an instance of the class.
 
@@ -289,8 +291,6 @@ class Scalabel(Dataset, CacheMappingMixin):
             annotation_path (str): Path to the annotation json(s).
             keys_to_load (Sequence[str, ...], optional): Keys to load from the
                 dataset. Defaults to (K.images, K.boxes2d).
-            data_backend (None | DataBackend, optional): Data backend, if None
-                then classic file backend. Defaults to None.
             category_map (None | CategoryMap, optional): Mapping from a
                 Scalabel category string to an integer index. If None, the
                 standard mapping in the dataset config will be used. Defaults
@@ -306,7 +306,7 @@ class Scalabel(Dataset, CacheMappingMixin):
             bg_as_class (bool): Whether to include background pixels as an
                 additional class for masks.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
         self.data_root = data_root
         self.annotation_path = annotation_path
@@ -314,9 +314,6 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.remove_empty = remove_empty
         self.global_instance_ids = global_instance_ids
         self.bg_as_class = bg_as_class
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
         self.config_path = config_path
 
         self.cats_name2id: dict[str, dict[str, int]] = {}
@@ -402,7 +399,9 @@ class Scalabel(Dataset, CacheMappingMixin):
         """Load inputs given a scalabel frame."""
         data: DictData = {}
         if frame.url is not None and K.images in self.keys_to_load:
-            image = load_image(frame.url, self.data_backend)
+            image = load_image(
+                frame.url, self.data_backend, self.image_channel_mode
+            )
             input_hw = (image.shape[1], image.shape[2])
             data[K.images] = image
             data[K.input_hw] = input_hw

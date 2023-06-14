@@ -124,7 +124,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         split: str = "train",
         include_non_key: bool = False,
         metadata: None | list[str] = None,
-        data_backend: DataBackend | None = None,
+        **kwargs,
     ) -> None:
         """Creates an instance of the class.
 
@@ -140,13 +140,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 Defaults to False.
             metadata (list[str], optional): Which metadata to use for the
                 submission. Defaults to None.
-            data_backend (Optional[DataBackend], optional): Which data backend
-                to use to load the NuScenes data. Defaults to None.
         """
-        super().__init__()
-        self.data_backend = (
-            FileBackend() if data_backend is None else data_backend
-        )
+        super().__init__(**kwargs)
         self.data_root = data_root
         self._check_version_and_split(version, split)
         self.include_non_key = include_non_key

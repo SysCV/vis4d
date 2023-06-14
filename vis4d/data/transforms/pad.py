@@ -157,7 +157,7 @@ def _get_max_shape(
         tuple[int, int]: Max shape for padding.
     """
     if pad2square:
-        max_size = max(heights, widths)
+        max_size = max(heights + widths)
         max_hw = (max_size, max_size)
     elif shape is not None:
         max_hw = shape

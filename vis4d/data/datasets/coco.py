@@ -163,7 +163,7 @@ class COCO(Dataset, CacheMappingMixin):
         remove_empty: bool = False,
         minimum_box_area: float = 0.0,
         use_pascal_voc_cats: bool = False,
-        data_backend: None | DataBackend = None,
+        **kwargs,
     ) -> None:
         """Initialize the COCO dataset.
 
@@ -175,10 +175,8 @@ class COCO(Dataset, CacheMappingMixin):
             minimum_box_area (float): Minimum area of the bounding boxes.
                 Default: 0.0.
             use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
-            data_backend (None | DataBackend): Data backend to use.
-                Default: None.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.data_root = data_root
         self.keys_to_load = keys_to_load
@@ -186,9 +184,6 @@ class COCO(Dataset, CacheMappingMixin):
         self.remove_empty = remove_empty
         self.minimum_box_area = minimum_box_area
         self.use_pascal_voc_cats = use_pascal_voc_cats
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
 
         # handling keys to load
         self.validate_keys(keys_to_load)
@@ -269,7 +264,7 @@ class COCO(Dataset, CacheMappingMixin):
                 self.data_root, self.split, data["img"]["file_name"]
             )
             im_bytes = self.data_backend.get(img_path)
-            img = im_decode(im_bytes)
+            img = im_decode(im_bytes, mode=self.image_channel_mode)
             img_ = np.ascontiguousarray(img, dtype=np.float32)[None]
             assert (img_h, img_w) == img_.shape[
                 1:3

@@ -121,6 +121,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
         backend: DataBackend = HDF5Backend(),
         verbose: bool = False,
         num_workers: int = 1,
+        **kwargs,
     ) -> None:
         """Initialize SHIFT dataset for one view.
 
@@ -189,6 +190,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
             annotation_path,
             data_backend=backend,
             keys_to_load=keys_to_load,
+            **kwargs,
         )
 
     def _generate_mapping(self) -> ScalabelData:

@@ -129,7 +129,7 @@ class YOLOXHead(nn.Module):  # TODO: Refactor to use the new API
                     norm=nn.BatchNorm2d(
                         feat_channels, eps=0.001, momentum=0.03
                     ),
-                    activation=nn.ReLU(inplace=True),
+                    activation=nn.SiLU(inplace=True),
                     bias=False,
                 )
             )

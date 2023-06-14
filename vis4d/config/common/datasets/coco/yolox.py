@@ -89,26 +89,18 @@ def get_train_dataloader(
         flip_transforms.append(class_config(FlipInstanceMasks))
 
     preprocess_transforms.append(
-        class_config(
-            RandomApply,
-            transforms=flip_transforms,
-            probability=0.5,
-        )
+        class_config(RandomApply, transforms=flip_transforms, probability=0.5)
     )
 
     preprocess_transforms.append(class_config(NormalizeImage))
 
     train_preprocess_cfg = class_config(
-        compose,
-        transforms=preprocess_transforms,
+        compose, transforms=preprocess_transforms
     )
 
     train_batchprocess_cfg = class_config(
         compose_batch,
-        transforms=[
-            class_config(PadImages),
-            class_config(ToTensor),
-        ],
+        transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 
     return get_train_dataloader_cfg(
@@ -136,6 +128,7 @@ def get_test_dataloader(
         keys_to_load=keys_to_load,
         data_root=data_root,
         split=split,
+        image_channel_mode="BGR",
         data_backend=data_backend,
     )
 
@@ -148,12 +141,10 @@ def get_test_dataloader(
             align_long_edge=True,
         ),
         class_config(ResizeImage),
-        class_config(ResizeBoxes2D),
     ]
 
     test_preprocess_cfg = class_config(
-        compose,
-        transforms=preprocess_transforms,
+        compose, transforms=preprocess_transforms
     )
 
     test_batchprocess_cfg = class_config(
@@ -166,9 +157,7 @@ def get_test_dataloader(
 
     # Test Dataset Config
     test_dataset_cfg = class_config(
-        DataPipe,
-        datasets=test_dataset,
-        preprocess_fn=test_preprocess_cfg,
+        DataPipe, datasets=test_dataset, preprocess_fn=test_preprocess_cfg
     )
 
     return get_inference_dataloaders_cfg(
@@ -188,12 +177,7 @@ def get_coco_yolox_cfg(
         K.boxes2d_classes,
     ),
     test_split: str = "val2017",
-    test_keys_to_load: Sequence[str] = (
-        K.images,
-        K.original_images,
-        K.boxes2d,
-        K.boxes2d_classes,
-    ),
+    test_keys_to_load: Sequence[str] = (K.images, K.original_images),
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (640, 640),
     samples_per_gpu: int = 2,

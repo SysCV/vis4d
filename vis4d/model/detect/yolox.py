@@ -112,7 +112,7 @@ class YOLOX(nn.Module):
             YOLOXOut: Raw model outputs.
         """
         features = self.fpn(self.basemodel(images))
-        return self.yolox_head(features[-5:])
+        return self.yolox_head(features[-3:])
 
     def forward_test(
         self,
