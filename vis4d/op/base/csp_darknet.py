@@ -8,7 +8,7 @@ import math
 from collections.abc import Sequence
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from vis4d.common import DictStrAny
@@ -21,11 +21,18 @@ class Focus(nn.Module):
     Args:
         in_channels (int): The input channels of this Module.
         out_channels (int): The output channels of this Module.
-        kernel_size (int): The kernel size of the convolution. Default: 1.
-        stride (int): The stride of the convolution. Default: 1.
+        kernel_size (int, optional): The kernel size of the convolution.
+            Defaults to 1.
+        stride (int, optional): The stride of the convolution. Defaults to 1.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 1,
+        stride: int = 1,
+    ):
         """Init."""
         super().__init__()
         self.conv = Conv2d(
@@ -39,13 +46,16 @@ class Focus(nn.Module):
             activation=nn.SiLU(inplace=True),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass."""
-        # shape of x (b,c,w,h) -> y(b,4c,w/2,h/2)
-        patch_top_left = x[..., ::2, ::2]
-        patch_top_right = x[..., ::2, 1::2]
-        patch_bot_left = x[..., 1::2, ::2]
-        patch_bot_right = x[..., 1::2, 1::2]
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            features (torch.Tensor): The input tensor of shape [B, C, W, H].
+        """
+        patch_top_left = features[..., ::2, ::2]
+        patch_top_right = features[..., ::2, 1::2]
+        patch_bot_left = features[..., 1::2, ::2]
+        patch_bot_right = features[..., 1::2, 1::2]
         x = torch.cat(
             (
                 patch_top_left,
@@ -62,13 +72,18 @@ class SPPBottleneck(nn.Module):
     """Spatial pyramid pooling layer used in YOLOv3-SPP.
 
     Args:
-        in_channels (int): The input channels of this Module.
-        out_channels (int): The output channels of this Module.
-        kernel_sizes (tuple[int]): Sequential of kernel sizes of pooling
-            layers. Default: (5, 9, 13).
+        in_channels (int): Input channels.
+        out_channels (int): Output channels.
+        kernel_sizes (Sequence[int], optional): Sequential of kernel sizes of
+            pooling layers. Defaults to (5, 9, 13).
     """
 
-    def __init__(self, in_channels, out_channels, kernel_sizes=(5, 9, 13)):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_sizes: Sequence[int] = (5, 9, 13),
+    ):
         """Init."""
         super().__init__()
         mid_channels = in_channels // 2
@@ -97,9 +112,13 @@ class SPPBottleneck(nn.Module):
             activation=nn.SiLU(inplace=True),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass."""
-        x = self.conv1(x)
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            features (torch.Tensor): Input features.
+        """
+        x = self.conv1(features)
         x = torch.cat([x] + [pooling(x) for pooling in self.poolings], dim=1)
         x = self.conv2(x)
         return x
@@ -184,6 +203,7 @@ class CSPDarknet(nn.Module):
     ):
         """Init."""
         super().__init__()  # TODO: init_cfg
+        self.init_cfg = init_cfg
         arch_setting = self.arch_settings[arch]
         if arch_ovewrite:
             arch_setting = arch_ovewrite
@@ -262,7 +282,11 @@ class CSPDarknet(nn.Module):
                     m.eval()
 
     def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
-        """Forward pass."""
+        """Forward pass.
+
+        Args:
+            images (torch.Tensor): Input images.
+        """
         outs = [images, images]
         x = images
         for i, layer_name in enumerate(self.layers):

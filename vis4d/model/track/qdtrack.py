@@ -7,8 +7,8 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.base import BaseModel, CSPDarknet, ResNet
+from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign
@@ -430,16 +430,18 @@ class YOLOXQDTrack(nn.Module):
         self,
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
         frame_ids: list[int],
     ) -> TrackOut:
         """Forward."""
         # TODO implement forward_train
-        return self._forward_test(images, images_hw, frame_ids)
+        return self._forward_test(images, images_hw, original_hw, frame_ids)
 
     def _forward_test(
         self,
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
         frame_ids: list[int],
     ) -> TrackOut:
         """Forward inference stage."""
@@ -453,13 +455,18 @@ class YOLOXQDTrack(nn.Module):
         )
 
         outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
+        for i, boxs in enumerate(outs.boxes):
+            outs.boxes[i] = scale_and_clip_boxes(
+                boxs, original_hw[i], images_hw[i]
+            )
         return outs
 
     def __call__(
         self,
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
         frame_ids: list[int],
     ) -> TrackOut:
         """Type definition for call implementation."""
-        return self._call_impl(images, images_hw, frame_ids)
+        return self._call_impl(images, images_hw, original_hw, frame_ids)

@@ -18,19 +18,12 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
     """Path Aggregation Network used in YOLOX.
 
     Args:
-        in_channels (List[int]): Number of input channels per scale.
-        out_channels (int): Number of output channels (used at each scale)
-        num_csp_blocks (int): Number of bottlenecks in CSPLayer. Default: 3
-        upsample_cfg (dict): Config dict for interpolate layer.
-            Default: `dict(scale_factor=2, mode='nearest')`
-        conv_cfg (dict, optional): Config dict for convolution layer.
-            Default: None, which means using conv2d.
-        norm_cfg (dict): Config dict for normalization layer.
-            Default: dict(type='BN')
-        act_cfg (dict): Config dict for activation layer.
-            Default: dict(type='Swish')
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-            Default: None.
+        in_channels (list[int]): Number of input channels per scale.
+        out_channels (int): Number of output channels (used at each scale).
+        num_csp_blocks (int, optional): Number of bottlenecks in CSPLayer.
+            Defaults to 3.
+        start_index (int, optional): Index of the first input feature map.
+            Defaults to 2.
     """
 
     def __init__(
@@ -50,6 +43,7 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
     ):
         """Init."""
         super().__init__()  # TODO: init_cfg
+        self.init_cfg = init_cfg
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.start_index = start_index
@@ -126,7 +120,7 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
         """Forward pass.
 
         Args:
-            features (tuple[Tensor]): input features.
+            features (tuple[Tensor]): Input features.
 
         Returns:
             list[Tensor]: YOLOXPAFPN features.

@@ -4,12 +4,9 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.common import LossesType
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel, CSPDarknet
 from vis4d.op.box.box2d import scale_and_clip_boxes
-from vis4d.op.box.matchers import Matcher
-from vis4d.op.box.samplers import Sampler
 from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXOut, YOLOXPostprocess
 from vis4d.op.fpp import YOLOXPAFPN, FeaturePyramidProcessing

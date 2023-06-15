@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""Faster RCNN COCO training example."""
+"""YOLOX COCO training example."""
 from __future__ import annotations
 
 import lightning.pytorch as pl

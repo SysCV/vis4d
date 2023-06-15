@@ -2,22 +2,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from math import prod
 from typing import NamedTuple
 
 import torch
 from torch import nn
-from torchvision.ops import batched_nms, sigmoid_focal_loss
+from torchvision.ops import batched_nms
 
 from vis4d.op.box.anchor import MlvlPointGenerator
-from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import YOLOXBBoxDecoder
-from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
-from vis4d.op.box.samplers import PseudoSampler, Sampler
+from vis4d.op.box.matchers import Matcher
+from vis4d.op.box.samplers import Sampler
 from vis4d.op.layer import Conv2d
 
 from .common import DetOut
-from .dense_anchor import DenseAnchorHeadLoss
 
 
 class YOLOXOut(NamedTuple):
@@ -29,7 +26,7 @@ class YOLOXOut(NamedTuple):
     # Each box has regression for all classes for each feature level. So the
     # tensor dimension is [batch_size, 4, height, width].
     bbox_pred: list[torch.Tensor]
-    objectness: list[torch.Tensor]
+    objectness: list[torch.Tensor]  # TODO: Update docstring.
 
 
 def get_default_point_generator() -> MlvlPointGenerator:
@@ -37,22 +34,27 @@ def get_default_point_generator() -> MlvlPointGenerator:
     return MlvlPointGenerator(strides=[8, 16, 32], offset=0)
 
 
-def get_default_box_matcher() -> MaxIoUMatcher:
-    """Get default bounding box matcher."""
-    return MaxIoUMatcher(
-        thresholds=[0.4, 0.5],
-        labels=[0, -1, 1],
-        allow_low_quality_matches=True,
-    )
+class YOLOXHead(nn.Module):
+    """YOLOX Head.
 
-
-def get_default_box_sampler() -> PseudoSampler:
-    """Get default bounding box sampler."""
-    return PseudoSampler(0, 0)
-
-
-class YOLOXHead(nn.Module):  # TODO: Refactor to use the new API
-    """YOLOX Head."""
+    Args:
+        num_classes (int): Number of classes.
+        in_channels (int): Number of input channels.
+        feat_channels (int, optional): Number of feature channels. Defaults to
+            256.
+        stacked_convs (int, optional): Number of stacked convolutions. Defaults
+            to 2.
+        strides (Sequence[int], optional): Strides for each feature level.
+            Defaults to (8, 16, 32).
+        point_generator (MlvlPointGenerator, optional): Point generator.
+            Defaults to None.
+        box_decoder (YOLOXBBoxDecoder, optional): Bounding box decoder.
+            Defaults to None.
+        box_matcher (Matcher, optional): Bounding box matcher. Defaults to
+            None.
+        box_sampler (Sampler, optional): Bounding box sampler. Defaults to
+            None.
+    """
 
     def __init__(
         self,
@@ -77,17 +79,8 @@ class YOLOXHead(nn.Module):  # TODO: Refactor to use the new API
             self.box_decoder = YOLOXBBoxDecoder()
         else:
             self.box_decoder = box_decoder
-        # self.box_matcher = (
-        #     box_matcher
-        #     if box_matcher is not None
-        #     else get_default_box_matcher()
-        # )
-        # self.box_sampler = (
-        #     box_sampler
-        #     if box_sampler is not None
-        #     else get_default_box_sampler()
-        # )
-        # num_base_priors = self.point_generator.num_base_priors[0]
+        self.box_matcher = box_matcher
+        self.box_sampler = box_sampler
 
         self.multi_level_cls_convs = nn.ModuleList()
         self.multi_level_reg_convs = nn.ModuleList()
@@ -114,8 +107,14 @@ class YOLOXHead(nn.Module):  # TODO: Refactor to use the new API
 
     def _build_stacked_convs(
         self, in_channels: int, feat_channels: int, stacked_convs: int
-    ):
-        """Initialize conv layers of a single level head."""
+    ) -> nn.Module:
+        """Initialize conv layers of a single level head.
+
+        Args:
+            in_channels (int): Number of input channels.
+            feat_channels (int): Number of feature channels.
+            stacked_convs (int): Number of stacked conv layers.
+        """
         stacked_conv_layers = []
         for i in range(stacked_convs):
             chn = in_channels if i == 0 else feat_channels
@@ -135,21 +134,28 @@ class YOLOXHead(nn.Module):  # TODO: Refactor to use the new API
             )
         return nn.Sequential(*stacked_conv_layers)
 
-    def _build_predictor(self, feat_channels: int, num_classes: int):
-        """Initialize predictor layers of a single level head."""
+    def _build_predictor(
+        self, feat_channels: int, num_classes: int
+    ) -> tuple[nn.Module, nn.Module, nn.Module]:
+        """Initialize predictor layers of a single level head.
+
+        Args:
+            feat_channels (int): Number of input channels.
+            num_classes (int): Number of classes.
+        """
         conv_cls = nn.Conv2d(feat_channels, num_classes, 1)
         conv_reg = nn.Conv2d(feat_channels, 4, 1)
         conv_obj = nn.Conv2d(feat_channels, 1, 1)
         return conv_cls, conv_reg, conv_obj
 
     def forward(self, features: list[torch.Tensor]) -> YOLOXOut:
-        """Forward pass of RetinaNet.
+        """Forward pass of YOLOX head.
 
         Args:
-            features (list[torch.Tensor]): Feature pyramid
+            features (list[torch.Tensor]): Input features.
 
         Returns:
-            RetinaNetOut: classification score and box prediction.
+            YOLOXOut: Classification, box, and objectness predictions.
         """
         cls_score, bbox_pred, objectness = [], [], []
         for feature, cls_conv, reg_conv, conv_cls, conv_reg, conv_obj in zip(
@@ -214,18 +220,15 @@ def bboxes_nms(
 
 
 class YOLOXPostprocess(nn.Module):
-    """Compute detections from dense network outputs.
+    """Postprocess detections from YOLOX detection head.
 
-    This class acts as a stateless functor that does the following:
-    1. Create anchor grid for feature grids (classification and regression
-    outputs) at all scales.
-    For each image
-        For each level
-            2. Get a topk pre-selection of flattened classification scores and
-            box energies from feature output before NMS.
-        3. Decode class scores and box energies into detection boxes,
-        apply NMS.
-    Return detection boxes for all images.
+    Args:
+        point_generator (MlvlPointGenerator): Point generator.
+        box_decoder (YOLOXBBoxDecoder): Box decoder.
+        nms_threshold (float, optional): IoU threshold for NMS. Defaults to
+            0.65.
+        score_thr (float, optional): Score threshold to filter detections.
+            Defaults to 0.01.
     """
 
     def __init__(
@@ -249,12 +252,7 @@ class YOLOXPostprocess(nn.Module):
         obj_outs: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
     ) -> DetOut:
-        """Compute detections from dense network outputs.
-
-        Generate anchor grid for all scales.
-        For each batch element:
-            Compute classification, regression, and anchor pairs for all
-            scales. Decode those pairs into proposals, post-process with NMS.
+        """Forward pass.
 
         Args:
             cls_outs (list[torch.Tensor]): [N, C, H, W] per scale.

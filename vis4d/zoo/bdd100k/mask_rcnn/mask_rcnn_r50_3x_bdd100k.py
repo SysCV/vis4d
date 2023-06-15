@@ -70,6 +70,7 @@ def get_config() -> FieldConfigDict:
         test_split=test_split,
         test_keys_to_load=(K.images, K.original_images),
         ins_seg=True,
+        multi_scale=True,
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,

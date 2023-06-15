@@ -21,8 +21,8 @@ State-of-the-art object detection networks depend on region proposal algorithms 
 
 #### Results
 
-| Backbone | Lr schd | MS-train | Box AP-val | Scores-val | Box AP-test | Scores-test |                        Config                         |  Weights   |   Preds   |   Visuals   |
-| :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------------------------------------------------: | :--------: | :-------: | :---------: |
+| Backbone | Lr schd | MS-train | Box AP-val | Scores-val | Box AP-test | Scores-test |                        Config                         |  Weights  |   Preds   |   Visuals   |
+| :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------------------------------------------------: | :-------: | :-------: | :---------: |
 | R-50-FPN |   1x    |          |    31.2    | [scores]() |             | [scores]()  | [config](./faster_rcnn/faster_rcnn_r50_1x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
 | R-50-FPN |   3x    |    ✓     |    32.4    | [scores]() |             | [scores]()  | [config](./faster_rcnn/faster_rcnn_r50_3x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
 
@@ -47,9 +47,11 @@ We present a conceptually simple, flexible, and general framework for object ins
 
 #### Results
 
-| Backbone | Lr schd | MS-train | Mask AP-val | Box AP-val | Scores-val | Mask AP-test | Box AP-test | Scores-test | Config | Weights | Preds | Visuals |
-| :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| R-50-FPN | 3x |  |  |  | [scores]() |  |  | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_3x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
+| Backbone | Lr schd | MS-train | Mask AP-val | Box AP-val | Scores-val | Mask AP-test | Box AP-test | Scores-test |                      Config                       |  Weights  |   Preds   |   Visuals   |
+| :------: | :-----: | :------: | :---------: | :--------: | :--------: | :----------: | :---------: | :---------: | :-----------------------------------------------: | :-------: | :-------: | :---------: |
+| R-50-FPN |   1x    |          |    17.0     |    23.4    | [scores]() |              |             | [scores]()  | [config](./mask_rcnn/mask_rcnn_r50_1x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
+| R-50-FPN |   3x    |    ✓     |    20.2     |    26.8    | [scores]() |              |             | [scores]()  | [config](./mask_rcnn/mask_rcnn_r50_3x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
+| R-50-FPN |   5x    |    ✓     |    20.2     |    25.7    | [scores]() |              |             | [scores]()  | [config](./mask_rcnn/mask_rcnn_r50_5x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
 
 ---
 

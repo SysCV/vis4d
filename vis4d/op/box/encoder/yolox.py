@@ -12,9 +12,9 @@ class YOLOXBBoxDecoder:
     """YOLOX BBox decoder."""
 
     def __call__(self, points: Tensor, offsets: Tensor) -> Tensor:
-        """Apply box offset energies box_deltas to boxes.
+        """Apply box offset energies box_deltas to boxes.  TODO: update doc
 
-        Args:  TODO: update doc
+        Args:
             points (Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
             offsets (Tensor): Encoded offsets with respect to each roi.
                Has shape (B, N, num_classes * 4) or (B, N, 4) or

@@ -17,11 +17,7 @@ from vis4d.data.loader import VideoDataPipe
 from vis4d.data.transforms.base import compose, compose_batch
 from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
-    ResizeBoxes2D,
-    ResizeImage,
-)
+from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImage
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -36,13 +32,14 @@ from vis4d.model.track.qdtrack import YOLOXQDTrack
 CONN_BBOX_2D_TEST = {
     K.images: K.images,
     "images_hw": K.input_hw,
+    K.original_hw: K.original_hw,
     K.frame_ids: K.frame_ids,
 }
 
 CONN_BDD100K_EVAL = {
     "frame_ids": data_key("frame_ids"),
-    "data_names": data_key("sample_names"),
-    "video_names": data_key("sequence_names"),
+    "sample_names": data_key("sample_names"),
+    "sequence_names": data_key("sequence_names"),
     "boxes_list": pred_key("boxes"),
     "class_ids_list": pred_key("class_ids"),
     "scores_list": pred_key("scores"),
@@ -95,12 +92,9 @@ def get_config() -> FieldConfigDict:
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
-            shape=(720, 1280),
-            keep_ratio=True,
+            GenerateResizeParameters, shape=(800, 1440), keep_ratio=True
         ),
         class_config(ResizeImage),
-        # class_config(ResizeBoxes2D),
     ]
 
     preprocess_transforms.append(class_config(NormalizeImage))
@@ -170,13 +164,11 @@ def get_config() -> FieldConfigDict:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                BDD100KTrackEvaluator,
-                annotation_path=annotation_path,
+                BDD100KTrackEvaluator, annotation_path=annotation_path
             ),
             save_prefix=config.output_dir,
             test_connector=class_config(
-                CallbackConnector,
-                key_mapping=CONN_BDD100K_EVAL,
+                CallbackConnector, key_mapping=CONN_BDD100K_EVAL
             ),
         ),
     )
