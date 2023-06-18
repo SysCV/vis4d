@@ -32,18 +32,9 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
         out_channels: int,
         num_csp_blocks: int = 3,
         start_index: int = 2,
-        init_cfg=dict(
-            type="Kaiming",
-            layer="Conv2d",
-            a=math.sqrt(5),
-            distribution="uniform",
-            mode="fan_in",
-            nonlinearity="leaky_relu",
-        ),
     ):
         """Init."""
-        super().__init__()  # TODO: init_cfg
-        self.init_cfg = init_cfg
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.start_index = start_index
@@ -115,6 +106,18 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
                     activation=nn.SiLU(inplace=True),
                 )
             )
+        self._init_weights()
+
+    def _init_weights(self) -> None:
+        """Initialize weights."""
+        for m in self.modules():
+            if isinstance(m, Conv2d):
+                nn.init.kaiming_uniform_(
+                    m.weight,
+                    a=math.sqrt(5),
+                    mode="fan_in",
+                    nonlinearity="leaky_relu",
+                )
 
     def forward(self, features: list[torch.Tensor]) -> list[torch.Tensor]:
         """Forward pass.

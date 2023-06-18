@@ -60,7 +60,9 @@ def get_config() -> FieldConfigDict:
     ######################################################
     config = get_default_cfg(exp_name="qdtrack_yolox_bdd100k")
 
-    ckpt_path = "vis4d-workspace/QDTrack/qdtrack_YOLOX_bdd100k_50e_cocoinit/checkpoints/last_epoch_augs_ema.ckpt"
+    ckpt_path = (
+        "vis4d-workspace/QDTrack/pretrained/qdtrack-yolox-ema_bdd100k.ckpt"
+    )
 
     # Hyper Parameters
     params = FieldConfigDict()

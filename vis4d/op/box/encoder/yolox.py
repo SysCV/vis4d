@@ -12,14 +12,11 @@ class YOLOXBBoxDecoder:
     """YOLOX BBox decoder."""
 
     def __call__(self, points: Tensor, offsets: Tensor) -> Tensor:
-        """Apply box offset energies box_deltas to boxes.  TODO: update doc
+        """Apply box offsets to points, used by YOLOX.
 
         Args:
-            points (Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
-            offsets (Tensor): Encoded offsets with respect to each roi.
-               Has shape (B, N, num_classes * 4) or (B, N, 4) or
-               (N, num_classes * 4) or (N, 4). Note N = num_anchors * W * H
-               when rois is a grid of anchors.Offset encoding follows [1]_.
+            points (Tensor): Points. Shape (B, N, 4) or (N, 4).
+            offsets (Tensor): Offsets. Has shape (B, N, 4) or (N, 4).
 
         Returns:
             Tensor: Decoded boxes.

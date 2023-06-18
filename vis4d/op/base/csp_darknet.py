@@ -11,7 +11,6 @@ import torch
 from torch import nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from vis4d.common import DictStrAny
 from vis4d.op.layer import Conv2d, CSPLayer
 
 
@@ -140,19 +139,18 @@ class CSPDarknet(nn.Module):
             mode). -1 means not freezing any parameters. Default: -1.
         use_depthwise (bool): Whether to use depthwise separable convolution.
             Default: False.
-        arch_ovewrite(list): Overwrite default arch settings. Default: None.
+        arch_ovewrite(list[list[int]], optional): Overwrite default arch
+            settings. Defaults to None.
         spp_kernal_sizes: (tuple[int]): Sequential of kernel sizes of SPP
             layers. Default: (5, 9, 13).
         norm_eval (bool): Whether to set norm layers to eval mode, namely,
             freeze running stats (mean and var). Note: Effect on Batch Norm
             and its variants only.
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-            Default: None.
 
     Example:
-        >>> from mmdet.models import CSPDarknet
         >>> import torch
-        >>> self = CSPDarknet(depth=53)
+        >>> from vis4d.op.base import CSPDarknet
+        >>> self = CSPDarknet()
         >>> self.eval()
         >>> inputs = torch.rand(1, 3, 416, 416)
         >>> level_outputs = self.forward(inputs)
@@ -189,21 +187,12 @@ class CSPDarknet(nn.Module):
         widen_factor: float = 1.0,
         out_indices: Sequence[int] = (2, 3, 4),
         frozen_stages: int = -1,
-        arch_ovewrite: DictStrAny | None = None,
+        arch_ovewrite: list[list[int]] | None = None,
         spp_kernal_sizes: Sequence[int] = (5, 9, 13),
         norm_eval: bool = False,
-        init_cfg=dict(
-            type="Kaiming",
-            layer="Conv2d",
-            a=math.sqrt(5),
-            distribution="uniform",
-            mode="fan_in",
-            nonlinearity="leaky_relu",
-        ),
     ):
         """Init."""
-        super().__init__()  # TODO: init_cfg
-        self.init_cfg = init_cfg
+        super().__init__()
         arch_setting = self.arch_settings[arch]
         if arch_ovewrite:
             arch_setting = arch_ovewrite
@@ -236,7 +225,7 @@ class CSPDarknet(nn.Module):
             in_channels = int(in_channels * widen_factor)
             out_channels = int(out_channels * widen_factor)
             num_blocks = max(round(num_blocks * deepen_factor), 1)
-            stage = []
+            stage: list[nn.Module] = []
             conv_layer = Conv2d(
                 in_channels,
                 out_channels,
@@ -257,11 +246,23 @@ class CSPDarknet(nn.Module):
                 out_channels,
                 out_channels,
                 num_blocks=num_blocks,
-                add_identity=add_identity,
+                add_identity=bool(add_identity),
             )
             stage.append(csp_layer)
             self.add_module(f"stage{i + 1}", nn.Sequential(*stage))
             self.layers.append(f"stage{i + 1}")
+        self._init_weights()
+
+    def _init_weights(self) -> None:
+        """Initialize weights."""
+        for m in self.modules():
+            if isinstance(m, Conv2d):
+                nn.init.kaiming_uniform_(
+                    m.weight,
+                    a=math.sqrt(5),
+                    mode="fan_in",
+                    nonlinearity="leaky_relu",
+                )
 
     def _freeze_stages(self) -> None:
         """Freeze stages."""
@@ -272,14 +273,19 @@ class CSPDarknet(nn.Module):
                 for param in m.parameters():
                     param.requires_grad = False
 
-    def train(self, mode=True) -> None:
-        """Override the train mode for the model."""
+    def train(self, mode: bool = True) -> CSPDarknet:
+        """Override the train mode for the model.
+
+        Args:
+            mode (bool): Whether to set training mode to True.
+        """
         super().train(mode)
         self._freeze_stages()
         if mode and self.norm_eval:
             for m in self.modules():
                 if isinstance(m, _BatchNorm):
                     m.eval()
+        return self
 
     def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """Forward pass.

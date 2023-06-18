@@ -93,7 +93,7 @@ class SegMaskVisualizer(Visualizer):
         """
         if class_ids is not None:
             assert (
-                len(class_ids) == masks.shape[0]
+                class_ids.shape[0] == masks.shape[0]  # type: ignore
             ), "The amount of masks must match the given class count!"
 
         for mask, color in zip(*preprocess_masks(masks, class_ids)):

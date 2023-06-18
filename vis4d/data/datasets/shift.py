@@ -121,7 +121,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
         backend: DataBackend = HDF5Backend(),
         verbose: bool = False,
         num_workers: int = 1,
-        **kwargs,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset for one view.
 

@@ -273,22 +273,22 @@ class YOLOXPostprocess(nn.Module):
         )
 
         # flatten cls_outs, reg_outs and obj_outs
-        flatten_cls = [
+        cls_list = [
             cls_score.permute(0, 2, 3, 1).reshape(num_imgs, -1, num_classes)
             for cls_score in cls_outs
         ]
-        flatten_reg = [
+        reg_list = [
             bbox_pred.permute(0, 2, 3, 1).reshape(num_imgs, -1, 4)
             for bbox_pred in reg_outs
         ]
-        flatten_obj = [
+        obj_list = [
             objectness.permute(0, 2, 3, 1).reshape(num_imgs, -1)
             for objectness in obj_outs
         ]
 
-        flatten_cls = torch.cat(flatten_cls, dim=1).sigmoid()
-        flatten_reg = torch.cat(flatten_reg, dim=1)
-        flatten_obj = torch.cat(flatten_obj, dim=1).sigmoid()
+        flatten_cls = torch.cat(cls_list, dim=1).sigmoid()
+        flatten_reg = torch.cat(reg_list, dim=1)
+        flatten_obj = torch.cat(obj_list, dim=1).sigmoid()
         flatten_points = torch.cat(mlvl_points)
 
         flatten_boxes = self.box_decoder(flatten_points, flatten_reg)

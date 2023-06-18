@@ -57,6 +57,13 @@ def array_to_numpy(
 
 @overload
 def array_to_numpy(
+    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyFloat]
+) -> NDArrayFloat | None:
+    ...
+
+
+@overload
+def array_to_numpy(
     data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyInt]
 ) -> NDArrayInt | None:
     ...
@@ -64,8 +71,8 @@ def array_to_numpy(
 
 @overload
 def array_to_numpy(
-    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyFloat]
-) -> NDArrayFloat | None:
+    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyUInt]
+) -> NDArrayUInt | None:
     ...
 
 
@@ -113,8 +120,9 @@ def array_to_numpy(
             squeezed or exanded (from the left). If it still does not match,
             an error is raised.
 
-        dtype (type[NumpyBool] | type[NumpyFloat] | type[NumpyInt], optional):
-            Target dtype of the array. Defaults to np.float32.
+        dtype (type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] |
+            type[NumpyUInt], optional): Target dtype of the array. Defaults to
+            np.float32.
 
     Raises:
         ValueError: If the provied array like objects can not be converted
@@ -201,8 +209,9 @@ def arrays_to_numpy(
             If the provided array does not have this shape, it will be
             squeezed or exanded (from the left). If it still does not match,
             an error is Raised.
-        dtype (type[NumpyBool] | type[NumpyFloat] | type[NumpyInt], optional):
-            Target dtype of the array. Defaults to np.float32.
+        dtype (type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] |
+            type[NumpyUInt], optional): Target dtype of the array. Defaults to
+            np.float32.
 
     Raises:
         ValueError: If the provied array like objects can not be converted
