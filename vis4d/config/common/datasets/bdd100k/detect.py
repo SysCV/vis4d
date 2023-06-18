@@ -210,8 +210,8 @@ def get_bdd100k_detection_config(
         train_anno_path = "data/bdd100k/labels/ins_seg_train_rle.json"
         test_anno_path = "data/bdd100k/labels/ins_seg_val_rle.json"
     else:
-        train_anno_path = "data/bdd100k/labels/det_20/det_train_coco.json"
-        test_anno_path = "data/bdd100k/labels/det_20/det_val_coco.json"
+        train_anno_path = "data/bdd100k/labels/det_20/det_train.json"
+        test_anno_path = "data/bdd100k/labels/det_20/det_val.json"
 
     data.train_dataloader = get_train_dataloader(
         data_root=f"{data_root}/{train_split}",

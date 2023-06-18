@@ -75,9 +75,7 @@ def test_csp_darknet_base():
     assert feat[7].shape == torch.Size((1, 256, 2, 2))
 
     # Test CSPDarknet forward with widen_factor=0.125
-    model = CSPDarknet(
-        widen_factor=0.125, out_indices=range(0, 5)
-    )
+    model = CSPDarknet(widen_factor=0.125, out_indices=range(0, 5))
     model.train()
 
     imgs = torch.randn(1, 3, 64, 64)

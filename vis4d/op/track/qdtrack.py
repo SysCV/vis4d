@@ -325,7 +325,7 @@ class QDSimilarityHead(nn.Module):
         """
         # RoI pooling
         x = self.roi_pooler(
-            features[2 : 2 + len(self.roi_pooler.strides)], boxes
+            features[2 : 2 + len(self.roi_pooler.scales)], boxes
         )
 
         # convs

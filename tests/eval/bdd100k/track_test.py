@@ -31,8 +31,8 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
 
     CONN_BDD100K_EVAL = {
         "frame_ids": data_key(K.frame_ids),
-        "data_names": data_key(K.sample_names),
-        "video_names": data_key(K.sequence_names),
+        "sample_names": data_key(K.sample_names),
+        "sequence_names": data_key(K.sequence_names),
         "boxes_list": pred_key("boxes"),
         "class_ids_list": pred_key("class_ids"),
         "scores_list": pred_key("scores"),
@@ -49,7 +49,7 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
 
         scalabel_eval = BDD100KTrackEvaluator(annotation_path=annotations)
         assert str(scalabel_eval) == "BDD100K Tracking Evaluator"
-        assert scalabel_eval.metrics == ["track"]
+        assert scalabel_eval.metrics == ["Det", "Track"]
 
         # test gt
         dataset = BDD100K(
@@ -76,5 +76,6 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
                 )
             )
 
-        _, log_str = scalabel_eval.evaluate("track")
-        assert log_str.count("\n") == 18
+        log_dict, log_str = scalabel_eval.evaluate("Track")
+        assert len(log_dict) == 13
+        assert log_str.count("\n") == 19

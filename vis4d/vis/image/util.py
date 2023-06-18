@@ -166,7 +166,7 @@ def preprocess_masks(
         tuple[list[masks], list[colors]]: Returns a list with all masks of
             shape [H, W] as well as a list with the corresponding colors.
     """
-    masks_np = array_to_numpy(masks, ndims=None, dtype=np.uint8)  # type: ignore # pylint: disable=line-too-long
+    masks_np = array_to_numpy(masks, n_dims=None, dtype=np.uint8)
     class_ids = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
 
     if len(masks_np.shape) == 2:
