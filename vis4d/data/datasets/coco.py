@@ -10,7 +10,7 @@ import numpy as np
 import pycocotools.mask as maskUtils
 from pycocotools.coco import COCO as COCOAPI
 
-from vis4d.common import DictStrAny
+from vis4d.common import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
@@ -161,7 +161,7 @@ class COCO(Dataset, CacheMappingMixin):
         remove_empty: bool = False,
         minimum_box_area: float = 0.0,
         use_pascal_voc_cats: bool = False,
-        **kwargs,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize the COCO dataset.
 

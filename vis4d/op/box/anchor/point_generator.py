@@ -3,6 +3,8 @@
 Modified from:
 https://github.com/open-mmlab/mmdetection/blob/master/mmdet/core/anchor/point_generator.py
 """
+from __future__ import annotations
+
 import numpy as np
 import torch
 from torch.nn.modules.utils import _pair
@@ -200,28 +202,27 @@ class MlvlPointGenerator:
 
     def sparse_priors(
         self,
-        prior_idxs,
-        featmap_size,
-        level_idx,
-        dtype=torch.float32,
-        device="cuda",
-    ):
-        """Generate sparse points according to the ``prior_idxs``.
+        prior_idxs: torch.Tensor,
+        featmap_size: tuple[int, int],
+        level_idx: int,
+        dtype: torch.dtype = torch.float32,
+        device: torch.device = torch.device("cuda"),
+    ) -> torch.Tensor:
+        """Generate sparse points according to ``prior_idxs``.
 
         Args:
-            prior_idxs (Tensor): The index of corresponding anchors
-                in the feature map.
+            prior_idxs (Tensor): The index of corresponding anchors in the
+                feature map.
             featmap_size (tuple[int]): feature map size arrange as (w, h).
-            level_idx (int): The level index of corresponding feature
-                map.
-            dtype (obj:`torch.dtype`): Date type of points. Defaults to
+            level_idx (int): The level index of corresponding feature map.
+            dtype (torch.dtype): Date type of points. Defaults to
                 ``torch.float32``.
-            device (obj:`torch.device`): The device where the points is
-                located.
+            device (torch.device): The device where the points are located.
+
         Returns:
-            Tensor: Anchor with shape (N, 2), N should be equal to
-            the length of ``prior_idxs``. And last dimension
-            2 represent (coord_x, coord_y).
+            Tensor: Anchor with shape (N, 2), N should be equal to the length
+                of ``prior_idxs``. And last dimension 2 represent
+                (coord_x, coord_y).
         """
         height, width = featmap_size
         x = (prior_idxs % width + self.offset) * self.strides[level_idx][0]

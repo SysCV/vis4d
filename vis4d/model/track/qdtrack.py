@@ -279,7 +279,7 @@ class QDTrack(nn.Module):
 
 
 class FasterRCNNQDTrack(nn.Module):
-    """Wrap qdtrack with Faster R-CNN detector."""
+    """Wrap QDTrack with Faster R-CNN detector."""
 
     def __init__(
         self,
@@ -362,7 +362,7 @@ class FasterRCNNQDTrack(nn.Module):
 
 
 class YOLOXQDTrack(nn.Module):
-    """Wrap qdtrack with YOLOX detector."""
+    """Wrap QDTrack with YOLOX detector."""
 
     def __init__(
         self,
@@ -454,12 +454,12 @@ class YOLOXQDTrack(nn.Module):
             images_hw=images_hw,
         )
 
-        outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
-        for i, boxs in enumerate(outs.boxes):
-            outs.boxes[i] = scale_and_clip_boxes(
+        tracks = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
+        for i, boxs in enumerate(tracks.boxes):
+            tracks.boxes[i] = scale_and_clip_boxes(
                 boxs, original_hw[i], images_hw[i]
             )
-        return outs
+        return tracks
 
     def __call__(
         self,

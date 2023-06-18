@@ -128,26 +128,26 @@ class BDD100KTrackEvaluator(Evaluator):
         short_description = ""
 
         if metric == self.METRICS_DET:
-            results = evaluate_det(
+            det_results = evaluate_det(
                 self.gt_frames,
                 self.frames,
                 config=self.config.scalabel,
                 nproc=0,
             )
-            for metric_name, metric_value in results.summary().items():
+            for metric_name, metric_value in det_results.summary().items():
                 metrics_log[metric_name] = metric_value
-            short_description += str(results) + "\n"
+            short_description += str(det_results) + "\n"
 
-        if metric == "track":
-            results = evaluate_track(
+        if metric == self.METRICS_TRACK:
+            track_results = evaluate_track(
                 acc_single_video_mot,
                 gts=group_and_sort(self.gt_frames),
                 results=group_and_sort(self.frames),
                 config=self.config.scalabel,
                 nproc=0,
             )
-            for metric_name, metric_value in results.summary().items():
+            for metric_name, metric_value in track_results.summary().items():
                 metrics_log[metric_name] = metric_value
-            short_description += str(results) + "\n"
+            short_description += str(track_results) + "\n"
 
         return metrics_log, short_description

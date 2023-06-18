@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from vis4d.common.typing import DictStrAny
+from vis4d.common.typing import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
@@ -108,7 +108,7 @@ class S3DIS(Dataset, CacheMappingMixin):
             K.instances3d,
         ),
         cache_points: bool = True,
-        **kwargs,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates a new S3DIS dataset.
 

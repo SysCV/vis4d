@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
-from vis4d.common.typing import DictStrAny, NDArrayF32, NDArrayI64
+from vis4d.common.typing import ArgsType, DictStrAny, NDArrayF32, NDArrayI64
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import Dataset, VideoMixin
@@ -123,7 +123,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         split: str = "train",
         include_non_key: bool = False,
         metadata: None | list[str] = None,
-        **kwargs,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
 

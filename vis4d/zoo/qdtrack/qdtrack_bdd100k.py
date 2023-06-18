@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """QDTrack BDD100K inference example."""
 from __future__ import annotations
 

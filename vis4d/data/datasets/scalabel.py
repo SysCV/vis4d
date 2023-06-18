@@ -16,6 +16,7 @@ from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 from vis4d.common.typing import (
+    ArgsType,
     DictStrAny,
     ListAny,
     NDArrayF32,
@@ -282,7 +283,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         remove_empty: bool = False,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
-        **kwargs,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
 

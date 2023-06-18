@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """QDTrack BDD100K inference example."""
 from __future__ import annotations
 
@@ -9,17 +10,17 @@ from vis4d.config.default import (
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
+from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
 from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.loader import VideoDataPipe
 from vis4d.data.transforms.base import compose, compose_batch
-from vis4d.data.transforms.normalize import NormalizeImage
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImage
 from vis4d.data.transforms.to_tensor import ToTensor
-from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
@@ -28,6 +29,7 @@ from vis4d.engine.connectors import (
 )
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import YOLOXQDTrack
+from vis4d.vis.image import BoundingBoxVisualizer
 
 CONN_BBOX_2D_TEST = {
     K.images: K.images,
@@ -58,7 +60,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     config = get_default_cfg(exp_name="qdtrack_yolox_bdd100k")
 
-    ckpt_path = "vis4d-workspace/QDTrack/qdtrack_YOLOX_bdd100k_50e_cocoinit/checkpoints/last_epoch_augs.ckpt"
+    ckpt_path = "vis4d-workspace/QDTrack/qdtrack_YOLOX_bdd100k_50e_cocoinit/checkpoints/last_epoch_augs_ema.ckpt"
 
     # Hyper Parameters
     params = FieldConfigDict()
@@ -87,17 +89,19 @@ def get_config() -> FieldConfigDict:
         keys_to_load=(K.images),
         annotation_path=annotation_path,
         config_path=config_path,
+        image_channel_mode="BGR",
         data_backend=data_backend,
     )
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters, shape=(800, 1440), keep_ratio=True
+            GenerateResizeParameters,
+            shape=(800, 1440),
+            keep_ratio=False,
+            align_long_edge=True,
         ),
         class_config(ResizeImage),
     ]
-
-    preprocess_transforms.append(class_config(NormalizeImage))
 
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
@@ -109,9 +113,7 @@ def get_config() -> FieldConfigDict:
     )
 
     test_dataset_cfg = class_config(
-        VideoDataPipe,
-        datasets=test_dataset,
-        preprocess_fn=test_preprocess_cfg,
+        VideoDataPipe, datasets=test_dataset, preprocess_fn=test_preprocess_cfg
     )
 
     data.test_dataloader = get_inference_dataloaders_cfg(
@@ -159,6 +161,18 @@ def get_config() -> FieldConfigDict:
     # Logger and Checkpoint
     callbacks = get_default_callbacks_cfg(config)
 
+    # Visualizer
+    callbacks.append(
+        class_config(
+            VisualizerCallback,
+            visualizer=class_config(BoundingBoxVisualizer, vis_freq=1000),
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                CallbackConnector, key_mapping=CONN_BBOX_2D_TRACK_VIS
+            ),
+        )
+    )
+
     # Evaluator
     callbacks.append(
         class_config(
@@ -181,6 +195,7 @@ def get_config() -> FieldConfigDict:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.precision = "16-mixed"
     config.pl_trainer = pl_trainer
 
     # PL Callbacks
