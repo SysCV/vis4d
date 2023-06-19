@@ -47,6 +47,7 @@ class Transform:
         in_keys: Sequence[str] | str,
         out_keys: Sequence[str] | str,
         sensors: Sequence[str] | str | None = None,
+        same_on_batch: bool = True,
     ) -> None:
         """Creates an instance of Transform.
 
@@ -55,11 +56,14 @@ class Transform:
                 input keys of the data dictionary which should be remapeed to
                 another key. Defaults to None.
             out_keys (Sequence[str] | str): Specifies one or multiple (if any)
-                input keys of the data dictionary which should be remaped to
+                output keys of the data dictionary which should be remaped to
                 another key. Defaults to None.
             sensors (Sequence[str] | str | None, optional): Specifies the
                 sensors this transformation should be applied to. If None, it
                 will be applied to all available sensors. Defaults to None.
+            same_on_batch (bool, optional): Whether to use the same
+                transformation parameters to all sensors / view. Defaults to
+                True.
         """
         if isinstance(in_keys, str):
             in_keys = [in_keys]
@@ -72,6 +76,8 @@ class Transform:
         if isinstance(sensors, str):
             sensors = [sensors]
         self.sensors = sensors
+
+        self.same_on_batch = same_on_batch
 
     @no_type_check
     def __call__(self, transform: TFunctor) -> TFunctor:
@@ -101,8 +107,9 @@ class Transform:
                 for key in self_.in_keys:
                     key_data = []
                     for data in batch:
-                        # Optionally allow the function to get the full
-                        # data dict as aux input.
+                        # Optionally allow the function to get the full data
+                        # dict as aux input and set default value to None if
+                        # key is not found
                         key_data += [
                             get_dict_nested(
                                 data, key.split("."), allow_missing=True
@@ -113,24 +120,38 @@ class Transform:
                     in_batch.append(key_data)
 
                 result = self_(*in_batch)
+
                 if len(self_.out_keys) == 1:
                     if self_.out_keys[0] == "data":
                         return result
                     result = [result]
+
                 for key, values in zip(self_.out_keys, result):
                     for data, value in zip(batch, values):
-                        set_dict_nested(data, key.split("."), value)
+                        if value is not None:
+                            set_dict_nested(data, key.split("."), value)
                 return batch
 
             if self_.sensors is not None:
-                for sensor in self_.sensors:
-                    batch_sensor = _transform_fn(
-                        [d[sensor] for d in input_batch]
-                    )
-                    for i, d in enumerate(batch_sensor):
-                        input_batch[i][sensor] = d
-            else:
+                if self_.same_on_batch:
+                    for sensor in self_.sensors:
+                        batch_sensor = _transform_fn(
+                            [d[sensor] for d in input_batch]
+                        )
+                        for i, d in enumerate(batch_sensor):
+                            input_batch[i][sensor] = d
+                else:
+                    for i, data in enumerate(input_batch):
+                        for sensor in self_.sensors:
+                            input_batch[i][sensor] = _transform_fn(
+                                [data[sensor]]
+                            )
+            elif self_.same_on_batch:
                 input_batch = _transform_fn(input_batch)
+            else:
+                for i, data in input_batch:
+                    input_batch[i] = _transform_fn(data)
+
             return input_batch
 
         def init(
@@ -138,6 +159,7 @@ class Transform:
             in_keys: Sequence[str] = self.in_keys,
             out_keys: Sequence[str] = self.out_keys,
             sensors: Sequence[str] | None = self.sensors,
+            same_on_batch: bool = self.same_on_batch,
             **kwargs,
         ):
             self_ = args[0]
@@ -145,6 +167,7 @@ class Transform:
             self_.in_keys = in_keys
             self_.out_keys = out_keys
             self_.sensors = sensors
+            self_.same_on_batch = same_on_batch
             self_.apply_to_data = lambda *args, **kwargs: apply_to_data(
                 self_, *args, **kwargs
             )

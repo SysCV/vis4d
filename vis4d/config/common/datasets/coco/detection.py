@@ -12,9 +12,9 @@ from vis4d.config.util import (
     get_train_dataloader_cfg,
 )
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
-from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import (
     FlipBoxes2D,
@@ -56,6 +56,8 @@ def get_train_dataloader(
     image_size: tuple[int, int],
     samples_per_gpu: int,
     workers_per_gpu: int,
+    cache_as_binary: bool,
+    cached_file_path: str | None = None,
 ) -> ConfigDict:
     """Get the default train dataloader for COCO detection."""
     # Train Dataset
@@ -66,8 +68,8 @@ def get_train_dataloader(
         split=split,
         remove_empty=True,
         data_backend=data_backend,
-        cache_as_binary=True,
-        cached_file_path="data/coco/train.pkl",
+        cache_as_binary=cache_as_binary,
+        cached_file_path=cached_file_path,
     )
 
     # Train Preprocessing
@@ -130,6 +132,8 @@ def get_test_dataloader(
     image_size: tuple[int, int],
     samples_per_gpu: int,
     workers_per_gpu: int,
+    cache_as_binary: bool,
+    cached_file_path: str | None = None,
 ) -> ConfigDict:
     """Get the default test dataloader for COCO detection."""
     # Test Dataset
@@ -139,8 +143,8 @@ def get_test_dataloader(
         data_root=data_root,
         split=split,
         data_backend=data_backend,
-        cache_as_binary=True,
-        cached_file_path="data/coco/val.pkl",
+        cache_as_binary=cache_as_binary,
+        cached_file_path=cached_file_path,
     )
 
     # Test Preprocessing
@@ -193,6 +197,7 @@ def get_coco_detection_cfg(
         K.boxes2d,
         K.boxes2d_classes,
     ),
+    train_cached_file_path: str | None = "data/coco/train.pkl",
     test_split: str = "val2017",
     test_keys_to_load: Sequence[str] = (
         K.images,
@@ -200,6 +205,8 @@ def get_coco_detection_cfg(
         K.boxes2d,
         K.boxes2d_classes,
     ),
+    test_cached_file_path: str | None = "data/coco/val.pkl",
+    cache_as_binary: bool = True,
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (800, 1333),
     samples_per_gpu: int = 2,
@@ -216,6 +223,8 @@ def get_coco_detection_cfg(
         image_size=image_size,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
+        cache_as_binary=cache_as_binary,
+        cached_file_path=train_cached_file_path,
     )
 
     data.test_dataloader = get_test_dataloader(
@@ -226,6 +235,8 @@ def get_coco_detection_cfg(
         image_size=image_size,
         samples_per_gpu=1,
         workers_per_gpu=workers_per_gpu,
+        cache_as_binary=cache_as_binary,
+        cached_file_path=test_cached_file_path,
     )
 
     return data

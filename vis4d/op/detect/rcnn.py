@@ -313,6 +313,10 @@ class RCNNLoss(nn.Module):
                 parameters into detected boxes.
             num_classes (int, optional): number of object categories. Defaults
                 to 80.
+            loss_cls (TorchLossFunc, optional): Classification loss function.
+                Defaults to F.cross_entropy.
+            loss_bbox (TorchLossFunc, optional): Regression loss function.
+                Defaults to l1_loss.
         """
         super().__init__()
         self.num_classes = num_classes

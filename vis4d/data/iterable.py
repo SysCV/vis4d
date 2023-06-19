@@ -45,8 +45,8 @@ class SubdividingIterableDataset(IterableDataset[DictData]):
             n_samples_per_batch: How many samples each batch should contain.
                 The first dimension of dataset[0].shape must be divisible by
                 this number.
-            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
-                function of a single sample. Can be None.
+            preprocess_fn (Callable[[list[DictData]], list[DictData]):
+                Preprocessing function. Defaults to identity.
         """
         super().__init__()
         self.dataset = dataset
@@ -86,7 +86,7 @@ class SubdividingIterableDataset(IterableDataset[DictData]):
                 # this is required if we e.g. want to subdivide a room that is
                 # too big into equal sized chunks and stick them back together
                 # for visualizaton
-                out_data = {"source_index": np.ndarray([data_idx])}
+                out_data: DictData = {"source_index": np.ndarray([data_idx])}
                 for key in data_sample:
                     start_idx = idx * self.n_samples_per_batch
                     end_idx = (idx + 1) * self.n_samples_per_batch
@@ -96,4 +96,4 @@ class SubdividingIterableDataset(IterableDataset[DictData]):
                         out_data[key] = data_sample[key][
                             start_idx:end_idx, ...
                         ]
-                yield self.preprocess_fn(out_data)
+                yield self.preprocess_fn([out_data])[0]

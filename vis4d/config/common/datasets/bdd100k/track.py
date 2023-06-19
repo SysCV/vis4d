@@ -8,14 +8,15 @@ from vis4d.config.util import (
     get_inference_dataloaders_cfg,
     get_train_dataloader_cfg,
 )
-from vis4d.data import CommonKeys as K
-from vis4d.data import DataPipe, ReferenceDataset, UniformViewSampler
+from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets import BDD100K, bdd100k_track_map
+from vis4d.data.reference import MultiViewDataset, UniformViewSampler
 from vis4d.data.transforms import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.post_process import PostProcessBoxes2d
+from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
@@ -28,7 +29,7 @@ def get_train_dataloader(
     data_backend: None | ConfigDict,
     samples_per_gpu: int,
     workers_per_gpu: int,
-):
+) -> ConfigDict:
     """Get the default train dataloader for BDD100K tracking."""
     bdd100k_det_train = class_config(
         BDD100K,
@@ -58,14 +59,14 @@ def get_train_dataloader(
 
     train_dataset_cfg = [
         class_config(
-            ReferenceDataset,
+            MultiViewDataset,
             dataset=bdd100k_det_train,
             sampler=class_config(
                 UniformViewSampler, scope=0, num_ref_samples=1
             ),
         ),
         class_config(
-            ReferenceDataset,
+            MultiViewDataset,
             dataset=bdd100k_track_train,
             sampler=class_config(
                 UniformViewSampler, scope=3, num_ref_samples=1
@@ -95,6 +96,7 @@ def get_train_dataloader(
     )
 
     preprocess_transforms.append(class_config(NormalizeImages))
+    preprocess_transforms.append(class_config(PostProcessBoxes2D))
 
     train_preprocess_cfg = class_config(
         compose,
@@ -103,11 +105,7 @@ def get_train_dataloader(
 
     train_batchprocess_cfg = class_config(
         compose,
-        transforms=[
-            class_config(PostProcessBoxes2d),
-            class_config(PadImages),
-            class_config(ToTensor),
-        ],
+        transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 
     return get_train_dataloader_cfg(
@@ -133,7 +131,6 @@ def get_test_dataloader(
         config_path="box_track",
         category_map=bdd100k_track_map,
         data_backend=data_backend,
-        load_anns=False,
         cache_as_binary=True,
         cached_file_path="data/bdd100k/track_val.pkl",
     )

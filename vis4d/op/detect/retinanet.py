@@ -382,6 +382,10 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
                 None.
             box_sampler (None | Sampler, optional): Box sampler. Defaults to
                 None.
+            loss_cls (TorchLossFunc, optional): Classification loss function.
+                Defaults to sigmoid_focal_loss.
+            loss_bbox (TorchLossFunc, optional): Regression loss function.
+                Defaults to l1_loss.
         """
         matcher = (
             box_matcher

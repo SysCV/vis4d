@@ -13,6 +13,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from .const import CommonKeys as K
+from .datasets import VideoDataset
 from .typing import DictData
 
 SortingFunc = Callable[[int, List[int], List[int]], List[int]]
@@ -41,17 +42,12 @@ def sort_temporal(
 class ReferenceViewSampler:
     """Base reference view sampler."""
 
-    def __init__(
-        self, num_ref_samples: int, sort_fn: SortingFunc = sort_key_first
-    ) -> None:
+    def __init__(self, num_ref_samples: int) -> None:
         """Creates an instance of the class.
 
         Args:
             num_ref_samples (int): Number of reference views to sample.
-            sort_fn (SortingFunc, optional): Function that sorts the views.
-                Defaults to sort_key_first.
         """
-        self.sort_fn = sort_fn
         self.num_ref_samples = num_ref_samples
 
     @abstractmethod
@@ -77,7 +73,6 @@ class ReferenceViewSampler:
         return self._sample_ref_indices(key_index, indices_in_video)
 
 
-# TODO: Check whether this is correct
 class SequentialViewSampler(ReferenceViewSampler):
     """Sequential View Sampler."""
 
@@ -100,22 +95,15 @@ class SequentialViewSampler(ReferenceViewSampler):
 class UniformViewSampler(ReferenceViewSampler):
     """View Sampler that chooses reference views uniform at random."""
 
-    def __init__(
-        self,
-        scope: int,
-        num_ref_samples: int,
-        sort_fn: SortingFunc = sort_key_first,
-    ) -> None:
+    def __init__(self, scope: int, num_ref_samples: int) -> None:
         """Creates an instance of the class.
 
         Args:
             scope (int): Define scope of neighborhood to key view to sample
                 from.
             num_ref_samples (int): Number of reference views to sample.
-            sort_fn (SortingFunc, optional): Function that sorts the views.
-                Defaults to sort_key_first.
         """
-        super().__init__(num_ref_samples, sort_fn)
+        super().__init__(num_ref_samples)
         if scope != 0 and scope < num_ref_samples // 2:
             raise ValueError("Scope must be higher than num_ref_imgs / 2.")
         self.scope = scope
@@ -139,14 +127,13 @@ class UniformViewSampler(ReferenceViewSampler):
         return ref_dataset_indices
 
 
-class ReferenceDataset(Dataset[list[DictData]]):
+class MultiViewDataset(Dataset[list[DictData]]):
     """Dataset that samples reference views from a video dataset."""
 
     def __init__(
         self,
-        dataset: Dataset[DictData],
+        dataset: VideoDataset,
         sampler: ReferenceViewSampler,
-        frame_order: str = "key_first",
         skip_nomatch_samples: bool = False,
     ) -> None:
         """Creates an instance of the class.
@@ -155,16 +142,17 @@ class ReferenceDataset(Dataset[list[DictData]]):
             dataset (Dataset): Video dataset to sample from.
             sampler (ReferenceViewSampler): Sampler that samples reference
                 views.
+            skip_nomatch_samples (bool, optional): Whether to skip samples
+                where no match is found. Defaults to False.
         """
         self.dataset = dataset
         self.sampler = sampler
-        self.frame_order = frame_order
         self.skip_nomatch_samples = skip_nomatch_samples
 
     @staticmethod
     def has_matches(
         key_data: DictData,
-        ref_data: DictData,
+        ref_data: list[DictData],
         match_key: str = K.boxes2d_track_ids,
     ) -> bool:
         """Check if key / ref data have matches."""
@@ -189,11 +177,11 @@ class ReferenceDataset(Dataset[list[DictData]]):
                 return indices
         raise ValueError(f"Index {index} not found in video_to_indices!")
 
-    # TODO: implement sorting
+    # TODO: Implement sorting. Currently always key first.
     def __getitem__(self, index: int) -> list[DictData]:
         """Get item from dataset."""
         cur_sample = self.dataset[index]
-        cur_sample[K.sample_attributes] = "key"
+        cur_sample["keyframes"] = True
 
         if self.sampler.num_ref_samples > 0:
             ref_data = []
@@ -202,14 +190,14 @@ class ReferenceDataset(Dataset[list[DictData]]):
                 isinstance(self.sampler, UniformViewSampler)
                 and self.sampler.scope == 0
             ):
-                ref_indices = [index]
+                ref_indices = [index] * self.sampler.num_ref_samples
             else:
                 video_indices = self.get_video_indices(index)
                 ref_indices = self.sampler(index, video_indices)
 
-            for i, ref_index in enumerate(ref_indices):
+            for ref_index in ref_indices:
                 ref_sample = self.dataset[ref_index]
-                ref_sample[K.sample_attributes] = f"ref_{i}"
+                ref_sample["keyframes"] = False
                 ref_data.append(ref_sample)
 
             if self.skip_nomatch_samples and not (
@@ -218,5 +206,6 @@ class ReferenceDataset(Dataset[list[DictData]]):
                 # TODO: implement retry
                 raise NotImplementedError
 
-        assert self.sampler.num_ref_samples == len(ref_data)
-        return [cur_sample, *ref_data]
+            assert self.sampler.num_ref_samples == len(ref_data)
+            return [cur_sample, *ref_data]
+        return [cur_sample]

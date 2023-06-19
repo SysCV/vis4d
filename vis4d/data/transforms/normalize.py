@@ -1,4 +1,3 @@
-# pylint: disable=no-member,unexpected-keyword-arg
 """Normalize Transform."""
 from __future__ import annotations
 

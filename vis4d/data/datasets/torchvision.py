@@ -29,10 +29,10 @@ class TorchvisionDataset(Dataset):
     `TorchvisionClassificationDataset` for an example.
     """
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         torchvision_ds: VisionDataset,
-        data_converter: Callable[[Any], DictData],  # type: ignore
+        data_converter: Callable[[Any], DictData],
     ) -> None:
         """Creates a new instance of the class.
 
@@ -94,10 +94,7 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
     dict_keys(['images', 'categories'])
     """
 
-    def __init__(
-        self,
-        detection_ds: VisionDataset,
-    ) -> None:
+    def __init__(self, detection_ds: VisionDataset) -> None:
         """Creates a new instance of the class.
 
         Args:

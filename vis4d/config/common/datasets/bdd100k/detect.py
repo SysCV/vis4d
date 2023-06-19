@@ -12,9 +12,9 @@ from vis4d.config.util import (
     get_train_dataloader_cfg,
 )
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.bdd100k import BDD100K
+from vis4d.data.data_pipe import DataPipe
+from vis4d.data.datasets import BDD100K
 from vis4d.data.io import DataBackend
-from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import (
     FlipBoxes2D,
@@ -61,7 +61,7 @@ def get_train_dataloader(
         config_path="det",
         keys_to_load=keys_to_load,
         data_backend=data_backend,
-        remove_empty=True,
+        skip_empty_samples=True,
     )
 
     # Train Preprocessing

@@ -348,6 +348,10 @@ class RPNLoss(DenseAnchorHeadLoss):
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
             box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to the
                 desired network output.
+            loss_cls (TorchLossFunc): Classification loss function. Defaults to
+                F.binary_cross_entropy_with_logits.
+            loss_bbox (TorchLossFunc): Regression loss function. Defaults to
+                l1_loss.
         """
         matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.7],

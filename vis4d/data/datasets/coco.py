@@ -212,8 +212,7 @@ class COCO(CacheMappingMixin, Dataset):
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats}, "
-            f"remove_empty={self.remove_empty})"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
         )
 
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
@@ -260,7 +259,7 @@ class COCO(CacheMappingMixin, Dataset):
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        return len(self.data)  # type: ignore
+        return len(self.data)
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform coco sample to vis4d input format.

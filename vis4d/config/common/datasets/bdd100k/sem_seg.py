@@ -12,12 +12,12 @@ from vis4d.config.util import (
     get_train_dataloader_cfg,
 )
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io import DataBackend
-from vis4d.data.loader import DataPipe
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.crop import (
-    CropImage,
+    CropImages,
     CropSegMasks,
     GenCropParameters,
 )
@@ -74,7 +74,7 @@ def get_train_dataloader(
 
     preprocess_transforms = [
         class_config(GenCropParameters, shape=crop_size, cat_max_ratio=0.75),
-        class_config(CropImage),
+        class_config(CropImages),
         class_config(CropSegMasks),
     ]
 

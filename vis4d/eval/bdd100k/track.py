@@ -127,4 +127,4 @@ class BDD100KTrackEvaluator(Evaluator):
 
         log_dict = {f"{k}": float(v) for k, v in results.summary().items()}
 
-        return log_dict, str(results)
+        return log_dict, str(results)  # type: ignore

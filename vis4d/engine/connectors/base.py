@@ -20,8 +20,8 @@ class DataConnector:
         """Initializes the data connector with static remapping of the keys.
 
         Args:
-            key_mapping (dict[str, str] | dict[str, SourceKeyDescription]):
-                Defines which kwargs to pass onto the module.
+            key_mapping (dict[str, str]): Defines which kwargs to pass onto the
+                module.
 
         Simple Example Configuration:
 

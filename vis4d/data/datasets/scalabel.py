@@ -16,13 +16,7 @@ from vis4d.common.distributed import broadcast
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import (
-    DictStrAny,
-    ListAny,
-    NDArrayF32,
-    NDArrayI64,
-    NDArrayUI8,
-)
+from vis4d.common.typing import ListAny, NDArrayF32, NDArrayI64, NDArrayUI8
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
@@ -157,14 +151,15 @@ def print_class_histogram(class_frequencies: dict[str, int]) -> None:
     data.extend([None] * (n_cols - (len(data) % n_cols)))
     if num_classes > 1:
         data.extend(["total", total_num_instances])
-    data = itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)])  # type: ignore # pylint: disable=line-too-long
+
     table = tabulate(
-        data,  # type: ignore
+        itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)]),
         headers=["category", "#instances"] * (n_cols // 2),
         tablefmt="pipe",
         numalign="left",
         stralign="center",
     )
+
     rank_zero_info(
         f"Distribution of instances among all {num_classes} categories:\n"
         + colored(table, "cyan")
@@ -301,7 +296,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         config_path: None | str | Config = None,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
-        load_anns: bool = True,
         skip_empty_samples: bool = False,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
@@ -327,6 +321,12 @@ class Scalabel(CacheMappingMixin, VideoDataset):
                 per-video IDs. Defaults to false.
             bg_as_class (bool): Whether to include background pixels as an
                 additional class for masks.
+            skip_empty_samples (bool): Whether to skip samples without
+                annotations.
+            cache_as_binary (bool, optional): Whether to cache the loaded
+                data as binary. Defaults to True.
+            cached_file_path (str | None, optional): Path to the cached file.
+                Defaults to None.
         """
         super().__init__()
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
@@ -344,8 +344,12 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         self.cats_name2id: dict[str, dict[str, int]] = {}
         self.category_map = category_map
 
+        # TODO: Add support for attributes
+        self.attributes_to_load: Sequence[dict[str, str | float]] | None = None
+
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping,
+            remove_empty_samples,
             cache_as_binary=cache_as_binary,
             cached_file_path=cached_file_path,
         )
@@ -357,7 +361,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
 
         self._setup_categories()
         self.video_to_indices = self._generate_video_to_indices()
-        self.load_anns = load_anns
 
     def _generate_video_to_indices(self) -> dict[str, list[int]]:
         """Group all dataset sample indices (int) by their video ID (str).
@@ -367,7 +370,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         """
         video_to_indices: dict[str, list[int]] = defaultdict(list)
         video_to_frameidx: dict[str, list[int]] = defaultdict(list)
-        for idx, frame in enumerate(self.frames):
+        for idx, frame in enumerate(self.frames):  # type: ignore
             if frame.videoName is not None:
                 assert (
                     frame.frameIndex is not None
@@ -397,18 +400,18 @@ class Scalabel(CacheMappingMixin, VideoDataset):
 
     def _load_mapping(  # type: ignore
         self,
-        generate_map_func: Callable[[], list[DictStrAny]],
-        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
+        generate_map_func: Callable[[], ScalabelData],
+        filter_func: Callable[[ListAny], ListAny] = lambda x: x,
         cache_as_binary: bool = True,
         cached_file_path: str | None = None,
-    ) -> tuple[ListAny, Config]:
+    ) -> tuple[DatasetFromList, Config]:
         """Load cached mapping or generate if not exists."""
         timer = Timer()
         data = self._load_mapping_data(
             generate_map_func, cache_as_binary, cached_file_path
         )
         if data is not None:
-            frames, cfg = data.frames, data.config  # type: ignore
+            frames, cfg = data.frames, data.config
 
             add_data_path(self.data_root, frames)
             rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
@@ -427,10 +430,12 @@ class Scalabel(CacheMappingMixin, VideoDataset):
 
             discard_labels_outside_set(frames, class_list)
 
-            frames = filter_frames_by_attributes(frames, attributes_to_load)
+            frames = filter_frames_by_attributes(
+                frames, self.attributes_to_load
+            )
 
             if self.skip_empty_samples:
-                frames = remove_empty_samples(frames)
+                frames = filter_func(frames)
 
             t = Timer()
             frequencies = prepare_labels(
@@ -443,13 +448,14 @@ class Scalabel(CacheMappingMixin, VideoDataset):
                 " seconds."
             )
             print_class_histogram(frequencies)
-            frames = DatasetFromList(frames)
+            frames_dataset = DatasetFromList(frames)
         else:
-            frames = None
+            frames_dataset = None
             cfg = None
-        frames = broadcast(frames)
+        frames_dataset = broadcast(frames_dataset)
         cfg = broadcast(cfg)
-        return frames, cfg
+        assert frames_dataset is not None
+        return frames_dataset, cfg
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
@@ -494,10 +500,18 @@ class Scalabel(CacheMappingMixin, VideoDataset):
 
     def _add_annotations(self, frame: Frame, data: DictData) -> None:
         """Add annotations given a scalabel frame and a data dictionary."""
-        instid_map = {}
-        for label in frame.labels:
-            if label.id not in instid_map:
-                instid_map[label.id] = int(label.attributes["instance_id"])
+        labels_used, instid_map = [], {}
+        if frame.labels is not None:
+            for label in frame.labels:
+                assert (
+                    label.attributes is not None and label.category is not None
+                )
+                if not check_crowd(label) and not check_ignored(label):
+                    labels_used.append(label)
+                    if label.id not in instid_map:
+                        instid_map[label.id] = int(
+                            label.attributes["instance_id"]
+                        )
 
         image_size = (
             ImageSize(height=data[K.input_hw][0], width=data[K.input_hw][1])
@@ -508,7 +522,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         if K.boxes2d in self.keys_to_load:
             cats_name2id = self.cats_name2id[K.boxes2d]
             boxes2d, classes, track_ids = boxes2d_from_scalabel(
-                frame.labels, cats_name2id, instid_map
+                labels_used, cats_name2id, instid_map
             )
             data[K.boxes2d] = boxes2d
             data[K.boxes2d_classes] = classes
@@ -518,20 +532,20 @@ class Scalabel(CacheMappingMixin, VideoDataset):
             # NOTE: instance masks' mapping is consistent with boxes2d
             cats_name2id = self.cats_name2id[K.instance_masks]
             instance_masks = instance_masks_from_scalabel(
-                frame.labels, cats_name2id, image_size
+                labels_used, cats_name2id, image_size
             )
             data[K.instance_masks] = instance_masks
 
         if K.seg_masks in self.keys_to_load:
             sem_map = self.cats_name2id[K.seg_masks]
             semantic_masks = semantic_masks_from_scalabel(
-                frame.labels, sem_map, image_size, self.bg_as_class
+                labels_used, sem_map, image_size, self.bg_as_class
             )
             data[K.seg_masks] = semantic_masks
 
         if K.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(
-                frame.labels, self.cats_name2id[K.boxes3d], instid_map
+                labels_used, self.cats_name2id[K.boxes3d], instid_map
             )
             data[K.boxes3d] = boxes3d
             data[K.boxes3d_classes] = classes
@@ -546,14 +560,9 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         frame = self.frames[index]
         data = self._load_inputs(frame)
 
-        if self.load_anns:
-            if len(self.cats_name2id) == 0:
-                raise AttributeError(
-                    "Category mapping is empty but keys_to_load is not. "
-                    "Please specify a category mapping."
-                )
-            # load annotations to input sample
-            self._add_annotations(frame, data)
+        # load annotations to input sample
+        self._add_annotations(frame, data)
+
         return data
 
 

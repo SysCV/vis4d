@@ -7,7 +7,6 @@ import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 
-from .datasets import Dataset
 from .typing import DictDataOrList
 
 

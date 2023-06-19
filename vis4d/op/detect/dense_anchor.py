@@ -11,7 +11,6 @@ from vis4d.common import TorchLossFunc
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
-
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.util import unmap
 
@@ -211,6 +210,7 @@ class DenseAnchorHeadLoss(nn.Module):
             box_matcher (Matcher): Box matcher.
             box_sampler (Sampler): Box sampler.
             loss_cls (TorchLossFunc): Classification loss.
+            loss_bbox (TorchLossFunc): Bounding box regression loss.
             allowed_border (int): The border to allow the valid anchor.
                 Defaults to 0.
         """

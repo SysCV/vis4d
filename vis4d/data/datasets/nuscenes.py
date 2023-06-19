@@ -8,7 +8,6 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation as R
-from torch import Tensor
 from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
@@ -190,14 +189,16 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 for loading data. Defaults to None.
             skip_empty_samples (bool, optional): Whether to skip samples
                 without annotations. Defaults to False.
-            cache_as_binary (bool, optional): Whether to cache the loaded
-                data as binary. Defaults to True.
             point_based_filter (bool, optional): Whether to filter out
                 samples based on the number of points in the point cloud.
                 Defaults to False.
             distance_based_filter (bool, optional): Whether to filter out
                 samples based on the distance of the object from the ego
                 vehicle. Defaults to False.
+            cache_as_binary (bool, optional): Whether to cache the loaded
+                data as binary. Defaults to True.
+            cached_file_path (str | None, optional): Path to the cached file.
+                Defaults to None.
         """
         super().__init__()
         self.data_root = data_root
@@ -375,12 +376,13 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         """Load camera data.
 
         Args:
-            cam_data (DictStrAny): NuScenes format camera data.
-            ego_pose_cam (dict): Ego vehicle pose in NuScenes format.
+            data (NuScenesDevkit): NuScenes toolkit.
+            cam_token (str): Camera token.
 
         Returns:
-            tuple[NDArrayF32, NDArrayF32, NDArrayF32, str]: Image, intrinscs,
-                extrinsics, timestamp.
+            DictStrAny: Camera data containing the sample name, image path,
+                image height and width, intrinsics, extrinsics, and
+                timestamp.
         """
         cam_data = data.get("sample_data", cam_token)
 
@@ -438,9 +440,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 axis_mode == AxisMode.OPENCV
             ), "2D annotations are only supported in camera coordinates."
             assert intrinsics is not None, "Intrinsics must be provided."
-            assert (
-                image_hw is not None
-            ), "Image height and width must be provided."
             boxes2d = np.empty((1, 4), dtype=np.float32)[1:]
 
         sensor_from_global = inverse_rigid_transform(
@@ -468,10 +467,14 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             box3d.rotate(rotation)
             box3d.translate(translation)
 
-            if export_2d_annotations and not box_in_image(
-                box3d, intrinsics, (image_hw[1], image_hw[0])
-            ):
-                continue
+            if export_2d_annotations:
+                assert (
+                    image_hw is not None
+                ), "Image height and width must be provided."
+                if not box_in_image(
+                    box3d, intrinsics, (image_hw[1], image_hw[0])
+                ):
+                    continue
 
             # Number of points in the 3D box
             boxes3d_num_lidar_pts = np.concatenate(
@@ -506,7 +509,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 )
 
             # Get 3D box orientation
-            v = np.dot(box3d.orientation.rotation_matrix, np.array([1, 0, 0]))
             if axis_mode == AxisMode.ROS:
                 yaw = box3d.orientation.yaw_pitch_roll[0]
                 x, y, z, w = R.from_euler("xyz", [0, 0, yaw]).as_quat()
@@ -593,39 +595,35 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         points_lidar: NDArrayF32,
         lidar2global: NDArrayF32,
         cam2global: NDArrayF32,
-        intrinsic: NDArrayF32,
+        intrinsics: NDArrayF32,
         image_hw: tuple[int, int],
-    ) -> Tensor:
+    ) -> NDArrayF32:
         """Load depth map.
 
         Args:
-            points_lidar (Tensor): LiDAR points.
-            lidar2global (Tensor): LiDAR to global extrinsics.
-            cam2global (Tensor): Camera to global extrinsics.
+            points_lidar (NDArrayF32): LiDAR points.
+            lidar2global (NDArrayF32): LiDAR to global extrinsics.
+            cam2global (NDArrayF32): Camera to global extrinsics.
+            intrinsics (NDArrayF32): Camera intrinsic matrix.
             image_hw (tuple[int, int]): Image height and width.
 
         Returns:
-            depth_map (Tensor): Depth map.
+            NDArrayF32: Depth map.
         """
-        cam2global = torch.from_numpy(cam2global)
-        lidar2global = torch.from_numpy(lidar2global)
-        intrinsic = torch.from_numpy(intrinsic)
-        points_lidar = torch.from_numpy(np.copy(points_lidar))
+        cam2global_ = torch.from_numpy(cam2global)
+        lidar2global_ = torch.from_numpy(lidar2global)
+        intrinsics_ = torch.from_numpy(intrinsics)
+        points_lidar_ = torch.from_numpy(np.copy(points_lidar))
 
-        lidar2cam = torch.matmul(torch.inverse(cam2global), lidar2global)
+        lidar2cam = torch.matmul(torch.inverse(cam2global_), lidar2global_)
         cam2img = torch.eye(4, 4)
-        cam2img[:3, :3] = intrinsic
-        points_cam = points_lidar[:, :3] @ (lidar2cam[:3, :3].T) + lidar2cam[
+        cam2img[:3, :3] = intrinsics_
+        points_cam = points_lidar_[:, :3] @ (lidar2cam[:3, :3].T) + lidar2cam[
             :3, 3
         ].unsqueeze(0)
 
-        depth_map = generate_depth_map(
-            points_cam,
-            intrinsic,
-            image_hw,
-        )
-        depth_map = depth_map.numpy()
-        return depth_map
+        depth_map = generate_depth_map(points_cam, intrinsics_, image_hw)
+        return depth_map.numpy()
 
     def _filter_boxes(
         self, annotations: DictStrAny
@@ -664,7 +662,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
 
     def __len__(self) -> int:
         """Length."""
-        return len(self.samples)  # type: ignore
+        return len(self.samples)
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.

@@ -69,7 +69,9 @@ class GenerateResizeParameters:
         self, images: list[NDArrayF32]
     ) -> tuple[list[ResizeParam], list[tuple[int, int]]]:
         """Compute the parameters and put them in the data dict."""
-        im_shape = (images[0].shape[1], images[0].shape[2])
+        image = images[0]
+
+        im_shape = (image.shape[1], image.shape[2])
         target_shape = _get_target_shape(
             im_shape,
             self.shape,
@@ -83,14 +85,14 @@ class GenerateResizeParameters:
             target_shape[0] / im_shape[0],
         )
 
-        resize_param = ResizeParam(
-            target_shape=target_shape,
-            scale_factor=scale_factor,
-            interpolation=self.interpolation,
-        )
-
-        resize_params = [resize_param for _ in range(len(images))]
-        target_shapes = [target_shape for _ in range(len(images))]
+        resize_params = [
+            ResizeParam(
+                target_shape=target_shape,
+                scale_factor=scale_factor,
+                interpolation=self.interpolation,
+            )
+        ] * len(images)
+        target_shapes = [target_shape] * len(images)
 
         return resize_params, target_shapes
 
@@ -111,7 +113,7 @@ class ResizeImages:
         images: list[NDArrayF32],
         target_shapes: list[tuple[int, int]],
         interpolations: list[str],
-    ) -> tuple[NDArrayF32, tuple[int, int]]:
+    ) -> list[NDArrayF32]:
         """Resize an image of dimensions [N, H, W, C].
 
         Args:
@@ -121,7 +123,7 @@ class ResizeImages:
                 bilinear.
 
         Returns:
-            Tensor: Resized image according to parameters in resize.
+            list[NDArrayF32]: Resized images according to parameters in resize.
         """
         for i, (image, target_shape, interpolation) in enumerate(
             zip(images, target_shapes, interpolations)
@@ -139,24 +141,29 @@ class ResizeBoxes2D:
     """Resize list of 2D bounding boxes."""
 
     def __call__(
-        self, boxes: list[NDArrayF32], scale_factors: list[tuple[float, float]]
+        self,
+        boxes_list: list[NDArrayF32],
+        scale_factors: list[tuple[float, float]],
     ) -> list[NDArrayF32]:
         """Resize 2D bounding boxes.
 
         Args:
-            boxes (Tensor): The bounding boxes to be resized.
-            scale_factor (tuple[float, float]): scaling factor.
+            boxes_list: (list[NDArrayF32]): The bounding boxes to be resized.
+            scale_factors (list[tuple[float, float]]): scaling factors.
 
         Returns:
-            Tensor: Resized bounding boxes according to parameters in resize.
+            list[NDArrayF32]: Resized bounding boxes according to parameters in
+                resize.
         """
-        for i, (boxes_, scale_factor) in enumerate(zip(boxes, scale_factors)):
-            boxes_ = torch.from_numpy(boxes_)
+        for i, (boxes, scale_factor) in enumerate(
+            zip(boxes_list, scale_factors)
+        ):
+            boxes_ = torch.from_numpy(boxes)
             scale_matrix = torch.eye(3)
             scale_matrix[0, 0] = scale_factor[0]
             scale_matrix[1, 1] = scale_factor[1]
-            boxes[i] = transform_bbox(scale_matrix, boxes_).numpy()
-        return boxes
+            boxes_list[i] = transform_bbox(scale_matrix, boxes_).numpy()
+        return boxes_list
 
 
 @Transform(
@@ -166,13 +173,17 @@ class ResizeInstanceMasks:
     """Resize instance segmentation masks."""
 
     def __call__(
-        self, masks: list[NDArrayF32], target_shapes: list[tuple[int, int]]
-    ) -> NDArrayF32:
+        self,
+        masks_list: list[NDArrayF32],
+        target_shapes: list[tuple[int, int]],
+    ) -> list[NDArrayF32]:
         """Resize masks."""
-        for i, (masks_, target_shape) in enumerate(zip(masks, target_shapes)):
-            if len(masks_) == 0:  # handle empty masks
+        for i, (masks, target_shape) in enumerate(
+            zip(masks_list, target_shapes)
+        ):
+            if len(masks) == 0:  # handle empty masks
                 continue
-            masks_ = torch.from_numpy(masks_)
+            masks_ = torch.from_numpy(masks)
             masks_ = (
                 _resize_tensor(
                     masks_.float().unsqueeze(1),
@@ -182,33 +193,36 @@ class ResizeInstanceMasks:
                 .type(masks_.dtype)
                 .squeeze(1)
             )
-            masks[i] = masks_.numpy()
-        return masks
+            masks_list[i] = masks_.numpy()
+        return masks_list
 
 
-# TODO: Refactor this function
 @Transform([K.seg_masks, "transforms.resize.target_shape"], K.seg_masks)
 class ResizeSegMasks:
     """Resize segmentation masks."""
 
     def __call__(
-        self, masks: NDArrayF32, target_shape: tuple[int, int]
-    ) -> NDArrayF32:
+        self,
+        masks_list: list[NDArrayF32],
+        target_shape_list: list[tuple[int, int]],
+    ) -> list[NDArrayF32]:
         """Resize masks."""
-        if len(masks) == 0:  # handle empty masks
-            return masks
-        masks_ = torch.from_numpy(masks)
-        masks_ = (
-            _resize_tensor(
-                masks_.float().unsqueeze(0).unsqueeze(0),
-                target_shape,
-                interpolation="nearest",
+        for i, (masks, target_shape) in enumerate(
+            zip(masks_list, target_shape_list)
+        ):
+            masks_ = torch.from_numpy(masks)
+            masks_ = (
+                _resize_tensor(
+                    masks_.float().unsqueeze(0).unsqueeze(0),
+                    target_shape,
+                    interpolation="nearest",
+                )
+                .type(masks_.dtype)
+                .squeeze(0)
+                .squeeze(0)
             )
-            .type(masks_.dtype)
-            .squeeze(0)
-            .squeeze(0)
-        )
-        return masks_.numpy()
+            masks_list[i] = masks_.numpy()
+        return masks_list
 
 
 @Transform([K.intrinsics, "transforms.resize.scale_factor"], K.intrinsics)
@@ -219,7 +233,7 @@ class ResizeIntrinsics:
         self,
         intrinsics: list[NDArrayF32],
         scale_factors: list[tuple[float, float]],
-    ) -> NDArrayF32:
+    ) -> list[NDArrayF32]:
         """Scale camera intrinsics when resizing."""
         for i, scale_factor in enumerate(scale_factors):
             intrinsics[i][0, 0] *= scale_factor[0]

@@ -48,7 +48,7 @@ CONN_BBOX_2D_TRAIN = {
     "boxes2d": K.boxes2d,
     "boxes2d_classes": K.boxes2d_classes,
     "boxes2d_track_ids": K.boxes2d_track_ids,
-    "sample_attributes": K.sample_attributes,
+    "keyframes": "keyframes",
 }
 
 CONN_BBOX_2D_TEST = {
@@ -103,10 +103,6 @@ def get_config() -> FieldConfigDict:
     ######################################################
     config = get_default_cfg(exp_name="qdtrack_frcnn_r50_fpn_bdd100k")
 
-    ckpt_path = (
-        "https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt"
-    )
-
     # High level hyper parameters
     params = FieldConfigDict()
     params.samples_per_gpu = 2
@@ -131,11 +127,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     num_classes = len(bdd100k_track_map)
 
-    config.model = class_config(
-        FasterRCNNQDTrack,
-        num_classes=num_classes,
-        weights=ckpt_path,
-    )
+    config.model = class_config(FasterRCNNQDTrack, num_classes=num_classes)
 
     ######################################################
     ##                        LOSS                      ##

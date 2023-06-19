@@ -5,6 +5,7 @@ import copy
 import os
 import pickle
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from io import BytesIO
 from typing import Any
 
@@ -148,9 +149,6 @@ def get_used_data_groups(
     return used_groups
 
 
-# TODO: Add support for generate different timestamp cached mapping files,
-# and let the user whehter generate every time or choose which one to use.
-# By default, use the latest one. Add the SHA hash of the annotations file
 class CacheMappingMixin:
     """Caches a mapping for fast I/O and multi-processing.
 
@@ -160,9 +158,8 @@ class CacheMappingMixin:
     Caching the mapping reduces startup time by loading the mapping instead of
     re-computing it at every startup.
 
-    NOTE: Make sure your annotations file is up-to-date and that the strings
-    used in the mapping are unique. Otherwise, the mapping will be wrong and
-    you will get wrong samples.
+    NOTE: Make sure your annotations file is up-to-date. Otherwise, the mapping
+    will be wrong and you will get wrong samples.
     """
 
     @rank_zero_only
@@ -171,7 +168,7 @@ class CacheMappingMixin:
         generate_map_func: Callable[[], list[DictStrAny]],
         cache_as_binary: bool,
         cached_file_path: str | None,
-    ) -> DatasetFromList:
+    ) -> ListAny:
         """Load possibly cached mapping via generate_map_func.
 
         Args:
@@ -192,7 +189,11 @@ class CacheMappingMixin:
                 with open(cached_file_path, "wb") as file:
                     file.write(pickle.dumps(data))
             else:
-                rank_zero_info(f"Found {cached_file_path} so loading it...")
+                dt = datetime.fromtimestamp(os.stat(cached_file_path).st_mtime)
+                rank_zero_info(
+                    f"Found {cached_file_path} generated at {dt.isoformat()} "
+                    + "and loading it..."
+                )
                 with open(cached_file_path, "rb") as file:
                     data = pickle.loads(file.read())
         else:
@@ -241,7 +242,7 @@ class DatasetFromList(Dataset):  # type: ignore
     See: https://github.com/pytorch/pytorch/issues/13246
     """
 
-    def __init__(  # type: ignore
+    def __init__(
         self, lst: ListAny, deepcopy: bool = False, serialize: bool = True
     ):
         """Creates an instance of the class.
