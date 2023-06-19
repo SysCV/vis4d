@@ -266,7 +266,9 @@ class YOLOXPostprocess(nn.Module):
         dtype, device = cls_outs[0].dtype, cls_outs[0].device
         num_imgs = len(images_hw)
         num_classes = cls_outs[0].shape[1]
-        featmap_sizes = [featmap.size()[-2:] for featmap in cls_outs]
+        featmap_sizes: list[tuple[int, int]] = [
+            tuple(featmap.size()[-2:]) for featmap in cls_outs  # type: ignore
+        ]
         assert len(featmap_sizes) == self.point_generator.num_levels
         mlvl_points = self.point_generator.grid_priors(
             featmap_sizes, dtype=dtype, device=device, with_stride=True

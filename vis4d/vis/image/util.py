@@ -9,6 +9,7 @@ from vis4d.common.typing import (
     ArrayLikeFloat,
     ArrayLikeInt,
     ArrayLikeUInt,
+    NDArrayBool,
     NDArrayUI8,
 )
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
@@ -152,7 +153,7 @@ def preprocess_masks(
     masks: ArrayLikeUInt,
     class_ids: ArrayLikeInt | None,
     color_mapping: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
-) -> tuple[list[NDArrayUI8], list[tuple[int, int, int]]]:
+) -> tuple[list[NDArrayBool], list[tuple[int, int, int]]]:
     """Preprocesses predicted masks.
 
     Args:
@@ -172,11 +173,13 @@ def preprocess_masks(
     if len(masks_np.shape) == 2:
         masks_np = _to_binary_mask(masks_np)
 
-    mask_list: list[NDArrayUI8] = []
+    masks_binary = masks_np.astype(bool)
+
+    mask_list: list[NDArrayBool] = []
     color_list: list[tuple[int, int, int]] = []
 
-    for idx in range(masks_np.shape[0]):
-        mask = masks_np[idx, ...]
+    for idx in range(masks_binary.shape[0]):
+        mask = masks_binary[idx, ...]
 
         class_id = None if class_ids is None else class_ids[idx].item()
         if class_id is not None:
