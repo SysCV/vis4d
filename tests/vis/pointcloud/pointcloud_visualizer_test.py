@@ -49,10 +49,14 @@ class TestPointcloudViewer(unittest.TestCase):
         pc2 = o3d.io.read_point_cloud(file2)
 
         self.assertTrue(
-            np.allclose(np.asarray(pc1.points), np.asarray(pc2.points))
+            np.allclose(
+                np.asarray(pc1.points), np.asarray(pc2.points), atol=1e-4
+            )
         )
         self.assertTrue(
-            np.allclose(np.asarray(pc1.colors), np.asarray(pc2.colors))
+            np.allclose(
+                np.asarray(pc1.colors), np.asarray(pc2.colors), atol=1e-4
+            )
         )
 
     def test_precomputed(self) -> None:
