@@ -41,5 +41,5 @@ class TorchvisionClassifcationTest(unittest.TestCase):
         self.assertTrue(data[K.categories].shape == (1,))
 
         data = next(iter(self.test_ds))
-        self.assertTrue(data[K.images].shape) == (1, 28, 28, 1)
-        self.assertTrue(data[K.categories].shape) == (1,)
+        self.assertTrue(data[K.images].shape == (1, 28, 28, 1))
+        self.assertTrue(data[K.categories].shape == (1,))

@@ -31,7 +31,7 @@ REV_KEYS = [
     #     r"^detector.backbone.neck.mm_neck.fpn_convs\.",
     #     "layer_blocks.",
     # ),
-    # (r"\.conv.weight", ".weight"),
+    # (r"\.conv.weight", ".weigh2t"),
     # (r"\.conv.bias", ".bias"),
     (r"^backbone.body\.", "basemodel."),
 ]
@@ -50,7 +50,7 @@ class QDTrackOut(NamedTuple):
     """Output of QDtrack model."""
 
     detector_out: FRCNNOut
-    key_images_hw: list[Tensor]
+    key_images_hw: list[tuple[int, int]]
     key_target_boxes: list[Tensor]
     key_embeddings: list[Tensor]
     ref_embeddings: list[list[Tensor]]
@@ -59,16 +59,16 @@ class QDTrackOut(NamedTuple):
 
 
 def split_key_ref_indices(
-    sample_attributes: list[list[str]],
+    keyframes: list[list[bool]],
 ) -> tuple[int, list[int]]:
     """Get key frame from list of sample attributes."""
     key_ind = None
     ref_inds = []
-    for i, attrs in enumerate(sample_attributes):
+    for i, is_keys in enumerate(keyframes):
         assert all(
-            attrs[0] == attr for attr in attrs
-        ), f"All should have same attributes in the same view."
-        if attrs[0] == "key":
+            is_keys[0] == is_key for is_key in is_keys
+        ), "Same batch should have the same view."
+        if is_keys[0]:
             key_ind = i
         else:
             ref_inds.append(i)
@@ -116,13 +116,13 @@ class QDTrack(nn.Module):
 
     def forward(
         self,
-        features: list[Tensor],
-        det_boxes: list[Tensor],
+        features: list[Tensor] | list[list[Tensor]],
+        det_boxes: list[Tensor] | list[list[Tensor]],
         det_scores: None | list[Tensor] = None,
         det_class_ids: None | list[Tensor] = None,
-        frame_ids: None | tuple[int, ...] = None,
-        target_boxes: None | list[Tensor] = None,
-        target_track_ids: None | list[Tensor] = None,
+        frame_ids: None | list[int] = None,
+        target_boxes: None | list[list[Tensor]] = None,
+        target_track_ids: None | list[list[Tensor]] = None,
     ) -> (
         TrackOut
         | tuple[
@@ -132,26 +132,27 @@ class QDTrack(nn.Module):
         """Forward function."""
         if target_boxes is not None:
             assert (
-                target_track_ids is not None
+                target_boxes is not None and target_track_ids is not None
             ), "Need targets during training!"
             return self._forward_train(
-                features,
-                det_boxes,
-                target_boxes,
-                target_track_ids,
+                features, det_boxes, target_boxes, target_track_ids  # type: ignore # pylint: disable=line-too-long
             )
-        assert frame_ids is not None, "Need frame ids during inference!"
+        assert (
+            frame_ids is not None
+            and det_scores is not None
+            and det_class_ids is not None
+        )
         return self._forward_test(
-            features, det_boxes, det_scores, det_class_ids, frame_ids
+            features, det_boxes, det_scores, det_class_ids, frame_ids  # type: ignore # pylint: disable=line-too-long
         )
 
     @torch.no_grad()
     def _sample_proposals(
         self,
-        det_boxes: list[Tensor],
-        target_boxes: list[Tensor],
-        target_track_ids: list[Tensor],
-    ) -> tuple[list[Tensor], list[Tensor]]:
+        det_boxes: list[list[Tensor]],
+        target_boxes: list[list[Tensor]],
+        target_track_ids: list[list[Tensor]],
+    ) -> tuple[list[list[Tensor]], list[list[Tensor]]]:
         """Sample proposals for instance similarity learning."""
         sampled_boxes, sampled_track_ids = [], []
         for i, (boxes, tgt_boxes) in enumerate(zip(det_boxes, target_boxes)):
@@ -200,10 +201,10 @@ class QDTrack(nn.Module):
 
     def _forward_train(
         self,
-        features: list[Tensor],
-        det_boxes: list[Tensor],
-        target_boxes: list[Tensor],
-        target_track_ids: list[Tensor],
+        features: list[list[Tensor]],
+        det_boxes: list[list[Tensor]],
+        target_boxes: list[list[Tensor]],
+        target_track_ids: list[list[Tensor]],
     ) -> tuple[
         list[Tensor], list[list[Tensor]], list[Tensor], list[list[Tensor]]
     ]:
@@ -225,11 +226,11 @@ class QDTrack(nn.Module):
 
     def _forward_test(
         self,
-        features: list[torch.Tensor],
-        det_boxes: list[torch.Tensor],
-        det_scores: list[torch.Tensor],
-        det_class_ids: list[torch.Tensor],
-        frame_ids: tuple[int, ...],
+        features: list[Tensor],
+        det_boxes: list[Tensor],
+        det_scores: list[Tensor],
+        det_class_ids: list[Tensor],
+        frame_ids: list[int],
     ) -> TrackOut:
         """Forward during test."""
         embeddings = self.similarity_head(features, det_boxes)
@@ -281,6 +282,32 @@ class QDTrack(nn.Module):
             [t.track_ids for t in batched_tracks],
         )
 
+    def __call__(
+        self,
+        features: list[Tensor] | list[list[Tensor]],
+        det_boxes: list[Tensor] | list[list[Tensor]],
+        det_scores: None | list[Tensor] = None,
+        det_class_ids: None | list[Tensor] = None,
+        frame_ids: None | list[int] = None,
+        target_boxes: None | list[list[Tensor]] = None,
+        target_track_ids: None | list[list[Tensor]] = None,
+    ) -> (
+        TrackOut
+        | tuple[
+            list[Tensor], list[list[Tensor]], list[Tensor], list[list[Tensor]]
+        ]
+    ):
+        """Type definition for call implementation."""
+        return self._call_impl(
+            features,
+            det_boxes,
+            det_scores,
+            det_class_ids,
+            frame_ids,
+            target_boxes,
+            target_track_ids,
+        )
+
 
 class FasterRCNNQDTrack(nn.Module):
     """Wrap qdtrack with detector."""
@@ -330,47 +357,56 @@ class FasterRCNNQDTrack(nn.Module):
 
     def forward(
         self,
-        images: torch.Tensor,
-        images_hw: list[tuple[int, int]],
-        frame_ids: list[int],
-        boxes2d: None | list[Tensor] = None,
-        boxes2d_classes: None | list[Tensor] = None,
-        boxes2d_track_ids: None | list[int] = None,
-        sample_attributes: None | list[str] = None,
+        images: list[Tensor] | Tensor,
+        images_hw: list[list[tuple[int, int]]] | list[tuple[int, int]],
+        frame_ids: list[list[int]] | list[int],
+        boxes2d: None | list[list[Tensor]] = None,
+        boxes2d_classes: None | list[list[Tensor]] = None,
+        boxes2d_track_ids: None | list[list[Tensor]] = None,
+        keyframes: None | list[list[bool]] = None,
     ) -> TrackOut | QDTrackOut:
         """Forward."""
         if self.training:
+            assert (
+                isinstance(images, list)
+                and boxes2d is not None
+                and boxes2d_classes is not None
+                and boxes2d_track_ids is not None
+                and keyframes is not None
+            )
             return self._forward_train(
                 images,
-                images_hw,
+                images_hw,  # type: ignore
                 boxes2d,
                 boxes2d_classes,
                 boxes2d_track_ids,
-                sample_attributes,
+                keyframes,
             )
-        return self._forward_test(images, images_hw, frame_ids)
+        return self._forward_test(images, images_hw, frame_ids)  # type: ignore
 
     def _forward_train(
         self,
         images: list[Tensor],
         images_hw: list[list[tuple[int, int]]],
-        target_boxes: list[Tensor],
-        target_classes: list[Tensor],
-        target_track_ids: list[int],
-        sample_attributes: list[str],
+        target_boxes: list[list[Tensor]],
+        target_classes: list[list[Tensor]],
+        target_track_ids: list[list[Tensor]],
+        keyframes: list[list[bool]],
     ) -> QDTrackOut:
         """Forward training stage.
 
         Args:
-            images (torch.Tensor): Input images.
-            images_hw (list[tuple[int, int]]): Input image resolutions.
-            target_boxes (list[torch.Tensor]): Bounding box labels.
-            target_classes (list[torch.Tensor]): Class labels.
+            images (list[Tensor]): Input images.
+            images_hw (list[list[tuple[int, int]]]): Input image resolutions.
+            target_boxes (list[list[Tensor]]): Bounding box labels.
+            target_classes (list[list[Tensor]]): Class labels.
+            target_track_ids (list[list[Tensor]]): Track IDs.
+            keyframes (list[list[bool]]): Whether the frame is a keyframe.
 
         Returns:
             FRCNNOut: Raw model outputs.
         """
-        key_index, ref_indices = split_key_ref_indices(sample_attributes)
+        key_index, ref_indices = split_key_ref_indices(keyframes)
 
         # feature extraction
         key_features = self.fpn(self.basemodel(images[key_index]))
@@ -425,9 +461,9 @@ class FasterRCNNQDTrack(nn.Module):
             key_images_hw=images_hw[key_index],
             key_target_boxes=key_target_boxes,
             key_embeddings=key_embeddings,
-            ref_embeddings=ref_embeddings,
+            ref_embeddings=ref_embeddings,  # type: ignore
             key_track_ids=key_track_ids,
-            ref_track_ids=ref_track_ids,
+            ref_track_ids=ref_track_ids,  # type: ignore
         )
 
     def _forward_test(
@@ -445,17 +481,17 @@ class FasterRCNNQDTrack(nn.Module):
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
         outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
-        return outs
+        return outs  # type: ignore
 
     def __call__(
         self,
-        images: Tensor,
-        images_hw: list[tuple[int, int]],
-        frame_ids: list[int],
-        boxes2d: None | list[Tensor] = None,
-        boxes2d_classes: None | list[Tensor] = None,
-        boxes2d_track_ids: None | list[int] = None,
-        sample_attributes: None | list[str] = None,
+        images: list[Tensor] | Tensor,
+        images_hw: list[list[tuple[int, int]]] | list[tuple[int, int]],
+        frame_ids: list[list[int]] | list[int],
+        boxes2d: None | list[list[Tensor]] = None,
+        boxes2d_classes: None | list[list[Tensor]] = None,
+        boxes2d_track_ids: None | list[list[Tensor]] = None,
+        keyframes: None | list[list[bool]] = None,
     ) -> TrackOut | QDTrackOut:
         """Type definition for call implementation."""
         return self._call_impl(
@@ -465,5 +501,5 @@ class FasterRCNNQDTrack(nn.Module):
             boxes2d,
             boxes2d_classes,
             boxes2d_track_ids,
-            sample_attributes,
+            keyframes,
         )

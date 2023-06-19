@@ -5,16 +5,11 @@ from collections.abc import Sequence
 
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.data.loader import (
-    DictDataOrList,
-    VideoDataPipe,
-    build_inference_dataloaders,
-    default_collate,
-    default_pipeline,
-    multi_sensor_collate,
-)
+from vis4d.data.data_pipe import DataPipe
+from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.data.transforms import compose
 from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.data.typing import DictDataOrList
 
 
 def get_dataloader(
@@ -23,17 +18,17 @@ def get_dataloader(
     sensors: Sequence[str] | str | None = None,
 ) -> DataLoader[DictDataOrList]:
     """Get data loader for testing."""
-    datapipe = VideoDataPipe(datasets)
+    datapipe = DataPipe(datasets)
+
     if sensors is not None:
-        batchprocess_fn = compose([ToTensor(sensors=sensors)])  # type: ignore
-        collate_fn = multi_sensor_collate
-    else:
-        batchprocess_fn = default_pipeline  # type: ignore
-        collate_fn = default_collate
+        return build_inference_dataloaders(
+            datapipe,
+            samples_per_gpu=batch_size,
+            workers_per_gpu=0,
+            batchprocess_fn=compose([ToTensor(sensors=sensors)]),  # type: ignore # pylint: disable=line-too-long
+            collate_fn=multi_sensor_collate,
+        )[0]
+
     return build_inference_dataloaders(
-        datapipe,
-        samples_per_gpu=batch_size,
-        workers_per_gpu=0,
-        batchprocess_fn=batchprocess_fn,
-        collate_fn=collate_fn,
+        datapipe, samples_per_gpu=batch_size, workers_per_gpu=0
     )[0]

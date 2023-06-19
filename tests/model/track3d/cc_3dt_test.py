@@ -6,22 +6,19 @@ import torch
 
 from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
-    nuscenes_class_range_map,
-    nuscenes_track_map,
+    nuscenes_class_map,
+    nuscenes_detection_range,
 )
-from vis4d.data.loader import (
-    VideoDataPipe,
-    build_inference_dataloaders,
-    multi_sensor_collate,
-)
+from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.data.transforms.base import compose
-from vis4d.data.transforms.normalize import BatchNormalizeImages
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
-    ResizeImage,
+    ResizeImages,
     ResizeIntrinsics,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -54,8 +51,8 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
     def test_inference(self):
         """Inference test."""
         cc_3dt = FasterRCNNCC3DT(
-            num_classes=len(nuscenes_track_map),
-            class_range_map=nuscenes_class_range_map,
+            num_classes=len(nuscenes_class_map),
+            class_range_map=nuscenes_detection_range,
             weights=self.model_weights,
         )
 
@@ -66,7 +63,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
                     keep_ratio=True,
                     sensors=self.CAMERAS,
                 ),
-                ResizeImage(sensors=self.CAMERAS),
+                ResizeImages(sensors=self.CAMERAS),
                 ResizeIntrinsics(sensors=self.CAMERAS),
             ]
         )
@@ -74,21 +71,18 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         batch_fn = compose(
             [
                 PadImages(sensors=self.CAMERAS),
-                BatchNormalizeImages(sensors=self.CAMERAS),
+                NormalizeImages(sensors=self.CAMERAS),
                 ToTensor(sensors=self.CAMERAS),
             ]
         )
 
         dataset = NuScenes(
             data_root=get_test_data("nuscenes_test"),
+            keys_to_load=[K.images, K.original_images, K.boxes3d],
             version="v1.0-mini",
             split="mini_val",
-            metadata=["use_camera"],
         )
-        datapipe = VideoDataPipe(
-            dataset,
-            preprocess_fn=preprocess_fn,
-        )
+        datapipe = DataPipe(dataset, preprocess_fn=preprocess_fn)
         test_loader = build_inference_dataloaders(
             datapipe,
             samples_per_gpu=1,

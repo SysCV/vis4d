@@ -10,7 +10,7 @@ from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose
-from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.track.qdtrack import REV_KEYS, FasterRCNNQDTrack, TrackOut
@@ -19,7 +19,6 @@ from vis4d.model.track.qdtrack import REV_KEYS, FasterRCNNQDTrack, TrackOut
 class QDTrackTest(unittest.TestCase):
     """QDTrack class tests."""
 
-    # TODO: Fix test with reproduced design
     model_weights = (
         "https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt"
     )
@@ -39,7 +38,7 @@ class QDTrackTest(unittest.TestCase):
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         test_data = DataPipe(
             BDD100K(data_root, annotations, config_path=config),
-            preprocess_fn=compose([NormalizeImage()]),
+            preprocess_fn=compose([NormalizeImages()]),
         )
         batch_fn = compose([PadImages(), ToTensor()])
         batch_size = 2

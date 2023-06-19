@@ -22,7 +22,6 @@ from vis4d.data.transforms import (
     resize,
     to_tensor,
 )
-from vis4d.data.transforms.base import compose
 from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import LoggingCallback
 from vis4d.engine.connectors import (
@@ -49,9 +48,9 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     preprocess_fn = compose(
         [
             resize.GenerateResizeParameters((64, 64)),
-            resize.ResizeImage(),
+            resize.ResizeImages(),
             resize.ResizeInstanceMasks(),
-            normalize.NormalizeImage(),
+            normalize.NormalizeImages(),
             mask.ConvertInstanceMaskToSegMask(),
         ]
     )
@@ -71,8 +70,8 @@ def get_test_dataloader(
     preprocess_fn = compose(
         [
             resize.GenerateResizeParameters((64, 64)),
-            resize.ResizeImage(),
-            normalize.NormalizeImage(),
+            resize.ResizeImages(),
+            normalize.NormalizeImages(),
         ]
     )
     datapipe = DataPipe(datasets, preprocess_fn)

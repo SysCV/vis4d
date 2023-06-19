@@ -12,7 +12,6 @@ class NuScenesTest(unittest.TestCase):
         data_root=get_test_data("nuscenes_test"),
         version="v1.0-mini",
         split="mini_val",
-        metadata=["use_camera"],
     )
 
     def test_len(self) -> None:
@@ -32,18 +31,20 @@ class NuScenesTest(unittest.TestCase):
 
         assert tuple(self.nusc[1]["CAM_FRONT"].keys()) == (
             "token",
-            "images",
-            "original_hw",
-            "input_hw",
             "frame_ids",
-            "intrinsics",
-            "extrinsics",
             "timestamp",
+            "images",
+            "input_hw",
+            "sample_names",
+            "intrinsics",
+            "boxes3d",
+            "boxes3d_classes",
+            "boxes3d_track_ids",
+            "boxes3d_velocities",
+            "attributes",
+            "extrinsics",
             "axis_mode",
             "boxes2d",
             "boxes2d_classes",
             "boxes2d_track_ids",
-            "boxes3d",
-            "boxes3d_classes",
-            "boxes3d_track_ids",
         )

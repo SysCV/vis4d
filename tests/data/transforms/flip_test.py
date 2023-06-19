@@ -1,3 +1,4 @@
+# pylint: disable=no-member
 """Test Flip transform."""
 import copy
 import unittest
@@ -11,7 +12,7 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.flip import (
     FlipBoxes2D,
     FlipBoxes3D,
-    FlipImage,
+    FlipImages,
     FlipIntrinsics,
     FlipPoints3D,
     FlipSegMasks,
@@ -25,50 +26,66 @@ from vis4d.op.geometry.rotation import (
 class TestFlip(unittest.TestCase):
     """Test Flip transform."""
 
+    data = {
+        K.images: np.random.rand(1, 16, 16, 3),
+        K.boxes2d: np.random.rand(3, 4),
+        K.seg_masks: np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]]),
+    }
+
     def test_flip_image(self):
         """Test the FlipImage transform."""
-        images = np.random.rand(1, 16, 16, 3)
-
-        transform = FlipImage(direction="horizontal")
-        images_tr = transform(copy.deepcopy(images))
+        transform = FlipImages(direction="horizontal")
+        images_tr = transform.apply_to_data([copy.deepcopy(self.data)])[0][
+            K.images
+        ]
         assert images_tr.shape == (1, 16, 16, 3)
-        assert (images_tr == images[:, :, ::-1, :]).all()
+        assert (images_tr == self.data[K.images][:, :, ::-1, :]).all()
 
-        transform = FlipImage(direction="vertical")
-        images_tr = transform(copy.deepcopy(images))
+        transform = FlipImages(direction="vertical")
+        images_tr = transform.apply_to_data([copy.deepcopy(self.data)])[0][
+            K.images
+        ]
         assert images_tr.shape == (1, 16, 16, 3)
-        assert (images_tr == images[:, ::-1, :, :]).all()
+        assert (images_tr == self.data[K.images][:, ::-1, :, :]).all()
 
     def test_flip_boxes2d(self):
         """Test the FlipBoxes2D transform."""
-        images = np.random.rand(1, 16, 16, 3)
-        boxes = np.random.rand(3, 4)
-
         transform = FlipBoxes2D(direction="horizontal")
-        boxes_tr = transform(copy.deepcopy(boxes), copy.deepcopy(images))
+        boxes_tr = transform.apply_to_data([copy.deepcopy(self.data)])[0][
+            K.boxes2d
+        ]
         assert boxes_tr.shape == (3, 4)
-        assert (boxes_tr[:, 1::2] == boxes[:, 1::2]).all()
-        assert (boxes_tr[:, 0::2] == np.flip(16 - boxes[:, 0::2], 1)).all()
+        assert (boxes_tr[:, 1::2] == self.data[K.boxes2d][:, 1::2]).all()
+        assert (
+            boxes_tr[:, 0::2] == np.flip(16 - self.data[K.boxes2d][:, 0::2], 1)
+        ).all()
 
         transform = FlipBoxes2D(direction="vertical")
-        boxes_tr = transform(copy.deepcopy(boxes), copy.deepcopy(images))
+        boxes_tr = transform.apply_to_data([copy.deepcopy(self.data)])[0][
+            K.boxes2d
+        ]
         assert boxes_tr.shape == (3, 4)
-        assert (boxes_tr[:, 0::2] == boxes[:, 0::2]).all()
-        assert (boxes_tr[:, 1::2] == np.flip(16 - boxes[:, 1::2], 1)).all()
+        assert (boxes_tr[:, 0::2] == self.data[K.boxes2d][:, 0::2]).all()
+        assert (
+            boxes_tr[:, 1::2] == np.flip(16 - self.data[K.boxes2d][:, 1::2], 1)
+        ).all()
 
     def test_flip_seg_masks(self):
         """Test the FlipSegMasks transform."""
-        image = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])
-        flipper = FlipSegMasks(direction="horizontal")
-        flipped_image = flipper(image)
+        transform = FlipSegMasks(direction="horizontal")
+        flipped_seg_mask = transform.apply_to_data([copy.deepcopy(self.data)])[
+            0
+        ][K.seg_masks]
         assert np.all(
-            flipped_image == np.array([[2, 1, 0], [5, 4, 3], [8, 7, 6]])
+            flipped_seg_mask == np.array([[2, 1, 0], [5, 4, 3], [8, 7, 6]])
         )
 
-        flipper = FlipSegMasks(direction="vertical")
-        flipped_image = flipper(image)
+        transform = FlipSegMasks(direction="vertical")
+        flipped_seg_mask = transform.apply_to_data([copy.deepcopy(self.data)])[
+            0
+        ][K.seg_masks]
         assert np.all(
-            flipped_image == np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
+            flipped_seg_mask == np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
         )
 
     def test_flip_3d(self):
@@ -100,7 +117,7 @@ class TestFlip(unittest.TestCase):
                 FlipBoxes3D(direction="horizontal"),
             ]
         )
-        data_tr = transform(copy.deepcopy(data))
+        data_tr = transform([copy.deepcopy(data)])[0]
         assert (data_tr[K.points3d][:, 0] == -points[:, 0]).all()
         target_quat = matrix_to_quaternion(
             euler_angles_to_matrix(torch.tensor([[0, np.pi - np.pi / 4, 0]]))
@@ -119,7 +136,7 @@ class TestFlip(unittest.TestCase):
                 FlipBoxes3D(direction="vertical"),
             ]
         )
-        data_tr = transform(copy.deepcopy(data))
+        data_tr = transform([copy.deepcopy(data)])[0]
         assert (data_tr[K.points3d][:, 1] == -points[:, 1]).all()
         target_quat = matrix_to_quaternion(
             euler_angles_to_matrix(torch.tensor([[0, np.pi / 4, np.pi]]))
@@ -134,22 +151,18 @@ class TestFlip(unittest.TestCase):
     def test_wrong_direction(self):
         """Test the wrong direction."""
         with self.assertRaises(ValueError):
-            FlipImage(direction="wrong")(np.random.rand(1, 16, 16, 3))
+            FlipImages(direction="wrong")
         with self.assertRaises(ValueError):
-            FlipBoxes2D(direction="wrong")(
-                np.random.rand(16, 4), np.random.rand(1, 16, 16, 3)
-            )
+            FlipBoxes2D(direction="wrong")
         with self.assertRaises(ValueError):
-            FlipSegMasks(direction="wrong")(np.random.rand(16, 16))
+            FlipSegMasks(direction="wrong")
         with self.assertRaises(ValueError):
             FlipBoxes3D(direction="wrong")(
-                np.random.rand(16, 10), AxisMode.OPENCV
+                [np.random.rand(16, 10)], [AxisMode.OPENCV]
             )
         with self.assertRaises(ValueError):
             FlipPoints3D(direction="wrong")(
-                np.random.rand(16, 3), AxisMode.OPENCV
+                [np.random.rand(16, 3)], [AxisMode.OPENCV]
             )
         with self.assertRaises(ValueError):
-            FlipIntrinsics(direction="wrong")(
-                np.random.rand(3, 3), np.random.rand(1, 16, 16, 3)
-            )
+            FlipIntrinsics(direction="wrong")
