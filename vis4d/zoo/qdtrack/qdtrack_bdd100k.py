@@ -27,7 +27,6 @@ from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
     LossConnector,
-    RefDataConnector,
     data_key,
     pred_key,
 )
@@ -59,12 +58,12 @@ CONN_BBOX_2D_TEST = {
 
 CONN_BDD100K_EVAL = {
     "frame_ids": data_key("frame_ids"),
-    "data_names": data_key(K.sample_names),
-    "video_names": data_key(K.sequence_names),
-    "boxes_list": pred_key("boxes"),
-    "class_ids_list": pred_key("class_ids"),
-    "scores_list": pred_key("scores"),
-    "track_ids_list": pred_key("track_ids"),
+    "sample_names": data_key(K.sample_names),
+    "sequence_names": data_key(K.sequence_names),
+    "pred_boxes": pred_key("boxes"),
+    "pred_classes": pred_key("class_ids"),
+    "pred_scores": pred_key("scores"),
+    "pred_track_ids": pred_key("track_ids"),
 }
 
 
@@ -127,7 +126,11 @@ def get_config() -> FieldConfigDict:
     ######################################################
     num_classes = len(bdd100k_track_map)
 
-    config.model = class_config(FasterRCNNQDTrack, num_classes=num_classes)
+    config.model = class_config(
+        FasterRCNNQDTrack,
+        num_classes=num_classes,
+        # weights="https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt",  # pylint: disable=line-too-long
+    )
 
     ######################################################
     ##                        LOSS                      ##
@@ -204,13 +207,11 @@ def get_config() -> FieldConfigDict:
     ##                  DATA CONNECTOR                  ##
     ######################################################
     config.train_data_connector = class_config(
-        RefDataConnector,
-        key_mapping=CONN_BBOX_2D_TRAIN,
+        DataConnector, key_mapping=CONN_BBOX_2D_TRAIN
     )
 
     config.test_data_connector = class_config(
-        DataConnector,
-        key_mapping=CONN_BBOX_2D_TEST,
+        DataConnector, key_mapping=CONN_BBOX_2D_TEST
     )
 
     ######################################################

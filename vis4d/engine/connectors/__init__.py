@@ -6,7 +6,6 @@ from .multi_sensor import (
     MultiSensorLossConnector,
     get_multi_sensor_inputs,
 )
-from .reference import RefDataConnector
 from .util import (
     SourceKeyDescription,
     data_key,
@@ -26,7 +25,6 @@ __all__ = [
     "MultiSensorCallbackConnector",
     "MultiSensorLossConnector",
     "pred_key",
-    "RefDataConnector",
     "remap_pred_keys",
     "SourceKeyDescription",
 ]
