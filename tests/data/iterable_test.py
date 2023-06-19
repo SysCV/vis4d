@@ -67,7 +67,7 @@ def test_train_loader_3d() -> None:
     assert sample[K.instances3d].shape[1] == 1024
 
 
-def test_inference_loader_3d_batched() -> None:
+def test_loader_3d_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
     keys = (K.points3d, K.colors3d, K.instances3d, K.semantics3d)
