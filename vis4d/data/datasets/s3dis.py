@@ -11,10 +11,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from vis4d.common.typing import DictStrAny
+from vis4d.common.typing import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.io.base import DataBackend
-from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
 from .base import Dataset
@@ -103,7 +101,6 @@ class S3DIS(CacheMappingMixin, Dataset):
         self,
         data_root: str,
         split: str = "trainNoArea5",
-        data_backend: DataBackend | None = None,
         keys_to_load: Sequence[str] = (
             K.points3d,
             K.colors3d,
@@ -113,6 +110,7 @@ class S3DIS(CacheMappingMixin, Dataset):
         cache_points: bool = True,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates a new S3DIS dataset.
 
@@ -121,28 +119,23 @@ class S3DIS(CacheMappingMixin, Dataset):
             split (str): which split to load. Must either be trainNoArea[1-6]
                 or testArea[1-6].  e.g. trainNoArea5 will load all areas except
                 area 5 and testArea5 will only load area 5.
-            data_backend (Optional[DataBackend]): Which data backend to use.
-                if not specified, will use FileBackend
             keys_to_load (list[str]): What kind of data should be loaded
                 (e.g. colors, xyz, semantics, ...)
             cache_points (bool): If true caches loaded points instead of
                 reading them from the disk every time.
-            cache_as_binary (bool, optional): Whether to cache the loaded data
-                as binary. Defaults to False.
-            cached_file_path (str | None, optional): Path to a cached file. If
-                cached file exist then it will load it instead of generating
-                the data mapping. Defaults to None.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
 
         Raises:
             ValueError: If requested split is malformed.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.data_root = data_root
         self.split = split
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
 
         self.areas: list[str] = [
             "Area_1",

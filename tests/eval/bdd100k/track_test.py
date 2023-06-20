@@ -50,7 +50,7 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
 
         scalabel_eval = BDD100KTrackEvaluator(annotation_path=annotations)
         assert str(scalabel_eval) == "BDD100K Tracking Evaluator"
-        assert scalabel_eval.metrics == ["MOT"]
+        assert scalabel_eval.metrics == ["Det", "Track"]
 
         # test gt
         dataset = BDD100K(
@@ -77,5 +77,6 @@ class TestBDD100KTrackEvaluator(unittest.TestCase):
                 )
             )
 
-        _, log_str = scalabel_eval.evaluate("MOT")
-        assert log_str.count("\n") == 18
+        log_dict, log_str = scalabel_eval.evaluate("Track")
+        assert len(log_dict) == 13
+        assert log_str.count("\n") == 19

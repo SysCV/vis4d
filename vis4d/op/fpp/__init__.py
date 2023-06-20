@@ -6,5 +6,6 @@ maps and/or upsampling the feature maps.
 from .base import FeaturePyramidProcessing
 from .dla_up import DLAUp
 from .fpn import FPN
+from .yolox_pafpn import YOLOXPAFPN
 
-__all__ = ["DLAUp", "FPN", "FeaturePyramidProcessing"]
+__all__ = ["DLAUp", "FPN", "FeaturePyramidProcessing", "YOLOXPAFPN"]

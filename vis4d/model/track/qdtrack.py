@@ -7,13 +7,16 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.op.base import BaseModel, ResNet
+from vis4d.op.base import BaseModel, CSPDarknet, ResNet
+from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import MaxIoUMatcher
+from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import RoI2Det
-from vis4d.op.fpp import FPN
+from vis4d.op.detect.yolox import YOLOXHead, YOLOXPostprocess
+from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import QDSimilarityHead, QDTrackAssociation
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
@@ -34,6 +37,17 @@ REV_KEYS = [
     # (r"\.conv.weight", ".weigh2t"),
     # (r"\.conv.bias", ".bias"),
     (r"^backbone.body\.", "basemodel."),
+]
+
+# from old Vis4D checkpoint
+YOLOX_REV_KEYS = [
+    (r"^detector.backbone.mm_backbone\.", "basemodel."),
+    (r"^detector.backbone.neck.mm_neck\.", "fpn."),
+    (r"^detector.bbox_head.mm_dense_head\.", "yolox_head."),
+    (r"^similarity_head\.", "qdtrack.similarity_head."),
+    (r"\.bn\.", ".norm."),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
 ]
 
 
@@ -84,6 +98,8 @@ class QDTrack(nn.Module):
 
     def __init__(
         self,
+        similarity_head: QDSimilarityHead | None = None,
+        track_graph: QDTrackAssociation | None = None,
         memory_size: int = 10,
         memory_momentum: float = 0.8,
         num_ref_views: int = 1,
@@ -92,12 +108,16 @@ class QDTrack(nn.Module):
         """Creates an instance of the class."""
         super().__init__()
         self.num_ref_views = num_ref_views
-        self.similarity_head = QDSimilarityHead()
+        self.similarity_head = (
+            QDSimilarityHead() if similarity_head is None else similarity_head
+        )
 
         # only in inference
         assert 0 <= memory_momentum <= 1.0
         self.memo_momentum = memory_momentum
-        self.track_graph = QDTrackAssociation()
+        self.track_graph = (
+            QDTrackAssociation() if track_graph is None else track_graph
+        )
         self.track_memory = QDTrackMemory(memory_limit=memory_size)
 
         self.box_sampler = CombinedSampler(
@@ -310,7 +330,7 @@ class QDTrack(nn.Module):
 
 
 class FasterRCNNQDTrack(nn.Module):
-    """Wrap qdtrack with detector."""
+    """Wrap QDTrack with Faster R-CNN detector."""
 
     def __init__(
         self,
@@ -503,3 +523,115 @@ class FasterRCNNQDTrack(nn.Module):
             boxes2d_track_ids,
             keyframes,
         )
+
+
+class YOLOXQDTrack(nn.Module):
+    """Wrap QDTrack with YOLOX detector."""
+
+    def __init__(
+        self,
+        num_classes: int,
+        basemodel: BaseModel | None = None,
+        fpn: FeaturePyramidProcessing | None = None,
+        yolox_head: YOLOXHead | None = None,
+        weights: None | str = None,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            num_classes (int): Number of object categories.
+            basemodel (BaseModel, optional): Base model. Defaults to None. If
+                None, will use CSPDarknet.
+            fpn (FeaturePyramidProcessing, optional): Feature Pyramid
+                Processing. Defaults to None. If None, will use YOLOXPAFPN.
+            yolox_head (YOLOXHead, optional): YOLOX head. Defaults to None. If
+                None, will use YOLOXHead.
+            weights (str, optional): Weights to load for model.
+        """
+        super().__init__()
+        self.basemodel = (
+            CSPDarknet(deepen_factor=1.33, widen_factor=1.25)
+            if basemodel is None
+            else basemodel
+        )
+        self.fpn = (
+            YOLOXPAFPN([320, 640, 1280], 320, num_csp_blocks=4)
+            if fpn is None
+            else fpn
+        )
+        self.yolox_head = (
+            YOLOXHead(
+                num_classes=num_classes, in_channels=320, feat_channels=320
+            )
+            if yolox_head is None
+            else yolox_head
+        )
+        self.transform_outs = YOLOXPostprocess(
+            self.yolox_head.point_generator,
+            self.yolox_head.box_decoder,
+            nms_threshold=0.65,
+            score_thr=0.1,
+        )
+
+        self.qdtrack = QDTrack(
+            similarity_head=QDSimilarityHead(
+                MultiScaleRoIAlign(
+                    resolution=[7, 7], strides=[8, 16, 32], sampling_ratio=0
+                ),
+                in_dim=320,
+            ),
+            track_graph=QDTrackAssociation(
+                init_score_thr=0.5, obj_score_thr=0.35
+            ),
+        )
+
+        if weights is not None:
+            load_model_checkpoint(
+                self, weights, map_location="cpu", rev_keys=YOLOX_REV_KEYS
+            )
+
+    def forward(
+        self,
+        images: torch.Tensor,
+        images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
+        frame_ids: list[int],
+    ) -> TrackOut:
+        """Forward."""
+        # TODO implement forward_train
+        return self._forward_test(images, images_hw, original_hw, frame_ids)
+
+    def _forward_test(
+        self,
+        images: torch.Tensor,
+        images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
+        frame_ids: list[int],
+    ) -> TrackOut:
+        """Forward inference stage."""
+        features = self.fpn(self.basemodel(images))
+        outs = self.yolox_head(features[-3:])
+        boxes, scores, class_ids = self.transform_outs(
+            cls_outs=outs.cls_score,
+            reg_outs=outs.bbox_pred,
+            obj_outs=outs.objectness,
+            images_hw=images_hw,
+        )
+
+        tracks = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
+        assert isinstance(tracks, TrackOut)
+        for i, boxs in enumerate(tracks.boxes):
+            tracks.boxes[i] = scale_and_clip_boxes(
+                boxs, original_hw[i], images_hw[i]
+            )
+        return tracks
+
+    def __call__(
+        self,
+        images: torch.Tensor,
+        images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
+        frame_ids: list[int],
+    ) -> TrackOut:
+        """Type definition for call implementation."""
+        return self._call_impl(images, images_hw, original_hw, frame_ids)

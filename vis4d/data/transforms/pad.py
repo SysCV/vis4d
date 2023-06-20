@@ -21,6 +21,7 @@ class PadImages:
         mode: str = "constant",
         value: float = 0.0,
         shape: tuple[int, int] | None = None,
+        pad2square: bool = False,
     ) -> None:
         """Creates an instance of PadImage.
 
@@ -33,17 +34,25 @@ class PadImages:
                 Defaults to 0.0.
             shape (tuple[int, int], optional): Shape of the padded image
                 (H, W). Defaults to None.
+            pad2square (bool, optional): Pad to square. Defaults to False.
         """
+        if pad2square:
+            assert (
+                shape is None
+            ), "Cannot specify shape when pad2square is True."
         self.stride = stride
         self.mode = mode
         self.value = value
         self.shape = shape
+        self.pad2square = pad2square
 
     def __call__(self, images: list[NDArrayF32]) -> list[NDArrayF32]:
         """Pad images to consistent size."""
         heights = [im.shape[1] for im in images]
         widths = [im.shape[2] for im in images]
-        max_hw = _get_max_shape(self.stride, self.shape, heights, widths)
+        max_hw = _get_max_shape(
+            heights, widths, self.stride, self.shape, self.pad2square
+        )
 
         # generate params for torch pad
         for i, (image, h, w) in enumerate(zip(images, heights, widths)):
@@ -64,6 +73,7 @@ class PadSegMasks:
         mode: str = "constant",
         value: int = 255,
         shape: tuple[int, int] | None = None,
+        pad2square: bool = False,
     ) -> None:
         """Creates an instance of PadSegMasks.
 
@@ -76,17 +86,25 @@ class PadSegMasks:
                 Defaults to 0.0.
             shape (tuple[int, int], optional): Shape of the padded image
                 (H, W). Defaults to None.
+            pad2square (bool, optional): Pad to square. Defaults to False.
         """
+        if pad2square:
+            assert (
+                shape is None
+            ), "Cannot specify shape when pad2square is True."
         self.stride = stride
         self.mode = mode
         self.value = value
         self.shape = shape
+        self.pad2square = pad2square
 
     def __call__(self, masks: list[NDArrayUI8]) -> list[NDArrayUI8]:
         """Pad images to consistent size."""
         heights = [mask.shape[0] for mask in masks]
         widths = [mask.shape[1] for mask in masks]
-        max_hw = _get_max_shape(self.stride, self.shape, heights, widths)
+        max_hw = _get_max_shape(
+            heights, widths, self.stride, self.shape, self.pad2square
+        )
 
         # generate params for torch pad
         for i, (mask, h, w) in enumerate(zip(masks, heights, widths)):
@@ -98,10 +116,11 @@ class PadSegMasks:
 
 
 def _get_max_shape(
-    stride: int,
-    shape: tuple[int, int] | None,
     heights: list[int],
     widths: list[int],
+    stride: int,
+    shape: tuple[int, int] | None,
+    pad2square: bool,
 ) -> tuple[int, int]:
     """Get max shape for padding.
 
@@ -112,11 +131,15 @@ def _get_max_shape(
             Defaults to None.
         heights (list[int]): List of heights of input.
         widths (list[int]): List of widths of input.
+        pad2square (bool): Pad to square.
 
     Returns:
         tuple[int, int]: Max shape for padding.
     """
-    if shape is not None:
+    if pad2square:
+        max_size = max(heights + widths)
+        max_hw = (max_size, max_size)
+    elif shape is not None:
         max_hw = shape
     else:
         max_hw = max(heights), max(widths)

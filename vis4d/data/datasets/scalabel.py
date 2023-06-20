@@ -16,11 +16,17 @@ from vis4d.common.distributed import broadcast
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import ListAny, NDArrayF32, NDArrayI64, NDArrayUI8
+from vis4d.common.typing import (
+    ArgsType,
+    ListAny,
+    NDArrayF32,
+    NDArrayI64,
+    NDArrayUI8,
+)
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
-from vis4d.data.io import DataBackend, FileBackend
+from vis4d.data.io import DataBackend
 from vis4d.data.typing import DictData
 from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
@@ -65,10 +71,12 @@ def load_extrinsics(extrinsics: Extrinsics) -> NDArrayF32:
     return get_matrix_from_extrinsics(extrinsics).astype(np.float32)
 
 
-def load_image(url: str, backend: DataBackend) -> NDArrayF32:
+def load_image(
+    url: str, backend: DataBackend, image_channel_mode: str
+) -> NDArrayF32:
     """Load image tensor from url."""
     im_bytes = backend.get(url)
-    image = im_decode(im_bytes)
+    image = im_decode(im_bytes, mode=image_channel_mode)
     return np.ascontiguousarray(image, dtype=np.float32)[None]
 
 
@@ -291,7 +299,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         data_root: str,
         annotation_path: str,
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
-        data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
         config_path: None | str | Config = None,
         global_instance_ids: bool = False,
@@ -299,6 +306,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         skip_empty_samples: bool = False,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
 
@@ -307,8 +315,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
             annotation_path (str): Path to the annotation json(s).
             keys_to_load (Sequence[str, ...], optional): Keys to load from the
                 dataset. Defaults to (K.images, K.boxes2d).
-            data_backend (None | DataBackend, optional): Data backend, if None
-                then classic file backend. Defaults to None.
             category_map (None | CategoryMap, optional): Mapping from a
                 Scalabel category string to an integer index. If None, the
                 standard mapping in the dataset config will be used. Defaults
@@ -323,21 +329,19 @@ class Scalabel(CacheMappingMixin, VideoDataset):
                 additional class for masks.
             skip_empty_samples (bool): Whether to skip samples without
                 annotations.
-            cache_as_binary (bool, optional): Whether to cache the loaded
-                data as binary. Defaults to True.
-            cached_file_path (str | None, optional): Path to the cached file.
-                Defaults to None.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
         self.data_root = data_root
         self.annotation_path = annotation_path
         self.keys_to_load = keys_to_load
         self.global_instance_ids = global_instance_ids
         self.bg_as_class = bg_as_class
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
         self.config_path = config_path
         self.skip_empty_samples = skip_empty_samples
 
@@ -359,6 +363,11 @@ class Scalabel(CacheMappingMixin, VideoDataset):
             "via config_path."
         )
 
+        if self.category_map is None:
+            class_list = list(
+                c.name for c in get_leaf_categories(self.cfg.categories)
+            )
+            self.category_map = {c: i for i, c in enumerate(class_list)}
         self._setup_categories()
         self.video_to_indices = self._generate_video_to_indices()
 
@@ -472,7 +481,9 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         data: DictData = {}
         if K.images in self.keys_to_load:
             assert frame.url is not None, "url is None!"
-            image = load_image(frame.url, self.data_backend)
+            image = load_image(
+                frame.url, self.data_backend, self.image_channel_mode
+            )
             input_hw = (image.shape[1], image.shape[2])
             data[K.images] = image
             data[K.input_hw] = input_hw

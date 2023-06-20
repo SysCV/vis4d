@@ -1,7 +1,7 @@
 """QDTrack configs tests."""
 import unittest
 
-from .util import content_equal, get_config_for_name
+from .util import compare_configs
 
 
 class TestQDTrackConfig(unittest.TestCase):
@@ -15,13 +15,19 @@ class TestQDTrackConfig(unittest.TestCase):
 
         This instantiates the config and compares it to a ground truth.
         """
-        config = get_config_for_name("qdtrack.qdtrack_bdd100k").to_yaml()
-
-        with open(
+        compare_configs(
+            "qdtrack.qdtrack_bdd100k",
             f"{self.gt_config_path}/qdtrack_bdd100k.yaml",
-            "r",
-            encoding="UTF-8",
-        ) as f:
-            gt_config = f.read()
+            self.varying_keys,
+        )
 
-        self.assertTrue(content_equal(config, gt_config, self.varying_keys))
+    def test_yolox_bdd100k(self) -> None:
+        """Test the config for QDTrack YOLOX.
+
+        This instantiates the config and compares it to a ground truth.
+        """
+        compare_configs(
+            "qdtrack.qdtrack_yolox_bdd100k",
+            f"{self.gt_config_path}/qdtrack_yolox_bdd100k.yaml",
+            self.varying_keys,
+        )

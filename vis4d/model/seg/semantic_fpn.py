@@ -39,7 +39,14 @@ class MaskOut(NamedTuple):
 
 
 class SemanticFPN(nn.Module):
-    """Semantic FPN."""
+    """Semantic FPN.
+
+    Args:
+        num_classes (int): Number of classes.
+        resize (bool): Resize output to input size.
+        weights (None | str): Pre-trained weights.
+        basemodel (BaseModel): Base model.
+    """
 
     def __init__(
         self,
@@ -52,15 +59,8 @@ class SemanticFPN(nn.Module):
             trainable_layers=5,
             norm_freezed=False,
         ),
-    ) -> None:
-        """Semantic FPN.
-
-        Args:
-            num_classes (int): Number of classes.
-            resize (bool): Resize output to input size.
-            weights (None | str): Pre-trained weights.
-            basemodel (BaseModel): Base model.
-        """
+    ):
+        """Init."""
         super().__init__()
         self.resize = resize
         self.basemodel = basemodel

@@ -183,7 +183,7 @@ class CacheMappingMixin:
             ), "cached_file_path must be set if cache_as_binary is True!"
             if not os.path.exists(cached_file_path):
                 rank_zero_info(
-                    f"Didn't find {cached_file_path} so generating it..."
+                    f"Did not find {cached_file_path}, generating it..."
                 )
                 data = generate_map_func()
                 with open(cached_file_path, "wb") as file:

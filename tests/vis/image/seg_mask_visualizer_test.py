@@ -29,7 +29,7 @@ class TestSegMaskVis(unittest.TestCase):
             self.class_ids = [np.stack(e["class_id"]) for e in testcase_in]
 
         self.vis = SegMaskVisualizer(
-            n_colors=20, class_id_mapping=COCO_COLOR_MAPPING, vis_freq=1
+            n_colors=100, class_id_mapping=COCO_COLOR_MAPPING, vis_freq=1
         )
 
     def tearDown(self) -> None:

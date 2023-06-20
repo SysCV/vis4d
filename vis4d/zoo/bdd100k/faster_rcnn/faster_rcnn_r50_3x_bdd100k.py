@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Faster RCNN BDD100K training example."""
 from __future__ import annotations
 

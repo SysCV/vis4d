@@ -10,10 +10,11 @@ import numpy as np
 import pycocotools.mask as maskUtils
 from pycocotools.coco import COCO as COCOAPI
 
-from vis4d.common import DictStrAny
+from vis4d.common import ArgsType, DictStrAny
+from vis4d.data.const import CommonKeys as K
+from vis4d.data.typing import DictData
 
 from ..const import CommonKeys as K
-from ..io import DataBackend, FileBackend
 from ..typing import DictData
 from .base import Dataset
 from .util import CacheMappingMixin, im_decode
@@ -161,9 +162,9 @@ class COCO(CacheMappingMixin, Dataset):
         split: str = "train2017",
         remove_empty: bool = False,
         use_pascal_voc_cats: bool = False,
-        data_backend: None | DataBackend = None,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize the COCO dataset.
 
@@ -173,23 +174,19 @@ class COCO(CacheMappingMixin, Dataset):
             split (split): Which split to load. Default: "train2017".
             remove_empty (bool): Whether to remove images with no annotations.
             use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
-            data_backend (None | DataBackend): Data backend to use.
-                Default: None.
             cache_as_binary (bool): Whether to cache the dataset as binary.
                 Default: False.
-            cached_file_path (str | None): Path to the cached file.  Default:
-                None.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split
         self.remove_empty = remove_empty
         self.use_pascal_voc_cats = use_pascal_voc_cats
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
 
         # handling keys to load
         self.validate_keys(keys_to_load)
@@ -277,7 +274,7 @@ class COCO(CacheMappingMixin, Dataset):
                 self.data_root, self.split, data["img"]["file_name"]
             )
             im_bytes = self.data_backend.get(img_path)
-            img = im_decode(im_bytes)
+            img = im_decode(im_bytes, mode=self.image_channel_mode)
             img_ = np.ascontiguousarray(img, dtype=np.float32)[None]
             assert (img_h, img_w) == img_.shape[
                 1:3

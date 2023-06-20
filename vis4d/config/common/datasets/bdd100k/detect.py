@@ -40,12 +40,22 @@ CONN_BDD100K_DET_EVAL = {
     "pred_scores": pred_key("scores"),
     "pred_classes": pred_key("class_ids"),
 }
+CONN_BDD100K_INS_EVAL = {
+    "frame_ids": data_key("frame_ids"),
+    "sample_names": data_key("sample_names"),
+    "sequence_names": data_key("sequence_names"),
+    "pred_boxes": pred_key("boxes.boxes"),
+    "pred_scores": pred_key("boxes.scores"),
+    "pred_classes": pred_key("boxes.class_ids"),
+    "pred_masks": pred_key("masks.masks"),
+}
 
 
 def get_train_dataloader(
     data_root: str,
     anno_path: str,
     keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+    ins_seg: bool = False,
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
     multi_scale: bool = False,
@@ -58,7 +68,7 @@ def get_train_dataloader(
         BDD100K,
         data_root=data_root,
         annotation_path=anno_path,
-        config_path="det",
+        config_path="ins_seg" if ins_seg else "det",
         keys_to_load=keys_to_load,
         data_backend=data_backend,
         skip_empty_samples=True,
@@ -127,7 +137,8 @@ def get_train_dataloader(
 def get_test_dataloader(
     data_root: str,
     anno_path: str,
-    keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+    keys_to_load: Sequence[str] = (K.images, K.original_images),
+    ins_seg: bool = False,
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
     samples_per_gpu: int = 1,
@@ -139,7 +150,7 @@ def get_test_dataloader(
         BDD100K,
         data_root=data_root,
         annotation_path=anno_path,
-        config_path="det",
+        config_path="ins_seg" if ins_seg else "det",
         keys_to_load=keys_to_load,
         data_backend=data_backend,
     )
@@ -153,7 +164,6 @@ def get_test_dataloader(
             align_long_edge=True,
         ),
         class_config(ResizeImages),
-        class_config(ResizeBoxes2D),
     ]
 
     preprocess_transforms.append(class_config(NormalizeImages))
@@ -185,11 +195,8 @@ def get_bdd100k_detection_config(
     train_split: str = "train",
     train_keys_to_load: Sequence[str] = (K.images, K.boxes2d),
     test_split: str = "val",
-    test_keys_to_load: Sequence[str] = (
-        K.images,
-        K.original_images,
-        K.boxes2d,
-    ),
+    test_keys_to_load: Sequence[str] = (K.images, K.original_images),
+    ins_seg: bool = False,
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (720, 1280),
     multi_scale: bool = False,
@@ -199,10 +206,18 @@ def get_bdd100k_detection_config(
     """Get the default config for BDD100K detection."""
     data = ConfigDict()
 
+    if K.instance_masks in train_keys_to_load:
+        train_anno_path = "data/bdd100k/labels/ins_seg_train_rle.json"
+        test_anno_path = "data/bdd100k/labels/ins_seg_val_rle.json"
+    else:
+        train_anno_path = "data/bdd100k/labels/det_20/det_train.json"
+        test_anno_path = "data/bdd100k/labels/det_20/det_val.json"
+
     data.train_dataloader = get_train_dataloader(
         data_root=f"{data_root}/{train_split}",
-        anno_path=f"data/bdd100k/labels/det_20/det_{train_split}.json",
+        anno_path=train_anno_path,
         keys_to_load=train_keys_to_load,
+        ins_seg=ins_seg,
         data_backend=data_backend,
         image_size=image_size,
         multi_scale=multi_scale,
@@ -212,8 +227,9 @@ def get_bdd100k_detection_config(
 
     data.test_dataloader = get_test_dataloader(
         data_root=f"{data_root}/{test_split}",
-        anno_path=f"data/bdd100k/labels/det_20/det_{test_split}.json",
+        anno_path=test_anno_path,
         keys_to_load=test_keys_to_load,
+        ins_seg=ins_seg,
         data_backend=data_backend,
         image_size=image_size,
         samples_per_gpu=1,

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from vis4d.common.typing import ArgsType
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
@@ -32,6 +33,7 @@ class ImageNet(Dataset):
         keys_to_load: Sequence[str] = (K.images, K.categories),
         split: str = "train",
         num_classes: int = 1000,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize ImageNet dataset.
 
@@ -57,6 +59,7 @@ class ImageNet(Dataset):
             Currently, we are not using the DataBackend for loading the tars to
             avoid keeping too many file pointers open at the same time.
         """
+        super().__init__(**kwargs)
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split
