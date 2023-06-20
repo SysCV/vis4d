@@ -90,7 +90,7 @@ class QDTrackTest(unittest.TestCase):
         preprocess_fn = compose(
             [
                 GenerateResizeParameters(
-                    (416, 736), keep_ratio=False, align_long_edge=True
+                    (224, 384), keep_ratio=False, align_long_edge=True
                 ),
                 ResizeImages(),
             ]
@@ -100,7 +100,7 @@ class QDTrackTest(unittest.TestCase):
             preprocess_fn=preprocess_fn,
         )
         batch_fn = compose([PadImages(pad2square=True), ToTensor()])
-        batch_size = 1
+        batch_size = 2
         test_loader = build_inference_dataloaders(
             test_data,
             samples_per_gpu=batch_size,
