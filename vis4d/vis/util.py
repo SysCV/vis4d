@@ -29,4 +29,4 @@ def generate_color_map(length: int) -> list[tuple[int, int, int]]:
     return result  # type: ignore
 
 
-DEFAULT_COLOR_MAPPING = generate_color_map(100)
+DEFAULT_COLOR_MAPPING = generate_color_map(50)
