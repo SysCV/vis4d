@@ -30,7 +30,6 @@ class SemanticFPNTest(unittest.TestCase):
             ],
             split="train",
             use_pascal_voc_cats=True,
-            minimum_box_area=10,
         )
 
     def test_inference(self) -> None:

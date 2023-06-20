@@ -12,16 +12,11 @@ import torch
 from tabulate import tabulate
 from termcolor import colored
 
+from vis4d.common.distributed import broadcast
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import (
-    DictStrAny,
-    ListAny,
-    NDArrayF32,
-    NDArrayI64,
-    NDArrayUI8,
-)
+from vis4d.common.typing import ListAny, NDArrayF32, NDArrayI64, NDArrayUI8
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
@@ -32,8 +27,8 @@ from vis4d.op.geometry.rotation import (
     matrix_to_quaternion,
 )
 
-from .base import Dataset, VideoMixin
-from .util import im_decode, ply_decode
+from .base import VideoDataset
+from .util import DatasetFromList, im_decode, ply_decode
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config
@@ -127,6 +122,50 @@ def add_data_path(data_root: str, frames: list[Frame]) -> None:
             ann.url = os.path.join(data_root, ann.url)
 
 
+def print_class_histogram(class_frequencies: dict[str, int]) -> None:
+    """Prints out given class frequencies."""
+    if len(class_frequencies) == 0:  # pragma: no cover
+        return
+
+    class_names = list(class_frequencies.keys())
+    frequencies = list(class_frequencies.values())
+    num_classes = len(class_names)
+
+    n_cols = min(6, len(class_names) * 2)
+
+    def short_name(name: str) -> str:
+        """Make long class names shorter."""
+        if len(name) > 13:
+            return name[:11] + ".."  # pragma: no cover
+        return name
+
+    data = list(
+        itertools.chain(
+            *[
+                [short_name(class_names[i]), int(v)]
+                for i, v in enumerate(frequencies)
+            ]
+        )
+    )
+    total_num_instances = sum(data[1::2])  # type: ignore
+    data.extend([None] * (n_cols - (len(data) % n_cols)))
+    if num_classes > 1:
+        data.extend(["total", total_num_instances])
+
+    table = tabulate(
+        itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)]),
+        headers=["category", "#instances"] * (n_cols // 2),
+        tablefmt="pipe",
+        numalign="left",
+        stralign="center",
+    )
+
+    rank_zero_info(
+        f"Distribution of instances among all {num_classes} categories:\n"
+        + colored(table, "cyan")
+    )
+
+
 def discard_labels_outside_set(
     dataset: list[Frame], class_set: list[str]
 ) -> None:
@@ -211,52 +250,29 @@ def prepare_labels(
     return frequencies
 
 
-def print_class_histogram(class_frequencies: dict[str, int]) -> None:
-    """Prints out given class frequencies.
-
-    Args:
-        class_frequencies (dict[str, int]): class frequencies (number of
-            instances per class).
-    """
-    if len(class_frequencies) == 0:  # pragma: no cover
-        return
-
-    class_names = list(class_frequencies.keys())
-    frequencies = list(class_frequencies.values())
-    num_classes = len(class_names)
-
-    n_cols = min(6, len(class_names) * 2)
-
-    def short_name(name: str) -> str:
-        """Make long class names shorter."""
-        if len(name) > 13:
-            return name[:11] + ".."  # pragma: no cover
-        return name
-
-    data = list(
-        itertools.chain(
-            *[
-                [short_name(class_names[i]), int(v)]
-                for i, v in enumerate(frequencies)
-            ]
-        )
-    )
-    total_num_instances = sum(data[1::2])  # type: ignore
-    data.extend([None] * (n_cols - (len(data) % n_cols)))
-    if num_classes > 1:
-        data.extend(["total", total_num_instances])
-    data_zip = itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)])
-    table = tabulate(
-        data_zip,
-        headers=["category", "#instances"] * (n_cols // 2),
-        tablefmt="pipe",
-        numalign="left",
-        stralign="center",
-    )
-    rank_zero_info(
-        f"Distribution of instances among all {num_classes} categories:\n"
-        + colored(table, "cyan")
-    )
+def filter_frames_by_attributes(
+    frames: list[Frame],
+    attributes_to_load: Sequence[dict[str, str | float]] | None,
+) -> list[Frame]:
+    """Filter frames based on attributes."""
+    if attributes_to_load is None:
+        return frames
+    filtered_frames: list[Frame] = []
+    for frame in frames:
+        for attribute_dict in attributes_to_load:
+            if hasattr(frame, "attributes") and frame.attributes is not None:
+                if all(
+                    frame.attributes.get(key) == value
+                    for key, value in attribute_dict.items()
+                ):
+                    filtered_frames.append(frame)
+                    break
+            else:
+                raise ValueError(
+                    "Attribute to load is specified but no attributes "
+                    "are found in the frame."
+                )
+    return filtered_frames
 
 
 # Not using | operator because of a bug in Python 3.9
@@ -264,7 +280,7 @@ def print_class_histogram(class_frequencies: dict[str, int]) -> None:
 CategoryMap = Union[dict[str, int], dict[str, dict[str, int]]]
 
 
-class Scalabel(Dataset, CacheMappingMixin):
+class Scalabel(CacheMappingMixin, VideoDataset):
     """Scalabel type dataset.
 
     This class loads scalabel format data into Vis4D.
@@ -278,9 +294,11 @@ class Scalabel(Dataset, CacheMappingMixin):
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
         config_path: None | str | Config = None,
-        remove_empty: bool = False,
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
+        skip_empty_samples: bool = False,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -298,32 +316,42 @@ class Scalabel(Dataset, CacheMappingMixin):
             config_path (None | str | Config, optional): Path to the dataset
                 config, can be added if it is not provided together with the
                 labels or should be modified. Defaults to None.
-            remove_empty (bool): Whether to remove images with no annotations.
-                Defaults to False.
             global_instance_ids (bool): Whether to convert tracking IDs of
                 annotations into dataset global IDs or stay with local,
                 per-video IDs. Defaults to false.
             bg_as_class (bool): Whether to include background pixels as an
                 additional class for masks.
+            skip_empty_samples (bool): Whether to skip samples without
+                annotations.
+            cache_as_binary (bool, optional): Whether to cache the loaded
+                data as binary. Defaults to True.
+            cached_file_path (str | None, optional): Path to the cached file.
+                Defaults to None.
         """
         super().__init__()
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
         self.data_root = data_root
         self.annotation_path = annotation_path
         self.keys_to_load = keys_to_load
-        self.remove_empty = remove_empty
         self.global_instance_ids = global_instance_ids
         self.bg_as_class = bg_as_class
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
         self.config_path = config_path
+        self.skip_empty_samples = skip_empty_samples
 
         self.cats_name2id: dict[str, dict[str, int]] = {}
         self.category_map = category_map
 
+        # TODO: Add support for attributes
+        self.attributes_to_load: Sequence[dict[str, str | float]] | None = None
+
         self.frames, self.cfg = self._load_mapping(
-            self._generate_mapping  # type: ignore
+            self._generate_mapping,
+            remove_empty_samples,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
         )
 
         assert self.cfg is not None, (
@@ -332,6 +360,29 @@ class Scalabel(Dataset, CacheMappingMixin):
         )
 
         self._setup_categories()
+        self.video_to_indices = self._generate_video_to_indices()
+
+    def _generate_video_to_indices(self) -> dict[str, list[int]]:
+        """Group all dataset sample indices (int) by their video ID (str).
+
+        Returns:
+            dict[str, list[int]]: Mapping video to index.
+        """
+        video_to_indices: dict[str, list[int]] = defaultdict(list)
+        video_to_frameidx: dict[str, list[int]] = defaultdict(list)
+        for idx, frame in enumerate(self.frames):  # type: ignore
+            if frame.videoName is not None:
+                assert (
+                    frame.frameIndex is not None
+                ), "found videoName but no frameIndex!"
+                video_to_frameidx[frame.videoName].append(frame.frameIndex)
+                video_to_indices[frame.videoName].append(idx)
+
+        # sort dataset indices by frame indices
+        for key, idcs in video_to_indices.items():
+            zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
+            video_to_indices[key] = [idx for _, idx in zip_frame_idx]
+        return video_to_indices
 
     def _setup_categories(self) -> None:
         """Setup categories."""
@@ -349,44 +400,62 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def _load_mapping(  # type: ignore
         self,
-        generate_map_func: Callable[[], list[DictStrAny]],
-        use_cache: bool = True,
-    ) -> tuple[ListAny, Config]:
+        generate_map_func: Callable[[], ScalabelData],
+        filter_func: Callable[[ListAny], ListAny] = lambda x: x,
+        cache_as_binary: bool = True,
+        cached_file_path: str | None = None,
+    ) -> tuple[DatasetFromList, Config]:
         """Load cached mapping or generate if not exists."""
         timer = Timer()
-        data = self._load_mapping_data(generate_map_func, use_cache)
-        frames, cfg = data.frames, data.config  # type: ignore
-        add_data_path(self.data_root, frames)
-        rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
+        data = self._load_mapping_data(
+            generate_map_func, cache_as_binary, cached_file_path
+        )
+        if data is not None:
+            frames, cfg = data.frames, data.config
 
-        if self.category_map is None:
-            class_list = list(
-                c.name for c in get_leaf_categories(cfg.categories)
+            add_data_path(self.data_root, frames)
+            rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
+
+            if self.category_map is None:
+                class_list = list(
+                    c.name for c in get_leaf_categories(cfg.categories)
+                )
+                self.category_map = {c: i for i, c in enumerate(class_list)}
+            else:
+                class_list = list(self.category_map.keys())
+
+            assert len(set(class_list)) == len(
+                class_list
+            ), "Class names are not unique!"
+
+            discard_labels_outside_set(frames, class_list)
+
+            frames = filter_frames_by_attributes(
+                frames, self.attributes_to_load
             )
-            self.category_map = {c: i for i, c in enumerate(class_list)}
+
+            if self.skip_empty_samples:
+                frames = filter_func(frames)
+
+            t = Timer()
+            frequencies = prepare_labels(
+                frames,
+                class_list,
+                global_instance_ids=self.global_instance_ids,
+            )
+            rank_zero_info(
+                f"Preprocessing {len(frames)} frames takes {t.time():.2f}"
+                " seconds."
+            )
+            print_class_histogram(frequencies)
+            frames_dataset = DatasetFromList(frames)
         else:
-            class_list = list(self.category_map.keys())
-
-        assert len(set(class_list)) == len(
-            class_list
-        ), "Class names are not unique!"
-
-        discard_labels_outside_set(frames, class_list)
-
-        if self.remove_empty:
-            frames = remove_empty_samples(frames)
-
-        timer.reset()
-        frequencies = prepare_labels(
-            frames, class_list, global_instance_ids=self.global_instance_ids
-        )
-        rank_zero_info(
-            f"Preprocessing {len(frames)} frames takes {timer.time():.2f}"
-            " seconds."
-        )
-        print_class_histogram(frequencies)
-        frames_dset = DatasetFromList(frames)
-        return frames_dset, cfg  # type: ignore
+            frames_dataset = None
+            cfg = None
+        frames_dataset = broadcast(frames_dataset)
+        cfg = broadcast(cfg)
+        assert frames_dataset is not None
+        return frames_dataset, cfg
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
@@ -401,19 +470,25 @@ class Scalabel(Dataset, CacheMappingMixin):
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""
         data: DictData = {}
-        if frame.url is not None and K.images in self.keys_to_load:
+        if K.images in self.keys_to_load:
+            assert frame.url is not None, "url is None!"
             image = load_image(frame.url, self.data_backend)
             input_hw = (image.shape[1], image.shape[2])
             data[K.images] = image
             data[K.input_hw] = input_hw
+
+            # Original image
             data[K.original_images] = image
             data[K.original_hw] = input_hw
+
             data[K.axis_mode] = AxisMode.OPENCV
             data[K.frame_ids] = frame.frameIndex
+
             data[K.sample_names] = frame.name
             data[K.sequence_names] = frame.videoName
 
-        if frame.url is not None and K.points3d in self.keys_to_load:
+        if K.points3d in self.keys_to_load:
+            assert frame.url is not None, "url is None!"
             data[K.points3d] = load_pointcloud(frame.url, self.data_backend)
 
         if frame.intrinsics is not None and K.intrinsics in self.keys_to_load:
@@ -425,17 +500,18 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def _add_annotations(self, frame: Frame, data: DictData) -> None:
         """Add annotations given a scalabel frame and a data dictionary."""
-        if frame.labels is None:
-            return
         labels_used, instid_map = [], {}
-        for label in frame.labels:
-            assert label.attributes is not None and label.category is not None
-            if not check_crowd(label) and not check_ignored(label):
-                labels_used.append(label)
-                if label.id not in instid_map:
-                    instid_map[label.id] = int(label.attributes["instance_id"])
-        # if not labels_used:
-        #     return  # pragma: no cover
+        if frame.labels is not None:
+            for label in frame.labels:
+                assert (
+                    label.attributes is not None and label.category is not None
+                )
+                if not check_crowd(label) and not check_ignored(label):
+                    labels_used.append(label)
+                    if label.id not in instid_map:
+                        instid_map[label.id] = int(
+                            label.attributes["instance_id"]
+                        )
 
         image_size = (
             ImageSize(height=data[K.input_hw][0], width=data[K.input_hw][1])
@@ -483,42 +559,11 @@ class Scalabel(Dataset, CacheMappingMixin):
         """Get item from dataset at given index."""
         frame = self.frames[index]
         data = self._load_inputs(frame)
-        if len(self.keys_to_load) > 0:
-            if len(self.cats_name2id) == 0:
-                raise AttributeError(
-                    "Category mapping is empty but keys_to_load is not. "
-                    "Please specify a category mapping."
-                )  # pragma: no cover
-            # load annotations to input sample
-            self._add_annotations(frame, data)
+
+        # load annotations to input sample
+        self._add_annotations(frame, data)
+
         return data
-
-
-class ScalabelVideo(Scalabel, VideoMixin):
-    """Scalabel type dataset with video extension."""
-
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
-        """Group all dataset sample indices (int) by their video ID (str).
-
-        Returns:
-            dict[str, list[int]]: Mapping video to index.
-        """
-        video_to_indices: dict[str, list[int]] = defaultdict(list)
-        video_to_frameidx: dict[str, list[int]] = defaultdict(list)
-        for idx, frame in enumerate(self.frames):
-            if frame.videoName is not None:
-                assert (
-                    frame.frameIndex is not None
-                ), "found videoName but no frameIndex!"
-                video_to_frameidx[frame.videoName].append(frame.frameIndex)
-                video_to_indices[frame.videoName].append(idx)
-
-        # sort dataset indices by frame indices
-        for key, idcs in video_to_indices.items():
-            zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
-            video_to_indices[key] = [idx for _, idx in zip_frame_idx]
-        return video_to_indices
 
 
 def boxes2d_from_scalabel(

@@ -14,7 +14,7 @@ if SCALABEL_AVAILABLE:
     from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
     from scalabel.label.io import group_and_sort
     from scalabel.label.transforms import mask_to_rle, xyxy_to_box2d
-    from scalabel.label.typing import Frame, Label
+    from scalabel.label.typing import Config, Frame, Label
 
 
 class ScalabelTrackEvaluator(ScalabelEvaluator):
@@ -25,10 +25,13 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
     METRICS_ALL = "all"
 
     def __init__(
-        self, annotation_path: str, mask_threshold: float = 0.0
+        self,
+        annotation_path: str,
+        config: Config | None = None,
+        mask_threshold: float = 0.0,
     ) -> None:
         """Initialize the evaluator."""
-        super().__init__(annotation_path=annotation_path)
+        super().__init__(annotation_path=annotation_path, config=config)
         self.mask_threshold = mask_threshold
 
     def __repr__(self) -> str:

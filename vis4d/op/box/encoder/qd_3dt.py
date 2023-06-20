@@ -4,8 +4,8 @@ from __future__ import annotations
 import torch
 from torch import Tensor, nn
 
-from ...geometry.projection import unproject_points
-from ...geometry.rotation import alpha2yaw, rotation_output_to_alpha
+from vis4d.op.geometry.projection import unproject_points
+from vis4d.op.geometry.rotation import alpha2yaw, rotation_output_to_alpha
 
 
 # TODO: Add qd-3dt 3D box encoder for training

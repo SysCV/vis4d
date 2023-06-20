@@ -8,10 +8,12 @@ import torch
 from torch import nn
 from torchvision.ops import batched_nms, sigmoid_focal_loss
 
+from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import PseudoSampler, Sampler
+from vis4d.op.loss.common import l1_loss
 
 from .anchor_generator import AnchorGenerator
 from .common import DetOut
@@ -367,6 +369,8 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
         box_encoder: DeltaXYWHBBoxEncoder,
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
+        loss_cls: TorchLossFunc = sigmoid_focal_loss,
+        loss_bbox: TorchLossFunc = l1_loss,
     ) -> None:
         """Creates an instance of the class.
 
@@ -378,6 +382,10 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
                 None.
             box_sampler (None | Sampler, optional): Box sampler. Defaults to
                 None.
+            loss_cls (TorchLossFunc, optional): Classification loss function.
+                Defaults to sigmoid_focal_loss.
+            loss_bbox (TorchLossFunc, optional): Regression loss function.
+                Defaults to l1_loss.
         """
         matcher = (
             box_matcher
@@ -389,7 +397,11 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
             if box_sampler is not None
             else get_default_box_sampler()
         )
-        loss_cls = sigmoid_focal_loss
         super().__init__(
-            anchor_generator, box_encoder, matcher, sampler, loss_cls
+            anchor_generator,
+            box_encoder,
+            matcher,
+            sampler,
+            loss_cls,
+            loss_bbox,
         )

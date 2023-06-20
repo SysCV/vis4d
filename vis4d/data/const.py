@@ -115,4 +115,5 @@ class CommonKeys:
     boxes3d = "boxes3d"
     boxes3d_classes = "boxes3d_classes"
     boxes3d_track_ids = "boxes3d_track_ids"
+    boxes3d_velocities = "boxes3d_velocities"
     occupancy3d = "occupancy3d"

@@ -5,8 +5,8 @@ from ml_collections import ConfigDict, FieldReference
 
 from vis4d.common.typing import GenericFunc
 from vis4d.config import class_config
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.loader import (
-    DataPipe,
     build_inference_dataloaders,
     build_train_dataloader,
     default_collate,

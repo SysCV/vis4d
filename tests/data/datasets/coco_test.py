@@ -130,7 +130,6 @@ class COCOSegTest(unittest.TestCase):
             K.seg_masks,
         ),
         remove_empty=True,
-        minimum_box_area=10,
         use_pascal_voc_cats=True,
     )
 

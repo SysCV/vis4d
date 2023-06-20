@@ -254,6 +254,7 @@ class BDD100KSemSegTest(unittest.TestCase):
         dataset = BDD100K(
             self.data_root,
             self.annotations,
+            config_path=self.config_path,
             keys_to_load=(K.images, K.seg_masks),
             category_map={"car": 0, "person": 1, "background": 2},
             global_instance_ids=True,

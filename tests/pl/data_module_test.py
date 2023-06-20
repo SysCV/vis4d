@@ -19,6 +19,7 @@ class DataModuleTest(unittest.TestCase):
             get_test_data("coco_test"),
             train_split="train",
             test_split="train",
+            cache_as_binary=False,
         )
         self.datamodule = DataModule(dataloader_cfg)
 
