@@ -96,7 +96,9 @@ class SegMaskVisualizer(Visualizer):
                 class_ids.shape[0] == masks.shape[0]  # type: ignore
             ), "The amount of masks must match the given class count!"
 
-        for mask, color in zip(*preprocess_masks(masks, class_ids)):
+        for mask, color in zip(
+            *preprocess_masks(masks, class_ids, self.color_palette)
+        ):
             data_sample.masks.append(SegMask2D(mask=mask, color=color))
 
     def _draw_image(self, sample: ImageWithSegMask) -> NDArrayUI8:
