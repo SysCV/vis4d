@@ -11,6 +11,7 @@ from torch import Tensor, optim
 
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.typing import DictStrAny
 from vis4d.common.util import init_random_seed
 from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
@@ -74,6 +75,7 @@ class TrainingModule(pl.LightningModule):
         loss_module: None | LossModule,
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
+        hyper_parameters: DictStrAny,
         seed: None | int = None,
     ) -> None:
         """Initialize the TrainingModule.
@@ -86,6 +88,7 @@ class TrainingModule(pl.LightningModule):
             train_data_connector: The data connector to use.
             test_data_connector: The data connector to use.
             data_connector: The data connector to use.
+            hyper_parameters (DictStrAny): The hyper parameters to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
         """
@@ -95,6 +98,7 @@ class TrainingModule(pl.LightningModule):
         self.loss_module = loss_module
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
+        self.hyper_parameters = hyper_parameters
         self.seed = seed
 
     def setup(self, stage: str) -> None:
@@ -108,6 +112,9 @@ class TrainingModule(pl.LightningModule):
 
             seed_everything(seed, workers=True)
             rank_zero_info(f"Global seed set to {seed}")
+
+        self.hyper_parameters["seed"] = seed
+        self.save_hyperparameters(self.hyper_parameters)
 
         # Instantiate the model and optimizers after the seed has been set
         self.model = instantiate_classes(self.model)
