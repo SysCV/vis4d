@@ -21,6 +21,7 @@ from vis4d.model.track.qdtrack import (
     TrackOut,
     YOLOXQDTrack,
 )
+from vis4d.op.track.assignment import TrackIDCounter
 
 
 class QDTrackTest(unittest.TestCase):
@@ -32,6 +33,7 @@ class QDTrackTest(unittest.TestCase):
         Run::
             >>> pytest tests/model/track/qdtrack_test.py::QDTrackTest::test_inference_fasterrcnn
         """
+        TrackIDCounter.reset()  # reset track ID counter
         model_weights = (
             "https://dl.cv.ethz.ch/vis4d/"
             "qdtrack_bdd100k_frcnn_res50_heavy_augs.pt"
@@ -43,9 +45,16 @@ class QDTrackTest(unittest.TestCase):
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
+        preprocess_fn = compose(
+            [
+                GenerateResizeParameters((224, 384), keep_ratio=True),
+                ResizeImages(),
+                NormalizeImages(),
+            ]
+        )
         test_data = DataPipe(
             BDD100K(data_root, annotations, config_path=config),
-            preprocess_fn=compose([NormalizeImages()]),
+            preprocess_fn=preprocess_fn,
         )
         batch_fn = compose([PadImages(), ToTensor()])
         batch_size = 2
@@ -77,6 +86,7 @@ class QDTrackTest(unittest.TestCase):
 
     def test_inference_yolox(self):
         """Inference test for YOLOX QDTrack."""
+        TrackIDCounter.reset()  # reset track ID counter
         model_weights = (
             "https://dl.cv.ethz.ch/vis4d/qdtrack-yolox-ema_bdd100k.ckpt"
         )
