@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from tests.util import generate_features_determ, get_test_file
+from tests.util import fill_weights, generate_features_determ, get_test_file
 from vis4d.op.fpp.yolox_pafpn import YOLOXPAFPN
 
 
@@ -12,12 +12,10 @@ class TestYOLOXPAFPN(unittest.TestCase):
 
     def test_yolox_pafpn(self):
         """Test YOLOXPAFPN."""
-        state = torch.random.get_rng_state()
-        torch.random.set_rng_state(torch.manual_seed(0).get_state())
-
         size = 32
         features = generate_features_determ(64, size, size, 3, 2, True)
-        yolox_pafpn = YOLOXPAFPN([64, 128, 256], 64, start_index=0)
+        yolox_pafpn = YOLOXPAFPN([64, 128, 256], 64, start_index=0).eval()
+        fill_weights(yolox_pafpn, 1.0)
         out = yolox_pafpn(features)
         gt_out = torch.load(get_test_file("yolox_pafpn.pt"))
         self.assertTrue(len(out) == 3)
@@ -25,5 +23,3 @@ class TestYOLOXPAFPN(unittest.TestCase):
             self.assertEqual(f.shape[:2], (2, 64))
             self.assertEqual(f.shape[2:], (size // 2**i, size // 2**i))
             self.assertTrue(torch.isclose(f, gt_out[i], atol=1e-4).all())
-
-        torch.random.set_rng_state(state)

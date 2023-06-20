@@ -356,6 +356,11 @@ class Scalabel(CacheMappingMixin, VideoDataset):
             "via config_path."
         )
 
+        if self.category_map is None:
+            class_list = list(
+                c.name for c in get_leaf_categories(self.cfg.categories)
+            )
+            self.category_map = {c: i for i, c in enumerate(class_list)}
         self._setup_categories()
         self.video_to_indices = self._generate_video_to_indices()
 

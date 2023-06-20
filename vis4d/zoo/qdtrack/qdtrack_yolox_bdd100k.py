@@ -42,10 +42,10 @@ CONN_BDD100K_EVAL = {
     "frame_ids": data_key("frame_ids"),
     "sample_names": data_key("sample_names"),
     "sequence_names": data_key("sequence_names"),
-    "boxes_list": pred_key("boxes"),
-    "class_ids_list": pred_key("class_ids"),
-    "scores_list": pred_key("scores"),
-    "track_ids_list": pred_key("track_ids"),
+    "pred_boxes": pred_key("boxes"),
+    "pred_classes": pred_key("class_ids"),
+    "pred_scores": pred_key("scores"),
+    "pred_track_ids": pred_key("track_ids"),
 }
 
 
@@ -93,6 +93,8 @@ def get_config() -> FieldConfigDict:
         config_path=config_path,
         image_channel_mode="BGR",
         data_backend=data_backend,
+        cache_as_binary=True,
+        cached_file_path="data/bdd100k/pkl/track_val.pkl",
     )
 
     preprocess_transforms = [
@@ -167,7 +169,7 @@ def get_config() -> FieldConfigDict:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer, vis_freq=1000),
+            visualizer=class_config(BoundingBoxVisualizer, vis_freq=500),
             save_prefix=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_BBOX_2D_TRACK_VIS
