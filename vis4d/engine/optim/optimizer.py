@@ -6,6 +6,7 @@ from collections.abc import Callable
 from ml_collections import ConfigDict
 from torch import nn, optim
 
+from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
 
 from .warmup import BaseLRWarmup
@@ -160,9 +161,7 @@ def set_up_optimizers(
     """Set up optimizers."""
     optimizers = []
     for optim_cfg in optimizers_cfg:
-        optimizer = instantiate_classes(
-            optim_cfg.optimizer, params=model.parameters()
-        )
+        optimizer = configure_optimizer(model, optim_cfg)
         lr_scheduler = (
             instantiate_classes(optim_cfg.lr_scheduler, optimizer=optimizer)
             if optim_cfg.lr_scheduler is not None
@@ -183,3 +182,85 @@ def set_up_optimizers(
             )
         )
     return optimizers
+
+
+def configure_optimizer(
+    model: nn.Module, optim_cfg: ConfigDict
+) -> optim.Optimizer:
+    """Configure optimizer with parameter groups."""
+    base_lr = optim_cfg.optimizer["init_args"].lr
+    weight_decay = optim_cfg.optimizer["init_args"].get("weight_decay", None)
+
+    param_groups_cfg = optim_cfg.get("param_groups_cfg", None)
+    params = []
+
+    # One cycle lr
+    one_cycle = "max_lr" in optim_cfg.lr_scheduler["init_args"]
+
+    if param_groups_cfg is not None:
+        for group in param_groups_cfg:
+            lr_mult = group.get("lr_mult", 1.0)
+            decay_mult = group.get("decay_mult", 1.0)
+
+            param_group = {"params": [], "lr": base_lr * lr_mult}
+
+            if weight_decay is not None:
+                param_group["weight_decay"] = weight_decay * decay_mult
+
+            params.append(param_group)
+
+        # Create a param group for the rest of the parameters
+        param_group = {"params": [], "lr": base_lr}
+        if weight_decay is not None:
+            param_group["weight_decay"] = weight_decay
+        params.append(param_group)
+
+        # Add the parameters to the param groups
+        add_params(params, model, param_groups_cfg)
+
+        if one_cycle:
+            max_lrs = [pg.pop("lr") for pg in params]
+            optim_cfg.lr_scheduler["init_args"]["max_lr"] = max_lrs
+    else:
+        params = model.parameters()
+
+    return instantiate_classes(optim_cfg.optimizer, params=params)
+
+
+def add_params(
+    params: list[dict],
+    module: nn.Module,
+    param_groups_cfg: dict[str, list[str] | float],
+    prefix: str = "",
+) -> None:
+    """Add all parameters of module to the params list.
+
+    The parameters of the given module will be added to the list of param
+    groups, with specific rules defined by paramwise_cfg.
+
+    Args:
+        params (list[dict]): A list of param groups, it will be modified
+            in place.
+        module (nn.Module): The module to be added.
+        param_groups_cfg (dict[str, list[str] | float]): The configuration
+            of the param groups.
+        prefix (str): The prefix of the module. Default: ''.
+    """
+    for name, param in module.named_parameters(recurse=False):
+        if not param.requires_grad:
+            params[-1]["params"].append(param)
+            continue
+
+        # if the parameter match one of the custom keys, ignore other rules
+        for i, group in enumerate(param_groups_cfg):
+            for key in group["custom_keys"]:
+                if key in f"{prefix}.{name}":
+                    rank_zero_info(
+                        f"{prefix}.{name} with lr_multi: {group['lr_mult']}"
+                    )
+                    params[i]["params"].append(param)
+                    break
+
+    for child_name, child_mod in module.named_children():
+        child_prefix = f"{prefix}.{child_name}" if prefix else child_name
+        add_params(params, child_mod, param_groups_cfg, prefix=child_prefix)

@@ -113,8 +113,8 @@ class TrainingModule(pl.LightningModule):
             seed_everything(seed, workers=True)
             rank_zero_info(f"Global seed set to {seed}")
 
-        self.hyper_parameters["seed"] = seed
-        self.save_hyperparameters(self.hyper_parameters)
+            self.hyper_parameters["seed"] = seed
+            self.save_hyperparameters(self.hyper_parameters)
 
         # Instantiate the model and optimizers after the seed has been set
         self.model = instantiate_classes(self.model)

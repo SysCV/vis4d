@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import numpy as np
 
+import torch
+
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
@@ -11,7 +13,11 @@ from vis4d.common.typing import (
     ArrayLikeInt,
     NDArrayBool,
     NDArrayUI8,
+    NDArrayF32,
 )
+from vis4d.data.const import AxisMode
+from vis4d.op.box.box3d import boxes3d_to_corners
+from vis4d.op.geometry.projection import project_points
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 from .canvas import CanvasBackend
@@ -129,6 +135,74 @@ def preprocess_boxes(
             _get_box_label(class_id, score, track_id, class_id_mapping)
         )
     return boxes_proc, labels_proc, colors_proc
+
+
+def preprocess_boxes3d(
+    boxes3d: ArrayLikeFloat,
+    intrinsics: NDArrayF32 | None = None,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
+    color_palette: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
+    class_id_mapping: dict[int, str] | None = None,
+    default_color: tuple[int, int, int] = (255, 0, 0),
+) -> tuple[
+    list[tuple[float, float, float, float]],
+    list[str],
+    list[tuple[int, int, int]],
+]:
+    """Preprocesses bounding boxes.
+
+    Converts the given predicted bounding boxes and class/track information
+    into lists of corners, labels and colors.
+    """
+    if class_id_mapping is None:
+        class_id_mapping = {}
+
+    boxes3d = array_to_numpy(boxes3d, n_dims=2, dtype=np.float32)
+
+    if intrinsics is None:
+        mode = AxisMode.ROS
+    else:
+        mode = AxisMode.OPENCV
+
+    corners = boxes3d_to_corners(torch.from_numpy(boxes3d), axis_mode=mode)
+
+    if intrinsics is not None:
+        corners = torch.cat(
+            [
+                project_points(corners, torch.from_numpy(intrinsics)),
+                corners[:, :, 2:3],
+            ],
+            dim=-1,
+        ).numpy()
+
+    scores_np = array_to_numpy(scores, n_dims=1, dtype=np.float32)
+    class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+    track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
+
+    boxes3d_proc = []
+    colors_proc: list[tuple[int, int, int]] = []
+    labels_proc: list[str] = []
+
+    for idx in range(corners.shape[0]):
+        class_id = None if class_ids_np is None else class_ids_np[idx].item()
+        score = None if scores_np is None else scores_np[idx].item()
+        track_id = None if track_ids_np is None else track_ids_np[idx].item()
+
+        if track_id is not None:
+            color = color_palette[track_id % len(color_palette)]
+        elif class_id is not None:
+            color = color_palette[class_id % len(color_palette)]
+        else:
+            color = default_color
+
+        boxes3d_proc.append(corners[idx].tolist())
+        colors_proc.append(color)
+        labels_proc.append(
+            _get_box_label(class_id, score, track_id, class_id_mapping)
+        )
+    return boxes3d_proc, labels_proc, colors_proc
 
 
 def preprocess_masks(
