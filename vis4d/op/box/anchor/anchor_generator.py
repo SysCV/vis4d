@@ -10,6 +10,8 @@ import torch
 from torch import Tensor
 from torch.nn.modules.utils import _pair
 
+from .util import meshgrid
+
 
 def anchor_inside_image(
     flat_anchors: Tensor, img_shape: tuple[int, int], allowed_border: int = 0
@@ -35,33 +37,11 @@ def anchor_inside_image(
     return inside_flags
 
 
-def meshgrid(
-    x_grid: Tensor, y_grid: Tensor, row_major: bool = True
-) -> tuple[Tensor, Tensor]:
-    """Generate mesh grid of x and y.
-
-    Args:
-        x_grid (Tensor): Grids of x dimension.
-        y_grid (Tensor): Grids of y dimension.
-        row_major (bool, optional): Whether to return y grids first.
-            Defaults to True.
-
-    Returns:
-        tuple[Tensor]: The mesh grids of x and y.
-    """
-    # use shape instead of len to keep tracing while exporting to onnx
-    xx = x_grid.repeat(y_grid.shape[0])
-    yy = y_grid.view(-1, 1).repeat(1, x_grid.shape[0]).view(-1)
-    if row_major:
-        return xx, yy
-    return yy, xx
-
-
 class AnchorGenerator:
     """Standard anchor generator for 2D anchor-based detectors.
 
     Examples:
-        >>> from vis4d.op.detect.anchor_generator import AnchorGenerator
+        >>> from vis4d.op.box.anchor import AnchorGenerator
         >>> self = AnchorGenerator([16], [1.], [1.], [9])
         >>> all_anchors = self.grid_priors([(2, 2)], device='cpu')
         >>> print(all_anchors)

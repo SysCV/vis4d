@@ -323,8 +323,9 @@ class QDSimilarityHead(nn.Module):
         Returns:
             list[Tensor]: An embedding vector per input box, .
         """
-        # take features of strides 4, 8, 16, 32
-        x = self.roi_pooler(features[2:6], boxes)
+        # RoI pooling
+        num_strides = len(self.roi_pooler.scales)  # type: ignore
+        x = self.roi_pooler(features[2 : 2 + num_strides], boxes)
 
         # convs
         if self.num_convs > 0:

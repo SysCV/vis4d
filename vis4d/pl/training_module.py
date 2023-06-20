@@ -118,7 +118,8 @@ class TrainingModule(pl.LightningModule):
 
         # Instantiate the model and optimizers after the seed has been set
         self.model = instantiate_classes(self.model)
-        self.optims = set_up_optimizers(self.optims, self.model)
+        if stage == "fit":
+            self.optims = set_up_optimizers(self.optims, self.model)
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData

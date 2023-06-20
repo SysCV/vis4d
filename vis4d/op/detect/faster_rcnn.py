@@ -6,6 +6,7 @@ from typing import NamedTuple
 import torch
 from torch import nn
 
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import apply_mask
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
@@ -16,7 +17,6 @@ from vis4d.op.box.samplers import (
 )
 
 from ..typing import Proposals, Targets
-from .anchor_generator import AnchorGenerator
 from .rcnn import RCNNHead, RCNNOut
 from .rpn import RPN2RoI, RPNHead, RPNOut
 

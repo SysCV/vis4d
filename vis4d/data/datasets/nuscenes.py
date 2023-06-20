@@ -11,10 +11,15 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
-from vis4d.common.typing import DictStrAny, NDArrayBool, NDArrayF32, NDArrayI64
+from vis4d.common.typing import (
+    ArgsType,
+    DictStrAny,
+    NDArrayBool,
+    NDArrayF32,
+    NDArrayI64,
+)
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.io import DataBackend, FileBackend
 from vis4d.data.typing import DictData
 from vis4d.op.geometry.projection import generate_depth_map
 from vis4d.op.geometry.transform import inverse_rigid_transform
@@ -161,12 +166,12 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         version: str = "v1.0-trainval",
         split: str = "train",
         include_non_key: bool = False,
-        data_backend: DataBackend | None = None,
         skip_empty_samples: bool = False,
         point_based_filter: bool = False,
         distance_based_filter: bool = False,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
+        **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
 
@@ -185,8 +190,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             include_non_key (bool, optional): Whether to include non-key
                 samples. Note that Non-key samples do not have annotations.
                 Defaults to False.
-            data_backend (DataBackend | None, optional): Data backend to use
-                for loading data. Defaults to None.
             skip_empty_samples (bool, optional): Whether to skip samples
                 without annotations. Defaults to False.
             point_based_filter (bool, optional): Whether to filter out
@@ -195,20 +198,18 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             distance_based_filter (bool, optional): Whether to filter out
                 samples based on the distance of the object from the ego
                 vehicle. Defaults to False.
-            cache_as_binary (bool, optional): Whether to cache the loaded
-                data as binary. Defaults to True.
-            cached_file_path (str | None, optional): Path to the cached file.
-                Defaults to None.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.sensors = sensors
         self._check_version_and_split(version, split)
         self.include_non_key = include_non_key  # TODO: Add non-key frames
-        self.data_backend = (
-            FileBackend() if data_backend is None else data_backend
-        )
         # TODO: implenment skip_empty_samples for training
         self.skip_empty_samples = skip_empty_samples
 

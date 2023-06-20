@@ -38,6 +38,7 @@ class TestDetPreprocessing(unittest.TestCase):
             get_test_dataloader(
                 f"{data_root}/images",
                 f"{data_root}/labels/annotation.json",
+                keys_to_load=(K.images, K.original_hw, K.boxes2d),
                 samples_per_gpu=1,
                 workers_per_gpu=1,
             )

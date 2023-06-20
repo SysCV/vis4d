@@ -12,7 +12,7 @@ import numpy as np
 from tqdm import tqdm
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
+from vis4d.common.typing import ArgsType, NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
@@ -121,6 +121,7 @@ class _SHIFTScalabelLabels(Scalabel):
         backend: DataBackend = HDF5Backend(),
         verbose: bool = False,
         num_workers: int = 1,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset for one view.
 
@@ -189,6 +190,7 @@ class _SHIFTScalabelLabels(Scalabel):
             annotation_path,
             data_backend=backend,
             keys_to_load=keys_to_load,
+            **kwargs,
         )
 
     def _generate_mapping(self) -> ScalabelData:
@@ -347,10 +349,10 @@ class SHIFT(VideoDataset):
         backend: DataBackend = HDF5Backend(),
         num_workers: int = 1,
         verbose: bool = False,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset."""
-        super().__init__()
-
+        super().__init__(data_backend=backend, **kwargs)
         # Validate input
         assert split in {"train", "val", "test"}, f"Invalid split '{split}'."
         assert framerate in {

@@ -18,7 +18,7 @@ from vis4d.op.detect.common import DetOut
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
-from vis4d.op.mask.util import paste_masks_in_image
+from vis4d.op.mask.util import paste_masks_in_image, remove_overlap
 
 from ..typing import Proposals, Targets
 
@@ -565,15 +565,20 @@ class MaskOut(NamedTuple):
 class Det2Mask(nn.Module):
     """Post processing of mask predictions."""
 
-    def __init__(self, mask_threshold: float = 0.5) -> None:
+    def __init__(
+        self, mask_threshold: float = 0.5, no_overlap: bool = False
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
             mask_threshold (float, optional): Positive threshold. Defaults to
                 0.5.
+            no_overlap (bool, optional): Whether to remove overlapping pixels
+                between masks. Defaults to False.
         """
         super().__init__()
         self.mask_threshold = mask_threshold
+        self.no_overlap = no_overlap
 
     def forward(
         self,
@@ -611,6 +616,8 @@ class Det2Mask(nn.Module):
                 orig_hw[::-1],
                 self.mask_threshold,
             )
+            if self.no_overlap:
+                pasted_masks = remove_overlap(pasted_masks, scores)
             all_masks.append(pasted_masks)
             all_scores.append(scores)
             all_class_ids.append(class_ids)

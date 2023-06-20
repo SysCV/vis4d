@@ -113,10 +113,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
 
         if metric == self.METRICS_DET:
             results = evaluate_det(
-                self.gt_frames,
-                self.frames,
-                config=self.config,
-                nproc=0,
+                self.gt_frames, self.frames, config=self.config, nproc=0
             )
             for metric_name, metric_value in results.summary().items():
                 metrics_log[metric_name] = metric_value
@@ -124,10 +121,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
 
         if metric == self.METRICS_INS_SEG:
             results = evaluate_ins_seg(
-                self.gt_frames,
-                self.frames,
-                config=self.config,
-                nproc=0,
+                self.gt_frames, self.frames, config=self.config, nproc=0
             )
             for metric_name, metric_value in results.summary().items():
                 metrics_log[metric_name] = metric_value

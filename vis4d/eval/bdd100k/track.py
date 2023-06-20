@@ -10,6 +10,7 @@ from ..scalabel.track import ScalabelTrackEvaluator
 if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from bdd100k.common.utils import load_bdd100k_config
     from bdd100k.label.to_scalabel import bdd100k_to_scalabel
+    from scalabel.eval.detect import evaluate_det
     from scalabel.eval.mot import acc_single_video_mot, evaluate_track
     from scalabel.label.io import group_and_sort
 
@@ -17,7 +18,8 @@ if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
 class BDD100KTrackEvaluator(ScalabelTrackEvaluator):
     """BDD100K 2D tracking evaluation class."""
 
-    METRICS_TRACK = "MOT"
+    METRICS_DET = "Det"
+    METRICS_TRACK = "Track"
 
     def __init__(
         self,
@@ -42,23 +44,35 @@ class BDD100KTrackEvaluator(ScalabelTrackEvaluator):
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
-        return [self.METRICS_TRACK]
+        return [self.METRICS_DET, self.METRICS_TRACK]
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
-        assert self.config is not None, "config is not set"
+        assert self.config is not None, "BDD100K config is not loaded."
+        metrics_log: MetricLogs = {}
+        short_description = ""
+
+        if metric == self.METRICS_DET:
+            det_results = evaluate_det(
+                self.gt_frames,
+                self.frames,
+                config=self.config,
+                nproc=0,
+            )
+            for metric_name, metric_value in det_results.summary().items():
+                metrics_log[metric_name] = metric_value
+            short_description += str(det_results) + "\n"
 
         if metric == self.METRICS_TRACK:
-            results = evaluate_track(
+            track_results = evaluate_track(
                 acc_single_video_mot,
                 gts=group_and_sort(self.gt_frames),
                 results=group_and_sort(self.frames),
                 config=self.config,
                 nproc=1,
             )
-        else:
-            raise NotImplementedError
+            for metric_name, metric_value in track_results.summary().items():
+                metrics_log[metric_name] = metric_value
+            short_description += str(track_results) + "\n"
 
-        log_dict = {f"{k}": float(v) for k, v in results.summary().items()}
-
-        return log_dict, str(results)  # type: ignore
+        return metrics_log, short_description

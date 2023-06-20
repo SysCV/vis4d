@@ -23,8 +23,7 @@ def content_equal(
         content2 (str): Second file content
         ignored_props (list[str], optional): List of properties to ignore.
             All lines matching any of these properties (followed by a ':')
-            will be ignored.
-            Defaults to [].
+            will be ignored. Defaults to [].
     """
     if ignored_props is None:
         ignored_props = []
@@ -52,3 +51,22 @@ def content_equal(
             return False
 
     return True
+
+
+def compare_configs(
+    cfg_cur: str, cfg_gt: str, varying_keys: list[str] | None = None
+) -> bool:
+    """Compare two configs.
+
+    Args:
+        cfg_cur (str): Path to current config.
+        cfg_gt (str): Path to ground truth config.
+        varying_keys (list[str], optional): List of keys that are allowed to
+            vary. Defaults to None.
+    """
+    config = get_config_for_name(cfg_cur).to_yaml()
+
+    with open(cfg_gt, "r", encoding="UTF-8") as f:
+        gt_config = f.read()
+
+    return content_equal(config, gt_config, varying_keys)

@@ -16,7 +16,17 @@ from .trainer_state import TrainerState
 
 
 class EvaluatorCallback(Callback):
-    """Callback for model evaluation."""
+    """Callback for model evaluation.
+
+    Args:
+        evaluator (Evaluator): Evaluator.
+        metrics_to_eval (list[str], Optional): Metrics to evaluate. If None,
+            all metrics in the evaluator will be evaluated. Defaults to None.
+        save_predictions (bool): If the predictions should be saved. Defaults
+            to False.
+        save_prefix (str, Optional): Output directory for saving the
+            evaluation results. Defaults to None.
+    """
 
     def __init__(
         self,
@@ -27,18 +37,7 @@ class EvaluatorCallback(Callback):
         save_prefix: None | str = None,
         **kwargs: ArgsType,
     ) -> None:
-        """Init callback.
-
-        Args:
-            evaluator (Evaluator): Evaluator.
-            metrics_to_eval (list[str], Optional): Metrics to evaluate. If
-                None, all metrics in the evaluator will be evaluated. Defaults
-                to None.
-            save_predictions (bool): If the predictions should be saved.
-                Defaults to False.
-            save_prefix (str, Optional): Output directory for saving the
-                evaluation results. Defaults to None.
-        """
+        """Init callback."""
         super().__init__(*args, **kwargs)
         self.evaluator = evaluator
         self.save_predictions = save_predictions
