@@ -304,6 +304,8 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
         skip_empty_samples: bool = False,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
@@ -327,6 +329,11 @@ class Scalabel(CacheMappingMixin, VideoDataset):
                 additional class for masks.
             skip_empty_samples (bool): Whether to skip samples without
                 annotations.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
         super().__init__(**kwargs)
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
@@ -347,8 +354,8 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping,
             remove_empty_samples,
-            cache_as_binary=self.cache_as_binary,
-            cached_file_path=self.cached_file_path,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
         )
 
         assert self.cfg is not None, (

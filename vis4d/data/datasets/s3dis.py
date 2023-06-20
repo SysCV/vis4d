@@ -108,6 +108,8 @@ class S3DIS(CacheMappingMixin, Dataset):
             K.instances3d,
         ),
         cache_points: bool = True,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Creates a new S3DIS dataset.
@@ -121,6 +123,11 @@ class S3DIS(CacheMappingMixin, Dataset):
                 (e.g. colors, xyz, semantics, ...)
             cache_points (bool): If true caches loaded points instead of
                 reading them from the disk every time.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
 
         Raises:
             ValueError: If requested split is malformed.
@@ -148,8 +155,8 @@ class S3DIS(CacheMappingMixin, Dataset):
 
         self.data = self._load_mapping(
             self._generate_data_mapping,
-            cache_as_binary=self.cache_as_binary,
-            cached_file_path=self.cached_file_path,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
         )
         self.keys_to_load = keys_to_load
 

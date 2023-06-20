@@ -169,6 +169,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         skip_empty_samples: bool = False,
         point_based_filter: bool = False,
         distance_based_filter: bool = False,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
@@ -196,6 +198,11 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             distance_based_filter (bool, optional): Whether to filter out
                 samples based on the distance of the object from the ego
                 vehicle. Defaults to False.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
         super().__init__(**kwargs)
         self.data_root = data_root
@@ -212,8 +219,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         # Load annotations
         self.samples = self._load_mapping(
             self._generate_data_mapping,
-            cache_as_binary=self.cache_as_binary,
-            cached_file_path=self.cached_file_path,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
         )
 
         # Generate video to indices mapping
