@@ -10,10 +10,10 @@ from ..layer import PatchEmbed, TransformerBlock
 from .base import BaseModel
 
 
-def _init_weights_vit_timm(module: nn.Module) -> None:
+def _init_weights_vit_timm(module: nn.Module, name: str) -> None:
     """Weight initialization, original timm impl (for reproducibility)."""
     if isinstance(module, nn.Linear):
-        trunc_normal_(module.weight, std=0.02)
+        nn.init.trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
             nn.init.zeros_(module.bias)
     elif hasattr(module, "init_weights"):
@@ -105,6 +105,7 @@ class VisionTransformer(BaseModel):
         class_token: bool = True,
         no_embed_class: bool = False,
         pre_norm: bool = False,
+        pos_drop_rate: float = 0.0,
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
@@ -133,6 +134,8 @@ class VisionTransformer(BaseModel):
             no_embed_class (bool, optional): If to not embed class token.
                 Defaults to False.
             pre_norm (bool, optional): If to use pre-norm. Defaults to False.
+            pos_drop_rate (float, optional): Postional dropout rate. Defaults
+                to 0.0.
             drop_rate (float, optional): Dropout rate. Defaults to 0.0.
             attn_drop_rate (float, optional): Attention dropout rate. Defaults
                 to 0.0.
@@ -170,10 +173,9 @@ class VisionTransformer(BaseModel):
             if no_embed_class
             else num_patches + self.num_prefix_tokens
         )
-        self.pos_embed = nn.Parameter(
-            torch.randn(1, embed_len, embed_dim) * 0.02
-        )
-        self.pos_drop = nn.Dropout(p=drop_rate)
+        breakpoint()
+        self.pos_embed = nn.Parameter(torch.zeros(1, embed_len, embed_dim))
+        self.pos_drop = nn.Dropout(p=pos_drop_rate)
         self.norm_pre = (
             nn.LayerNorm(embed_dim, eps=1e-6) if pre_norm else nn.Identity()
         )
@@ -197,10 +199,12 @@ class VisionTransformer(BaseModel):
             for i in range(depth)
         ]
         self.blocks = nn.ModuleList(blocks)
+        self.init_weights()
 
     def init_weights(self) -> None:
         """Init weights using timm's implementation."""
-        trunc_normal_(self.pos_embed, std=0.02)
+        breakpoint()
+        nn.init.trunc_normal_(self.pos_embed, std=0.02)
         if self.cls_token is not None:
             nn.init.normal_(self.cls_token, std=1e-6)
         named_apply(_init_weights_vit_timm, self)

@@ -52,10 +52,14 @@ def main(argv: ArgsType) -> None:
     # PyTorch Setting
     set_tf32(False)
 
-    # Setup GPU
-    config.pl_trainer.devices = num_gpus
+    # Setup device
     if num_gpus > 0:
         config.pl_trainer.accelerator = "gpu"
+        config.pl_trainer.devices = num_gpus
+    else:
+        # Use CPU if no GPU is available (num_gpus == 0) for debugging and CI
+        config.pl_trainer.accelerator = "cpu"
+        config.pl_trainer.devices = 1
 
     trainer_args = instantiate_classes(config.pl_trainer)
 

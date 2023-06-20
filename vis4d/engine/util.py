@@ -9,8 +9,12 @@ from copy import deepcopy
 from typing import Any
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor
+from torch import nn
+from ml_collections import ConfigDict
 
+from vis4d.config import instantiate_classes
+from vis4d.common.logging import rank_zero_info
 from vis4d.common.named_tuple import is_namedtuple
 
 _BLOCKING_DEVICE_TYPES = ("cpu", "mps")
@@ -220,29 +224,32 @@ def move_data_to_device(  # type: ignore
     )
 
 
-class ModelEMA(nn.Module):
+class ModelEMAWrapper(nn.Module):
     """Torch module with Exponential Moving Average (EMA)."""
 
     def __init__(
         self,
-        model: nn.Module,
+        model: ConfigDict,
         decay: float = 0.9998,
         device: torch.device | None = None,
     ):
-        """Init ModelEMA class.
+        """Init ModelEMAWrapper class.
 
         Args:
             model (nn.Module): model to apply EMA.
             decay (float): Decay factor for EMA. Defaults to 0.9998.
             device (torch.device | None): Device to use. Defaults to None.
+
         """
         super().__init__()
-        self.module = deepcopy(model)
-        self.module.eval()
+        self.model = instantiate_classes(model)
+        self.ema_model = deepcopy(model)
+        self.ema_model.eval()
         self.decay = decay
         self.device = device
         if self.device is not None:
-            self.module.to(device=device)
+            self.ema_model.to(device=device)
+        rank_zero_info("Using model EMA with decay rate %f", self.decay)
 
     def _update(
         self, model: nn.Module, update_fn: Callable[[Tensor, Tensor], Tensor]
@@ -250,23 +257,24 @@ class ModelEMA(nn.Module):
         """Update model params."""
         with torch.no_grad():
             for ema_v, model_v in zip(
-                self.module.state_dict().values(), model.state_dict().values()
+                self.ema_model.state_dict().values(),
+                model.state_dict().values(),
             ):
                 if self.device is not None:
                     model_v = model_v.to(device=self.device)
                 ema_v.copy_(update_fn(ema_v, model_v))
 
-    def update(self, model: nn.Module) -> None:
-        """Update model params with EMA."""
+    def update(self) -> None:
+        """Update the internal EMA model."""
         self._update(
-            model,
+            self.model,
             update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,
         )
 
     def set(self, model: nn.Module) -> None:
-        """Copy model params into EMA."""
+        """Copy model params into the internal EMA."""
         self._update(model, update_fn=lambda e, m: m)
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
-        """Forward pass."""
-        return self.module(*args, **kwargs)
+        """Forward pass with original model."""
+        return self.model(*args, **kwargs)
