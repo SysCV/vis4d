@@ -10,8 +10,9 @@ import torch
 from tests.util import get_test_data, get_test_file
 from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.s3dis import S3DIS
-from vis4d.data.loader import DataPipe, SubdividingIterableDataset
+from vis4d.data.iterable import SubdividingIterableDataset
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.point_sampling import (
     GenFullCovBlockSamplingIndices,

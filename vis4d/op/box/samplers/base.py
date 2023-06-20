@@ -46,9 +46,9 @@ class Sampler(nn.Module):
 def match_and_sample_proposals(
     matcher: Matcher,
     sampler: Sampler,
-    proposal_boxes: list[torch.Tensor],
-    target_boxes: list[torch.Tensor],
-) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor]]:
+    proposal_boxes: list[Tensor],
+    target_boxes: list[Tensor],
+) -> tuple[list[Tensor], list[Tensor], list[Tensor]]:
     """Match proposals to targets and subsample.
 
     First, match the proposals to targets (ground truth labels) using the

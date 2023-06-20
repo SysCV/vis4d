@@ -40,7 +40,8 @@ class PLTrainer(pl.Trainer):
             find_unused_parameters: Activates PyTorch checking for unused
                 parameters in DDP setting. Default: False, for better
                 performance.
-            checkpoint_period: After N epochs, save out checkpoints. Default: 1
+            checkpoint_period: After N epochs / stpes, save out checkpoints.
+                Default: 1
             wandb: Use weights and biases logging instead of tensorboard.
                 Default: False
         """
@@ -84,7 +85,7 @@ class PLTrainer(pl.Trainer):
                 pl.callbacks.LearningRateMonitor(logging_interval="step")
             ]
 
-        # add model checkpointer
+        # Model checkpointer
         if epoch_based:
             checkpoint_cb = pl.callbacks.ModelCheckpoint(
                 dirpath=osp.join(self.output_dir, "checkpoints"),

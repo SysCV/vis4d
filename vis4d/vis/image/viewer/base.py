@@ -18,3 +18,14 @@ class ImageViewerBackend:
                 wait for input after each image. Defaults to True.
         """
         raise NotImplementedError
+
+    def save_images(
+        self, images: list[NDArrayUI8], file_paths: list[str]
+    ) -> None:
+        """Saves a list of images.
+
+        Args:
+            images (list[NDArrayUI8]): Images to save.
+            file_paths (list[str]): File paths to save the images to.
+        """
+        raise NotImplementedError

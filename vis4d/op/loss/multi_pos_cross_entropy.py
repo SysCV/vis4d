@@ -1,5 +1,6 @@
 """Multi-positive cross entropy loss."""
 import torch
+from torch import Tensor
 
 from .base import Loss
 from .reducer import LossReducer, SumWeightedLoss
@@ -13,35 +14,31 @@ class MultiPosCrossEntropyLoss(Loss):
 
     def forward(
         self,
-        pred: torch.Tensor,
-        target: torch.Tensor,
-        weight: torch.Tensor,
+        pred: Tensor,
+        target: Tensor,
+        weight: Tensor,
         avg_factor: float,
-    ) -> torch.Tensor:
+    ) -> Tensor:
         """Multi-positive cross entropy loss.
 
         Args:
-            pred (torch.Tensor): Similarity scores before softmax. Shape [N, M]
-            target (torch.Tensor): Target for each pair. Either one, meaning
+            pred (Tensor): Similarity scores before softmax. Shape [N, M]
+            target (Tensor): Target for each pair. Either one, meaning
                 same identity or zero, meaning different identity. Shape [N, M]
-            weight (torch.Tensor): The weight of loss for each prediction.
+            weight (Tensor): The weight of loss for each prediction.
             avg_factor (float): Averaging factor for the loss.
 
         Returns:
-            torch.Tensor: Scalar loss value.
+            Tensor: Scalar loss value.
         """
         return multi_pos_cross_entropy(
-            pred,
-            target,
-            reducer=SumWeightedLoss(weight, avg_factor),
+            pred, target, reducer=SumWeightedLoss(weight, avg_factor)
         )
 
 
 def multi_pos_cross_entropy(
-    pred: torch.Tensor,
-    target: torch.Tensor,
-    reducer: LossReducer,
-) -> torch.Tensor:
+    pred: Tensor, target: Tensor, reducer: LossReducer
+) -> Tensor:
     """Calculate multi-positive cross-entropy loss."""
     pos_inds = target == 1
     neg_inds = target == 0

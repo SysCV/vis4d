@@ -8,8 +8,9 @@ from torch.utils.data import DataLoader, Dataset
 
 from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.bdd100k import BDD100K
-from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
+from vis4d.data.loader import build_inference_dataloaders
 from vis4d.engine.connectors import (
     data_key,
     get_inputs_for_pred_and_data,
@@ -20,7 +21,7 @@ from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for testing."""
-    datapipe = VideoDataPipe(datasets)
+    datapipe = DataPipe(datasets)
     return build_inference_dataloaders(
         datapipe, samples_per_gpu=batch_size, workers_per_gpu=0
     )[0]

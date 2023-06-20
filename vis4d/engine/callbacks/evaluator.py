@@ -48,15 +48,15 @@ class EvaluatorCallback(Callback):
                 save_prefix is not None
             ), "If save_predictions is True, save_prefix must be provided."
             self.output_dir = save_prefix
-            for metric in self.metrics_to_eval:
-                output_dir = os.path.join(self.output_dir, metric)
-                os.makedirs(output_dir, exist_ok=True)
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
         if self.save_predictions:
             self.output_dir = broadcast(self.output_dir)
-            self.evaluator.reset()
+            for metric in self.metrics_to_eval:
+                output_dir = os.path.join(self.output_dir, metric)
+                os.makedirs(output_dir, exist_ok=True)
+        self.evaluator.reset()
 
     def on_test_batch_end(
         self,

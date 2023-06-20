@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
+from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.box2d import apply_mask, bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
@@ -299,7 +300,11 @@ class RCNNLoss(nn.Module):
     """
 
     def __init__(
-        self, box_encoder: DeltaXYWHBBoxEncoder, num_classes: int = 80
+        self,
+        box_encoder: DeltaXYWHBBoxEncoder,
+        num_classes: int = 80,
+        loss_cls: TorchLossFunc = F.cross_entropy,
+        loss_bbox: TorchLossFunc = l1_loss,
     ) -> None:
         """Creates an instance of the class.
 
@@ -308,10 +313,16 @@ class RCNNLoss(nn.Module):
                 parameters into detected boxes.
             num_classes (int, optional): number of object categories. Defaults
                 to 80.
+            loss_cls (TorchLossFunc, optional): Classification loss function.
+                Defaults to F.cross_entropy.
+            loss_bbox (TorchLossFunc, optional): Regression loss function.
+                Defaults to l1_loss.
         """
         super().__init__()
         self.num_classes = num_classes
         self.box_encoder = box_encoder
+        self.loss_cls = loss_cls
+        self.loss_bbox = loss_bbox
 
     def _get_targets_per_image(
         self,
@@ -404,7 +415,7 @@ class RCNNLoss(nn.Module):
         avg_factor = torch.sum(label_weights > 0).clamp(1.0)
         if class_outs.numel() > 0:
             loss_cls = SumWeightedLoss(label_weights, avg_factor)(
-                F.cross_entropy(class_outs, labels, reduction="none")
+                self.loss_cls(class_outs, labels, reduction="none")
             )
         else:
             loss_cls = class_outs.sum()
@@ -417,10 +428,10 @@ class RCNNLoss(nn.Module):
             pos_reg_outs = regression_outs.view(
                 regression_outs.size(0), -1, 4
             )[pos_inds.type(torch.bool), labels[pos_inds.type(torch.bool)]]
-            loss_bbox = l1_loss(
-                pos_reg_outs,
-                bbox_targets[pos_inds.type(torch.bool)],
-                SumWeightedLoss(
+            loss_bbox = self.loss_bbox(
+                pred=pos_reg_outs,
+                target=bbox_targets[pos_inds.type(torch.bool)],
+                reducer=SumWeightedLoss(
                     bbox_weights[pos_inds.type(torch.bool)],
                     bbox_targets.size(0),
                 ),
@@ -634,7 +645,6 @@ class MaskRCNNHeadLosses(NamedTuple):
     rcnn_loss_mask: torch.Tensor
 
 
-# TODO, why is this here and not in losses.py?
 class MaskRCNNHeadLoss(nn.Module):
     """Mask RoI head loss function."""
 
@@ -755,7 +765,7 @@ class MaskSampler(Protocol):
         """
 
 
-def positive_mask_sampler(  # TODO: Maybe move to op?
+def positive_mask_sampler(
     target_masks: list[Tensor],
     sampled_target_indices: list[Tensor],
     sampled_targets: Targets,
@@ -830,10 +840,10 @@ class SampledMaskLoss(nn.Module):
             MaskRCNNHeadLosses: mask loss.
         """
         pos_proposals, pos_classes, pos_mask_targets = self.mask_sampler(
-            target_masks=target_masks,
-            sampled_target_indices=sampled_target_indices,
-            sampled_targets=sampled_targets,
-            sampled_proposals=sampled_proposals,
+            target_masks,
+            sampled_target_indices,
+            sampled_targets,
+            sampled_proposals,
         )
         return self.loss(
             mask_preds, pos_proposals, pos_classes, pos_mask_targets

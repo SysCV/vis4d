@@ -32,44 +32,33 @@ def boxes3d_to_corners(boxes3d: Tensor, axis_mode: AxisMode) -> Tensor:
     """
     w, l, h = boxes3d[:, 3], boxes3d[:, 4], boxes3d[:, 5]
     rotation_matrix = quaternion_to_matrix(boxes3d[:, 6:])
-    l_corners = torch.stack(
-        [
-            l / 2.0,
-            l / 2.0,
-            -l / 2.0,
-            -l / 2.0,
-            l / 2.0,
-            l / 2.0,
-            -l / 2.0,
-            -l / 2.0,
-        ],
-        dim=-1,
-    )
-    w_corners = torch.stack(
-        [
-            w / 2.0,
-            -w / 2.0,
-            -w / 2.0,
-            w / 2.0,
-            w / 2.0,
-            -w / 2.0,
-            -w / 2.0,
-            w / 2.0,
-        ],
-        dim=-1,
-    )
-    h_corners = boxes3d.new_zeros((boxes3d.size(0), 8))
-    h_corners[:, 0:4] = torch.stack([(h / 2) for _ in range(4)], dim=-1)
-    h_corners[:, 4:8] = torch.stack([(-h / 2) for _ in range(4)], dim=-1)
 
     if axis_mode == AxisMode.ROS:
-        x_corners = -l_corners
-        y_corners = w_corners  # TODO check
-        z_corners = -h_corners
+        x_corners = torch.stack(
+            [l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2],
+            dim=-1,
+        )
+        y_corners = torch.stack(
+            [-w / 2, w / 2, -w / 2, w / 2, -w / 2, w / 2, -w / 2, w / 2],
+            dim=-1,
+        )
+        z_corners = torch.stack(
+            [-h / 2, -h / 2, -h / 2, -h / 2, h / 2, h / 2, h / 2, h / 2],
+            dim=-1,
+        )
     elif axis_mode == AxisMode.OPENCV:
-        x_corners = l_corners
-        y_corners = h_corners
-        z_corners = w_corners
+        x_corners = torch.stack(
+            [l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2],
+            dim=-1,
+        )
+        y_corners = torch.stack(
+            [h / 2, h / 2, h / 2, h / 2, -h / 2, -h / 2, -h / 2, -h / 2],
+            dim=-1,
+        )
+        z_corners = torch.stack(
+            [-w / 2, w / 2, -w / 2, w / 2, -w / 2, w / 2, -w / 2, w / 2],
+            dim=-1,
+        )
 
     corners = torch.stack([x_corners, y_corners, z_corners], dim=-1)
     corners = transform_points(

@@ -4,7 +4,7 @@ from __future__ import annotations
 from torch import Tensor
 
 from vis4d.common.typing import DictStrArrNested
-from vis4d.data.typing import DictData
+from vis4d.data.typing import DictData, DictDataOrList
 
 from .util import SourceKeyDescription, get_inputs_for_pred_and_data
 
@@ -20,8 +20,8 @@ class DataConnector:
         """Initializes the data connector with static remapping of the keys.
 
         Args:
-            key_mapping (dict[str, str] | dict[str, SourceKeyDescription]):
-                Defines which kwargs to pass onto the module.
+            key_mapping (dict[str, str]): Defines which kwargs to pass onto the
+                module.
 
         Simple Example Configuration:
 
@@ -33,18 +33,24 @@ class DataConnector:
         self.key_mapping = key_mapping
 
     def __call__(  # pytlint: disable=arguments-differ
-        self, data: DictData
-    ) -> dict[str, Tensor | DictStrArrNested]:
+        self, data: DictDataOrList
+    ) -> dict[
+        str, Tensor | DictStrArrNested | list[Tensor | DictStrArrNested]
+    ]:
         """Returns the kwargs that are passed to the module.
 
         Args:
-            data (DictData): The datadict (e.g. from the dataloader) which
+            data (DictDataorList): The data (e.g. from the dataloader) which
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrNested]: kwargs that are passed
-                onto the model.
+            dict[str, Tensor | DictStrArrNested | list[Tensor |
+                DictStrArrNested]]: kwargs that are passed onto the model.
         """
+        if isinstance(data, list):
+            return {
+                k: [d[v] for d in data] for k, v in self.key_mapping.items()
+            }
         return {k: data[v] for k, v in self.key_mapping.items()}
 
 

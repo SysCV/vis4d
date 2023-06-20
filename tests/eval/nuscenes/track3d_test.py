@@ -9,20 +9,15 @@ from torch.utils.data import DataLoader, Dataset
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
-from vis4d.data.loader import (
-    VideoDataPipe,
-    build_inference_dataloaders,
-    multi_sensor_collate,
-)
+from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
 from vis4d.eval.nuscenes import NuScenesEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for testing."""
-    datapipe = VideoDataPipe(datasets)
     return build_inference_dataloaders(
-        datapipe,
+        datasets,
         samples_per_gpu=batch_size,
         workers_per_gpu=1,
         collate_fn=multi_sensor_collate,
@@ -67,7 +62,6 @@ class TestNuScenesEvaluator(unittest.TestCase):
             data_root=get_test_data("nuscenes_test"),
             version="v1.0-mini",
             split="mini_val",
-            metadata=["use_camera"],
         )
         test_loader = get_dataloader(dataset, batch_size)
 

@@ -5,7 +5,7 @@ import torch
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
-from .base import BatchTransform
+from .base import Transform
 
 
 def _replace_arrays(data: DictData) -> None:
@@ -23,7 +23,7 @@ def _replace_arrays(data: DictData) -> None:
                     data[key][i] = torch.from_numpy(entry)
 
 
-@BatchTransform("data", "data")
+@Transform("data", "data")
 class ToTensor:
     """Transform all entries in a list of DataDict from numpy to torch.
 

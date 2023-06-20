@@ -66,14 +66,18 @@ class Dataset(TorchDataset[DictData]):
                 raise ValueError(f"Key '{k}' is not supported!")
 
 
-class VideoMixin:
-    """Mixin for video datasets.
+class VideoDataset(Dataset):
+    """Video datasets.
 
     Provides interface for video based data and reference view samplers.
     """
 
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
+    def __init__(self) -> None:
+        """Initialize dataset."""
+        super().__init__()
+        self.video_to_indices: dict[str, list[int]] = {}
+
+    def _generate_video_to_indices(self) -> dict[str, list[int]]:
         """Group dataset sample indices by their associated video ID.
 
         The sample index is an integer while video IDs are string.
@@ -89,47 +93,3 @@ class VideoMixin:
             if idx in indices:
                 return indices
         raise ValueError(f"Dataset index {idx} not found in video_to_indices!")
-
-
-class CategoryMapMixin:
-    """Mixin for category map.
-
-    Provides interface for filtering based on categories.
-    """
-
-    @property
-    def category_to_indices(self) -> dict[str, list[int]]:
-        """Group all dataset sample indices (int) by their category (str).
-
-        Returns:
-            dict[str, int]: Mapping category to index.
-        """
-        raise NotImplementedError
-
-    def get_category_indices(self, idx: int) -> list[int]:
-        """Get all indices that share the same category of the given index.
-
-        Indices refer to the index of the data samples within the dataset.
-        """
-        for indices in self.category_to_indices.values():
-            if idx in indices:
-                return indices
-        raise ValueError(
-            f"Dataset index {idx} not found in category_to_indices!"
-        )
-
-
-class AttributeMapMixin:
-    """Mixin for attributes map.
-
-    Provides interface for filtering based on attributes.
-    """
-
-    @property
-    def attribute_to_indices(self) -> dict[str, dict[str, list[int]]]:
-        """Groups all dataset sample indices (int) by their category (str).
-
-        Returns:
-            dict[str, dict[str, list[int]]]: Mapping category to index.
-        """
-        raise NotImplementedError

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import torch
+from torch import Tensor
 
 from ..box2d import bbox_iou
 from .base import Matcher, MatchResult
@@ -44,9 +45,7 @@ class MaxIoUMatcher(Matcher):
         self.thresholds = thresholds
         self.labels = labels
 
-    def forward(
-        self, boxes: torch.Tensor, targets: torch.Tensor
-    ) -> MatchResult:
+    def forward(self, boxes: Tensor, targets: Tensor) -> MatchResult:
         """Match all boxes to targets based on maximum IoU."""
         if len(targets) == 0:
             matches = boxes.new_zeros((len(boxes),), dtype=torch.int64)
@@ -56,7 +55,7 @@ class MaxIoUMatcher(Matcher):
             # M x N matrix, where M = num gt, N = num proposals
             match_quality_matrix = bbox_iou(targets, boxes)
 
-            # matches N x 1 = index of assigned gt i.e.  range [0, M)
+            # matches N x 1 = index of assigned gt i.e. range [0, M)
             # match_labels N x 1, 0 = negative, -1 = ignore, 1 = positive
             matches, match_labels = self._compute_matches(match_quality_matrix)
             match_iou = match_quality_matrix[
@@ -70,8 +69,8 @@ class MaxIoUMatcher(Matcher):
         )
 
     def _compute_matches(
-        self, match_quality_matrix: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        self, match_quality_matrix: Tensor
+    ) -> tuple[Tensor, Tensor]:
         """Compute matching boxes and their labels w/ match_quality_matrix."""
         assert match_quality_matrix.dim() == 2
         if match_quality_matrix.numel() == 0:
@@ -107,8 +106,8 @@ class MaxIoUMatcher(Matcher):
 
 
 def _set_low_quality_matches(
-    match_labels: torch.Tensor,
-    match_quality_matrix: torch.Tensor,
+    match_labels: Tensor,
+    match_quality_matrix: Tensor,
     min_positive_iou: float = 0.0,
 ) -> None:
     """Set matches for predictions that have only low-quality matches.

@@ -19,7 +19,7 @@ from .base import Dataset
 from .util import CacheMappingMixin
 
 
-class S3DIS(Dataset, CacheMappingMixin):
+class S3DIS(CacheMappingMixin, Dataset):
     """S3DIS dataset class."""
 
     DESCRIPTION = """S3DIS is a large-scale indoor pointcloud dataset."""
@@ -108,6 +108,8 @@ class S3DIS(Dataset, CacheMappingMixin):
             K.instances3d,
         ),
         cache_points: bool = True,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Creates a new S3DIS dataset.
@@ -121,6 +123,11 @@ class S3DIS(Dataset, CacheMappingMixin):
                 (e.g. colors, xyz, semantics, ...)
             cache_points (bool): If true caches loaded points instead of
                 reading them from the disk every time.
+            cache_as_binary (bool, optional): Whether to cache the loaded data
+                as binary. Defaults to False.
+            cached_file_path (str | None, optional): Path to a cached file. If
+                cached file exist then it will load it instead of generating
+                the data mapping. Defaults to None.
 
         Raises:
             ValueError: If requested split is malformed.
@@ -146,7 +153,11 @@ class S3DIS(Dataset, CacheMappingMixin):
         else:
             raise ValueError("Unknown split: ", self.split)
 
-        self.data = self._load_mapping(self._generate_data_mapping)
+        self.data = self._load_mapping(
+            self._generate_data_mapping,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
+        )
         self.keys_to_load = keys_to_load
 
         # Cache
@@ -190,7 +201,7 @@ class S3DIS(Dataset, CacheMappingMixin):
 
     def __len__(self) -> int:
         """Length of the datset."""
-        return len(self.data)  # type: ignore
+        return len(self.data)
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform s3dis sample to vis4d input format.

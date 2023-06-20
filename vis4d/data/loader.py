@@ -1,219 +1,34 @@
 """Dataloader utility functions."""
 from __future__ import annotations
 
-import bisect
-import math
-from collections.abc import Callable, Iterable, Iterator
-from typing import Union
+from collections.abc import Callable, Sequence
 
-import numpy as np
 import torch
-from torch.utils.data import (
-    ConcatDataset,
-    DataLoader,
-    Dataset,
-    IterableDataset,
-    get_worker_info,
-)
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common import ArgsType
+from vis4d.common.distributed import get_world_size
 
-from ..common.distributed import get_world_size
 from .const import CommonKeys as K
-from .datasets import VideoMixin
-from .reference import ReferenceViewSampler
+from .data_pipe import DataPipe
+from .datasets import VideoDataset
 from .samplers import VideoInferenceSampler
-from .transforms import compose_batch
+from .transforms import compose
 from .transforms.to_tensor import ToTensor
-from .typing import DictData
+from .typing import DictData, DictDataOrList
 
-DictDataOrList = Union[DictData, list[DictData]]
-_DATASET = Dataset[DictDataOrList]
-_CONCAT_DATASET = ConcatDataset[DictDataOrList]  # pylint: disable=invalid-name
-_ITERABLE_DATASET = IterableDataset[DictData]  # pylint: disable=invalid-name
-_DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
-
-
-class DataPipe(_CONCAT_DATASET):
-    """DataPipe class.
-
-    This class wraps one or multiple instances of a PyTorch Dataset so that the
-    preprocessing steps can be shared across those datasets. Composes dataset
-    and the preprocessing pipeline.
-    """
-
-    def __init__(
-        self,
-        datasets: _DATASET | Iterable[_DATASET],
-        preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
-        reference_view_sampler: None | ReferenceViewSampler = None,
-    ):
-        """Creates an instance of the class.
-
-        Args:
-            datasets (Dataset | Iterable[Dataset]): Dataset(s) to be
-                wrapped by this data pipeline.
-            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
-                function of a single sample.
-            reference_view_sampler (None | ReferenceViewSampler, optional): For
-                video datasets, the reference sampler decides how reference
-                views will be sampled. Used for training, e.g., tracking models
-                on multiple frames of a video. Defaults to None.
-        """
-        if isinstance(datasets, Dataset):
-            datasets = [datasets]
-        super().__init__(datasets)
-        self.preprocess_fn = preprocess_fn
-        self.reference_view_sampler = reference_view_sampler
-
-    def get_dataset_sample_index(self, idx: int) -> tuple[int, int]:
-        """Get dataset and sample index from global index."""
-        if idx < 0:
-            if -idx > len(self):
-                raise ValueError(
-                    "absolute value of index should not exceed dataset length"
-                )
-            idx = len(self) + idx
-        dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
-        if dataset_idx == 0:
-            sample_idx = idx
-        else:
-            sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
-        return dataset_idx, sample_idx
-
-    def _getitem(self, idx: int) -> DictDataOrList:
-        """Modular re-implementation of getitem."""
-        dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
-        return self.datasets[dataset_idx][sample_idx]
-
-    def __getitem__(self, idx: int) -> DictDataOrList:
-        """Wrap getitem to apply augmentations."""
-        if self.reference_view_sampler is not None:
-            dataset_idx, _ = self.get_dataset_sample_index(idx)
-            dataset = self.datasets[dataset_idx]
-            assert isinstance(dataset, VideoMixin), (
-                "Reference view sampling is only supported for datasets that "
-                "implement the VideoMixin. Incompatible dataset: "
-                f"{self.datasets[dataset_idx]}"
-            )
-            video_indices = dataset.get_video_indices(idx)
-            indices = self.reference_view_sampler(idx, video_indices)
-            samples = [self._getitem(i) for i in indices]
-            # TODO re-use transform parameters across reference views.
-            data = [self.preprocess_fn(sample) for sample in samples]
-        else:
-            sample = self._getitem(idx)
-            data = self.preprocess_fn(sample)
-        return data
+DEFAULT_COLLATE_KEYS = (
+    K.seg_masks,
+    K.extrinsics,
+    K.intrinsics,
+    K.depth_maps,
+    K.optical_flows,
+)
 
 
-# TODO: refactor data pipe with mixin
-class VideoDataPipe(DataPipe, VideoMixin):
-    """DataPipe class for video datasets."""
-
-    def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
-        """Create data pipe for video datasets."""
-        super().__init__(*args, **kwargs)
-        assert len(self.datasets) == 1, "Only support one dataset for now."
-
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
-        """Get video to indices mapping."""
-        return self.datasets[0].video_to_indices
-
-
-class SubdividingIterableDataset(_ITERABLE_DATASET):
-    """Subdivides a given dataset into smaller chunks.
-
-    This also adds a field called 'index' (DataKeys.index) to the data
-    struct in order to relate the data to the source index.
-
-    Example: Given a dataset (ds) that outputs tensors of the shape (10, 3):
-    sub_ds = SubdividingIterableDataset(ds, n_samples_per_batch = 5)
-
-    next(iter(sub_ds))['key'].shape
-    >> torch.Size([5, 3])
-
-    next(DataLoader(sub_ds, batch_size = 4))['key'].shape
-    >> torch.size([4,5,3])
-
-    Assuming the dataset returns two entries with shape (10,3):
-    [e['index'].item() for e in sub_ds]
-    >> [0,0,1,1]
-    """
-
-    def __init__(
-        self,
-        dataset: _DATASET,
-        n_samples_per_batch: int,
-        preprocess_fn: Callable[[DictData], DictData] | None = None,
-    ) -> None:
-        """Creates a new Dataset.
-
-        Args:
-            dataset (Dataset): The dataset which should be subdivided.
-            n_samples_per_batch: How many samples each batch should contain.
-                The first dimension of dataset[0].shape must be divisible by
-                this number.
-            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
-                function of a single sample. Can be None.
-        """
-        super().__init__()
-        self.dataset = dataset
-        self.n_samples_per_batch = n_samples_per_batch
-        self.preprocess_fn = preprocess_fn
-        self.reference_view_sampler = None
-
-    def __getitem__(self, index: int) -> DictData:
-        """Indexing is not supported for IterableDatasets."""
-        raise NotImplementedError("IterableDataset does not support indeing")
-
-    def __iter__(self) -> Iterator[DictData]:
-        """Iterates over the dataset, supporting distributed sampling."""
-        worker_info = get_worker_info()
-        if worker_info is None:
-            # not distributed
-            num_workers = 1
-            worker_id = 0
-        else:  # pragma: no cover
-            num_workers = worker_info.num_workers
-            worker_id = worker_info.id
-
-        assert hasattr(
-            self.dataset, "__len__"
-        ), "Dataset must have __len__ in order to be subdivided."
-        n_samples = len(self.dataset)
-        for i in range(math.ceil(n_samples / num_workers)):
-            data_idx = i * num_workers + worker_id
-            if data_idx >= n_samples:
-                continue
-            data_sample = self.dataset[data_idx]
-
-            n_elements = list((data_sample.values()))[0].shape[0]
-            for idx in range(int(n_elements / self.n_samples_per_batch)):
-                # This is kind of ugly
-                # this field defines from which source the data was loaded
-                # (first entry, second entry, ...)
-                # this is required if we e.g. want to subdivide a room that is
-                # too big into equal sized chunks and stick them back together
-                # for visualizaton
-                out_data = {"source_index": np.ndarray([data_idx])}
-                for key in data_sample:
-                    start_idx = idx * self.n_samples_per_batch
-                    end_idx = (idx + 1) * self.n_samples_per_batch
-                    if (len(data_sample[key])) < self.n_samples_per_batch:
-                        out_data[key] = data_sample[key]
-                    else:
-                        out_data[key] = data_sample[key][
-                            start_idx:end_idx, ...
-                        ]
-                yield self.preprocess_fn(
-                    out_data
-                ) if self.preprocess_fn else out_data
-
-
-def default_collate(batch: list[DictData]) -> DictData:
+def default_collate(
+    batch: list[DictData], collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS
+) -> DictData:
     """Default batch collate.
 
     It will concatenate images and stack seg_masks, extrinsics, intrinsics,
@@ -221,24 +36,20 @@ def default_collate(batch: list[DictData]) -> DictData:
 
     Args:
         batch (list[DictData]): List of data dicts.
+        collate_keys (Sequence[str]): Keys to be collated. Default is
+            DEFAULT_COLLATE_KEYS.
 
     Returns:
         DictData: Collated data dict.
     """
     data: DictData = {}
-    # TODO: It seems dangerous if batches originally contain different keys.
-    # e.g. if batch[0] has annotations but batch[1] doesn't.
     for key in batch[0]:
         try:
+            if key == "transforms":  # skip transform parameters
+                continue
             if key in [K.images]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [
-                K.seg_masks,
-                K.extrinsics,
-                K.intrinsics,
-                K.depth_maps,
-                K.optical_flows,
-            ]:
+            elif key in collate_keys:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             else:
                 data[key] = [b[key] for b in batch]
@@ -247,17 +58,21 @@ def default_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-def multi_sensor_collate(batch: list[DictData]) -> DictData:
+def multi_sensor_collate(
+    batch: list[DictData], collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS
+) -> DictData:
     """Default multi-sensor batch collate.
 
     Args:
         batch (list[DictData]): List of data dicts. Each data dict contains
             data from multiple sensors.
+        collate_keys (Sequence[str]): Keys to be collated. Default is
+            DEFAULT_COLLATE_KEYS.
 
     Returns:
         DictData: Collated data dict.
     """
-    collated_batch = {}
+    collated_batch: DictData = {}
     sensors = list(batch[0].keys())
 
     # For each sensor, collate the batch.
@@ -265,16 +80,16 @@ def multi_sensor_collate(batch: list[DictData]) -> DictData:
         # Only collate if all items are a dict, otherwise keep as it is.
         inner_batch = [b[sensor] for b in batch]
         if all(isinstance(item, dict) for item in inner_batch):
-            collated_batch[sensor] = default_collate(inner_batch)
+            collated_batch[sensor] = default_collate(inner_batch, collate_keys)
         else:
             collated_batch[sensor] = inner_batch
 
     return collated_batch
 
 
-def default_pipeline(data: list[DictData]) -> DictData:
+def default_pipeline(data: list[DictData]) -> list[DictData]:
     """Default data pipeline."""
-    return compose_batch([ToTensor()])(data)
+    return compose([ToTensor()])(data)
 
 
 def build_train_dataloader(
@@ -284,22 +99,29 @@ def build_train_dataloader(
     batchprocess_fn: Callable[
         [list[DictData]], list[DictData]
     ] = default_pipeline,
-    collate_fn: Callable[[list[DictData]], DictData] = default_collate,
+    collate_fn: Callable[
+        [list[DictData], Sequence[str]], DictData
+    ] = default_collate,
+    collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
     pin_memory: bool = True,
     shuffle: bool = True,
-) -> _DATALOADER:
+) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
+    assert isinstance(dataset, DataPipe), "dataset must be a DataPipe"
 
-    def _collate_fn_single(data: list[DictData]) -> DictDataOrList:
+    def _collate_fn_single(data: list[DictData]) -> DictData:
         """Collates data from single view dataset."""
-        return collate_fn(batch=batchprocess_fn(data))
+        return collate_fn(  # type: ignore
+            batch=batchprocess_fn(data), collate_keys=collate_keys
+        )
 
-    def _collate_fn_multi(data: list[list[DictData]]) -> DictDataOrList:
+    def _collate_fn_multi(data: list[list[DictData]]) -> list[DictData]:
         """Collates data from multi view dataset."""
         views = []
         for view_idx in range(len(data[0])):
-            view = collate_fn(
-                batch=batchprocess_fn([d[view_idx] for d in data])
+            view = collate_fn(  # type: ignore
+                batch=batchprocess_fn([d[view_idx] for d in data]),
+                collate_keys=collate_keys,
             )
             views.append(view)
         return views
@@ -313,9 +135,9 @@ def build_train_dataloader(
         dataset,
         batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
-        collate_fn=_collate_fn_single
-        if dataset.reference_view_sampler is None
-        else _collate_fn_multi,
+        collate_fn=_collate_fn_multi
+        if dataset.has_reference
+        else _collate_fn_single,
         sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
@@ -325,41 +147,59 @@ def build_train_dataloader(
 
 
 def build_inference_dataloaders(
-    datasets: _DATASET | list[_DATASET],
+    datasets: Dataset[DictDataOrList] | list[Dataset[DictDataOrList]],
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
-    video_based_inference: bool = True,
+    video_based_inference: bool = False,
     batchprocess_fn: Callable[
         [list[DictData]], list[DictData]
     ] = default_pipeline,
-    collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-) -> list[_DATALOADER]:
+    collate_fn: Callable[
+        [list[DictData], Sequence[str]], DictData
+    ] = default_collate,
+    collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+) -> list[DataLoader[DictDataOrList]]:
     """Build dataloaders for test / predict."""
 
-    def _collate_fn(data: list[DictData]) -> DictDataOrList:
+    def _collate_fn(data: list[DictData]) -> DictData:
         """Collates data for inference."""
-        return collate_fn(batch=batchprocess_fn(data))
+        return collate_fn(  # type: ignore
+            batch=batchprocess_fn(data), collate_keys=collate_keys
+        )
 
     if isinstance(datasets, Dataset):
         datasets_ = [datasets]
     else:
         datasets_ = datasets
+
     dataloaders = []
     for dataset in datasets_:
-        dset_sampler: DistributedSampler[list[int]] | None
-        if get_world_size() > 1:
-            if isinstance(dataset, VideoMixin) and video_based_inference:
-                dset_sampler = VideoInferenceSampler(dataset)  # type: ignore
-            else:
-                dset_sampler = DistributedSampler(dataset)
+        if isinstance(dataset, DataPipe):
+            assert (
+                len(dataset.datasets) == 1
+            ), "Inference needs a single dataset per DataPipe."
+            current_dataset = dataset.datasets[0]
         else:
-            dset_sampler = None
+            current_dataset = dataset
+
+        sampler: DistributedSampler[list[int]] | None
+        if get_world_size() > 1:
+            if video_based_inference:
+                assert isinstance(current_dataset, VideoDataset), (
+                    "Need video_to_indices attribute for VideoInferenceSampler"
+                    " to split dataset by sequences!"
+                )
+                sampler = VideoInferenceSampler(current_dataset)
+            else:
+                sampler = DistributedSampler(dataset)
+        else:
+            sampler = None
 
         test_dataloader = DataLoader(
             dataset,
             batch_size=samples_per_gpu,
             num_workers=workers_per_gpu,
-            sampler=dset_sampler,
+            sampler=sampler,
             shuffle=False,
             collate_fn=_collate_fn,
             persistent_workers=workers_per_gpu > 0,

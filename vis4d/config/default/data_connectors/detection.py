@@ -18,6 +18,6 @@ CONN_BBOX_2D_TEST = {
 CONN_BOX_LOSS_2D = {
     "cls_outs": pred_key("cls_score"),
     "reg_outs": pred_key("bbox_pred"),
-    "target_boxes": data_key("boxes2d"),
-    "images_hw": data_key("input_hw"),
+    "target_boxes": data_key(K.boxes2d),
+    "images_hw": data_key(K.input_hw),
 }
