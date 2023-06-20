@@ -162,8 +162,6 @@ class COCO(CacheMappingMixin, Dataset):
         split: str = "train2017",
         remove_empty: bool = False,
         use_pascal_voc_cats: bool = False,
-        cache_as_binary: bool = False,
-        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Initialize the COCO dataset.
@@ -174,10 +172,6 @@ class COCO(CacheMappingMixin, Dataset):
             split (split): Which split to load. Default: "train2017".
             remove_empty (bool): Whether to remove images with no annotations.
             use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
-            cache_as_binary (bool): Whether to cache the dataset as binary.
-                Default: False.
-            cached_file_path (str | None): Path to the cached file.  Default:
-                None.
         """
         super().__init__(**kwargs)
 
@@ -200,8 +194,8 @@ class COCO(CacheMappingMixin, Dataset):
         self.data = self._load_mapping(
             self._generate_data_mapping,
             self._filter_data,
-            cache_as_binary=cache_as_binary,
-            cached_file_path=cached_file_path,
+            cache_as_binary=self.cache_as_binary,
+            cached_file_path=self.cached_file_path,
         )
 
     def __repr__(self) -> str:

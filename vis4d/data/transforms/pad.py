@@ -102,12 +102,9 @@ class PadSegMasks:
         """Pad images to consistent size."""
         heights = [mask.shape[0] for mask in masks]
         widths = [mask.shape[1] for mask in masks]
-        if target_shapes is not None:
-            max_hw = target_shapes[0]
-        else:
-            max_hw = _get_max_shape(
-                heights, widths, self.stride, self.shape, self.pad2square
-            )
+        max_hw = _get_max_shape(
+            heights, widths, self.stride, self.shape, self.pad2square
+        )
 
         # generate params for torch pad
         for i, (mask, h, w) in enumerate(zip(masks, heights, widths)):

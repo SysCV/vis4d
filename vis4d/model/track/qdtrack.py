@@ -619,6 +619,7 @@ class YOLOXQDTrack(nn.Module):
         )
 
         tracks = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
+        assert isinstance(tracks, TrackOut)
         for i, boxs in enumerate(tracks.boxes):
             tracks.boxes[i] = scale_and_clip_boxes(
                 boxs, original_hw[i], images_hw[i]

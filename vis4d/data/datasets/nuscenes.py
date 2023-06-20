@@ -11,7 +11,13 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
-from vis4d.common.typing import ArgsType, DictStrAny, NDArrayBool, NDArrayF32, NDArrayI64
+from vis4d.common.typing import (
+    ArgsType,
+    DictStrAny,
+    NDArrayBool,
+    NDArrayF32,
+    NDArrayI64,
+)
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
@@ -163,8 +169,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         skip_empty_samples: bool = False,
         point_based_filter: bool = False,
         distance_based_filter: bool = False,
-        cache_as_binary: bool = False,
-        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
@@ -192,10 +196,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             distance_based_filter (bool, optional): Whether to filter out
                 samples based on the distance of the object from the ego
                 vehicle. Defaults to False.
-            cache_as_binary (bool, optional): Whether to cache the loaded
-                data as binary. Defaults to True.
-            cached_file_path (str | None, optional): Path to the cached file.
-                Defaults to None.
         """
         super().__init__(**kwargs)
         self.data_root = data_root
@@ -212,8 +212,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         # Load annotations
         self.samples = self._load_mapping(
             self._generate_data_mapping,
-            cache_as_binary=cache_as_binary,
-            cached_file_path=cached_file_path,
+            cache_as_binary=self.cache_as_binary,
+            cached_file_path=self.cached_file_path,
         )
 
         # Generate video to indices mapping

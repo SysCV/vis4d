@@ -163,7 +163,7 @@ def get_test_dataloader(
             keep_ratio=True,
             align_long_edge=True,
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
     ]
 
     preprocess_transforms.append(class_config(NormalizeImages))

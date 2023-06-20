@@ -35,7 +35,7 @@ from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
-from vis4d.op.detect.anchor_generator import AnchorGenerator
+from vis4d.op.box.anchor.anchor_generator import AnchorGenerator
 from vis4d.op.detect.rcnn import RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.loss.common import smooth_l1_loss

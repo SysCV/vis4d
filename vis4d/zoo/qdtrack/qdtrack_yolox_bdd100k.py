@@ -13,12 +13,12 @@ from vis4d.config.default import (
 from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
 from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.data.loader import VideoDataPipe
-from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImage
+from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
@@ -102,7 +102,7 @@ def get_config() -> FieldConfigDict:
             keep_ratio=False,
             align_long_edge=True,
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
     ]
 
     test_preprocess_cfg = class_config(
@@ -110,12 +110,12 @@ def get_config() -> FieldConfigDict:
     )
 
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 
     test_dataset_cfg = class_config(
-        VideoDataPipe, datasets=test_dataset, preprocess_fn=test_preprocess_cfg
+        DataPipe, datasets=test_dataset, preprocess_fn=test_preprocess_cfg
     )
 
     data.test_dataloader = get_inference_dataloaders_cfg(

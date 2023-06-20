@@ -21,7 +21,7 @@ from vis4d.common.typing import (
     ListAny,
     NDArrayF32,
     NDArrayI64,
-    NDArrayUI8
+    NDArrayUI8,
 )
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
@@ -304,8 +304,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
         skip_empty_samples: bool = False,
-        cache_as_binary: bool = False,
-        cached_file_path: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class.
@@ -329,10 +327,6 @@ class Scalabel(CacheMappingMixin, VideoDataset):
                 additional class for masks.
             skip_empty_samples (bool): Whether to skip samples without
                 annotations.
-            cache_as_binary (bool, optional): Whether to cache the loaded
-                data as binary. Defaults to True.
-            cached_file_path (str | None, optional): Path to the cached file.
-                Defaults to None.
         """
         super().__init__(**kwargs)
         assert SCALABEL_AVAILABLE, "Scalabel is not installed."
@@ -353,8 +347,8 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping,
             remove_empty_samples,
-            cache_as_binary=cache_as_binary,
-            cached_file_path=cached_file_path,
+            cache_as_binary=self.cache_as_binary,
+            cached_file_path=self.cached_file_path,
         )
 
         assert self.cfg is not None, (
@@ -475,7 +469,9 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         data: DictData = {}
         if K.images in self.keys_to_load:
             assert frame.url is not None, "url is None!"
-            image = load_image(frame.url, self.data_backend, self.image_channel_mode)
+            image = load_image(
+                frame.url, self.data_backend, self.image_channel_mode
+            )
             input_hw = (image.shape[1], image.shape[2])
             data[K.images] = image
             data[K.input_hw] = input_hw

@@ -56,7 +56,7 @@ class BDD100KTrackEvaluator(ScalabelTrackEvaluator):
             det_results = evaluate_det(
                 self.gt_frames,
                 self.frames,
-                config=self.config.scalabel,
+                config=self.config,
                 nproc=0,
             )
             for metric_name, metric_value in det_results.summary().items():

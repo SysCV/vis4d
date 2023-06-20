@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 from torch.utils.data import Dataset as TorchDataset
 
+from vis4d.common import ArgsType
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
@@ -31,6 +32,8 @@ class Dataset(TorchDataset[DictData]):
         self,
         image_channel_mode: str = "RGB",
         data_backend: None | DataBackend = None,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
     ) -> None:
         """Initialize dataset.
 
@@ -38,11 +41,18 @@ class Dataset(TorchDataset[DictData]):
             image_channel_mode (str): Image channel mode to use. Default: RGB.
             data_backend (None | DataBackend): Data backend to use.
                 Default: None.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
         self.image_channel_mode = image_channel_mode
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
+        self.cache_as_binary = cache_as_binary
+        self.cached_file_path = cached_file_path
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -72,9 +82,9 @@ class VideoDataset(Dataset):
     Provides interface for video based data and reference view samplers.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: ArgsType) -> None:
         """Initialize dataset."""
-        super().__init__()
+        super().__init__(**kwargs)
         self.video_to_indices: dict[str, list[int]] = {}
 
     def _generate_video_to_indices(self) -> dict[str, list[int]]:
