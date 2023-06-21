@@ -35,3 +35,30 @@ class ToTensor:
         for data in batch:
             _replace_arrays(data)
         return batch
+
+
+@Transform("data", "data")
+class SelectSensor:
+    """Keep data from one sensor only."""
+
+    def __init__(self, sensor: str):
+        """Creates an instance of SelectSensor.
+
+        Args:
+            sensor (str): Sensor name.
+        """
+        self.sensor = sensor
+
+    def __call__(self, batch: list[DictData]) -> list[DictData]:
+        """Select data from one sensor only."""
+        output_batch = []
+        for data in batch:
+            output_data = {}
+            for key in data.keys():
+                if isinstance(data[key], dict):
+                    if key == self.sensor:
+                        output_data.update(data[key])
+                else:
+                    output_data[key] = data[key]
+            output_batch.append(output_data)
+        return output_batch

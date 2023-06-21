@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import multiprocessing
 import os
 from collections.abc import Sequence
@@ -12,14 +11,15 @@ import numpy as np
 from tqdm import tqdm
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import ArgsType, NDArrayF32, NDArrayI64, NDArrayNumber
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.datasets.base import Dataset
+from vis4d.data.datasets.util import im_decode, npy_decode
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
-from .base import VideoDataset
 from .scalabel import Scalabel
-from .util import im_decode, npy_decode
 
 shift_det_map = {
     "pedestrian": 0,
@@ -62,7 +62,6 @@ shift_seg_map = {
     "water": 21,
     "terrain": 22,
 }
-
 shift_seg_ignore = [
     "unlabeled",
     "other",
@@ -79,9 +78,6 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.io import parse
     from scalabel.label.typing import Config
     from scalabel.label.typing import Dataset as ScalabelData
-
-
-logger = logging.getLogger(__name__)
 
 
 def _get_extension(backend: DataBackend) -> str:
@@ -114,14 +110,15 @@ class _SHIFTScalabelLabels(Scalabel):
         split: str,
         data_file: str = "",
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
         annotation_file: str = "",
         view: str = "front",
         framerate: str = "images",
         shift_type: str = "discrete",
+        skip_empty_frames: bool = False,
         backend: DataBackend = HDF5Backend(),
         verbose: bool = False,
         num_workers: int = 1,
-        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset for one view.
 
@@ -130,6 +127,9 @@ class _SHIFTScalabelLabels(Scalabel):
             split (str): Which data split to load.
             data_file (str): Path to the data archive file. Default: "".
             keys_to_load (Sequence[str]): List of keys to load.
+                Default: (K.images, K.boxes2d).
+            attributes_to_load (Sequence[dict[str, str | float]] | None):
+                List of attributes to load. Default: None.
             annotation_file (str): Path to the annotation file. Default: "".
             view (str): Which view to load. Default: "front". Options: "front",
                 "center", "left_45", "left_90", "right_45", "right_90", and
@@ -138,6 +138,8 @@ class _SHIFTScalabelLabels(Scalabel):
             shift_type (str): Which shift type to load. Default: "discrete".
                 Options: "discrete", "continuous/1x", "continuous/10x", and
                 "continuous/100x".
+            skip_empty_frames (bool): Whether to skip frames with no
+                instance annotations. Default: False.
             backend (DataBackend): Backend to use for loading data. Default:
                 HDF5Backend().
             verbose (bool): Whether to print verbose logs. Default: False.
@@ -190,14 +192,15 @@ class _SHIFTScalabelLabels(Scalabel):
             annotation_path,
             data_backend=backend,
             keys_to_load=keys_to_load,
-            **kwargs,
+            attributes_to_load=attributes_to_load,
+            skip_empty_samples=skip_empty_frames,
         )
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         # Skipping validation for much faster loading
         if self.verbose:
-            logger.info(
+            rank_zero_info(
                 "Loading annotation from '%s' ...", self.annotation_path
             )
         return self._load(self.annotation_path)
@@ -226,7 +229,9 @@ class _SHIFTScalabelLabels(Scalabel):
                     "The input file contains neither dict nor list."
                 )
 
-            logging.info("Loading SHIFT annotation from '%s' Done.", filepath)
+            rank_zero_info(
+                "Loading SHIFT annotation from '%s' Done.", filepath
+            )
             return raw_cfg
 
         cfg = None
@@ -256,7 +261,7 @@ class _SHIFTScalabelLabels(Scalabel):
         return ScalabelData(frames=frames, config=config, groups=None)
 
 
-class SHIFT(VideoDataset):
+class SHIFT(Dataset):
     """SHIFT dataset class, supporting multiple tasks and views."""
 
     DESCRIPTION = """SHIFT Dataset, a synthetic driving dataset for continuous
@@ -344,15 +349,16 @@ class SHIFT(VideoDataset):
         split: str,
         keys_to_load: Sequence[str] = (K.images, K.boxes2d),
         views_to_load: Sequence[str] = ("front",),
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
         framerate: str = "images",
         shift_type: str = "discrete",
+        skip_empty_frames: bool = False,
         backend: DataBackend = HDF5Backend(),
         num_workers: int = 1,
         verbose: bool = False,
-        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset."""
-        super().__init__(data_backend=backend, **kwargs)
+        super().__init__(data_backend=backend)
         # Validate input
         assert split in {"train", "val", "test"}, f"Invalid split '{split}'."
         assert framerate in {
@@ -376,6 +382,7 @@ class SHIFT(VideoDataset):
         self.split = split
         self.keys_to_load = keys_to_load
         self.views_to_load = views_to_load
+        self.attributes_to_load = attributes_to_load
         self.framerate = framerate
         self.shift_type = shift_type
         self.backend = backend
@@ -401,7 +408,7 @@ class SHIFT(VideoDataset):
         self._data_groups_to_load = self._get_data_groups(keys_to_load)
         if "det_2d" not in self._data_groups_to_load:
             raise ValueError(
-                "In current implementation, the 'det_2d' data group must be"
+                "In current implementation, the 'det_2d' data group must be "
                 "loaded to load any other data group."
             )
 
@@ -418,6 +425,8 @@ class SHIFT(VideoDataset):
                     framerate=self.framerate,
                     shift_type=self.shift_type,
                     keys_to_load=(K.points3d, *self.DATA_GROUPS["det_3d"]),
+                    attributes_to_load=self.attributes_to_load,
+                    skip_empty_frames=skip_empty_frames,
                     backend=backend,
                     num_workers=num_workers,
                     verbose=verbose,
@@ -441,12 +450,12 @@ class SHIFT(VideoDataset):
                         framerate=self.framerate,
                         shift_type=self.shift_type,
                         keys_to_load=keys_to_load,
+                        attributes_to_load=self.attributes_to_load,
+                        skip_empty_frames=skip_empty_frames,
                         backend=backend,
                         num_workers=num_workers,
                         verbose=verbose,
                     )
-
-        self.video_to_indices = self._generate_video_to_indices()
 
     def validate_keys(self, keys_to_load: Sequence[str]) -> None:
         """Validate that all keys to load are supported."""
@@ -456,7 +465,7 @@ class SHIFT(VideoDataset):
 
     def _get_data_groups(self, keys_to_load: Sequence[str]) -> list[str]:
         """Get the data groups that need to be loaded from Scalabel."""
-        data_groups = []
+        data_groups = ["det_2d"]
         for data_group, group_keys in self.DATA_GROUPS.items():
             if data_group in self.GROUPS_IN_SCALABEL:
                 # If the data group is loaded by Scalabel, add it to the list
@@ -514,6 +523,10 @@ class SHIFT(VideoDataset):
         """Load optical flow data."""
         npy_bytes = self.backend.get(filepath)
         flow = npy_decode(npy_bytes, key="flow")
+        flow = flow[:, :, [1, 0]]  # Convert to (u, v) format
+        flow *= flow.shape[1]  # Scale to image size (1280)
+        if self.framerate == "images":
+            flow *= 10.0  # NOTE: Scale to 1 fps approximately
         return flow.astype(np.float32)
 
     def _get_frame_key(self, idx: int) -> tuple[str, str]:
@@ -523,7 +536,9 @@ class SHIFT(VideoDataset):
                 list(self.scalabel_datasets.keys())[0]
             ].frames
             return frames[idx].videoName, frames[idx].name
-        raise ValueError("No Scalabel file has been loaded.")
+        raise ValueError(
+            "No Scalabel file has been loaded."
+        )  # pragma: no coverS
 
     def __len__(self) -> int:
         """Get the number of samples in the dataset."""
@@ -531,9 +546,12 @@ class SHIFT(VideoDataset):
             return len(
                 self.scalabel_datasets[list(self.scalabel_datasets.keys())[0]]
             )
-        raise ValueError("No Scalabel file has been loaded.")
+        raise ValueError(
+            "No Scalabel file has been loaded."
+        )  # pragma: no cover
 
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
+    @property
+    def video_to_indices(self) -> dict[str, list[int]]:
         """Group all dataset sample indices (int) by their video ID (str).
 
         Returns:
@@ -546,7 +564,9 @@ class SHIFT(VideoDataset):
             return self.scalabel_datasets[
                 list(self.scalabel_datasets.keys())[0]
             ].video_to_indices
-        raise ValueError("No Scalabel file has been loaded.")
+        raise ValueError(
+            "No Scalabel file has been loaded."
+        )  # pragma: no cover
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.
