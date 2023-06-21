@@ -141,7 +141,9 @@ def get_config() -> FieldConfigDict:
             EvaluatorCallback,
             evaluator=class_config(
                 SHIFTDetectEvaluator,
-                annotation_path=f"{data_root}/discrete/images/val/front/det_2d.json",
+                annotation_path=(
+                    f"{data_root}/discrete/images/val/front/det_2d.json"
+                ),
                 attributes_to_load=domain_attr,
             ),
             test_connector=class_config(

@@ -6,15 +6,13 @@ import lightning.pytorch as pl
 from torch import optim
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets.shift import (
-    get_shift_sem_seg_config,
-)
+from vis4d.config.common.datasets.shift import get_shift_sem_seg_config
 from vis4d.config.default import get_default_cfg, get_default_pl_trainer_cfg
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
-    CONN_SEG_LOSS,
     CONN_SEG_EVAL,
+    CONN_SEG_LOSS,
     CONN_SEG_VIS,
 )
 from vis4d.config.util import get_optimizer_cfg
