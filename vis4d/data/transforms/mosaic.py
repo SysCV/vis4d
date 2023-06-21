@@ -41,7 +41,7 @@ def mosaic_combine(
     Index:
     0 = top_left, 1 = top_right, 3 = bottom_left, 4 = bottom_right
     """
-    assert index in (0, 1, 2, 3)
+    assert index in {0, 1, 2, 3}
     if index == 0:
         # index0 to top left part of image
         x1, y1, x2, y2 = (
@@ -240,12 +240,9 @@ class MosaicImages:
                 x1_c, y1_c, x2_c, y2_c = crop_coords[i][idx]
 
                 # crop and paste image
-                try:
-                    mosaic_img[:, :, y1_p:y2_p, x1_p:x2_p] = img_[
-                        :, :, y1_c:y2_c, x1_c:x2_c
-                    ]
-                except:
-                    breakpoint()
+                mosaic_img[:, :, y1_p:y2_p, x1_p:x2_p] = img_[
+                    :, :, y1_c:y2_c, x1_c:x2_c
+                ]
             mosaic_imgs.append(mosaic_img.transpose(0, 2, 3, 1))
         return mosaic_imgs, [m.shape[1:3] for m in mosaic_imgs]
 
@@ -294,11 +291,17 @@ class MosaicBoxes2D:
 
                 pw = x1_p - x1_c
                 ph = y1_p - y1_c
-                boxes[j][:, [0, 2]] = im_scales[i][idx][1] * boxes[j][:, [0, 2]] + pw
-                boxes[j][:, [1, 3]] = im_scales[i][idx][0] * boxes[j][:, [1, 3]] + ph
+                boxes[j][:, [0, 2]] = (
+                    im_scales[i][idx][1] * boxes[j][:, [0, 2]] + pw
+                )
+                boxes[j][:, [1, 3]] = (
+                    im_scales[i][idx][0] * boxes[j][:, [1, 3]] + ph
+                )
 
                 # TODO handle unique track_ids
-                keep_mask = _get_keep_mask(boxes[j], np.array([x1_p, y1_p, x2_p, y2_p]))
+                keep_mask = _get_keep_mask(
+                    boxes[j], np.array([x1_p, y1_p, x2_p, y2_p])
+                )
                 boxes[j] = boxes[j][keep_mask]
                 classes[j] = classes[j][keep_mask]
                 if track_ids[j] is not None:
@@ -310,5 +313,7 @@ class MosaicBoxes2D:
             new_boxes.append(np.concatenate(boxes[i : i + NUM_SAMPLES]))
             new_classes.append(np.concatenate(classes[i : i + NUM_SAMPLES]))
             if track_ids is not None:
-                new_track_ids.append(np.concatenate(track_ids[i : i + NUM_SAMPLES]))
+                new_track_ids.append(
+                    np.concatenate(track_ids[i : i + NUM_SAMPLES])
+                )
         return new_boxes, new_classes, new_track_ids

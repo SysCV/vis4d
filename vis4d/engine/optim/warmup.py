@@ -45,3 +45,13 @@ class ExponentialLRWarmup(BaseLRWarmup):
         k = self.warmup_ratio ** (1 - cur_steps / self.warmup_steps)
         warmup_lr = regular_lr * k
         return warmup_lr
+
+
+class QuadraticLRWarmup(BaseLRWarmup):
+    """Quadratic LR warmup."""
+
+    def __call__(self, cur_steps: int, regular_lr: float) -> float:
+        """Compute learning rate according to quadratic warmup schedule."""
+        k = self.warmup_ratio * (cur_steps * 2 + 1) / self.warmup_steps**2
+        warmup_lr = regular_lr * k
+        return warmup_lr

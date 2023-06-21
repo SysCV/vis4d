@@ -6,6 +6,7 @@ from .warmup import (
     ConstantLRWarmup,
     ExponentialLRWarmup,
     LinearLRWarmup,
+    QuadraticLRWarmup,
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "LinearLRWarmup",
     "ConstantLRWarmup",
     "ExponentialLRWarmup",
+    "QuadraticLRWarmup",
     "set_up_optimizers",
 ]

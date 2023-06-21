@@ -2,14 +2,18 @@
 """Mosaic transformation tests."""
 import copy
 import unittest
-from PIL import Image
 
 import numpy as np
 import torch
+from PIL import Image
 
 from tests.util import get_test_file
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.transforms.mosaic import GenerateMosaicParameters, MosaicImages, MosaicBoxes2D
+from vis4d.data.transforms.mosaic import (
+    GenerateMosaicParameters,
+    MosaicBoxes2D,
+    MosaicImages,
+)
 
 
 class TestMosaic(unittest.TestCase):
@@ -47,7 +51,7 @@ class TestMosaic(unittest.TestCase):
             torch.load(get_test_file("mosaic_images.npy")),
             atol=1e-4,
         )
-    
+
     def test_mosaic_boxes2d(self) -> None:
         """Test MosaicBoxes2D transformation."""
         data = {
@@ -71,6 +75,12 @@ class TestMosaic(unittest.TestCase):
         data = params.apply_to_data([copy.deepcopy(data) for _ in range(4)])
         data = MosaicImages().apply_to_data(data)
         data = transform.apply_to_data(data)[0]
-        box_data = [data[K.boxes2d], data[K.boxes2d_classes], data[K.boxes2d_track_ids]]
-        for pred, gt in zip(box_data, torch.load(get_test_file("mosaic_boxes2d.npy"))):
+        box_data = [
+            data[K.boxes2d],
+            data[K.boxes2d_classes],
+            data[K.boxes2d_track_ids],
+        ]
+        for pred, gt in zip(
+            box_data, torch.load(get_test_file("mosaic_boxes2d.npy"))
+        ):
             assert np.allclose(pred, gt, atol=1e-4)
