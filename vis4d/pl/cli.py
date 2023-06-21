@@ -70,9 +70,6 @@ def main(argv: ArgsType) -> None:
     # Seed
     seed = config.get("seed", None)
 
-    # Model EMA
-    ema_decay_rate = config.get("ema_decay_rate", None)
-
     # Instantiate classes
     if mode == "fit":
         train_data_connector = instantiate_classes(config.train_data_connector)
@@ -112,7 +109,6 @@ def main(argv: ArgsType) -> None:
         train_data_connector,
         test_data_connector,
         seed,
-        ema_decay_rate,
     )
     data_module = DataModule(config.data)
 

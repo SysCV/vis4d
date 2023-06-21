@@ -8,7 +8,6 @@ import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
 from lightning.pytorch.core.optimizer import LightningOptimizer
 from ml_collections import ConfigDict
-from numpy import isin
 from torch import Tensor, optim
 
 from vis4d.common.distributed import broadcast

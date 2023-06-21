@@ -9,13 +9,12 @@ from copy import deepcopy
 from typing import Any
 
 import torch
-from torch import Tensor
-from torch import nn
 from ml_collections import ConfigDict
+from torch import Tensor, nn
 
-from vis4d.config import instantiate_classes
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.named_tuple import is_namedtuple
+from vis4d.config import instantiate_classes
 
 _BLOCKING_DEVICE_TYPES = ("cpu", "mps")
 

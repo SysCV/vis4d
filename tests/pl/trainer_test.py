@@ -117,7 +117,6 @@ def get_training_module(model: ConfigDict):
         train_data_connector=train_data_connector,
         test_data_connector=test_data_connector,
         seed=1,
-        ema_decay_rate=0.99,
     )
 
 

@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import torch
 from timm.models.helpers import named_apply
-from timm.models.layers import trunc_normal_
 from torch import nn
 
 from ..layer import PatchEmbed, TransformerBlock
 from .base import BaseModel
 
 
-def _init_weights_vit_timm(module: nn.Module, name: str) -> None:
+def _init_weights_vit_timm(module: nn.Module) -> None:
     """Weight initialization, original timm impl (for reproducibility)."""
     if isinstance(module, nn.Linear):
         nn.init.trunc_normal_(module.weight, std=0.02)
@@ -173,7 +172,6 @@ class VisionTransformer(BaseModel):
             if no_embed_class
             else num_patches + self.num_prefix_tokens
         )
-        breakpoint()
         self.pos_embed = nn.Parameter(torch.zeros(1, embed_len, embed_dim))
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
         self.norm_pre = (
@@ -203,7 +201,6 @@ class VisionTransformer(BaseModel):
 
     def init_weights(self) -> None:
         """Init weights using timm's implementation."""
-        breakpoint()
         nn.init.trunc_normal_(self.pos_embed, std=0.02)
         if self.cls_token is not None:
             nn.init.normal_(self.cls_token, std=1e-6)

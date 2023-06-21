@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import torch
 from torch import nn
-from vis4d.config.config_dict import class_config
 
+from vis4d.config.config_dict import class_config
 from vis4d.engine.util import ModelEMAWrapper, apply_to_collection
 
 
