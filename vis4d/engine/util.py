@@ -229,7 +229,7 @@ class ModelEMAWrapper(nn.Module):
 
     def __init__(
         self,
-        model: ConfigDict,
+        model: ConfigDict | nn.Module,
         decay: float = 0.9998,
         device: torch.device | None = None,
     ):
@@ -242,8 +242,11 @@ class ModelEMAWrapper(nn.Module):
 
         """
         super().__init__()
-        self.model = instantiate_classes(model)
-        self.ema_model = deepcopy(model)
+        if isinstance(model, ConfigDict):
+            self.model = instantiate_classes(model)
+        else:
+            self.model = model
+        self.ema_model = deepcopy(self.model)
         self.ema_model.eval()
         self.decay = decay
         self.device = device
