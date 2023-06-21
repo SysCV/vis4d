@@ -10,12 +10,15 @@ from vis4d.common.typing import (
     ArrayLikeFloat,
     ArrayLikeInt,
     NDArrayUI8,
+    NDArrayF32,
 )
 from vis4d.vis.image.canvas import CanvasBackend, PillowCanvasBackend
 from vis4d.vis.image.util import (
     preprocess_boxes,
     preprocess_image,
     preprocess_masks,
+    preprocess_boxes3d,
+    get_intersection_point,
 )
 from vis4d.vis.image.viewer import ImageViewerBackend, MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map
@@ -36,6 +39,25 @@ def imshow(
     """
     image = preprocess_image(image, image_mode)
     image_viewer.show_images([image])
+
+
+def imsave(
+    image: ArrayLike,
+    file_path: str,
+    image_mode: str = "RGB",
+    image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+) -> None:
+    """Shows a single image.
+
+    Args:
+        image (NDArrayNumber): The image to show.
+        file_path (str): The path to save the image to.
+        image_mode (str, optional): Image Mode. Defaults to "RGB".
+        image_viewer (ImageViewerBackend, optional): The Image viewer backend
+            to use. Defaults to MatplotlibImageViewer().
+    """
+    image = preprocess_image(image, image_mode)
+    image_viewer.save_images([image], [file_path])
 
 
 def draw_masks(
@@ -162,6 +184,111 @@ def imshow_bboxes(
         image_mode,
     )
     imshow(img, image_mode, image_viewer)
+
+
+def draw_line(
+    canvas: CanvasBackend,
+    point1: NDArrayF32,
+    point2: NDArrayF32,
+    color: tuple[int],
+    width: int = 4,
+    camera_near_clip: float = 0.15,
+) -> None:
+    if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
+        return
+    if point1[2] < camera_near_clip:
+        point1 = get_intersection_point(point1, point2, camera_near_clip)
+    elif point2[2] < camera_near_clip:
+        point2 = get_intersection_point(point1, point2, camera_near_clip)
+    canvas._image_draw.line(
+        (tuple(point1[:2]), tuple(point2[:2])), width=width, fill=color
+    )
+
+
+def draw_bbox3d(
+    image: NDArrayUI8,
+    boxes3d: list[float],
+    intrinsics: NDArrayF32,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
+    class_id_mapping: None | dict[int, str] = None,
+    n_colors: int = 50,
+    image_mode: str = "RGB",
+    canvas: CanvasBackend = PillowCanvasBackend(),
+    camera_near_clip: float = 0.15,
+) -> NDArrayUI8:
+    """Draw 3D box onto image."""
+    image = preprocess_image(image, image_mode)
+    boxes3d_data = preprocess_boxes3d(
+        boxes3d,
+        intrinsics,
+        scores,
+        class_ids,
+        track_ids,
+        color_palette=generate_color_map(n_colors),
+        class_id_mapping=class_id_mapping,
+    )
+    canvas.create_canvas(image)
+
+    for corners, label, color in zip(*boxes3d_data):
+        # Draw Front
+        draw_line(canvas, corners[0], corners[1], color)
+        draw_line(canvas, corners[1], corners[5], color)
+        draw_line(canvas, corners[5], corners[4], color)
+        draw_line(canvas, corners[4], corners[0], color)
+
+        # Draw Sides
+        draw_line(canvas, corners[0], corners[2], color)
+        draw_line(canvas, corners[1], corners[3], color)
+        draw_line(canvas, corners[4], corners[4], color)
+        draw_line(canvas, corners[5], corners[7], color)
+
+        # Draw Back
+        draw_line(canvas, corners[2], corners[3], color)
+        draw_line(canvas, corners[3], corners[7], color)
+        draw_line(canvas, corners[7], corners[6], color)
+        draw_line(canvas, corners[6], corners[2], color)
+
+        # Draw line indicating the front
+        center_bottom_forward = np.mean(corners[:2], axis=0)
+        center_bottom = np.mean(corners[:4], axis=0)
+        draw_line(canvas, center_bottom, center_bottom_forward, color)
+
+    return canvas.as_numpy_image()
+
+
+def imshow_bboxes3d(
+    image: ArrayLike,
+    boxes3d: ArrayLikeFloat,
+    intrinsics: NDArrayF32,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
+    class_id_mapping: None | dict[int, str] = None,
+    n_colors: int = 50,
+    image_mode: str = "RGB",
+    image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    save_path: str | None = None,
+) -> None:
+    """Show image with bounding boxes."""
+    image = preprocess_image(image, mode=image_mode)
+    img = draw_bbox3d(
+        image,
+        boxes3d,
+        intrinsics,
+        scores,
+        class_ids,
+        track_ids,
+        class_id_mapping=class_id_mapping,
+        n_colors=n_colors,
+        image_mode=image_mode,
+    )
+
+    if save_path is not None:
+        imsave(img, save_path, image_mode, image_viewer)
+    else:
+        imshow(img, image_mode, image_viewer)
 
 
 def imshow_masks(

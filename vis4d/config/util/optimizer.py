@@ -10,6 +10,7 @@ def get_optimizer_cfg(
     lr_warmup: ConfigDict | None = None,
     epoch_based_lr: bool = True,
     epoch_based_warmup: bool = False,
+    param_groups_cfg: dict[str, list[str] | float] | None = None,
 ) -> ConfigDict:
     """Default optimizer configuration.
 
@@ -26,6 +27,8 @@ def get_optimizer_cfg(
             epoch based or step based. Defaults to True.
         epoch_based_warmup (bool, optional): Whether the warmup is epoch based
             or step based. Defaults to False.
+        param_groups_cfg (dict[str, list[str] | float] | None, optional):
+            Parameter groups configuration. Defaults to None.
 
     Returns:
         ConfigDict: Config dict that can be instantiated as Optimizer.
@@ -37,5 +40,8 @@ def get_optimizer_cfg(
     optim.lr_warmup = lr_warmup
     optim.epoch_based_lr = epoch_based_lr
     optim.epoch_based_warmup = epoch_based_warmup
+
+    if param_groups_cfg is not None:
+        optim.param_groups_cfg = param_groups_cfg
 
     return optim

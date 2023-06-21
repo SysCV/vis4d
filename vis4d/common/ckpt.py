@@ -426,6 +426,8 @@ def _load_checkpoint(
     # get state_dict from checkpoint
     if "state_dict" in checkpoint:
         state_dict = checkpoint["state_dict"]
+    elif "model" in checkpoint:
+        state_dict = checkpoint["model"]
     else:
         state_dict = checkpoint
 

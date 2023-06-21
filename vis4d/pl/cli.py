@@ -57,7 +57,7 @@ def main(argv: ArgsType) -> None:
     if num_gpus > 0:
         config.pl_trainer.accelerator = "gpu"
 
-    trainer_args = instantiate_classes(config.pl_trainer)
+    trainer_args = instantiate_classes(config.pl_trainer).to_dict()
 
     # TODO: Add random seed and DDP
     if _SHOW_CONFIG.value:
@@ -97,13 +97,14 @@ def main(argv: ArgsType) -> None:
     # Add needed callbacks
     callbacks.append(OptimEpochCallback())
 
-    trainer = PLTrainer(callbacks=callbacks, **trainer_args.to_dict())
+    trainer = PLTrainer(callbacks=callbacks, **trainer_args)
     training_module = TrainingModule(
         config.model,
         config.optimizers,
         loss,
         train_data_connector,
         test_data_connector,
+        {**config.params.to_dict(), **trainer_args},
         seed,
     )
     data_module = DataModule(config.data)

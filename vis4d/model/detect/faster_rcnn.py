@@ -60,9 +60,9 @@ class FasterRCNN(nn.Module):
         self.fpn = FPN(self.basemodel.out_channels[2:], 256)
 
         if faster_rcnn_head is None:
-            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+            self.faster_rcnn_head = FasterRCNNHead(num_classes=num_classes)
         else:
-            self.faster_rcnn_heads = faster_rcnn_head
+            self.faster_rcnn_head = faster_rcnn_head
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
@@ -144,7 +144,7 @@ class FasterRCNN(nn.Module):
             FRCNNOut: Raw model outputs.
         """
         features = self.fpn(self.basemodel(images))
-        return self.faster_rcnn_heads(
+        return self.faster_rcnn_head(
             features, images_hw, target_boxes, target_classes
         )
 
@@ -166,7 +166,7 @@ class FasterRCNN(nn.Module):
             DetOut: Predicted outputs.
         """
         features = self.fpn(self.basemodel(images))
-        outs = self.faster_rcnn_heads(features, images_hw)
+        outs = self.faster_rcnn_head(features, images_hw)
         boxes, scores, class_ids = self.roi2det(
             *outs.roi, outs.proposals.boxes, images_hw
         )
