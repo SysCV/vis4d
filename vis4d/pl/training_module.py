@@ -1,14 +1,14 @@
 """LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
 from ml_collections import ConfigDict
-from torch import Tensor, optim
+from torch import Tensor, nn
 
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.typing import DictStrAny
@@ -17,48 +17,7 @@ from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim import Optimizer, set_up_optimizers
-
-
-class TorchOptimizer(optim.Optimizer):
-    """Wrapper around vis4d optimizer to make it compatible with pl."""
-
-    def __init__(self, optimizer: Optimizer) -> None:
-        """Creates a new Optimizer.
-
-        Args:
-            optimizer: The vis4d optimizer to wrap.
-            model: The model to optimize.
-        """
-        self.optim = optimizer
-        assert self.optim.optimizer is not None
-        self._step = 0  # TODO: Check resume from checkpoint
-
-        super().__init__(
-            params=self.optim.optimizer.param_groups,
-            defaults=self.optim.optimizer.defaults,
-        )
-
-    def step(self, closure: Callable[[], float] | None = None) -> None:
-        """Performs a single optimization step.
-
-        Args:
-           closure: A closure that reevaluates the model and returns the loss.
-        """
-        self.optim.step_on_batch(self._step, closure)
-        self._step += 1
-
-    def step_on_epoch(self, epoch: int) -> None:
-        """Performs a single optimization step.
-
-        Args:
-           epoch (int): The current epoch of the training loop.
-        """
-        self.optim.step_on_epoch(epoch)
-
-    def zero_grad(self, set_to_none: bool = False) -> None:
-        """Clears the gradients of all optimized parameters."""
-        self.optim.zero_grad()
+from vis4d.engine.optim import set_up_optimizers, BaseLRWarmup
 
 
 class TrainingModule(pl.LightningModule):
@@ -70,13 +29,14 @@ class TrainingModule(pl.LightningModule):
 
     def __init__(
         self,
-        model: ConfigDict,
-        optimizers: list[ConfigDict],
+        model_cfg: ConfigDict,
+        optimizers_cfg: list[ConfigDict],
         loss_module: None | LossModule,
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
         hyper_parameters: DictStrAny,
         seed: None | int = None,
+        ckpt_path: None | str = None,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -91,15 +51,20 @@ class TrainingModule(pl.LightningModule):
             hyper_parameters (DictStrAny): The hyper parameters to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
+            ckpt_path (str, optional): The path to the checkpoint to load.
         """
         super().__init__()
-        self.model = model
-        self.optims = optimizers
+        self.model_cfg = model_cfg
+        self.optimizers_cfg = optimizers_cfg
         self.loss_module = loss_module
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.hyper_parameters = hyper_parameters
         self.seed = seed
+        self.ckpt_path = ckpt_path
+
+        self.model: nn.Module
+        self.lr_warmups: list[None | dict[str, BaseLRWarmup | bool]] = []
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -116,10 +81,15 @@ class TrainingModule(pl.LightningModule):
             self.hyper_parameters["seed"] = seed
             self.save_hyperparameters(self.hyper_parameters)
 
-        # Instantiate the model and optimizers after the seed has been set
-        self.model = instantiate_classes(self.model)
-        if stage == "fit":
-            self.optims = set_up_optimizers(self.optims, self.model)
+        # Instantiate the model after the seed has been set
+        self.model = instantiate_classes(self.model_cfg)
+
+        if self.ckpt_path is not None:
+            load_model_checkpoint(
+                self.model,
+                self.ckpt_path,
+                rev_keys=[(r"^model\.", ""), (r"^module\.", "")],
+            )
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
@@ -173,6 +143,32 @@ class TrainingModule(pl.LightningModule):
         out = self.model(**self.test_data_connector(batch))
         return out
 
-    def configure_optimizers(self) -> list[TorchOptimizer]:
+    def configure_optimizers(self):
         """Return the optimizer to use."""
-        return [TorchOptimizer(o) for o in self.optims]
+        optims = set_up_optimizers(self.optimizers_cfg, [self.model])
+
+        optimizers = []
+        for optim in optims:
+            if optim.lr_scheduler is not None:
+                lr_scheduler = {
+                    "scheduler": optim.lr_scheduler,
+                    "interval": "epoch" if optim.epoch_based_lr else "step",
+                }
+            else:
+                lr_scheduler = None
+
+            optimizers.append(
+                {"optimizer": optim.optimizer, "lr_scheduler": lr_scheduler}
+            )
+
+            if optim.lr_warmup is not None:
+                self.lr_warmups.append(
+                    {
+                        "warmup": optim.lr_warmup,
+                        "epoch_based": optim.epoch_based_warmup,
+                    }
+                )
+            else:
+                self.lr_warmups.append(None)
+
+        return optimizers

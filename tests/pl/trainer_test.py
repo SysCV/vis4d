@@ -33,7 +33,7 @@ from vis4d.engine.connectors import (
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
-from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
+from vis4d.pl.callbacks import CallbackWrapper, LRWarmUpCallback
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
@@ -69,7 +69,7 @@ def get_trainer(exp_name: str) -> PLTrainer:
     Args:
         exp_name (str): Experiment name.
     """
-    callbacks = [OptimEpochCallback(), CallbackWrapper(LoggingCallback())]
+    callbacks = [LRWarmUpCallback(), CallbackWrapper(LoggingCallback())]
 
     return PLTrainer(
         work_dir="./unittests/",

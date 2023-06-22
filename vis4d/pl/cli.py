@@ -13,12 +13,14 @@ from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
+from vis4d.engine.callbacks.checkpoint import CheckpointCallback
 from vis4d.engine.parser import DEFINE_config_file, pprints_config
-from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
+from vis4d.pl.callbacks import CallbackWrapper, LRWarmUpCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
+# TODO: Support resume from folder and load config directly from it.
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
@@ -77,9 +79,14 @@ def main(argv: ArgsType) -> None:
     test_data_connector = instantiate_classes(config.test_data_connector)
 
     # Callbacks
-    callbacks: list[Callback] = [
-        CallbackWrapper(instantiate_classes(cb)) for cb in config.callbacks
-    ]
+    callbacks: list[Callback] = []
+    for cb in config.callbacks:
+        callback = instantiate_classes(cb)
+        # Skip checkpoint callback to use PL ModelCheckpoint
+        if isinstance(callback, CheckpointCallback):
+            continue
+        else:
+            callbacks.append(CallbackWrapper(callback))
 
     if "pl_callbacks" in config:
         pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]
@@ -95,7 +102,22 @@ def main(argv: ArgsType) -> None:
         callbacks.append(cb)
 
     # Add needed callbacks
-    callbacks.append(OptimEpochCallback())
+    callbacks.append(LRWarmUpCallback())
+
+    # Checkpoint path
+    ckpt_path = _CKPT.value
+
+    # Resume training
+    resume = _RESUME.value
+    if resume:
+        if ckpt_path is None:
+            resume_ckpt_path = osp.join(
+                config.output_dir, "checkpoints/last.ckpt"
+            )
+        else:
+            resume_ckpt_path = ckpt_path
+    else:
+        resume_ckpt_path = None
 
     trainer = PLTrainer(callbacks=callbacks, **trainer_args)
     training_module = TrainingModule(
@@ -106,31 +128,16 @@ def main(argv: ArgsType) -> None:
         test_data_connector,
         {**config.params.to_dict(), **trainer_args},
         seed,
+        ckpt_path if not resume else None,
     )
     data_module = DataModule(config.data)
 
-    # Checkpoint path
-    ckpt_path = _CKPT.value
-
-    # Resume training
-    resume = _RESUME.value
-    if resume:
-        if ckpt_path is None:
-            ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
-
     if mode == "fit":
         trainer.fit(
-            training_module,
-            datamodule=data_module,
-            ckpt_path=ckpt_path,
+            training_module, datamodule=data_module, ckpt_path=resume_ckpt_path
         )
     elif mode == "test":
-        trainer.test(
-            training_module,
-            datamodule=data_module,
-            verbose=False,
-            ckpt_path=ckpt_path,
-        )
+        trainer.test(training_module, datamodule=data_module, verbose=False)
 
 
 if __name__ == "__main__":

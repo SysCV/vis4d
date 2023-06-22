@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 from ml_collections import ConfigDict
 from torch import nn, optim
+from torch.optim.lr_scheduler import LRScheduler
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
@@ -22,7 +23,7 @@ class Optimizer:
     def __init__(
         self,
         optimizer: optim.Optimizer,
-        lr_scheduler: optim.lr_scheduler._LRScheduler | None = None,
+        lr_scheduler: LRScheduler | None = None,
         lr_warmup: BaseLRWarmup | None = None,
         epoch_based_lr: bool = False,
         epoch_based_warmup: bool = False,
@@ -31,8 +32,8 @@ class Optimizer:
 
         Args:
             optimizer (optim.Optimizer): The optimizer.
-            lr_scheduler (optim.lr_scheduler._LRScheduler, optional): The
-                learning rate scheduler. Defaults to None.
+            lr_scheduler (LRScheduler | None, optional): The learning rate
+                scheduler. Defaults to None.
             lr_warmup (BaseLRWarmup, optional): The learning rate
                 warmup. Defaults to None.
             epoch_based_lr (bool): Whether the learning rate scheduler
@@ -47,12 +48,9 @@ class Optimizer:
         """
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
-        self._warmup = lr_warmup
+        self.lr_warmup = lr_warmup
         self.epoch_based_lr = epoch_based_lr
         self.epoch_based_warmup = epoch_based_warmup
-
-        if self._warmup is not None:
-            _ = self._warmup_step(0)
 
     def zero_grad(self) -> None:
         """Zero gradients in optimizer."""
@@ -62,8 +60,18 @@ class Optimizer:
         )
         self.optimizer.zero_grad()
 
+    def warmup_on_batch(self, step: int) -> None:
+        """Warmup on batch."""
+        if not self.epoch_based_warmup:
+            warmup_step(step, self.lr_warmup, self.optimizer)
+
+    def warmup_on_epoch(self, epoch: int) -> None:
+        """Warmup on epoch."""
+        if self.epoch_based_warmup:
+            warmup_step(epoch, self.lr_warmup, self.optimizer)
+
     def step_on_batch(
-        self, step: int, closure: Callable[[], float] | None = None
+        self, closure: Callable[[], float] | None = None
     ) -> None:
         """Step optimizer on batch end.
 
@@ -73,95 +81,54 @@ class Optimizer:
         learning rate scheduler will only be stepped if the warmup is finished.
 
         Args:
-            step: The current step of the training loop.
             closure (Callable): A closure that reevaluates the model and
                 returns the loss. Optional for most optimizers.
 
         Raises:
             ValueError: If the base learning rate could not be determined.
         """
-        assert self.optimizer is not None, (
-            "Optimizer was not correctly setup. Make sure to call setup()"
-            "before step()."
-        )
         self.optimizer.step(closure=closure)
 
         # Adjust learning rate for next step
-        if self.epoch_based_warmup:
-            warmed_up = True
-        else:
-            warmed_up = self._warmup_step(step + 1)
-        if not self.epoch_based_lr and warmed_up:
+        if not self.epoch_based_lr:
             self._lr_step()
 
-    def step_on_epoch(self, epoch: int) -> None:
+    def step_on_epoch(self) -> None:
         """Step optimizer on epoch end.
 
         This function is used to step the learning rate scheduler or the warmup
         on epoch end. Note that the learning rate scheduler will only
         be stepped if the warmup is finished.
-
-        Args:
-            epoch: The current epoch of the training loop.
-
-        Raises:
-            ValueError: If the base learning rate could not be determined.
         """
-        assert self.optimizer is not None, (
-            "Optimizer was not correctly setup. Make sure to call setup()"
-            "before step()."
-        )
-        if self.epoch_based_warmup:
-            warmed_up = self._warmup_step(epoch + 1)
-        else:
-            warmed_up = True
-        if self.epoch_based_lr and warmed_up:
+        if self.epoch_based_lr:
             self._lr_step()
 
     def _lr_step(self) -> None:
-        """Step learning rate scheduler.
-
-        Raises:
-            ValueError: If the base learning rate could not be determined.
-        """
-        assert self.optimizer is not None, (
-            "Optimizer was not correctly setup. Make sure to call setup()"
-            "before step()."
-        )
+        """Step learning rate scheduler."""
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
 
-    def _warmup_step(self, step: int) -> bool:
-        """Set learning rate according to warmup.
 
-        Args:
-            step: The current step of the training loop.
-
-        Raises:
-            ValueError: If the base learning rate could not be determined.
-
-        Returns:
-            True if the warmup is finished, False otherwise.
-        """
-        assert self.optimizer is not None, "Optimizer was not correctly setup."
-
-        if self._warmup is not None and step <= self._warmup.warmup_steps:
-            for g in self.optimizer.param_groups:
-                if step < self._warmup.warmup_steps:
-                    g["lr"] = self._warmup(step, g["initial_lr"])
-                else:
-                    g["lr"] = g["initial_lr"]
-            return False
-        return True
+def warmup_step(
+    step: int, warmup: BaseLRWarmup, optimizer: optim.Optimizer
+) -> None:
+    if step <= warmup.warmup_steps:
+        for g in optimizer.param_groups:
+            if step < warmup.warmup_steps:
+                g["lr"] = warmup(step, g["initial_lr"])
+            else:
+                g["lr"] = g["initial_lr"]
 
 
+# TODO: Add true support for multiple optimizers. This will need to
+# modify config to specify which optimizer to use for which module.
 def set_up_optimizers(
-    optimizers_cfg: list[ConfigDict], model: nn.Module
+    optimizers_cfg: list[ConfigDict], models: list[nn.Module]
 ) -> list[Optimizer]:
     """Set up optimizers."""
     optimizers = []
-    for optim_cfg in optimizers_cfg:
-        optimizer = configure_optimizer(model, optim_cfg)
+    for optim_cfg, model in zip(optimizers_cfg, models):
+        optimizer = configure_optimizer(optim_cfg, model)
         lr_scheduler = (
             instantiate_classes(optim_cfg.lr_scheduler, optimizer=optimizer)
             if optim_cfg.lr_scheduler is not None
@@ -185,7 +152,7 @@ def set_up_optimizers(
 
 
 def configure_optimizer(
-    model: nn.Module, optim_cfg: ConfigDict
+    optim_cfg: ConfigDict, model: nn.Module
 ) -> optim.Optimizer:
     """Configure optimizer with parameter groups."""
     base_lr = optim_cfg.optimizer["init_args"].lr
@@ -252,14 +219,25 @@ def add_params(
             continue
 
         # if the parameter match one of the custom keys, ignore other rules
+        is_custom = False
+        msg = f"{prefix}.{name}"
         for i, group in enumerate(param_groups_cfg):
             for key in group["custom_keys"]:
                 if key in f"{prefix}.{name}":
-                    rank_zero_info(
-                        f"{prefix}.{name} with lr_multi: {group['lr_mult']}"
-                    )
+                    if group.get("lr_mult", None) is not None:
+                        msg += f" with lr_mult: {group['lr_mult']}"
+                    if group.get("decay_mult", None) is not None:
+                        msg += f" with decay_mult: {group['decay_mult']}"
                     params[i]["params"].append(param)
+                    is_custom = True
                     break
+            if is_custom:
+                break
+
+        if is_custom:
+            rank_zero_info(msg)
+        else:
+            params[-1]["params"].append(param)
 
     for child_name, child_mod in module.named_children():
         child_prefix = f"{prefix}.{child_name}" if prefix else child_name
