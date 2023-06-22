@@ -1,10 +1,11 @@
 """Vis4D LR schedulers."""
 from __future__ import annotations
 
-from torch.optim import Optimizer, lr_scheduler
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 
-class PolyLR(lr_scheduler._LRScheduler):  # pylint: disable=protected-access
+class PolyLR(LRScheduler):
     """Polynomial learning rate decay.
 
     Example:

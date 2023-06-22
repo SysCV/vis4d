@@ -12,6 +12,7 @@ pillow
 plyfile
 pycocotools
 setuptools
+tensorboard
 termcolor
 terminaltables
 torch>=1.10

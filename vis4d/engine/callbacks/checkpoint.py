@@ -30,16 +30,34 @@ class CheckpointCallback(Callback):
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
         self.output_dir = broadcast(self.output_dir)
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def on_train_epoch_end(
         self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
         """Hook to run at the end of a training epoch."""
-        # TODO, save full state dict with optimizer, scheduler, etc.
         if get_rank() == 0:
-            os.makedirs(self.output_dir, exist_ok=True)
-            current_epoch = trainer_state["current_epoch"]
+            epoch = trainer_state["current_epoch"]
+            step = trainer_state["global_step"] - 1
+            ckpt_dict = {
+                "epoch": epoch,
+                "global_step": step,
+                "state_dict": model.state_dict(),
+                "optimizers": [
+                    opt.optimizer.state_dict()
+                    for opt in trainer_state["optimizers"]
+                ],
+                "lr_schedulers": [
+                    opt.lr_scheduler.state_dict()
+                    if opt.lr_scheduler is not None
+                    else None
+                    for opt in trainer_state["optimizers"]
+                ],
+            }
+
             torch.save(
-                model.state_dict(),
-                f"{self.output_dir}/model_e{current_epoch + 1}.pt",
+                ckpt_dict,
+                f"{self.output_dir}/epoch={epoch}-step={step}.ckpt",
             )
+
+            torch.save(ckpt_dict, f"{self.output_dir}/last.ckpt")

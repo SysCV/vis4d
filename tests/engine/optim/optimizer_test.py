@@ -38,7 +38,7 @@ def get_optimizer(
         epoch_based_lr=epoch_based_lr,
         epoch_based_warmup=epoch_based_warmup,
     )
-    return set_up_optimizers([optimizer_cfg], model)
+    return set_up_optimizers([optimizer_cfg], [model])
 
 
 class TestOptimizer(unittest.TestCase):

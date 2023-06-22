@@ -11,6 +11,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import (
     broadcast,
     get_local_rank,
@@ -36,9 +37,12 @@ from .trainer import Trainer
 # e.g. --config=model_1.py --config=loader_args.py
 # or --config=my_config.py --config.train_dl=different_dl.py
 
+# TODO: Support resume from folder and load config directly from it.
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+_CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
+_RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
@@ -149,7 +153,7 @@ def main(argv: ArgsType) -> None:
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
         train_data_connector = instantiate_classes(config.train_data_connector)
-        optimizers = set_up_optimizers(config.optimizers, model)
+        optimizers = set_up_optimizers(config.optimizers, [model])
         loss = instantiate_classes(config.loss)
     else:
         train_dataloader = None
@@ -176,8 +180,43 @@ def main(argv: ArgsType) -> None:
     for cb in callbacks:
         cb.setup()
 
+    # Checkpoint path
+    ckpt_path = _CKPT.value
+
+    # Resume training
+    resume = _RESUME.value
+    if resume:
+        if ckpt_path is None:
+            ckpt_path = os.path.join(
+                config.output_dir, "checkpoints/last.ckpt"
+            )
+        rank_zero_info(
+            f"Restoring states from the checkpoint path at {ckpt_path}"
+        )
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+
+        epoch = ckpt["epoch"] + 1
+        global_step = ckpt["global_step"] + 1
+
+        for i, optim in enumerate(optimizers):
+            optim.optimizer.load_state_dict(ckpt["optimizers"][i])
+
+            if ckpt["lr_schedulers"][i] is not None:
+                optim.lr_scheduler.load_state_dict(ckpt["lr_schedulers"][i])
+    else:
+        epoch = 0
+        global_step = 0
+
+    if ckpt_path is not None:
+        load_model_checkpoint(
+            model,
+            ckpt_path,
+            rev_keys=[(r"^model\.", ""), (r"^module\.", "")],
+        )
+
     trainer = Trainer(
         device=device,
+        output_dir=config.output_dir,
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,
         train_data_connector=train_data_connector,
@@ -185,9 +224,16 @@ def main(argv: ArgsType) -> None:
         callbacks=callbacks,
         num_epochs=config.params.get("num_epochs", -1),
         num_steps=config.params.get("num_steps", -1),
+        epoch=epoch,
+        global_step=global_step,
         check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
         val_check_interval=config.get("val_check_interval", None),
     )
+
+    if resume:
+        rank_zero_info(
+            f"Restored all states from the checkpoint at {ckpt_path}"
+        )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?
     if _SWEEP.value is not None:

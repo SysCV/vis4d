@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from typing_extensions import NotRequired
 
 from vis4d.data.typing import DictData
+from vis4d.engine.optim import Optimizer
 
 
 class TrainerState(TypedDict):
@@ -22,6 +23,7 @@ class TrainerState(TypedDict):
         test_dataloader (list[DataLoader[DictData]] | None): List of test
             dataloaders.
         num_test_batches (list[int] | None): List of number of test batches.
+        optimizers (list[Optimizer] | None): List of optimizers.
         metrics (NotRequired[dict[str, float]]): Metrics for the logging.
     """
 
@@ -33,4 +35,5 @@ class TrainerState(TypedDict):
     num_train_batches: int | None
     test_dataloader: list[DataLoader[DictData]] | None
     num_test_batches: list[int] | None
+    optimizers: list[Optimizer] | None
     metrics: NotRequired[dict[str, float]]

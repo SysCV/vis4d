@@ -15,9 +15,9 @@ from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
     (r"^backbone\.", "basemodel."),
-    (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
-    (r"^rpn_head.rpn_", "faster_rcnn_heads.rpn_head.rpn_"),
-    (r"^roi_head.bbox_head\.", "faster_rcnn_heads.roi_head."),
+    (r"^rpn_head.rpn_reg\.", "faster_rcnn_head.rpn_head.rpn_box."),
+    (r"^rpn_head.rpn_", "faster_rcnn_head.rpn_head.rpn_"),
+    (r"^roi_head.bbox_head\.", "faster_rcnn_head.roi_head."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),

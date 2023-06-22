@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.tensorboard import SummaryWriter
 
+from vis4d.common.distributed import rank_zero_only
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
@@ -22,6 +24,7 @@ class Trainer:
     def __init__(
         self,
         device: torch.device,
+        output_dir: str,
         train_dataloader: DataLoader[DictData] | None,
         test_dataloader: list[DataLoader[DictData]] | None,
         train_data_connector: DataConnector | None,
@@ -60,6 +63,7 @@ class Trainer:
                 the model during training. Defaults to None.
         """
         self.device = device
+        self.output_dir = output_dir
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
         self.train_data_connector = train_data_connector
@@ -83,6 +87,33 @@ class Trainer:
 
         self.epoch = epoch
         self.global_step = global_step
+
+        self._setup_logger()
+
+    @rank_zero_only
+    def _setup_logger(self) -> None:
+        """Setup trainer logger."""
+        self.writer = SummaryWriter(self.output_dir)
+
+    @rank_zero_only
+    def _teardown_logger(self) -> None:
+        """Teardown trainer logger."""
+        self.writer.close()
+
+    @rank_zero_only
+    def _log_scalar(self, tag: str, scalar_value: float) -> None:
+        """Setup trainer logger."""
+        self.writer.add_scalar(tag, scalar_value, self.global_step)
+
+    def _log_lr(self, optimizer: optim.optimizer) -> None:
+        """Log learning rate."""
+        tag = f"lr-{optimizer.__class__.__name__}"
+
+        if len(optimizer.param_groups) > 1:
+            for i, param_group in enumerate(optimizer.param_groups):
+                self._log_scalar(f"{tag}/pg{i+1}", param_group["lr"])
+        else:
+            self._log_scalar(tag, optimizer.param_groups[0]["lr"])
 
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
@@ -112,19 +143,24 @@ class Trainer:
 
     def done(self) -> bool:
         """Return whether training is done."""
+        is_done = False
         if _is_max_limit_reached(self.global_step, self.num_steps):
             rank_zero_info(
                 f"`Trainer.fit` stopped: `num_steps={self.num_steps!r}` "
                 + "reached."
             )
-            return True
-        if _is_max_limit_reached(self.epoch, self.num_epochs):
+            is_done = True
+        elif _is_max_limit_reached(self.epoch, self.num_epochs):
             rank_zero_info(
                 f"`Trainer.fit` stopped: `num_epochs={self.num_epochs!r}` "
                 + "reached."
             )
-            return True
-        return False
+            is_done = True
+
+        if is_done:
+            self._teardown_logger()
+
+        return is_done
 
     def fit(
         self,
@@ -155,6 +191,10 @@ class Trainer:
             # Run callbacks for epoch begin
             for callback in self.callbacks:
                 callback.on_train_epoch_start(self.get_state(), model)
+
+            # Epoch-based LR warmup
+            for opt in optimizers:
+                opt.warmup_on_epoch(self.epoch)
 
             # Set model to train mode
             model.train()
@@ -205,16 +245,27 @@ class Trainer:
                 total_loss.backward()
 
                 for opt in optimizers:
-                    opt.step_on_batch(self.global_step)
+                    # Step-based LR warmup
+                    opt.warmup_on_batch(self.global_step)
+
+                    # Log learning rate
+                    self._log_lr(opt.optimizer)
+
+                    # Step optimizers
+                    opt.step_on_batch()
 
                 for callback in self.callbacks:
-                    callback.on_train_batch_end(
+                    log_dict = callback.on_train_batch_end(
                         trainer_state=self.get_state(metrics),
                         model=model,
                         outputs=output,
                         batch=data,
                         batch_idx=batch_idx,
                     )
+
+                    if log_dict is not None:
+                        for k, v in log_dict.items():
+                            self._log_scalar(f"train/{k}", v)
 
                 # Testing (step-based)
                 if (
@@ -226,37 +277,41 @@ class Trainer:
                     # Set model back to train mode
                     model.train()
 
+                self.global_step += 1
+
                 if self.done():
                     return
 
-                self.global_step += 1
-
             # Update learning rate on epoch
             for opt in optimizers:
-                opt.step_on_epoch(self.epoch)
+                opt.step_on_epoch()
 
             # Run callbacks for epoch end
             for callback in self.callbacks:
-                callback.on_train_epoch_end(self.get_state(), model)
+                callback.on_train_epoch_end(
+                    self.get_state(optimizers=optimizers), model
+                )
 
             # Testing (epoch-based)
             if (
                 self._run_test_on_epoch(self.epoch)
                 and self.test_dataloader is not None
             ):
-                self.test(model)
+                self.test(model, is_val=True)
+
+            self.epoch += 1
 
             if self.done():
                 return
 
-            self.epoch += 1
-
     @torch.no_grad()
-    def test(self, model: nn.Module) -> None:
+    def test(self, model: nn.Module, is_val: bool = False) -> None:
         """Testing loop.
 
         Args:
             model (nn.Module): Model that should be tested.
+            is_val (bool): Whether the test is run on the validation set during
+                training.
         """
         assert self.test_data_connector is not None, "No test data connector."
         assert self.test_dataloader is not None, "No test dataloader."
@@ -287,10 +342,17 @@ class Trainer:
 
         # run callbacks on test epoch end
         for callback in self.callbacks:
-            callback.on_test_epoch_end(self.get_state(), model)
+            log_dict = callback.on_test_epoch_end(self.get_state(), model)
+
+            if log_dict is not None:
+                for k, v in log_dict.items():
+                    key = f"val/{k}" if is_val else f"test/{k}"
+                    self._log_scalar(key, v)
 
     def get_state(
-        self, metrics: dict[str, float] | None = None
+        self,
+        metrics: dict[str, float] | None = None,
+        optimizers: list[Optimizer] | None = None,
     ) -> TrainerState:
         """Get the state of the trainer."""
         num_train_batches = (
@@ -318,6 +380,9 @@ class Trainer:
 
         if metrics is not None:
             trainer_state["metrics"] = metrics
+
+        if optimizers is not None:
+            trainer_state["optimizers"] = optimizers
 
         return trainer_state
 
