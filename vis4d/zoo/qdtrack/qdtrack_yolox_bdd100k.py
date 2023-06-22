@@ -15,6 +15,7 @@ from vis4d.config.default import (
 )
 from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
 from vis4d.config.util import (
+    get_callable_cfg,
     get_inference_dataloaders_cfg,
     get_optimizer_cfg,
     get_train_dataloader_cfg,
@@ -48,12 +49,16 @@ from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
+    LossConnector,
     data_key,
     pred_key,
 )
+from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import QuadraticLRWarmup
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import YOLOXQDTrack
+from vis4d.op.loss.common import smooth_l1_loss
+from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 from vis4d.vis.image import BoundingBoxVisualizer
 
 CONN_BBOX_2D_TRAIN = {
@@ -83,6 +88,13 @@ CONN_BDD100K_EVAL = {
     "pred_track_ids": pred_key("track_ids"),
 }
 
+CONN_TRACK_LOSS_2D = {
+    "key_embeddings": pred_key("key_embeddings"),
+    "ref_embeddings": pred_key("ref_embeddings"),
+    "key_track_ids": pred_key("key_track_ids"),
+    "ref_track_ids": pred_key("ref_track_ids"),
+}
+
 
 def get_train_dataloader(
     data_backend: None | ConfigDict,
@@ -101,7 +113,7 @@ def get_train_dataloader(
         data_backend=data_backend,
         skip_empty_samples=True,
         cache_as_binary=True,
-        cached_file_path="data/bdd100k/det_train.pkl",
+        cached_file_path="data/bdd100k/pkl/det_train.pkl",
     )
 
     bdd100k_track_train = class_config(
@@ -115,7 +127,7 @@ def get_train_dataloader(
         data_backend=data_backend,
         skip_empty_samples=True,
         cache_as_binary=True,
-        cached_file_path="data/bdd100k/track_train.pkl",
+        cached_file_path="data/bdd100k/pkl/track_train.pkl",
     )
 
     train_dataset_cfg = [
@@ -126,13 +138,13 @@ def get_train_dataloader(
                 UniformViewSampler, scope=0, num_ref_samples=1
             ),
         ),
-        class_config(
-            MultiViewDataset,
-            dataset=bdd100k_track_train,
-            sampler=class_config(
-                UniformViewSampler, scope=3, num_ref_samples=1
-            ),
-        ),
+        # class_config(
+        #     MultiViewDataset,
+        #     dataset=bdd100k_track_train,
+        #     sampler=class_config(
+        #         UniformViewSampler, scope=3, num_ref_samples=1
+        #     ),
+        # ),
     ]
 
     preprocess_transforms = [
@@ -283,7 +295,34 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                        LOSS                      ##
     ######################################################
-    config.loss = None  # TODO: implement loss
+    # rcnn_box_encoder, _ = get_default_rcnn_box_codec_cfg()
+
+    # rcnn_loss = class_config(
+    #     RCNNLoss,
+    #     box_encoder=rcnn_box_encoder,
+    #     num_classes=num_classes,
+    #     loss_bbox=get_callable_cfg(smooth_l1_loss),
+    # )
+
+    track_loss = class_config(QDTrackInstanceSimilarityLoss)
+
+    config.loss = class_config(
+        LossModule,
+        losses=[
+            # {
+            #     "loss": rcnn_loss,
+            #     "connector": class_config(
+            #         LossConnector, key_mapping=CONN_ROI_LOSS_2D
+            #     ),
+            # },
+            {
+                "loss": track_loss,
+                "connector": class_config(
+                    LossConnector, key_mapping=CONN_TRACK_LOSS_2D
+                ),
+            },
+        ],
+    )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -305,6 +344,10 @@ def get_config() -> FieldConfigDict:
             ),
             epoch_based_lr=True,
             epoch_based_warmup=False,
+            param_groups_cfg=[
+                {"custom_keys": ["basemodel", "fpn", "yolox_head"], "norm_decay_mult": 0.0},
+                {"custom_keys": ["basemodel", "fpn", "yolox_head"], "bias_decay_mult": 0.0},
+            ],
         )
     ]
 
