@@ -16,18 +16,18 @@ from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
 from vis4d.data.transforms.base import RandomApply, compose
-from vis4d.data.transforms.flip import (
-    FlipBoxes2D,
-    FlipImages,
-    FlipInstanceMasks,
+from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
+from vis4d.data.transforms.mosaic import (
+    GenerateMosaicParameters,
+    MosaicBoxes2D,
+    MosaicImages,
 )
-from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
-    ResizeInstanceMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
@@ -65,41 +65,48 @@ def get_train_dataloader(
         data_root=data_root,
         split=split,
         remove_empty=True,
+        image_channel_mode="BGR",
         data_backend=data_backend,
     )
 
     # Train Preprocessing
     preprocess_transforms = [
+        class_config(GenerateMosaicParameters, out_shape=(800, 1440)),
+        class_config(MosaicImages),
+        class_config(MosaicBoxes2D),
+    ]
+
+    preprocess_transforms.append(class_config(ColorJitter))
+
+    preprocess_transforms.append(
+        class_config(
+            RandomApply,
+            transforms=[class_config(FlipImages), class_config(FlipBoxes2D)],
+            probability=0.5,
+        )
+    )
+
+    preprocess_transforms += [
         class_config(
             GenerateResizeParameters,
             shape=image_size,
+            scale_range=(0.5, 1.5),
             keep_ratio=True,
-            align_long_edge=True,
         ),
         class_config(ResizeImages),
         class_config(ResizeBoxes2D),
     ]
-
-    if K.instance_masks in keys_to_load:
-        preprocess_transforms.append(class_config(ResizeInstanceMasks))
-
-    flip_transforms = [class_config(FlipImages), class_config(FlipBoxes2D)]
-
-    if K.instance_masks in keys_to_load:
-        flip_transforms.append(class_config(FlipInstanceMasks))
-
-    preprocess_transforms.append(
-        class_config(RandomApply, transforms=flip_transforms, probability=0.5)
-    )
-
-    preprocess_transforms.append(class_config(NormalizeImages))
 
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     train_batchprocess_cfg = class_config(
-        compose, transforms=[class_config(PadImages), class_config(ToTensor)]
+        compose,
+        transforms=[
+            class_config(PadImages, value=114.0, pad2square=True),
+            class_config(ToTensor),
+        ],
     )
 
     return get_train_dataloader_cfg(

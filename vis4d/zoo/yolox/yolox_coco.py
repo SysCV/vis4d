@@ -1,10 +1,10 @@
 # pylint: disable=duplicate-code
-"""YOLOX COCO training example."""
+"""YOLOX COCO."""
 from __future__ import annotations
 
 import lightning.pytorch as pl
 from torch.optim import SGD
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vis4d.config import FieldConfigDict, class_config
 from vis4d.config.common.datasets.coco.yolox import (
@@ -22,13 +22,31 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_VIS,
 )
 from vis4d.config.util import get_optimizer_cfg
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
-from vis4d.engine.connectors import CallbackConnector, DataConnector
-from vis4d.engine.optim.warmup import LinearLRWarmup
+from vis4d.engine.connectors import (
+    CallbackConnector,
+    DataConnector,
+    LossConnector,
+    data_key,
+    pred_key,
+)
+from vis4d.engine.loss_module import LossModule
+from vis4d.engine.optim.warmup import QuadraticLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
+from vis4d.op.detect.yolox import YOLOXHeadLoss
 from vis4d.vis.image import BoundingBoxVisualizer
+
+CONN_YOLOX_LOSS_2D = {
+    "cls_outs": pred_key("cls_score"),
+    "reg_outs": pred_key("bbox_pred"),
+    "obj_outs": pred_key("objectness"),
+    "target_boxes": data_key(K.boxes2d),
+    "target_class_ids": data_key(K.boxes2d_classes),
+    "images_hw": data_key(K.input_hw),
+}
 
 
 def get_config() -> FieldConfigDict:
@@ -40,14 +58,14 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="yolox_x_coco")
+    config = get_default_cfg(exp_name="yolox_s_300e_coco")
 
     # High level hyper parameters
     params = FieldConfigDict()
-    params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
+    params.samples_per_gpu = 8
+    params.workers_per_gpu = 4
     params.lr = 0.01
-    params.num_epochs = 12
+    params.num_epochs = 300
     params.num_classes = 80
     config.params = params
 
@@ -72,8 +90,20 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                  MODEL & LOSS                    ##
     ######################################################
-    config.model = class_config(
-        YOLOX, num_classes=params.num_classes, weights="mmdet"
+    config.model = class_config(YOLOX, num_classes=params.num_classes)
+
+    config.loss = class_config(
+        LossModule,
+        losses=[
+            {
+                "loss": class_config(
+                    YOLOXHeadLoss, num_classes=params.num_classes
+                ),
+                "connector": class_config(
+                    LossConnector, key_mapping=CONN_YOLOX_LOSS_2D
+                ),
+            },
+        ],
     )
 
     ######################################################
@@ -82,16 +112,30 @@ def get_config() -> FieldConfigDict:
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
-                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
+                SGD,
+                lr=params.lr,
+                momentum=0.9,
+                weight_decay=0.0005,
+                nesterov=True,
             ),
             lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
+                CosineAnnealingLR, T_max=999, eta_min=params.lr * 0.05
             ),
             lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
+                QuadraticLRWarmup, warmup_ratio=1.0, warmup_steps=1000
             ),
             epoch_based_lr=True,
             epoch_based_warmup=False,
+            param_groups_cfg=[
+                {
+                    "custom_keys": ["basemodel", "fpn", "yolox_head"],
+                    "norm_decay_mult": 0.0,
+                },
+                {
+                    "custom_keys": ["basemodel", "fpn", "yolox_head"],
+                    "bias_decay_mult": 0.0,
+                },
+            ],
         )
     ]
 
