@@ -345,8 +345,14 @@ def get_config() -> FieldConfigDict:
             epoch_based_lr=True,
             epoch_based_warmup=False,
             param_groups_cfg=[
-                {"custom_keys": ["basemodel", "fpn", "yolox_head"], "norm_decay_mult": 0.0},
-                {"custom_keys": ["basemodel", "fpn", "yolox_head"], "bias_decay_mult": 0.0},
+                {
+                    "custom_keys": ["basemodel", "fpn", "yolox_head"],
+                    "norm_decay_mult": 0.0,
+                },
+                {
+                    "custom_keys": ["basemodel", "fpn", "yolox_head"],
+                    "bias_decay_mult": 0.0,
+                },
             ],
         )
     ]

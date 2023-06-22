@@ -9,16 +9,16 @@ from vis4d.common.typing import (
     ArrayLikeBool,
     ArrayLikeFloat,
     ArrayLikeInt,
-    NDArrayUI8,
     NDArrayF32,
+    NDArrayUI8,
 )
 from vis4d.vis.image.canvas import CanvasBackend, PillowCanvasBackend
 from vis4d.vis.image.util import (
+    get_intersection_point,
     preprocess_boxes,
+    preprocess_boxes3d,
     preprocess_image,
     preprocess_masks,
-    preprocess_boxes3d,
-    get_intersection_point,
 )
 from vis4d.vis.image.viewer import ImageViewerBackend, MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map

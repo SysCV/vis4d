@@ -5,10 +5,10 @@ from collections.abc import Callable
 
 from ml_collections import ConfigDict
 from torch import nn, optim
-from torch.optim.lr_scheduler import LRScheduler
 from torch.nn import GroupNorm, LayerNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.modules.instancenorm import _InstanceNorm
+from torch.optim.lr_scheduler import LRScheduler
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
@@ -171,16 +171,20 @@ def configure_optimizer(
         for group in param_groups_cfg:
             lr_mult = group.get("lr_mult", 1.0)
             decay_mult = group.get("decay_mult", 1.0)
-            norm_decay_mult = group.get('norm_decay_mult', None)
-            bias_decay_mult = group.get('bias_decay_mult', None)
+            norm_decay_mult = group.get("norm_decay_mult", None)
+            bias_decay_mult = group.get("bias_decay_mult", None)
 
             param_group = {"params": [], "lr": base_lr * lr_mult}
 
             if weight_decay is not None:
                 if norm_decay_mult is not None:
-                    param_group["weight_decay"] = weight_decay * norm_decay_mult
+                    param_group["weight_decay"] = (
+                        weight_decay * norm_decay_mult
+                    )
                 elif bias_decay_mult is not None:
-                    param_group["weight_decay"] = weight_decay * bias_decay_mult
+                    param_group["weight_decay"] = (
+                        weight_decay * bias_decay_mult
+                    )
                 else:
                     param_group["weight_decay"] = weight_decay * decay_mult
 
@@ -228,7 +232,9 @@ def add_params(
             params[-1]["params"].append(param)
             continue
 
-        is_norm = isinstance(module, (_BatchNorm, _InstanceNorm, GroupNorm, LayerNorm))
+        is_norm = isinstance(
+            module, (_BatchNorm, _InstanceNorm, GroupNorm, LayerNorm)
+        )
 
         # if the parameter match one of the custom keys, ignore other rules
         is_custom = False
@@ -237,8 +243,8 @@ def add_params(
             for key in group["custom_keys"]:
                 if key not in f"{prefix}.{name}":
                     continue
-                norm_decay_mult = group.get('norm_decay_mult', None)
-                bias_decay_mult = group.get('bias_decay_mult', None)
+                norm_decay_mult = group.get("norm_decay_mult", None)
+                bias_decay_mult = group.get("bias_decay_mult", None)
                 if group.get("lr_mult", None) is not None:
                     msg += f" with lr_mult: {group['lr_mult']}"
                 if norm_decay_mult is not None:

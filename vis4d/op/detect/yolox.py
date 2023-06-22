@@ -1,17 +1,21 @@
-"""YOLOX detection head."""
+"""YOLOX detection head.
+
+Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
+"""
 from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import NamedTuple
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torchvision.ops import batched_nms
 
+from vis4d.common import TorchLossFunc
 from vis4d.op.box.anchor import MlvlPointGenerator
 from vis4d.op.box.encoder import YOLOXBBoxDecoder
-from vis4d.op.box.matchers import Matcher
-from vis4d.op.box.samplers import Sampler
+from vis4d.op.box.matchers import Matcher, SimOTAMatcher
+from vis4d.op.box.samplers import PseudoSampler
 from vis4d.op.layer import Conv2d
 
 from .common import DetOut
@@ -65,8 +69,6 @@ class YOLOXHead(nn.Module):
         strides: Sequence[int] = (8, 16, 32),
         point_generator: MlvlPointGenerator | None = None,
         box_decoder: YOLOXBBoxDecoder | None = None,
-        box_matcher: Matcher | None = None,
-        box_sampler: Sampler | None = None,
     ):
         """Creates an instance of the class."""
         super().__init__()
@@ -79,8 +81,6 @@ class YOLOXHead(nn.Module):
             self.box_decoder = YOLOXBBoxDecoder()
         else:
             self.box_decoder = box_decoder
-        self.box_matcher = box_matcher
-        self.box_sampler = box_sampler
 
         self.multi_level_cls_convs = nn.ModuleList()
         self.multi_level_reg_convs = nn.ModuleList()
@@ -219,6 +219,61 @@ def bboxes_nms(
     return bboxes.new_zeros(0, 4), scores.new_zeros(0), labels.new_zeros(0)
 
 
+def preprocess_outputs(
+    cls_outs: list[torch.Tensor],
+    reg_outs: list[torch.Tensor],
+    obj_outs: list[torch.Tensor],
+    images_hw: list[tuple[int, int]],
+    point_generator: MlvlPointGenerator,
+    box_decoder: YOLOXBBoxDecoder,
+) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+    """Preprocess model outputs before postprocessing/loss computation.
+
+    Args:
+        cls_outs (list[torch.Tensor]): [N, C, H, W] per scale.
+        reg_outs (list[torch.Tensor]): [N, 4, H, W] per scale.
+        obj_outs (list[torch.Tensor]): [N, 1, H, W] per scale.
+        images_hw (list[tuple[int, int]]): List of image sizes.
+        point_generator (MlvlPointGenerator): Point generator.
+        box_decoder (YOLOXBBoxDecoder): Box decoder.
+
+    Returns:
+        tuple[Tensor, Tensor, Tensor, Tensor, Tensor]: Flattened outputs.
+    """
+    dtype, device = cls_outs[0].dtype, cls_outs[0].device
+    num_imgs = len(images_hw)
+    num_classes = cls_outs[0].shape[1]
+    featmap_sizes: list[tuple[int, int]] = [
+        tuple(featmap.size()[-2:]) for featmap in cls_outs  # type: ignore
+    ]
+    assert len(featmap_sizes) == point_generator.num_levels
+    mlvl_points = point_generator.grid_priors(
+        featmap_sizes, dtype=dtype, device=device, with_stride=True
+    )
+
+    # flatten cls_outs, reg_outs and obj_outs
+    cls_list = [
+        cls_score.permute(0, 2, 3, 1).reshape(num_imgs, -1, num_classes)
+        for cls_score in cls_outs
+    ]
+    reg_list = [
+        bbox_pred.permute(0, 2, 3, 1).reshape(num_imgs, -1, 4)
+        for bbox_pred in reg_outs
+    ]
+    obj_list = [
+        objectness.permute(0, 2, 3, 1).reshape(num_imgs, -1)
+        for objectness in obj_outs
+    ]
+
+    flatten_cls = torch.cat(cls_list, dim=1).sigmoid()
+    flatten_reg = torch.cat(reg_list, dim=1)
+    flatten_obj = torch.cat(obj_list, dim=1).sigmoid()
+    flatten_points = torch.cat(mlvl_points)
+
+    flatten_boxes = box_decoder(flatten_points, flatten_reg)
+    return flatten_cls, flatten_reg, flatten_obj, flatten_points, flatten_boxes
+
+
 class YOLOXPostprocess(nn.Module):
     """Postprocess detections from YOLOX detection head.
 
@@ -263,37 +318,14 @@ class YOLOXPostprocess(nn.Module):
         Returns:
             DetOut: Detection outputs.
         """
-        dtype, device = cls_outs[0].dtype, cls_outs[0].device
-        num_imgs = len(images_hw)
-        num_classes = cls_outs[0].shape[1]
-        featmap_sizes: list[tuple[int, int]] = [
-            tuple(featmap.size()[-2:]) for featmap in cls_outs  # type: ignore
-        ]
-        assert len(featmap_sizes) == self.point_generator.num_levels
-        mlvl_points = self.point_generator.grid_priors(
-            featmap_sizes, dtype=dtype, device=device, with_stride=True
+        flatten_cls, _, flatten_obj, _, flatten_boxes = preprocess_outputs(
+            cls_outs,
+            reg_outs,
+            obj_outs,
+            images_hw,
+            self.point_generator,
+            self.box_decoder,
         )
-
-        # flatten cls_outs, reg_outs and obj_outs
-        cls_list = [
-            cls_score.permute(0, 2, 3, 1).reshape(num_imgs, -1, num_classes)
-            for cls_score in cls_outs
-        ]
-        reg_list = [
-            bbox_pred.permute(0, 2, 3, 1).reshape(num_imgs, -1, 4)
-            for bbox_pred in reg_outs
-        ]
-        obj_list = [
-            objectness.permute(0, 2, 3, 1).reshape(num_imgs, -1)
-            for objectness in obj_outs
-        ]
-
-        flatten_cls = torch.cat(cls_list, dim=1).sigmoid()
-        flatten_reg = torch.cat(reg_list, dim=1)
-        flatten_obj = torch.cat(obj_list, dim=1).sigmoid()
-        flatten_points = torch.cat(mlvl_points)
-
-        flatten_boxes = self.box_decoder(flatten_points, flatten_reg)
 
         bbox_list, score_list, label_list = [], [], []
         for img_id, _ in enumerate(images_hw):
@@ -318,3 +350,209 @@ class YOLOXPostprocess(nn.Module):
     ) -> DetOut:
         """Type definition for function call."""
         return self._call_impl(cls_outs, reg_outs, obj_outs, images_hw)
+
+
+class YOLOXHeadLosses(NamedTuple):
+    """YOLOX head loss container."""
+
+    loss_cls: Tensor
+    loss_bbox: Tensor
+
+
+def _get_target_single(
+    self, cls_preds, objectness, priors, decoded_bboxes, gt_bboxes, gt_labels
+):
+    """Compute classification, regression, and objectness targets for
+    priors in a single image.
+    Args:
+        cls_preds (Tensor): Classification predictions of one image,
+            a 2D-Tensor with shape [num_priors, num_classes]
+        objectness (Tensor): Objectness predictions of one image,
+            a 1D-Tensor with shape [num_priors]
+        priors (Tensor): All priors of one image, a 2D-Tensor with shape
+            [num_priors, 4] in [cx, xy, stride_w, stride_y] format.
+        decoded_bboxes (Tensor): Decoded bboxes predictions of one image,
+            a 2D-Tensor with shape [num_priors, 4] in [tl_x, tl_y,
+            br_x, br_y] format.
+        gt_bboxes (Tensor): Ground truth bboxes of one image, a 2D-Tensor
+            with shape [num_gts, 4] in [tl_x, tl_y, br_x, br_y] format.
+        gt_labels (Tensor): Ground truth labels of one image, a Tensor
+            with shape [num_gts].
+    """
+
+    num_priors = priors.size(0)
+    num_gts = gt_labels.size(0)
+    gt_bboxes = gt_bboxes.to(decoded_bboxes.dtype)
+    # No target
+    if num_gts == 0:
+        cls_target = cls_preds.new_zeros((0, self.num_classes))
+        bbox_target = cls_preds.new_zeros((0, 4))
+        l1_target = cls_preds.new_zeros((0, 4))
+        obj_target = cls_preds.new_zeros((num_priors, 1))
+        foreground_mask = cls_preds.new_zeros(num_priors).bool()
+        return (
+            foreground_mask,
+            cls_target,
+            obj_target,
+            bbox_target,
+            l1_target,
+            0,
+        )
+
+    # YOLOX uses center priors with 0.5 offset to assign targets,
+    # but use center priors without offset to regress bboxes.
+    offset_priors = torch.cat(
+        [priors[:, :2] + priors[:, 2:] * 0.5, priors[:, 2:]], dim=-1
+    )
+
+    assign_result = self.assigner.assign(
+        cls_preds.sigmoid() * objectness.unsqueeze(1).sigmoid(),
+        offset_priors,
+        decoded_bboxes,
+        gt_bboxes,
+        gt_labels,
+    )
+
+    sampling_result = self.sampler.sample(assign_result, priors, gt_bboxes)
+    pos_inds = sampling_result.pos_inds
+    num_pos_per_img = pos_inds.size(0)
+
+    pos_ious = assign_result.max_overlaps[pos_inds]
+    # IOU aware classification score
+    cls_target = F.one_hot(
+        sampling_result.pos_gt_labels, self.num_classes
+    ) * pos_ious.unsqueeze(-1)
+    obj_target = torch.zeros_like(objectness).unsqueeze(-1)
+    obj_target[pos_inds] = 1
+    bbox_target = sampling_result.pos_gt_bboxes
+    l1_target = cls_preds.new_zeros((num_pos_per_img, 4))
+    if self.use_l1:
+        l1_target = get_l1_target(l1_target, bbox_target, priors[pos_inds])
+    foreground_mask = torch.zeros_like(objectness).to(torch.bool)
+    foreground_mask[pos_inds] = 1
+    return (
+        foreground_mask,
+        cls_target,
+        obj_target,
+        bbox_target,
+        l1_target,
+        num_pos_per_img,
+    )
+
+
+def get_l1_target(l1_target, gt_bboxes, priors, eps=1e-8):
+    """Convert gt bboxes to center offset and log width height."""
+    gt_cxcywh = bbox_xyxy_to_cxcywh(gt_bboxes)
+    l1_target[:, :2] = (gt_cxcywh[:, :2] - priors[:, :2]) / priors[:, 2:]
+    l1_target[:, 2:] = torch.log(gt_cxcywh[:, 2:] / priors[:, 2:] + eps)
+    return l1_target
+
+
+class YOLOXHeadLoss(nn.Module):
+    """Loss of YOLOX head."""
+
+    def __init__(
+        self,
+        point_generator: MlvlPointGenerator,
+        box_decoder: YOLOXBBoxDecoder,
+        loss_cls: TorchLossFunc = sigmoid_focal_loss,
+        loss_bbox: TorchLossFunc = l1_loss,
+        loss_obj: TorchLossFunc = l1_loss,
+        loss_l1: TorchLossFunc = l1_loss,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            point_generator (MlvlPointGenerator): Point generator.
+            box_decoder (YOLOXBBoxDecoder): Box decoder.
+            loss_cls (TorchLossFunc, optional): Classification loss function.
+                Defaults to sigmoid_focal_loss.
+            loss_bbox (TorchLossFunc, optional): Regression loss function.
+                Defaults to l1_loss.
+        """
+        super().__init__()
+        self.point_generator = point_generator
+        self.box_decoder = box_decoder
+        self.matcher = SimOTAMatcher()
+        self.box_sampler = PseudoSampler()
+        self.loss_cls = loss_cls
+        self.loss_bbox = loss_bbox
+        self.loss_obj = loss_obj
+        self.loss_l1 = loss_l1
+
+    def forward(
+        self,
+        cls_outs: list[Tensor],
+        reg_outs: list[Tensor],
+        obj_outs: list[Tensor],
+        target_boxes: list[Tensor],
+        images_hw: list[tuple[int, int]],
+        target_class_ids: list[Tensor | float] | None = None,
+    ) -> YOLOXHeadLosses:
+        """Compute RetinaNet classification and regression losses.
+
+        Args:
+            cls_outs (list[Tensor]): Network classification outputs at all
+                scales.
+            reg_outs (list[Tensor]): Network regression outputs at all scales.
+            obj_outs (list[Tensor]): Network objectness outputs at all scales.
+            target_boxes (list[Tensor]): Target bounding boxes.
+            images_hw (list[tuple[int, int]]): Image dimensions without
+                padding.
+            target_class_ids (list[Tensor] | None, optional): Target
+                class labels.
+
+        Returns:
+            DenseAnchorHeadLosses: Classification and regression losses.
+        """
+        (
+            flatten_cls,
+            flatten_reg,
+            flatten_obj,
+            flatten_points,
+            flatten_boxes,
+        ) = preprocess_outputs(
+            cls_outs,
+            reg_outs,
+            obj_outs,
+            images_hw,
+            self.point_generator,
+            self.box_decoder,
+        )
+
+        targets_per_level, num_samples = get_targets_per_batch(
+            featmap_sizes,
+            target_boxes,
+            target_class_ids,
+            images_hw,
+            self.anchor_generator,
+            self.box_encoder,
+            self.matcher,
+            self.sampler,
+            self.allowed_border,
+        )
+
+        device = cls_outs[0].device
+        loss_cls_all = torch.tensor(0.0, device=device)
+        loss_bbox_all = torch.tensor(0.0, device=device)
+        for level_id, (cls_out, reg_out) in enumerate(zip(cls_outs, reg_outs)):
+            box_tgt, box_wgt, lbl, lbl_wgt = targets_per_level[level_id]
+            loss_cls, loss_bbox = self._loss_single_scale(
+                cls_out, reg_out, box_tgt, box_wgt, lbl, lbl_wgt, num_samples
+            )
+            loss_cls_all += loss_cls
+            loss_bbox_all += loss_bbox
+        return YOLOXHeadLosses(loss_cls=loss_cls_all, loss_bbox=loss_bbox_all)
+
+    def __call__(
+        self,
+        cls_outs: list[Tensor],
+        reg_outs: list[Tensor],
+        target_boxes: list[Tensor],
+        images_hw: list[tuple[int, int]],
+        target_class_ids: list[Tensor] | None = None,
+    ) -> YOLOXHeadLosses:
+        """Type definition."""
+        return self._call_impl(
+            cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
+        )

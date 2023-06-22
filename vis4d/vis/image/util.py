@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-
 import torch
 
 from vis4d.common.array import array_to_numpy
@@ -12,8 +11,8 @@ from vis4d.common.typing import (
     ArrayLikeInt,
     ArrayLikeUInt,
     NDArrayBool,
-    NDArrayUI8,
     NDArrayF32,
+    NDArrayUI8,
 )
 from vis4d.data.const import AxisMode
 from vis4d.op.box.box3d import boxes3d_to_corners

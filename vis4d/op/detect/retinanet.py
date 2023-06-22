@@ -67,7 +67,7 @@ def get_default_box_matcher() -> MaxIoUMatcher:
 
 def get_default_box_sampler() -> PseudoSampler:
     """Get default bounding box sampler."""
-    return PseudoSampler(0, 0)
+    return PseudoSampler()
 
 
 class RetinaNetHead(nn.Module):  # TODO: Refactor to use the new API

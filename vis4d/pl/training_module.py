@@ -17,7 +17,7 @@ from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim import set_up_optimizers, BaseLRWarmup
+from vis4d.engine.optim import BaseLRWarmup, set_up_optimizers
 
 
 class TrainingModule(pl.LightningModule):

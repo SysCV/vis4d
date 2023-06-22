@@ -1,4 +1,4 @@
-"""Random Sampler."""
+"""Pseudo Sampler."""
 from __future__ import annotations
 
 import torch
@@ -8,7 +8,11 @@ from .base import Sampler, SamplingResult
 
 
 class PseudoSampler(Sampler):
-    """Pseudo sampler class."""
+    """Pseudo sampler class (does nothing)."""
+
+    def __init__(self, **kwargs) -> None:
+        """Init."""
+        pass
 
     def forward(self, matching: MatchResult) -> SamplingResult:
         """Sample boxes randomly."""
