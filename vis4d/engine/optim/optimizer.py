@@ -1,16 +1,46 @@
-"""Vis4D optimizer."""
+"""Optimizer."""
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TypedDict
 
 from ml_collections import ConfigDict
 from torch import nn, optim
 from torch.optim.lr_scheduler import LRScheduler
+from typing_extensions import NotRequired
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
 
 from .warmup import BaseLRWarmup
+
+
+class ParamGroupsCfg(TypedDict):
+    """Parameter groups config.
+
+    Attributes:
+        custom_keys (list[str]): List of custom keys.
+        lr_mult (NotRequired[float]): Learning rate multiplier.
+        decay_mult (NotRequired[float]): Weight Decay multiplier.
+    """
+
+    custom_keys: list[str]
+    lr_mult: NotRequired[float]
+    decay_mult: NotRequired[float]
+
+
+class ParamGroup(TypedDict):
+    """Parameter dictionary.
+
+    Attributes:
+        params (list[nn.Parameter]): List of parameters.
+        lr (NotRequired[float]): Learning rate.
+        weight_decay (NotRequired[float]): Weight decay.
+    """
+
+    params: list[nn.Parameter]
+    lr: NotRequired[float]
+    weight_decay: NotRequired[float]
 
 
 class Optimizer:
@@ -62,12 +92,12 @@ class Optimizer:
 
     def warmup_on_batch(self, step: int) -> None:
         """Warmup on batch."""
-        if not self.epoch_based_warmup:
+        if not self.epoch_based_warmup and self.lr_warmup is not None:
             warmup_step(step, self.lr_warmup, self.optimizer)
 
     def warmup_on_epoch(self, epoch: int) -> None:
         """Warmup on epoch."""
-        if self.epoch_based_warmup:
+        if self.epoch_based_warmup and self.lr_warmup is not None:
             warmup_step(epoch, self.lr_warmup, self.optimizer)
 
     def step_on_batch(
@@ -112,6 +142,13 @@ class Optimizer:
 def warmup_step(
     step: int, warmup: BaseLRWarmup, optimizer: optim.Optimizer
 ) -> None:
+    """Learning rate warmup step.
+
+    Args:
+        step (int): The current step.
+        warmup (BaseLRWarmup): The warmup.
+        optimizer (optim.Optimizer): The optimizer.
+    """
     if step <= warmup.warmup_steps:
         for g in optimizer.param_groups:
             if step < warmup.warmup_steps:
@@ -155,21 +192,28 @@ def configure_optimizer(
     optim_cfg: ConfigDict, model: nn.Module
 ) -> optim.Optimizer:
     """Configure optimizer with parameter groups."""
-    base_lr = optim_cfg.optimizer["init_args"].lr
-    weight_decay = optim_cfg.optimizer["init_args"].get("weight_decay", None)
-
     param_groups_cfg = optim_cfg.get("param_groups_cfg", None)
-    params = []
 
     # One cycle lr
-    one_cycle = "max_lr" in optim_cfg.lr_scheduler["init_args"]
+    if optim_cfg.lr_scheduler is not None:
+        one_cycle = "max_lr" in optim_cfg.lr_scheduler["init_args"]
+    else:
+        one_cycle = False
 
     if param_groups_cfg is not None:
+        params = []
+        base_lr = optim_cfg.optimizer["init_args"].lr
+        weight_decay = optim_cfg.optimizer["init_args"].get(
+            "weight_decay", None
+        )
         for group in param_groups_cfg:
             lr_mult = group.get("lr_mult", 1.0)
             decay_mult = group.get("decay_mult", 1.0)
 
-            param_group = {"params": [], "lr": base_lr * lr_mult}
+            param_group: ParamGroup = {
+                "params": [],
+                "lr": base_lr * lr_mult,
+            }
 
             if weight_decay is not None:
                 param_group["weight_decay"] = weight_decay * decay_mult
@@ -188,16 +232,16 @@ def configure_optimizer(
         if one_cycle:
             max_lrs = [pg.pop("lr") for pg in params]
             optim_cfg.lr_scheduler["init_args"]["max_lr"] = max_lrs
-    else:
-        params = model.parameters()
 
-    return instantiate_classes(optim_cfg.optimizer, params=params)
+        return instantiate_classes(optim_cfg.optimizer, params=params)
+
+    return instantiate_classes(optim_cfg.optimizer, params=model.parameters())
 
 
 def add_params(
-    params: list[dict],
+    params: list[ParamGroup],
     module: nn.Module,
-    param_groups_cfg: dict[str, list[str] | float],
+    param_groups_cfg: list[ParamGroupsCfg],
     prefix: str = "",
 ) -> None:
     """Add all parameters of module to the params list.
@@ -206,7 +250,7 @@ def add_params(
     groups, with specific rules defined by paramwise_cfg.
 
     Args:
-        params (list[dict]): A list of param groups, it will be modified
+        params (list[DictStrAny]): A list of param groups, it will be modified
             in place.
         module (nn.Module): The module to be added.
         param_groups_cfg (dict[str, list[str] | float]): The configuration

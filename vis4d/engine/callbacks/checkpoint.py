@@ -43,17 +43,19 @@ class CheckpointCallback(Callback):
                 "epoch": epoch,
                 "global_step": step,
                 "state_dict": model.state_dict(),
-                "optimizers": [
+            }
+
+            if "optimizers" in trainer_state:
+                ckpt_dict["optimizers"] = [
                     opt.optimizer.state_dict()
                     for opt in trainer_state["optimizers"]
-                ],
-                "lr_schedulers": [
+                ]
+                ckpt_dict["lr_schedulers"] = [
                     opt.lr_scheduler.state_dict()
                     if opt.lr_scheduler is not None
                     else None
                     for opt in trainer_state["optimizers"]
-                ],
-            }
+                ]
 
             torch.save(
                 ckpt_dict,

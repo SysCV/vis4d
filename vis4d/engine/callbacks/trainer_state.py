@@ -23,7 +23,7 @@ class TrainerState(TypedDict):
         test_dataloader (list[DataLoader[DictData]] | None): List of test
             dataloaders.
         num_test_batches (list[int] | None): List of number of test batches.
-        optimizers (list[Optimizer] | None): List of optimizers.
+        optimizers (NotRequired[list[Optimizer]]): List of optimizers.
         metrics (NotRequired[dict[str, float]]): Metrics for the logging.
     """
 
@@ -35,5 +35,5 @@ class TrainerState(TypedDict):
     num_train_batches: int | None
     test_dataloader: list[DataLoader[DictData]] | None
     num_test_batches: list[int] | None
-    optimizers: list[Optimizer] | None
+    optimizers: NotRequired[list[Optimizer]]
     metrics: NotRequired[dict[str, float]]

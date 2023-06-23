@@ -5,7 +5,7 @@ import torch
 from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
 
 from vis4d.common.distributed import rank_zero_only
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
@@ -41,6 +41,7 @@ class Trainer:
 
         Args:
             device (torch.device): Device that should be used for training.
+            output_dir (str): Output directory for saving tensorboard logs.
             train_dataloader (DataLoader[DictData] | None, optional):
                 Dataloader for training.
             test_dataloader (list[DataLoader[DictData]] | None, optional):
@@ -105,7 +106,7 @@ class Trainer:
         """Setup trainer logger."""
         self.writer.add_scalar(tag, scalar_value, self.global_step)
 
-    def _log_lr(self, optimizer: optim.optimizer) -> None:
+    def _log_lr(self, optimizer: optim.Optimizer) -> None:
         """Log learning rate."""
         tag = f"lr-{optimizer.__class__.__name__}"
 
