@@ -91,7 +91,7 @@ class GenAffineParameters:
             scaling transform. Defaults to (0.5, 1.5).
         max_shear_degree (float): Maximum degrees of shear
             transform. Defaults to 2.
-        border (tuple[int]): Distance from width and height sides of input
+        border (tuple[int, int]): Distance from height and width sides of input
             image to adjust output shape. Only used in mosaic dataset.
             Defaults to (0, 0).
     """
@@ -156,8 +156,8 @@ class GenAffineParameters:
     def __call__(self, input_hw: list[tuple[int, int]]) -> list[AffineParam]:
         """Compute the parameters and put them in the data dict."""
         img_shape = input_hw[0]
-        height = img_shape[0] + self.border[1] * 2
-        width = img_shape[1] + self.border[0] * 2
+        height = img_shape[0] + self.border[0] * 2
+        width = img_shape[1] + self.border[1] * 2
 
         warp_matrix = self._get_random_homography_matrix(height, width)
         return [

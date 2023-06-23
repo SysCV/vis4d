@@ -115,10 +115,12 @@ class YOLOX(nn.Module):
             YOLOXOut: Raw model outputs.
         """
         features = self.fpn(self.basemodel(images))
-        from vis4d.vis.functional.image import imshow_bboxes
+        # from vis4d.vis.functional.image import imshow_bboxes
 
-        imshow_bboxes(images[0], None, image_mode="RGB")
-        breakpoint()
+        # for i in range(len(images)):
+        #     imshow_bboxes(
+        #         images[i], None, image_mode="RGB", save_path=f"test{i}.png"
+        #     )
         return self.yolox_head(features[-3:])
 
     def forward_test(

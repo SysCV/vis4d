@@ -174,7 +174,7 @@ class SimOTAMatcher(Matcher):
                 assigned_labels = None
             else:
                 assigned_labels = decoded_bboxes.new_full(
-                    (num_bboxes,), -1, dtype=torch.long
+                    (num_bboxes,), 0, dtype=torch.long
                 )
             return MatchResult(
                 assigned_gt_indices=assigned_gt_inds,
@@ -207,10 +207,10 @@ class SimOTAMatcher(Matcher):
             cost_matrix, pairwise_ious, num_gt, valid_mask
         )
 
-        # convert to AssignResult format
-        assigned_gt_inds[valid_mask] = matched_gt_inds + 1
-        assigned_labels = assigned_gt_inds.new_full((num_bboxes,), -1)
-        assigned_labels[valid_mask] = gt_labels[matched_gt_inds].long()
+        # convert to MatchResult format
+        assigned_gt_inds[valid_mask] = matched_gt_inds
+        assigned_labels = assigned_gt_inds.new_full((num_bboxes,), 0)
+        assigned_labels[valid_mask] = 1
         assigned_gt_iou = assigned_gt_inds.new_full(
             (num_bboxes,), -INF, dtype=torch.float32
         )

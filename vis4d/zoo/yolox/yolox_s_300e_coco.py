@@ -73,12 +73,9 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    # data_root = "data/coco"
-    # train_split = "train"
-    # test_split = "val"
-    data_root = "tests/vis4d-test-data/coco_test"  # "data/coco"
-    train_split = "train"
-    test_split = "train"
+    data_root = "data/coco"
+    train_split = "train2017"
+    test_split = "val2017"
 
     data_backend = class_config(HDF5Backend)
 
@@ -86,7 +83,7 @@ def get_config() -> FieldConfigDict:
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
-        # data_backend=data_backend,
+        data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )

@@ -170,9 +170,11 @@ class LossModule(nn.Module):
 
             # Assign values
             for key, value in loss_values_as_dict.items():
+                if value is None:
+                    continue
+
                 while key in loss_dict:
                     key = "__" + key
-
                 loss_dict[key] = loss["weight"] * value
 
         return loss_dict

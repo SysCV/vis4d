@@ -15,6 +15,11 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe, MosaicDataPipe
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
+from vis4d.data.transforms.affine import (
+    AffineBoxes2D,
+    AffineImages,
+    GenAffineParameters,
+)
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.mosaic import (
@@ -68,17 +73,22 @@ def get_train_dataloader(
         image_channel_mode="BGR",
         data_backend=data_backend,
     )
-    train_dataset_cfg = [
-        train_dataset_cfg,
-        train_dataset_cfg,
-        train_dataset_cfg,
-    ]
 
     # Train Preprocessing
     preprocess_transforms = [
         class_config(GenMosaicParameters, out_shape=image_size),
         class_config(MosaicImages),
         class_config(MosaicBoxes2D),
+    ]
+
+    preprocess_transforms += [
+        class_config(
+            GenAffineParameters,
+            scaling_ratio_range=(0.1, 2.0),
+            border=(-image_size[0] // 2, -image_size[1] // 2),
+        ),
+        class_config(AffineImages),
+        class_config(AffineBoxes2D),
     ]
 
     preprocess_transforms.append(class_config(ColorJitter))
@@ -91,29 +101,6 @@ def get_train_dataloader(
         )
     )
 
-    preprocess_transforms += [
-        class_config(
-            GenResizeParameters,  # TODO: YOLOX uses different way so all items in batch are same shape
-            shape=[
-                (480, 480),
-                (512, 512),
-                (544, 544),
-                (576, 576),
-                (608, 608),
-                (640, 640),
-                (672, 672),
-                (704, 704),
-                (736, 736),
-                (768, 768),
-                (800, 800),
-            ],
-            multiscale_mode="list",
-            keep_ratio=True,
-        ),
-        class_config(ResizeImages),
-        class_config(ResizeBoxes2D),
-    ]
-
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
@@ -121,6 +108,14 @@ def get_train_dataloader(
     train_batchprocess_cfg = class_config(
         compose,
         transforms=[
+            class_config(  # ensure same size for all images in batch
+                GenResizeParameters,
+                shape=[(480 + i, 480 + i) for i in range(0, 321, 32)],
+                multiscale_mode="list",
+                keep_ratio=True,
+            ),
+            class_config(ResizeImages),
+            class_config(ResizeBoxes2D),
             class_config(PadImages, value=114.0, pad2square=True),
             class_config(ToTensor),
         ],

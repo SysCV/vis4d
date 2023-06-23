@@ -12,7 +12,7 @@ class PseudoSampler(Sampler):
 
     def __init__(self, **kwargs) -> None:
         """Init."""
-        pass
+        super(Sampler, self).__init__()
 
     def forward(self, matching: MatchResult) -> SamplingResult:
         """Sample boxes randomly."""

@@ -20,6 +20,7 @@ from vis4d.op.box.encoder import YOLOXBBoxDecoder
 from vis4d.op.box.matchers import Matcher, SimOTAMatcher
 from vis4d.op.box.samplers import PseudoSampler
 from vis4d.op.layer import Conv2d
+from vis4d.op.loss.reducer import SumWeightedLoss
 
 from .common import DetOut
 
@@ -511,16 +512,17 @@ class YOLOXHeadLoss(nn.Module):
         sampling_result = self.box_sampler(match_result)
         positives = sampling_result.sampled_labels == 1
         pos_inds = sampling_result.sampled_box_indices[positives]
+        pos_tgt_inds = sampling_result.sampled_target_indices[positives]
         num_pos_per_img = pos_inds.size(0)
 
         pos_ious = match_result.assigned_gt_iou[pos_inds]
         # IOU aware classification score
         cls_target = F.one_hot(
-            sampling_result.pos_gt_labels, self.num_classes
+            gt_labels[pos_tgt_inds], self.num_classes
         ) * pos_ious.unsqueeze(-1)
         obj_target = torch.zeros_like(objectness).unsqueeze(-1)
         obj_target[pos_inds] = 1
-        bbox_target = gt_bboxes[pos_inds]
+        bbox_target = gt_bboxes[pos_tgt_inds]
         l1_target = cls_preds.new_zeros((num_pos_per_img, 4))
         if self.loss_l1 is not None:
             l1_target = get_l1_target(l1_target, bbox_target, priors[pos_inds])
@@ -604,34 +606,28 @@ class YOLOXHeadLoss(nn.Module):
         if self.loss_l1 is not None:
             l1_targets = torch.cat(l1_targets, 0)
 
-        loss_cls = (
-            self.loss_cls(
-                flatten_cls.view(-1, self.num_classes)[pos_masks],
-                cls_targets,
-                reduction="none",
-            )
-            / num_total_samples
+        loss_cls = self.loss_cls(
+            flatten_cls.view(-1, self.num_classes)[pos_masks],
+            cls_targets,
+            reduction="none",
         )
-        loss_bbox = 5 * (  # TODO: hardcoding bbox loss weight for now
-            self.loss_bbox(
-                flatten_boxes.view(-1, 4)[pos_masks],
-                bbox_targets,
-                reduction="none",
-            )
-            / num_total_samples
+        loss_cls = SumWeightedLoss(1.0, num_total_samples)(loss_cls)
+        loss_bbox = self.loss_bbox(
+            flatten_boxes.view(-1, 4)[pos_masks],
+            bbox_targets,
+            reduction="none",
         )
-        loss_obj = (
-            self.loss_obj(
-                flatten_obj.view(-1, 1), obj_targets, reduction="none"
-            )
-            / num_total_samples
+        loss_bbox = SumWeightedLoss(5.0, num_total_samples)(loss_bbox)
+        loss_obj = self.loss_obj(
+            flatten_obj.view(-1, 1), obj_targets, reduction="none"
         )
+        loss_obj = SumWeightedLoss(1.0, num_total_samples)(loss_obj)
 
         if self.loss_l1 is not None:
-            loss_l1 = (
-                self.loss_l1(flatten_reg.view(-1, 4)[pos_masks], l1_targets)
-                / num_total_samples
+            loss_l1 = self.loss_l1(
+                flatten_reg.view(-1, 4)[pos_masks], l1_targets
             )
+            loss_l1 = SumWeightedLoss(1.0, num_total_samples)(loss_l1)
         else:
             loss_l1 = None
 
