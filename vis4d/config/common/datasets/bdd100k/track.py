@@ -18,7 +18,7 @@ from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
 )
@@ -76,7 +76,7 @@ def get_train_dataloader(
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(720, 1280),
             keep_ratio=True,
         ),
@@ -137,7 +137,7 @@ def get_test_dataloader(
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(720, 1280),
             keep_ratio=True,
         ),

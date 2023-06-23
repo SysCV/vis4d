@@ -1,6 +1,7 @@
 """DataPipe wraps datasets to share the prepossessing pipeline."""
 from __future__ import annotations
 
+import random
 from collections.abc import Callable, Iterable
 
 from torch.utils.data import ConcatDataset, Dataset
@@ -57,3 +58,37 @@ class DataPipe(ConcatDataset[DictDataOrList]):
             return self.preprocess_fn(samples)
 
         return self.preprocess_fn([samples])[0]
+
+
+class MosaicDataPipe(DataPipe):
+    """DataPipe class.
+
+    This class wraps one or multiple instances of a PyTorch Dataset so that the
+    preprocessing steps can be shared across those datasets. Composes dataset
+    and the preprocessing pipeline.
+    """
+
+    def _sample_mosaic_indices(self, idx: int, data_len: int) -> list[int]:
+        """Sample indices for mosaic augmentation."""
+        indices = [idx]
+        for _ in range(1, 4):
+            rand_ind = random.randint(0, data_len - 1)
+            while rand_ind in indices:
+                rand_ind = random.randint(0, data_len - 1)
+            indices.append(rand_ind)
+        return indices
+
+    def __getitem__(self, idx: int) -> DictDataOrList:
+        """Wrap getitem to apply augmentations."""
+        samples = super(DataPipe, self).__getitem__(idx)
+        if isinstance(samples, list):
+            return self.preprocess_fn(samples)
+
+        mosaic_inds = self._sample_mosaic_indices(idx, len(self))
+        return self.preprocess_fn(
+            [samples]
+            + [
+                super(DataPipe, self).__getitem__(ind)
+                for ind in mosaic_inds[1:]
+            ]
+        )[0]

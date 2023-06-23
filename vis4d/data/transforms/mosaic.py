@@ -99,7 +99,7 @@ def mosaic_combine(
 
 
 @Transform(K.input_hw, ["transforms.mosaic"])
-class GenerateMosaicParameters:
+class GenMosaicParameters:
     """Generate the parameters for a mosaic operation.
 
     Given 4 images, mosaic transform combines them into
@@ -226,7 +226,9 @@ class MosaicImages:
 
         mosaic_imgs = []
         for i in range(0, len(images), NUM_SAMPLES):
-            mosaic_img = np.full((1, c, h * 2, w * 2), self.pad_value)
+            mosaic_img = np.full(
+                (1, c, h * 2, w * 2), self.pad_value, dtype=np.float32
+            )
             imgs = images[i : i + NUM_SAMPLES]
             for idx, img in enumerate(imgs):
                 # resize current image
@@ -304,7 +306,7 @@ class MosaicBoxes2D:
                 )
                 boxes[j] = boxes[j][keep_mask]
                 classes[j] = classes[j][keep_mask]
-                if track_ids[j] is not None:
+                if track_ids is not None and track_ids[j] is not None:
                     track_ids[j] = track_ids[j][keep_mask]
 
                 if self.clip_inside_image:

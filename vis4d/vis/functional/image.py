@@ -183,7 +183,8 @@ def imshow_bboxes(
         n_colors,
         image_mode,
     )
-    imshow(img, image_mode, image_viewer)
+    # imshow(img, image_mode, image_viewer)
+    imsave(img, "test.png", image_mode, image_viewer)
 
 
 def draw_line(

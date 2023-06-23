@@ -3,10 +3,7 @@
 import unittest
 
 from vis4d.config import class_config, instantiate_classes
-from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
-    ResizeBoxes2D,
-)
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeBoxes2D
 
 
 class TestConfigInstantiation(unittest.TestCase):
@@ -20,7 +17,7 @@ class TestConfigInstantiation(unittest.TestCase):
 
     def test_instantiate_transforms_with_param(self) -> None:
         """Test if instantiation of a transform with parameters works."""
-        conf = class_config(GenerateResizeParameters, shape=(10, 10))
+        conf = class_config(GenResizeParameters, shape=(10, 10))
         instance = instantiate_classes(conf, keep_ratio=False)
-        self.assertTrue(isinstance(instance, GenerateResizeParameters))
+        self.assertTrue(isinstance(instance, GenResizeParameters))
         self.assertTrue(instance.shape == (10, 10))

@@ -17,7 +17,7 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeImages,
     ResizeIntrinsics,
 )
@@ -58,7 +58,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
 
         preprocess_fn = compose(
             [
-                GenerateResizeParameters(
+                GenResizeParameters(
                     shape=(900, 1600),
                     keep_ratio=True,
                     sensors=self.CAMERAS,

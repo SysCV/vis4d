@@ -12,20 +12,20 @@ from vis4d.config.util import (
     get_train_dataloader_cfg,
 )
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.data_pipe import DataPipe
+from vis4d.data.data_pipe import DataPipe, MosaicDataPipe
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.mosaic import (
-    GenerateMosaicParameters,
+    GenMosaicParameters,
     MosaicBoxes2D,
     MosaicImages,
 )
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
 )
@@ -68,10 +68,15 @@ def get_train_dataloader(
         image_channel_mode="BGR",
         data_backend=data_backend,
     )
+    train_dataset_cfg = [
+        train_dataset_cfg,
+        train_dataset_cfg,
+        train_dataset_cfg,
+    ]
 
     # Train Preprocessing
     preprocess_transforms = [
-        class_config(GenerateMosaicParameters, out_shape=(800, 1440)),
+        class_config(GenMosaicParameters, out_shape=image_size),
         class_config(MosaicImages),
         class_config(MosaicBoxes2D),
     ]
@@ -88,9 +93,21 @@ def get_train_dataloader(
 
     preprocess_transforms += [
         class_config(
-            GenerateResizeParameters,
-            shape=image_size,
-            scale_range=(0.5, 1.5),
+            GenResizeParameters,  # TODO: YOLOX uses different way so all items in batch are same shape
+            shape=[
+                (480, 480),
+                (512, 512),
+                (544, 544),
+                (576, 576),
+                (608, 608),
+                (640, 640),
+                (672, 672),
+                (704, 704),
+                (736, 736),
+                (768, 768),
+                (800, 800),
+            ],
+            multiscale_mode="list",
             keep_ratio=True,
         ),
         class_config(ResizeImages),
@@ -112,6 +129,7 @@ def get_train_dataloader(
     return get_train_dataloader_cfg(
         preprocess_cfg=train_preprocess_cfg,
         dataset_cfg=train_dataset_cfg,
+        data_pipe=MosaicDataPipe,
         batchprocess_cfg=train_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
@@ -141,7 +159,7 @@ def get_test_dataloader(
     # Test Preprocessing
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=image_size,
             keep_ratio=True,
             align_long_edge=True,

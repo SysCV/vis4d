@@ -12,7 +12,7 @@ from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.detect.common import DetOut
@@ -24,9 +24,7 @@ def get_test_dataloader(
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            GenerateResizeParameters(
-                im_hw, keep_ratio=True, align_long_edge=True
-            ),
+            GenResizeParameters(im_hw, keep_ratio=True, align_long_edge=True),
             ResizeImages(),
         ]
     )

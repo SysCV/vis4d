@@ -18,7 +18,6 @@ from vis4d.config.default import (
 )
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
 from vis4d.config.util import get_optimizer_cfg
@@ -38,6 +37,8 @@ from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.detect.yolox import YOLOXHeadLoss
 from vis4d.vis.image import BoundingBoxVisualizer
+
+CONN_BBOX_2D_TRAIN = {"images": K.images}
 
 CONN_YOLOX_LOSS_2D = {
     "cls_outs": pred_key("cls_score"),
@@ -72,9 +73,12 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data_root = "data/coco"
-    train_split = "train2017"
-    test_split = "val2017"
+    # data_root = "data/coco"
+    # train_split = "train"
+    # test_split = "val"
+    data_root = "tests/vis4d-test-data/coco_test"  # "data/coco"
+    train_split = "train"
+    test_split = "train"
 
     data_backend = class_config(HDF5Backend)
 
@@ -82,7 +86,7 @@ def get_config() -> FieldConfigDict:
         data_root=data_root,
         train_split=train_split,
         test_split=test_split,
-        data_backend=data_backend,
+        # data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )

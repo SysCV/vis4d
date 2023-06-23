@@ -10,7 +10,7 @@ from PIL import Image
 from tests.util import get_test_file
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.mosaic import (
-    GenerateMosaicParameters,
+    GenMosaicParameters,
     MosaicBoxes2D,
     MosaicImages,
 )
@@ -28,7 +28,7 @@ class TestMosaic(unittest.TestCase):
             K.input_hw: [self.test_image.shape[1], self.test_image.shape[2]],
         }
         out_shape = (400, 500)
-        params = GenerateMosaicParameters(
+        params = GenMosaicParameters(
             out_shape=out_shape, center_ratio_range=(0.6, 0.6)
         )
         transform = MosaicImages()
@@ -68,7 +68,7 @@ class TestMosaic(unittest.TestCase):
             K.boxes2d_track_ids: np.array([1, 2, 3]),
         }
 
-        params = GenerateMosaicParameters(
+        params = GenMosaicParameters(
             out_shape=(400, 500), center_ratio_range=(0.6, 0.6)
         )
         transform = MosaicBoxes2D()

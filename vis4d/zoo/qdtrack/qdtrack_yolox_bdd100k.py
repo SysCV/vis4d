@@ -33,14 +33,14 @@ from vis4d.data.transforms.crop import (
 )
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.mosaic import (
-    GenerateMosaicParameters,
+    GenMosaicParameters,
     MosaicBoxes2D,
     MosaicImages,
 )
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
 )
@@ -148,7 +148,7 @@ def get_train_dataloader(
     ]
 
     preprocess_transforms = [
-        class_config(GenerateMosaicParameters, out_shape=(800, 1440)),
+        class_config(GenMosaicParameters, out_shape=(800, 1440)),
         class_config(MosaicImages),
         class_config(MosaicBoxes2D),
     ]
@@ -163,7 +163,7 @@ def get_train_dataloader(
 
     preprocess_transforms += [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(800, 1440),
             scale_range=(0.5, 1.5),
             keep_ratio=True,
@@ -218,7 +218,7 @@ def get_test_dataloader(
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(800, 1440),
             keep_ratio=False,
             align_long_edge=True,

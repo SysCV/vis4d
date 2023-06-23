@@ -106,6 +106,7 @@ class Transform:
                 in_batch = []
                 for key in self_.in_keys:
                     key_data = []
+                    is_in_batch = False
                     for data in batch:
                         # Optionally allow the function to get the full data
                         # dict as aux input and set default value to None if
@@ -117,7 +118,12 @@ class Transform:
                             if key != "data"
                             else data
                         ]
-                    in_batch.append(key_data)
+                        if key_data[-1] is not None:
+                            is_in_batch = True
+                    if is_in_batch:
+                        in_batch.append(key_data)
+                    else:
+                        in_batch.append(None)
 
                 result = self_(*in_batch)
 
@@ -127,6 +133,8 @@ class Transform:
                     result = [result]
 
                 for key, values in zip(self_.out_keys, result):
+                    if values is None:
+                        continue
                     for data, value in zip(batch, values):
                         if value is not None:
                             set_dict_nested(data, key.split("."), value)

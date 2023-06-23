@@ -7,7 +7,7 @@ import numpy as np
 
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
     ResizeInstanceMasks,
@@ -29,7 +29,7 @@ class TestResize(unittest.TestCase):
 
     def test_resize(self) -> None:
         """Test resize transformation."""
-        tr1 = GenerateResizeParameters(
+        tr1 = GenResizeParameters(
             shape=(16, 16), in_keys=["img"], sensors=["cam"]
         )
         data = tr1.apply_to_data([copy.deepcopy(self.data)])

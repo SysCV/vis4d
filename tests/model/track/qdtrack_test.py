@@ -12,7 +12,7 @@ from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.track.qdtrack import (
     REV_KEYS,
@@ -47,7 +47,7 @@ class QDTrackTest(unittest.TestCase):
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         preprocess_fn = compose(
             [
-                GenerateResizeParameters((224, 384), keep_ratio=True),
+                GenResizeParameters((224, 384), keep_ratio=True),
                 ResizeImages(),
                 NormalizeImages(),
             ]
@@ -99,7 +99,7 @@ class QDTrackTest(unittest.TestCase):
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         preprocess_fn = compose(
             [
-                GenerateResizeParameters(
+                GenResizeParameters(
                     (224, 384), keep_ratio=False, align_long_edge=True
                 ),
                 ResizeImages(),
