@@ -268,8 +268,10 @@ def filter_boxes_by_area(
 
 
 def hbox2corner(boxes: Tensor) -> Tensor:
-    """Convert box coordinates from (x1, y1, x2, y2) to corners ((x1, y1),
-    (x2, y1), (x1, y2), (x2, y2)).
+    """Convert box coordinates from boxes to corners.
+
+    Boxes are represented as (x1, y1, x2, y2).
+    Corners are represented as ((x1, y1), (x2, y1), (x1, y2), (x2, y2)).
 
     Args:
         boxes (Tensor): Horizontal box tensor with shape of (..., 4).
@@ -283,8 +285,10 @@ def hbox2corner(boxes: Tensor) -> Tensor:
 
 
 def corner2hbox(corners: Tensor) -> Tensor:
-    """Convert box coordinates from corners ((x1, y1), (x2, y1), (x1, y2),
-    (x2, y2)) to (x1, y1, x2, y2).
+    """Convert box coordinates from corners to boxes.
+
+    Boxes are represented as (x1, y1, x2, y2).
+    Corners are represented as ((x1, y1), (x2, y1), (x1, y2), (x2, y2)).
 
     Args:
         corners (Tensor): Corner tensor with shape of (..., 4, 2).
@@ -303,15 +307,16 @@ def bbox_project(boxes: Tensor, homography_matrix: Tensor) -> Tensor:
     """Apply geometric transform to boxes in-place.
 
     Args:
+        boxes (Tensor): Horizontal box tensor with shape of (..., 4).
         homography_matrix (Tensor): Shape (3, 3) for geometric transformation.
     """
     corners = hbox2corner(boxes)
     corners = torch.cat(
         [corners, corners.new_ones(*corners.shape[:-1], 1)], dim=-1
     )
-    corners_T = torch.transpose(corners, -1, -2)
-    corners_T = torch.matmul(homography_matrix, corners_T)
-    corners = torch.transpose(corners_T, -1, -2)
+    corners_t = torch.transpose(corners, -1, -2)
+    corners_t = torch.matmul(homography_matrix, corners_t)
+    corners = torch.transpose(corners_t, -1, -2)
     # Convert to homogeneous coordinates by normalization
     corners = corners[..., :2] / corners[..., 2:3]
     return corner2hbox(corners)

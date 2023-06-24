@@ -2,19 +2,22 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+from __future__ import annotations
+
 import warnings
 
 import torch
 import torch.nn.functional as F
+from torch import Tensor, nn
 
 from vis4d.op.box.box2d import bbox_iou
 
-from .base import Matcher, MatchResult
+from .base import MatchResult
 
 INF = 100000000
 
 
-class SimOTAMatcher(Matcher):
+class SimOTAMatcher(nn.Module):
     """SimOTA label assigner used by YOLOX.
 
     Args:
@@ -42,18 +45,18 @@ class SimOTAMatcher(Matcher):
         self.iou_weight = iou_weight
         self.cls_weight = cls_weight
 
-    def forward(
+    def forward(  # pylint: disable=arguments-differ # type: ignore[override]
         self,
-        pred_scores,
-        priors,
-        decoded_bboxes,
-        gt_bboxes,
-        gt_labels,
-        gt_bboxes_ignore=None,
-        eps=1e-7,
+        pred_scores: Tensor,
+        priors: Tensor,
+        decoded_bboxes: Tensor,
+        gt_bboxes: Tensor,
+        gt_labels: Tensor,
+        eps: float = 1e-7,
     ) -> MatchResult:
-        """Assign gt to priors using SimOTA. It will switch to CPU mode when
-        GPU is out of memory.
+        """Assign gt to priors using SimOTA.
+
+        Will switch to CPU mode when GPU is out of memory.
 
         Args:
             pred_scores (Tensor): Classification scores of one image,
@@ -66,22 +69,15 @@ class SimOTAMatcher(Matcher):
                 with shape [num_gts, 4] in [tl_x, tl_y, br_x, br_y] format.
             gt_labels (Tensor): Ground truth labels of one image, a Tensor
                 with shape [num_gts].
-            gt_bboxes_ignore (Tensor, optional): Ground truth bboxes that are
-                labelled as `ignored`, e.g., crowd boxes in COCO.
             eps (float): A value added to the denominator for numerical
                 stability. Default 1e-7.
+
         Returns:
             MatchResult: The assigned result.
         """
         try:
             return self._forward(
-                pred_scores,
-                priors,
-                decoded_bboxes,
-                gt_bboxes,
-                gt_labels,
-                gt_bboxes_ignore,
-                eps,
+                pred_scores, priors, decoded_bboxes, gt_bboxes, gt_labels, eps
             )
         except RuntimeError:
             origin_device = pred_scores.device
@@ -105,30 +101,25 @@ class SimOTAMatcher(Matcher):
                 decoded_bboxes,
                 gt_bboxes,
                 gt_labels,
-                gt_bboxes_ignore,
                 eps,
             )
-            match_result.assigned_gt_indices = (
-                match_result.assigned_gt_indices.to(origin_device)
-            )
-            match_result.assigned_gt_iou = match_result.assigned_gt_iou.to(
-                origin_device
-            )
-            match_result.assigned_labels = match_result.assigned_labels.to(
-                origin_device
-            )
 
-            return match_result
+            return MatchResult(
+                assigned_gt_indices=match_result.assigned_gt_indices.to(
+                    origin_device
+                ),
+                assigned_labels=match_result.assigned_labels.to(origin_device),
+                assigned_gt_iou=match_result.assigned_gt_iou.to(origin_device),
+            )
 
     def _forward(
         self,
-        pred_scores,
-        priors,
-        decoded_bboxes,
-        gt_bboxes,
-        gt_labels,
-        gt_bboxes_ignore=None,
-        eps=1e-7,
+        pred_scores: Tensor,
+        priors: Tensor,
+        decoded_bboxes: Tensor,
+        gt_bboxes: Tensor,
+        gt_labels: Tensor,
+        eps: float = 1e-7,
     ) -> MatchResult:
         """Assign gt to priors using SimOTA.
 
@@ -143,10 +134,9 @@ class SimOTAMatcher(Matcher):
                 with shape [num_gts, 4] in [tl_x, tl_y, br_x, br_y] format.
             gt_labels (Tensor): Ground truth labels of one image, a Tensor
                 with shape [num_gts].
-            gt_bboxes_ignore (Tensor, optional): Ground truth bboxes that are
-                labelled as `ignored`, e.g., crowd boxes in COCO.
             eps (float): A value added to the denominator for numerical
                 stability. Default 1e-7.
+
         Returns:
             MatchResult: The assigned result.
         """
@@ -221,7 +211,10 @@ class SimOTAMatcher(Matcher):
             assigned_gt_iou=assigned_gt_iou,
         )
 
-    def get_in_gt_and_in_center_info(self, priors, gt_bboxes):
+    def get_in_gt_and_in_center_info(
+        self, priors: Tensor, gt_bboxes: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        """Get whether the priors are in gt bboxes and in centers."""
         num_gt = gt_bboxes.size(0)
 
         repeated_x = priors[:, 0].unsqueeze(1).repeat(1, num_gt)
@@ -266,7 +259,14 @@ class SimOTAMatcher(Matcher):
         )
         return is_in_gts_or_centers, is_in_boxes_and_centers
 
-    def dynamic_k_matching(self, cost, pairwise_ious, num_gt, valid_mask):
+    def dynamic_k_matching(
+        self,
+        cost: Tensor,
+        pairwise_ious: Tensor,
+        num_gt: int,
+        valid_mask: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        """Dynamic K matching strategy."""
         matching_matrix = torch.zeros_like(cost)
         # select candidate topk ious for dynamic-k calculation
         candidate_topk = min(self.candidate_topk, pairwise_ious.size(0))
@@ -298,21 +298,14 @@ class SimOTAMatcher(Matcher):
 
     def __call__(
         self,
-        pred_scores,
-        priors,
-        decoded_bboxes,
-        gt_bboxes,
-        gt_labels,
-        gt_bboxes_ignore=None,
-        eps=1e-7,
+        pred_scores: Tensor,
+        priors: Tensor,
+        decoded_bboxes: Tensor,
+        gt_bboxes: Tensor,
+        gt_labels: Tensor,
+        eps: float = 1e-7,
     ) -> MatchResult:
         """Type declaration for forward."""
         return self._call_impl(
-            pred_scores,
-            priors,
-            decoded_bboxes,
-            gt_bboxes,
-            gt_labels,
-            gt_bboxes_ignore,
-            eps,
+            pred_scores, priors, decoded_bboxes, gt_bboxes, gt_labels, eps
         )

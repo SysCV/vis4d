@@ -10,7 +10,7 @@ from .base import Sampler, SamplingResult
 class PseudoSampler(Sampler):
     """Pseudo sampler class (does nothing)."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self) -> None:
         """Init."""
         super(Sampler, self).__init__()
 

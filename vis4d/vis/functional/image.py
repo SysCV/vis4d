@@ -172,6 +172,7 @@ def imshow_bboxes(
         image_mode (str, optional): Image channel mode (RGB or BGR).
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
+        save_path (str, optional): Path to save the image to. Defaults to None.
     """
     image = preprocess_image(image, mode=image_mode)
     img = draw_bboxes(

@@ -327,7 +327,7 @@ def all_gather_object_cpu(  # type: ignore
 
 
 def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
-    """ "Obtain the mean of tensor on different GPUs."""
+    """Obtain the mean of tensor on different GPUs."""
     if not (dist.is_available() and dist.is_initialized()):
         return tensor
     tensor = tensor.clone()

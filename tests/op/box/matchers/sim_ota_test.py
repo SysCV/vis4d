@@ -25,11 +25,15 @@ class TestSimOTA(unittest.TestCase):
             gt_labels=torch.LongTensor([0]),
         )
 
-        expected_gt_inds = torch.LongTensor([1, 0])
+        expected_gt_inds = torch.LongTensor([0, 0])
+        expected_labels = torch.LongTensor([1, 0])
         self.assertTrue(
             torch.isclose(
                 match_result.assigned_gt_indices, expected_gt_inds
             ).all()
+        )
+        self.assertTrue(
+            torch.isclose(match_result.assigned_labels, expected_labels).all()
         )
 
     def test_match_with_no_valid_bboxes(self):

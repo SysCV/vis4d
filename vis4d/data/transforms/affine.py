@@ -32,6 +32,11 @@ class AffineParam(TypedDict):
 
 
 def get_rotation_matrix(rotate_degrees: float) -> NDArrayF32:
+    """Generate rotation matrix.
+
+    Args:
+        rotate_degrees (float): Rotation degrees.
+    """
     radian = math.radians(rotate_degrees)
     rotation_matrix = np.array(
         [
@@ -45,6 +50,11 @@ def get_rotation_matrix(rotate_degrees: float) -> NDArrayF32:
 
 
 def get_scaling_matrix(scale_ratio: float) -> NDArrayF32:
+    """Generate scaling matrix.
+
+    Args:
+        scale_ratio (float): Scale ratio.
+    """
     scaling_matrix = np.array(
         [[scale_ratio, 0.0, 0.0], [0.0, scale_ratio, 0.0], [0.0, 0.0, 1.0]],
         dtype=np.float32,
@@ -55,6 +65,12 @@ def get_scaling_matrix(scale_ratio: float) -> NDArrayF32:
 def get_shear_matrix(
     x_shear_degrees: float, y_shear_degrees: float
 ) -> NDArrayF32:
+    """Generate shear matrix.
+
+    Args:
+        x_shear_degrees (float): X shear degrees.
+        y_shear_degrees (float): Y shear degrees.
+    """
     x_radian = math.radians(x_shear_degrees)
     y_radian = math.radians(y_shear_degrees)
     shear_matrix = np.array(
@@ -68,9 +84,16 @@ def get_shear_matrix(
     return shear_matrix
 
 
-def get_translation_matrix(x: float, y: float) -> NDArrayF32:
+def get_translation_matrix(x_trans: float, y_trans: float) -> NDArrayF32:
+    """Generate translation matrix.
+
+    Args:
+        x_trans (float): X translation.
+        y_trans (float): Y translation.
+    """
     translation_matrix = np.array(
-        [[1, 0.0, x], [0.0, 1, y], [0.0, 0.0, 1.0]], dtype=np.float32
+        [[1, 0.0, x_trans], [0.0, 1, y_trans], [0.0, 0.0, 1.0]],
+        dtype=np.float32,
     )
     return translation_matrix
 
@@ -208,7 +231,7 @@ class AffineImages:
         for i, (image, warp_matrix, height, width) in enumerate(
             zip(images, warp_matrix_list, height_list, width_list)
         ):
-            image = cv2.warpPerspective(
+            image = cv2.warpPerspective(  # pylint: disable=no-member
                 image[0],
                 warp_matrix,
                 dsize=(width, height),

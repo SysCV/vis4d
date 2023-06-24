@@ -6,6 +6,8 @@ from collections.abc import Callable, Iterable
 
 from torch.utils.data import ConcatDataset, Dataset
 
+from vis4d.common.logging import rank_zero_warn
+
 from .reference import MultiViewDataset
 from .typing import DictData, DictDataOrList
 
@@ -82,13 +84,20 @@ class MosaicDataPipe(DataPipe):
         """Wrap getitem to apply augmentations."""
         samples = super(DataPipe, self).__getitem__(idx)
         if isinstance(samples, list):
+            # TODO: Implement mosaic augmentation for multi-view datasets.
             return self.preprocess_fn(samples)
 
         mosaic_inds = self._sample_mosaic_indices(idx, len(self))
-        return self.preprocess_fn(
+        prep_samples = self.preprocess_fn(
             [samples]
             + [
                 super(DataPipe, self).__getitem__(ind)
                 for ind in mosaic_inds[1:]
             ]
-        )[0]
+        )
+        if len(prep_samples) != 1:
+            rank_zero_warn(
+                "MosaicDataPipe is used, but Mosaic augmentation is not used "
+                "in preprocess_fn"
+            )
+        return prep_samples[0]

@@ -24,10 +24,10 @@ class MosaicParam(TypedDict):
     """Parameters for Mosaic."""
 
     out_shape: tuple[int, int]
-    paste_coords: list[list[tuple[int, int, int, int]]]
-    crop_coords: list[list[tuple[int, int, int, int]]]
-    im_shapes: list[list[tuple[int, int]]]
-    im_scales: list[list[tuple[float, float]]]
+    paste_coords: list[tuple[int, int, int, int]]
+    crop_coords: list[tuple[int, int, int, int]]
+    im_shapes: list[tuple[int, int]]
+    im_scales: list[tuple[float, float]]
 
 
 def mosaic_combine(
@@ -129,6 +129,11 @@ class GenMosaicParameters:
          2. Get the left top image according to the index, and randomly
             sample another 3 images from the dataset.
          3. Sub image will be cropped if image is larger than mosaic patch.
+
+    Args:
+        out_shape (tuple[int, int]): The output shape of the mosaic transform.
+        center_ratio_range (tuple[float, float]): The range of the ratio of
+            the center of the mosaic patch to the output image size.
     """
 
     NUM_SAMPLES = 4
@@ -142,9 +147,7 @@ class GenMosaicParameters:
         self.out_shape = out_shape
         self.center_ratio_range = center_ratio_range
 
-    def __call__(
-        self, input_hw: list[tuple[int, int]]
-    ) -> tuple[list[MosaicParam], list[tuple[int, int]]]:
+    def __call__(self, input_hw: list[tuple[int, int]]) -> list[MosaicParam]:
         """Compute the parameters and put them in the data dict."""
         assert (
             len(input_hw) % NUM_SAMPLES == 0
@@ -215,11 +218,11 @@ class MosaicImages:
     def __call__(
         self,
         images: list[NDArrayF32],
-        out_shape: tuple[int, int],
-        paste_coords: list[tuple[int, int, int, int]],
-        crop_coords: list[tuple[int, int, int, int]],
-        im_shapes: list[tuple[int, int]],
-    ) -> list[NDArrayF32]:
+        out_shape: list[tuple[int, int]],
+        paste_coords: list[list[tuple[int, int, int, int]]],
+        crop_coords: list[list[tuple[int, int, int, int]]],
+        im_shapes: list[list[tuple[int, int]]],
+    ) -> tuple[list[NDArrayF32], list[tuple[int, int]]]:
         """Resize an image of dimensions [N, H, W, C]."""
         h, w = out_shape[0]
         c = images[0].shape[-1]
@@ -277,8 +280,8 @@ class MosaicBoxes2D:
         boxes: list[NDArrayF32],
         classes: list[NDArrayI32],
         track_ids: list[NDArrayI32 | None],
-        paste_coords: list[tuple[int, int, int, int]],
-        crop_coords: list[tuple[int, int, int, int]],
+        paste_coords: list[list[tuple[int, int, int, int]]],
+        crop_coords: list[list[tuple[int, int, int, int]]],
         im_scales: list[list[tuple[float, float]]],
     ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
         """Apply Mosaic to 2D bounding boxes."""

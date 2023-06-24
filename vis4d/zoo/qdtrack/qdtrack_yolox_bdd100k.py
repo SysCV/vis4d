@@ -138,13 +138,13 @@ def get_train_dataloader(
                 UniformViewSampler, scope=0, num_ref_samples=1
             ),
         ),
-        # class_config(
-        #     MultiViewDataset,
-        #     dataset=bdd100k_track_train,
-        #     sampler=class_config(
-        #         UniformViewSampler, scope=3, num_ref_samples=1
-        #     ),
-        # ),
+        class_config(
+            MultiViewDataset,
+            dataset=bdd100k_track_train,
+            sampler=class_config(
+                UniformViewSampler, scope=3, num_ref_samples=1
+            ),
+        ),
     ]
 
     preprocess_transforms = [

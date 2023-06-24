@@ -19,7 +19,7 @@ from vis4d.common import TorchLossFunc
 from vis4d.common.distributed import reduce_mean
 from vis4d.op.box.anchor import MlvlPointGenerator
 from vis4d.op.box.encoder import YOLOXBBoxDecoder
-from vis4d.op.box.matchers import Matcher, SimOTAMatcher
+from vis4d.op.box.matchers import SimOTAMatcher
 from vis4d.op.box.samplers import PseudoSampler
 from vis4d.op.layer import Conv2d
 from vis4d.op.loss.reducer import SumWeightedLoss
@@ -400,15 +400,25 @@ def bbox_xyxy_to_cxcywh(bbox: Tensor) -> Tensor:
     return torch.cat(bbox_new, dim=-1)
 
 
-def get_l1_target(l1_target, gt_bboxes, priors, eps=1e-8):
-    """Convert gt bboxes to center offset and log width height."""
+def get_l1_target(
+    gt_bboxes: Tensor, priors: Tensor, eps: float = 1e-8
+) -> Tensor:
+    """Convert gt bboxes to center offset and log width height.
+
+    Args:
+        gt_bboxes (Tensor): Shape (n, 4) for ground-truth bboxes.
+        priors (Tensor): Shape (n, 4) for prior boxes.
+        eps (float, optional): Epsilon for numerical stability. Defaults to
+            1e-8.
+    """
+    l1_target = gt_bboxes.new_zeros((len(gt_bboxes), 4))
     gt_cxcywh = bbox_xyxy_to_cxcywh(gt_bboxes)
     l1_target[:, :2] = (gt_cxcywh[:, :2] - priors[:, :2]) / priors[:, 2:]
     l1_target[:, 2:] = torch.log(gt_cxcywh[:, 2:] / priors[:, 2:] + eps)
     return l1_target
 
 
-def multi_apply(func, *args, **kwargs):
+def multi_apply(func, *args, **kwargs):  # type: ignore
     """Apply function to a list of arguments.
 
     Note:
@@ -419,7 +429,7 @@ def multi_apply(func, *args, **kwargs):
 
     Args:
         func (Function): A function that will be applied to a list of
-            arguments
+            arguments.
 
     Returns:
         tuple(list): A tuple containing multiple list, each list contains \
@@ -452,6 +462,10 @@ class YOLOXHeadLoss(nn.Module):
                 Defaults to sigmoid_focal_loss.
             loss_bbox (TorchLossFunc, optional): Regression loss function.
                 Defaults to l1_loss.
+            loss_obj (TorchLossFunc, optional): Objectness loss function.
+                Defaults to sigmoid_focal_loss.
+            loss_l1 (TorchLossFunc | None, optional): L1 loss function.
+                Defaults to None. Only used during the final few epochs.
         """
         super().__init__()
         self.num_classes = num_classes
@@ -479,9 +493,8 @@ class YOLOXHeadLoss(nn.Module):
         decoded_bboxes,
         gt_bboxes,
         gt_labels,
-    ):
-        """Compute classification, regression, and objectness targets for
-        priors in a single image.
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, int]:
+        """Compute YOLOX training targets in a single image.
 
         Args:
             cls_preds (Tensor): Classification predictions of one image,
@@ -544,9 +557,8 @@ class YOLOXHeadLoss(nn.Module):
         obj_target = torch.zeros_like(objectness).unsqueeze(-1)
         obj_target[pos_inds] = 1
         bbox_target = gt_bboxes[pos_tgt_inds]
-        l1_target = cls_preds.new_zeros((num_pos_per_img, 4))
         if self.loss_l1 is not None:
-            l1_target = get_l1_target(l1_target, bbox_target, priors[pos_inds])
+            l1_target = get_l1_target(bbox_target, priors[pos_inds])
         foreground_mask = torch.zeros_like(objectness).to(torch.bool)
         foreground_mask[pos_inds] = 1
         return (
@@ -567,7 +579,7 @@ class YOLOXHeadLoss(nn.Module):
         target_class_ids: list[Tensor],
         images_hw: list[tuple[int, int]],
     ) -> YOLOXHeadLosses:
-        """Compute RetinaNet classification and regression losses.
+        """Compute YOLOX classification, regression, and objectness losses.
 
         Args:
             cls_outs (list[Tensor]): Network classification outputs at all
@@ -580,7 +592,7 @@ class YOLOXHeadLoss(nn.Module):
             target_class_ids (list[Tensor]): Target class labels.
 
         Returns:
-            DenseAnchorHeadLosses: Classification and regression losses.
+            YOLOXHeadLosses: YOLOX losses.
         """
         (
             flatten_cls,
@@ -618,7 +630,7 @@ class YOLOXHeadLoss(nn.Module):
         num_pos = torch.tensor(
             sum(num_fg_imgs), dtype=torch.float, device=flatten_cls.device
         )
-        num_total_samples = max(reduce_mean(num_pos), 1.0)
+        num_total_samples = max(reduce_mean(num_pos), 1.0)  # type: ignore
 
         pos_masks = torch.cat(pos_masks, 0)
         cls_targets = torch.cat(cls_targets, 0)
