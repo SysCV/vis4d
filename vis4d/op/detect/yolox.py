@@ -4,10 +4,12 @@ Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from functools import partial
 from typing import NamedTuple
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -108,6 +110,7 @@ class YOLOXHead(nn.Module):
             self.multi_level_conv_cls.append(conv_cls)
             self.multi_level_conv_reg.append(conv_reg)
             self.multi_level_conv_obj.append(conv_obj)
+        self._init_weights()
 
     def _build_stacked_convs(
         self, in_channels: int, feat_channels: int, stacked_convs: int
@@ -151,6 +154,23 @@ class YOLOXHead(nn.Module):
         conv_reg = nn.Conv2d(feat_channels, 4, 1)
         conv_obj = nn.Conv2d(feat_channels, 1, 1)
         return conv_cls, conv_reg, conv_obj
+
+    def _init_weights(self) -> None:
+        """Initialize weights."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_uniform_(
+                    m.weight,
+                    a=math.sqrt(5),
+                    mode="fan_in",
+                    nonlinearity="leaky_relu",
+                )
+        bias_init = float(-np.log((1 - 0.01) / 0.01))
+        for conv_cls, conv_obj in zip(
+            self.multi_level_conv_cls, self.multi_level_conv_obj
+        ):
+            conv_cls.bias.data.fill_(bias_init)
+            conv_obj.bias.data.fill_(bias_init)
 
     def forward(self, features: list[torch.Tensor]) -> YOLOXOut:
         """Forward pass of YOLOX head.
@@ -269,9 +289,9 @@ def preprocess_outputs(
         for objectness in obj_outs
     ]
 
-    flatten_cls = torch.cat(cls_list, dim=1).sigmoid()
+    flatten_cls = torch.cat(cls_list, dim=1)
     flatten_reg = torch.cat(reg_list, dim=1)
-    flatten_obj = torch.cat(obj_list, dim=1).sigmoid()
+    flatten_obj = torch.cat(obj_list, dim=1)
     flatten_points = torch.cat(mlvl_points)
 
     flatten_boxes = box_decoder(flatten_points, flatten_reg)
@@ -330,6 +350,7 @@ class YOLOXPostprocess(nn.Module):
             self.point_generator,
             self.box_decoder,
         )
+        flatten_cls, flatten_obj = flatten_cls.sigmoid(), flatten_obj.sigmoid()
 
         bbox_list, score_list, label_list = [], [], []
         for img_id, _ in enumerate(images_hw):

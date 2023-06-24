@@ -35,7 +35,9 @@ from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import QuadraticLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
-from vis4d.op.detect.yolox import YOLOXHeadLoss
+from vis4d.op.base import CSPDarknet
+from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
+from vis4d.op.fpp import YOLOXPAFPN
 from vis4d.vis.image import BoundingBoxVisualizer
 
 CONN_BBOX_2D_TRAIN = {"images": K.images}
@@ -59,7 +61,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="yolox_s_300e_coco")
+    config = get_default_cfg(exp_name="yolox_tiny_300e_coco")
     config.check_val_every_n_epoch = 10
 
     # High level hyper parameters
@@ -85,6 +87,8 @@ def get_config() -> FieldConfigDict:
         train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
+        test_image_size=(416, 416),
+        resize_size=(320, 320),
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )
@@ -92,7 +96,28 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                  MODEL & LOSS                    ##
     ######################################################
-    config.model = class_config(YOLOX, num_classes=params.num_classes)
+    basemodel = class_config(
+        CSPDarknet, deepen_factor=0.33, widen_factor=0.375
+    )
+    fpn = class_config(
+        YOLOXPAFPN,
+        in_channels=[96, 192, 384],
+        out_channels=96,
+        num_csp_blocks=1,
+    )
+    yolox_head = class_config(
+        YOLOXHead,
+        num_classes=params.num_classes,
+        in_channels=96,
+        feat_channels=96,
+    )
+    config.model = class_config(
+        YOLOX,
+        num_classes=params.num_classes,
+        basemodel=basemodel,
+        fpn=fpn,
+        yolox_head=yolox_head,
+    )
 
     config.loss = class_config(
         LossModule,

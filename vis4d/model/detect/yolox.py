@@ -114,7 +114,7 @@ class YOLOX(nn.Module):
         Returns:
             YOLOXOut: Raw model outputs.
         """
-        features = self.fpn(self.basemodel(images))
+        features = self.fpn(self.basemodel(images.contiguous()))
         # from vis4d.vis.functional.image import imshow_bboxes
 
         # for i in range(len(images)):

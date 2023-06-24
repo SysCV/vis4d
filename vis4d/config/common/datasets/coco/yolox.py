@@ -59,6 +59,8 @@ def get_train_dataloader(
     keys_to_load: Sequence[str],
     data_backend: None | DataBackend,
     image_size: tuple[int, int],
+    scaling_ratio_range: tuple[int, int],
+    resize_size: tuple[int, int],
     samples_per_gpu: int,
     workers_per_gpu: int,
 ) -> ConfigDict:
@@ -84,7 +86,7 @@ def get_train_dataloader(
     preprocess_transforms += [
         class_config(
             GenAffineParameters,
-            scaling_ratio_range=(0.1, 2.0),
+            scaling_ratio_range=scaling_ratio_range,
             border=(-image_size[0] // 2, -image_size[1] // 2),
         ),
         class_config(AffineImages),
@@ -110,7 +112,10 @@ def get_train_dataloader(
         transforms=[
             class_config(  # ensure same size for all images in batch
                 GenResizeParameters,
-                shape=[(480 + i, 480 + i) for i in range(0, 321, 32)],
+                shape=[
+                    (resize_size[0] + i, resize_size[1] + i)
+                    for i in range(0, 321, 32)
+                ],
                 multiscale_mode="list",
                 keep_ratio=True,
             ),
@@ -198,7 +203,10 @@ def get_coco_yolox_cfg(
     test_split: str = "val2017",
     test_keys_to_load: Sequence[str] = (K.images, K.original_images),
     data_backend: None | ConfigDict = None,
-    image_size: tuple[int, int] = (640, 640),
+    train_image_size: tuple[int, int] = (640, 640),
+    scaling_ratio_range: tuple[int, int] = (0.1, 2.0),
+    resize_size: tuple[int, int] = (480, 480),
+    test_image_size: tuple[int, int] = (640, 640),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> ConfigDict:
@@ -210,7 +218,9 @@ def get_coco_yolox_cfg(
         split=train_split,
         keys_to_load=train_keys_to_load,
         data_backend=data_backend,
-        image_size=image_size,
+        image_size=train_image_size,
+        scaling_ratio_range=scaling_ratio_range,
+        resize_size=resize_size,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
     )
@@ -220,7 +230,7 @@ def get_coco_yolox_cfg(
         split=test_split,
         keys_to_load=test_keys_to_load,
         data_backend=data_backend,
-        image_size=image_size,
+        image_size=test_image_size,
         samples_per_gpu=1,
         workers_per_gpu=workers_per_gpu,
     )
