@@ -75,6 +75,7 @@ class YOLOXCosineAnnealingLR(LRScheduler):
     def __init__(
         self, optimizer, max_steps, eta_min=0, last_epoch=-1, verbose=False
     ):
+        """Init."""
         self.max_steps = max_steps
         self.eta_min = eta_min
         super().__init__(optimizer, last_epoch, verbose)
@@ -83,7 +84,7 @@ class YOLOXCosineAnnealingLR(LRScheduler):
         """Compute current learning rate."""
         if self._step_count == 1:
             return [group["lr"] for group in self.optimizer.param_groups]
-        elif self._step_count <= self.max_steps:
+        if self._step_count <= self.max_steps:
             return [
                 self.eta_min
                 + (base_lr - self.eta_min)

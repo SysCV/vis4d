@@ -152,7 +152,7 @@ def get_config() -> FieldConfigDict:
             ),
             lr_scheduler=class_config(
                 YOLOXCosineAnnealingLR,
-                T_max=(params.num_epochs - num_last_epochs - warmup_epochs)
+                max_steps=(params.num_epochs - num_last_epochs)
                 * steps_per_epoch,
                 eta_min=params.lr * 0.05,
             ),
@@ -161,7 +161,7 @@ def get_config() -> FieldConfigDict:
                 warmup_ratio=1.0,
                 warmup_steps=steps_per_epoch * warmup_epochs,
             ),
-            epoch_based_lr=True,
+            epoch_based_lr=False,
             epoch_based_warmup=False,
             param_groups_cfg=[
                 {

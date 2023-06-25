@@ -30,4 +30,9 @@ class TestWarmup(unittest.TestCase):
         warmup = QuadraticLRWarmup(0.5, 5)
         lr = warmup(2, 0.1)
         self.assertTrue(isinstance(lr, float))
-        self.assertAlmostEqual(lr, 0.5 * (2 * 2 + 1) / 5**2 * 0.1 + 0.5 * (1 * 2 + 1) / 5**2 * 0.1 + 0.5 / 5**2 * 0.1)
+        self.assertAlmostEqual(
+            lr,
+            0.5 * (2 * 2 + 1) / 5**2 * 0.1
+            + 0.5 * (1 * 2 + 1) / 5**2 * 0.1
+            + 0.5 / 5**2 * 0.1,
+        )

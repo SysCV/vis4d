@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import unittest
 
-from tests.util import MockModel
+from tests.util import MOCKLOSS, MockModel
 from vis4d.engine.callbacks import CheckpointCallback, TrainerState
 
 
@@ -37,6 +37,5 @@ class TestCheckpointCallback(unittest.TestCase):
     def test_on_train_epoch_end(self) -> None:
         """Test on_train_epoch_end function."""
         self.callback.on_train_epoch_end(
-            self.trainer_state,
-            MockModel(0),
+            self.trainer_state, MockModel(0), MOCKLOSS
         )

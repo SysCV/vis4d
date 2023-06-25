@@ -1,4 +1,4 @@
-"""Test cases for learning rate schedulers"""
+"""Test cases for learning rate schedulers."""
 import math
 
 import torch
@@ -11,12 +11,16 @@ from vis4d.engine.optim.scheduler import YOLOXCosineAnnealingLR
 
 
 class ToyModel(torch.nn.Module):
+    """Toy model for testing."""
+
     def __init__(self):
+        """Init."""
         super().__init__()
         self.conv1 = torch.nn.Conv2d(1, 1, 1)
         self.conv2 = torch.nn.Conv2d(1, 1, 1)
 
     def forward(self, x):
+        """Forward."""
         return self.conv2(F.relu(self.conv1(x)))
 
 
@@ -28,6 +32,7 @@ def _test_scheduler_value(
     param_name="lr",
     step_kwargs=None,
 ):
+    """Test the value of the scheduler."""
     if isinstance(schedulers, LRScheduler):
         schedulers = [schedulers]
     if step_kwargs is None:
@@ -41,13 +46,13 @@ def _test_scheduler_value(
             assert_close(
                 target[epoch],
                 param_group[param_name],
-                msg="{} is wrong in epoch {}: expected {}, got {}".format(
+                msg="{} is wrong in epoch {}: expected {}, got {}".format(  # pylint: disable=consider-using-f-string,line-too-long
                     param_name, epoch, target[epoch], param_group[param_name]
                 ),
                 atol=1e-5,
                 rtol=0,
             )
-        [
+        _ = [
             scheduler.step(**step_kwargs[epoch][i])
             for i, scheduler in enumerate(schedulers)
         ]

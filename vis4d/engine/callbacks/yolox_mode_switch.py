@@ -1,13 +1,9 @@
 """Callback for switching the mode of YOLOX training."""
 from __future__ import annotations
 
-import os
-
-import torch
 from torch import nn
 
 from vis4d.common import ArgsType
-from vis4d.common.distributed import broadcast, get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.engine.loss_module import LossModule
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss

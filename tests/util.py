@@ -9,6 +9,9 @@ import torch
 from torch import nn
 
 from vis4d.common.typing import ModelOutput, NDArrayI64, NDArrayNumber
+from vis4d.engine.loss_module import LossModule
+
+MOCKLOSS = LossModule({"loss": nn.L1Loss(), "connector": {}})
 
 
 def fill_weights(module: nn.Module, value: float = 0.0) -> None:

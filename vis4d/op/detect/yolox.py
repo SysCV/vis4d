@@ -456,6 +456,7 @@ class YOLOXHeadLoss(nn.Module):
         """Creates an instance of the class.
 
         Args:
+            num_classes (int): Number of classes.
             point_generator (MlvlPointGenerator): Point generator.
             box_decoder (YOLOXBBoxDecoder): Box decoder.
             loss_cls (TorchLossFunc, optional): Classification loss function.
