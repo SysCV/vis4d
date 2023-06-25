@@ -401,18 +401,18 @@ def bbox_xyxy_to_cxcywh(bbox: Tensor) -> Tensor:
 
 
 def get_l1_target(
-    gt_bboxes: Tensor, priors: Tensor, eps: float = 1e-8
+    bbox_target: Tensor, priors: Tensor, eps: float = 1e-8
 ) -> Tensor:
     """Convert gt bboxes to center offset and log width height.
 
     Args:
-        gt_bboxes (Tensor): Shape (n, 4) for ground-truth bboxes.
+        bbox_target (Tensor): Shape (n, 4) for ground-truth bboxes.
         priors (Tensor): Shape (n, 4) for prior boxes.
         eps (float, optional): Epsilon for numerical stability. Defaults to
             1e-8.
     """
-    l1_target = gt_bboxes.new_zeros((len(gt_bboxes), 4))
-    gt_cxcywh = bbox_xyxy_to_cxcywh(gt_bboxes)
+    l1_target = bbox_target.new_zeros((len(bbox_target), 4))
+    gt_cxcywh = bbox_xyxy_to_cxcywh(bbox_target)
     l1_target[:, :2] = (gt_cxcywh[:, :2] - priors[:, :2]) / priors[:, 2:]
     l1_target[:, 2:] = torch.log(gt_cxcywh[:, 2:] / priors[:, 2:] + eps)
     return l1_target
@@ -559,6 +559,8 @@ class YOLOXHeadLoss(nn.Module):
         bbox_target = gt_bboxes[pos_tgt_inds]
         if self.loss_l1 is not None:
             l1_target = get_l1_target(bbox_target, priors[pos_inds])
+        else:
+            l1_target = bbox_target.new_zeros((len(bbox_target), 4))
         foreground_mask = torch.zeros_like(objectness).to(torch.bool)
         foreground_mask[pos_inds] = 1
         return (

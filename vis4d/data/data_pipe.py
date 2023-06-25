@@ -6,8 +6,6 @@ from collections.abc import Callable, Iterable
 
 from torch.utils.data import ConcatDataset, Dataset
 
-from vis4d.common.logging import rank_zero_warn
-
 from .reference import MultiViewDataset
 from .typing import DictData, DictDataOrList
 
@@ -95,9 +93,4 @@ class MosaicDataPipe(DataPipe):
                 for ind in mosaic_inds[1:]
             ]
         )
-        if len(prep_samples) != 1:
-            rank_zero_warn(
-                "MosaicDataPipe is used, but Mosaic augmentation is not used "
-                "in preprocess_fn"
-            )
         return prep_samples[0]

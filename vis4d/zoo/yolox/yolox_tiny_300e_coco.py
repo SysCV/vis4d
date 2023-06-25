@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 from torch.optim import SGD
-from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vis4d.config import FieldConfigDict, class_config
 from vis4d.config.common.datasets.coco.yolox import (
@@ -32,6 +31,7 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
+from vis4d.engine.optim.scheduler import YOLOXCosineAnnealingLR
 from vis4d.engine.optim.warmup import QuadraticLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
@@ -136,6 +136,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
+    steps_per_epoch, num_last_epochs, warmup_epochs = 1833, 15, 5
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
@@ -146,10 +147,15 @@ def get_config() -> FieldConfigDict:
                 nesterov=True,
             ),
             lr_scheduler=class_config(
-                CosineAnnealingLR, T_max=999, eta_min=params.lr * 0.05
+                YOLOXCosineAnnealingLR,
+                T_max=(params.num_epochs - num_last_epochs - warmup_epochs)
+                * steps_per_epoch,
+                eta_min=params.lr * 0.05,
             ),
             lr_warmup=class_config(
-                QuadraticLRWarmup, warmup_ratio=1.0, warmup_steps=1000
+                QuadraticLRWarmup,
+                warmup_ratio=1.0,
+                warmup_steps=steps_per_epoch * warmup_epochs,
             ),
             epoch_based_lr=True,
             epoch_based_warmup=False,
@@ -217,7 +223,9 @@ def get_config() -> FieldConfigDict:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.checkpoint_period = config.check_val_every_n_epoch
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
+    pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

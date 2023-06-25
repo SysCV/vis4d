@@ -192,7 +192,9 @@ def get_config() -> FieldConfigDict:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.checkpoint_period = config.check_val_every_n_epoch
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
+    pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 
     # PL Callbacks
