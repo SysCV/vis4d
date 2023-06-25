@@ -118,7 +118,7 @@ def warmup_step(
     if step <= warmup.warmup_steps:
         for g in optimizer.param_groups:
             if step < warmup.warmup_steps:
-                g["lr"] = warmup(step, g["initial_lr"], g["lr"])
+                g["lr"] = warmup(step, g["initial_lr"])
             else:
                 g["lr"] = g["initial_lr"]
 

@@ -110,6 +110,7 @@ class Trainer:
         tag = f"lr-{optimizer.__class__.__name__}"
 
         if len(optimizer.param_groups) > 1:
+            print(f"{tag}/pg{1}", optimizer.param_groups[0]["lr"])
             for i, param_group in enumerate(optimizer.param_groups):
                 self._log_scalar(f"{tag}/pg{i+1}", param_group["lr"])
         else:
@@ -190,7 +191,9 @@ class Trainer:
         while True:
             # Run callbacks for epoch begin
             for callback in self.callbacks:
-                callback.on_train_epoch_start(self.get_state(), model)
+                callback.on_train_epoch_start(
+                    self.get_state(), model, loss_module
+                )
 
             # Epoch-based LR warmup
             for opt in optimizers:
@@ -219,6 +222,7 @@ class Trainer:
                     callback.on_train_batch_start(
                         trainer_state=self.get_state(),
                         model=model,
+                        loss_module=loss_module,
                         batch=data,
                         batch_idx=batch_idx,
                     )
@@ -258,6 +262,7 @@ class Trainer:
                     log_dict = callback.on_train_batch_end(
                         trainer_state=self.get_state(metrics),
                         model=model,
+                        loss_module=loss_module,
                         outputs=output,
                         batch=data,
                         batch_idx=batch_idx,
@@ -289,7 +294,7 @@ class Trainer:
             # Run callbacks for epoch end
             for callback in self.callbacks:
                 callback.on_train_epoch_end(
-                    self.get_state(optimizers=optimizers), model
+                    self.get_state(optimizers=optimizers), model, loss_module
                 )
 
             # Testing (epoch-based)

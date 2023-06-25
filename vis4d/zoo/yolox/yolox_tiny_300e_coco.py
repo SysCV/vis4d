@@ -22,7 +22,11 @@ from vis4d.config.default.data_connectors import (
 from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
+from vis4d.engine.callbacks import (
+    EvaluatorCallback,
+    VisualizerCallback,
+    YOLOXModeSwitchCallback,
+)
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
@@ -188,6 +192,14 @@ def get_config() -> FieldConfigDict:
     ######################################################
     # Logger and Checkpoint
     callbacks = get_default_callbacks_cfg(config)
+
+    # YOLOX mode switch
+    callbacks.append(
+        class_config(
+            YOLOXModeSwitchCallback,
+            switch_epoch=params.num_epochs - num_last_epochs,
+        )
+    )
 
     # Visualizer
     callbacks.append(

@@ -8,6 +8,7 @@ from torch import nn
 
 from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, get_rank
+from vis4d.engine.loss_module import LossModule
 
 from .base import Callback
 from .trainer_state import TrainerState
@@ -33,7 +34,10 @@ class CheckpointCallback(Callback):
         os.makedirs(self.output_dir, exist_ok=True)
 
     def on_train_epoch_end(
-        self, trainer_state: TrainerState, model: nn.Module
+        self,
+        trainer_state: TrainerState,
+        model: nn.Module,
+        loss_module: LossModule,
     ) -> None:
         """Hook to run at the end of a training epoch."""
         if get_rank() == 0:

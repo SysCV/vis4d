@@ -7,6 +7,7 @@ import lightning.pytorch as pl
 from torch import nn
 
 from vis4d.engine.callbacks import Callback, TrainerState
+from vis4d.engine.loss_module import LossModule
 from vis4d.pl.training_module import TrainingModule
 
 
@@ -59,6 +60,13 @@ def get_model(model: pl.LightningModule) -> nn.Module:
     return model
 
 
+def get_loss_module(loss_module: pl.LightningModule) -> LossModule:
+    """Get loss_module from pl module."""
+    if isinstance(loss_module, TrainingModule):
+        return loss_module.loss_module
+    return loss_module
+
+
 class CallbackWrapper(pl.Callback):
     """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
 
@@ -85,6 +93,7 @@ class CallbackWrapper(pl.Callback):
         self.callback.on_train_batch_start(
             trainer_state=trainer_state,
             model=get_model(pl_module),
+            loss_module=get_loss_module(pl_module),
             batch=batch,
             batch_idx=batch_idx,
         )
@@ -94,7 +103,9 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Hook to run at the start of a training epoch."""
         self.callback.on_train_epoch_start(
-            get_trainer_state(trainer, pl_module), get_model(pl_module)
+            get_trainer_state(trainer, pl_module),
+            get_model(pl_module),
+            get_loss_module(pl_module),
         )
 
     def on_train_batch_end(  # type: ignore
@@ -112,6 +123,7 @@ class CallbackWrapper(pl.Callback):
         log_dict = self.callback.on_train_batch_end(
             trainer_state=trainer_state,
             model=get_model(pl_module),
+            loss_module=get_loss_module(pl_module),
             outputs=outputs["predictions"],
             batch=batch,
             batch_idx=batch_idx,
@@ -126,7 +138,9 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Hook to run at the end of a training epoch."""
         self.callback.on_train_epoch_end(
-            get_trainer_state(trainer, pl_module), get_model(pl_module)
+            get_trainer_state(trainer, pl_module),
+            get_model(pl_module),
+            get_loss_module(pl_module),
         )
 
     def on_validation_epoch_start(

@@ -83,5 +83,5 @@ def test_yolox_cos_anneal_scheduler():
             for i, x in enumerate(single_targets)
         ],
     ]
-    scheduler = YOLOXCosineAnnealingLR(optimizer, T_max=t, eta_min=eta_min)
+    scheduler = YOLOXCosineAnnealingLR(optimizer, max_steps=t, eta_min=eta_min)
     _test_scheduler_value(optimizer, scheduler, targets, epochs)
