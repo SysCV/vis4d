@@ -191,28 +191,9 @@ def imshow_bboxes(
         imshow(img, image_mode, image_viewer)
 
 
-def draw_line(
-    canvas: CanvasBackend,
-    point1: NDArrayF32,
-    point2: NDArrayF32,
-    color: tuple[int],
-    width: int = 4,
-    camera_near_clip: float = 0.15,
-) -> None:
-    if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
-        return
-    if point1[2] < camera_near_clip:
-        point1 = get_intersection_point(point1, point2, camera_near_clip)
-    elif point2[2] < camera_near_clip:
-        point2 = get_intersection_point(point1, point2, camera_near_clip)
-    canvas._image_draw.line(
-        (tuple(point1[:2]), tuple(point2[:2])), width=width, fill=color
-    )
-
-
 def draw_bbox3d(
     image: NDArrayUI8,
-    boxes3d: list[float],
+    boxes3d: ArrayLikeFloat,
     intrinsics: NDArrayF32,
     scores: None | ArrayLikeFloat = None,
     class_ids: None | ArrayLikeInt = None,
@@ -221,6 +202,7 @@ def draw_bbox3d(
     n_colors: int = 50,
     image_mode: str = "RGB",
     canvas: CanvasBackend = PillowCanvasBackend(),
+    width: int = 4,
     camera_near_clip: float = 0.15,
 ) -> NDArrayUI8:
     """Draw 3D box onto image."""
@@ -237,28 +219,8 @@ def draw_bbox3d(
     canvas.create_canvas(image)
 
     for corners, label, color in zip(*boxes3d_data):
-        # Draw Front
-        draw_line(canvas, corners[0], corners[1], color)
-        draw_line(canvas, corners[1], corners[5], color)
-        draw_line(canvas, corners[5], corners[4], color)
-        draw_line(canvas, corners[4], corners[0], color)
-
-        # Draw Sides
-        draw_line(canvas, corners[0], corners[2], color)
-        draw_line(canvas, corners[1], corners[3], color)
-        draw_line(canvas, corners[4], corners[4], color)
-        draw_line(canvas, corners[5], corners[7], color)
-
-        # Draw Back
-        draw_line(canvas, corners[2], corners[3], color)
-        draw_line(canvas, corners[3], corners[7], color)
-        draw_line(canvas, corners[7], corners[6], color)
-        draw_line(canvas, corners[6], corners[2], color)
-
-        # Draw line indicating the front
-        center_bottom_forward = np.mean(corners[:2], axis=0)
-        center_bottom = np.mean(corners[:4], axis=0)
-        draw_line(canvas, center_bottom, center_bottom_forward, color)
+        canvas.draw_box_3d(corners, color, width, camera_near_clip)
+        canvas.draw_text((corners[0][0], corners[0][1]), label)
 
     return canvas.as_numpy_image()
 

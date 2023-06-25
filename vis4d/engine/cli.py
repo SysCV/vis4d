@@ -202,6 +202,7 @@ def main(argv: ArgsType) -> None:
             optim.optimizer.load_state_dict(ckpt["optimizers"][i])
 
             if ckpt["lr_schedulers"][i] is not None:
+                assert optim.lr_scheduler is not None
                 optim.lr_scheduler.load_state_dict(ckpt["lr_schedulers"][i])
     else:
         epoch = 0

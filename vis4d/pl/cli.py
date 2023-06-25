@@ -83,9 +83,8 @@ def main(argv: ArgsType) -> None:
     for cb in config.callbacks:
         callback = instantiate_classes(cb)
         # Skip checkpoint callback to use PL ModelCheckpoint
-        if isinstance(callback, CheckpointCallback):
-            continue
-        callbacks.append(CallbackWrapper(callback))
+        if not isinstance(callback, CheckpointCallback):
+            callbacks.append(CallbackWrapper(callback))
 
     if "pl_callbacks" in config:
         pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]

@@ -1,7 +1,7 @@
 """LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypedDict
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
@@ -20,6 +20,13 @@ from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import BaseLRWarmup, set_up_optimizers
 
 
+class WarmupDict(TypedDict):
+    """Warmup dictionary."""
+
+    warmup: BaseLRWarmup
+    epoch_based: bool
+
+
 class TrainingModule(pl.LightningModule):
     """LightningModule that wraps around the vis4d implementations.
 
@@ -34,21 +41,21 @@ class TrainingModule(pl.LightningModule):
         loss_module: None | LossModule,
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
-        hyper_parameters: DictStrAny,
+        hyper_parameters: DictStrAny | None = None,
         seed: None | int = None,
         ckpt_path: None | str = None,
     ) -> None:
         """Initialize the TrainingModule.
 
         Args:
-            model: The model config  to train.
-            optimizers: The optimizers to use. Will be wrapped into a pytorch
-                optimizer.
-            loss_module: The loss function to use.
+            model_cfg: The model config.
+            optimizers_cfg: The optimizers config.
+            loss_module: The loss module.
             train_data_connector: The data connector to use.
             test_data_connector: The data connector to use.
             data_connector: The data connector to use.
-            hyper_parameters (DictStrAny): The hyper parameters to use.
+            hyper_parameters (DictStrAny | None, optional): The hyper
+                parameters to use. Defaults to None.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
             ckpt_path (str, optional): The path to the checkpoint to load.
@@ -64,7 +71,7 @@ class TrainingModule(pl.LightningModule):
         self.ckpt_path = ckpt_path
 
         self.model: nn.Module
-        self.lr_warmups: list[None | dict[str, BaseLRWarmup | bool]] = []
+        self.lr_warmups: list[None | WarmupDict] = []
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -78,8 +85,9 @@ class TrainingModule(pl.LightningModule):
             seed_everything(seed, workers=True)
             rank_zero_info(f"Global seed set to {seed}")
 
-            self.hyper_parameters["seed"] = seed
-            self.save_hyperparameters(self.hyper_parameters)
+            if self.hyper_parameters is not None:
+                self.hyper_parameters["seed"] = seed
+                self.save_hyperparameters(self.hyper_parameters)
 
         # Instantiate the model after the seed has been set
         self.model = instantiate_classes(self.model_cfg)
@@ -143,23 +151,21 @@ class TrainingModule(pl.LightningModule):
         out = self.model(**self.test_data_connector(batch))
         return out
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> Any:  # type: ignore
         """Return the optimizer to use."""
         optims = set_up_optimizers(self.optimizers_cfg, [self.model])
 
         optimizers = []
         for optim in optims:
+            optim_dict = {"optimizer": optim.optimizer}
+
             if optim.lr_scheduler is not None:
-                lr_scheduler = {
+                optim_dict["lr_scheduler"] = {  # type: ignore
                     "scheduler": optim.lr_scheduler,
                     "interval": "epoch" if optim.epoch_based_lr else "step",
                 }
-            else:
-                lr_scheduler = None
 
-            optimizers.append(
-                {"optimizer": optim.optimizer, "lr_scheduler": lr_scheduler}
-            )
+            optimizers.append(optim_dict)
 
             if optim.lr_warmup is not None:
                 self.lr_warmups.append(
