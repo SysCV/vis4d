@@ -1,0 +1,30 @@
+absl-py # cli
+appdirs
+cloudpickle
+cython
+devtools
+h5py
+jsonargparse[signatures]
+lightning
+ml_collections==0.1.1 # Config interface. Need exact version since we overwrite internal functions
+numpy>=1.21.0
+opencv-python
+pandas
+pillow
+plyfile
+pycocotools
+setuptools
+termcolor
+terminaltables
+torch>=1.10
+torchvision>=0.11
+tqdm
+utm
+wheel
+
+git+https://github.com/facebookresearch/detectron2.git
+
+git+https://github.com/bdd100k/bdd100k.git
+git+https://github.com/scalabel/scalabel.git
+nuscenes-devkit
+
