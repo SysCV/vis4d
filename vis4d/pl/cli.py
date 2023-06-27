@@ -140,5 +140,10 @@ def main(argv: ArgsType) -> None:
         )
 
 
-if __name__ == "__main__":
+def entrypoint() -> None:
+    """Entry point for the CLI."""
     app.run(main)
+
+
+if __name__ == "__main__":
+    entrypoint()
