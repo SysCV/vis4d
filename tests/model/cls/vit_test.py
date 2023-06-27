@@ -1,7 +1,6 @@
 """Faster RCNN tests."""
 from __future__ import annotations
 
-import multiprocessing
 import unittest
 
 import torch
@@ -34,8 +33,6 @@ from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.cls import ClsOut
 from vis4d.model.cls.vit import ViTClassifer
-
-multiprocessing.set_start_method("fork")
 
 
 def get_train_dataloader(
