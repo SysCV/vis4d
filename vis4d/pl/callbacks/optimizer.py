@@ -5,8 +5,10 @@ from collections.abc import Iterable
 
 import lightning.pytorch as pl
 
+from vis4d.pl.training_module import TorchOptimizer
 
-class OptimEpochCallback(pl.Callback):  # type: ignore
+
+class OptimEpochCallback(pl.Callback):
     """Callback to step optimizer at the end of each epoch."""
 
     def on_train_epoch_end(
@@ -18,4 +20,5 @@ class OptimEpochCallback(pl.Callback):  # type: ignore
             optimizers = [optimizers]
 
         for optimizer in optimizers:
+            assert isinstance(optimizer, TorchOptimizer)
             optimizer.step_on_epoch(pl_module.current_epoch)

@@ -14,9 +14,9 @@ from vis4d.engine.connectors import (
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.mask_rcnn import MaskRCNN
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import (
     MaskRCNNHead,
@@ -52,6 +52,8 @@ CONN_ROI_LOSS_2D = remap_pred_keys(_CONN_ROI_LOSS_2D, "boxes")
 def get_mask_rcnn_cfg(
     num_classes: FieldReference | int,
     basemodel: ConfigDict,
+    no_overlap: bool = False,
+    weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Return default config for mask_rcnn model and loss.
 
@@ -61,6 +63,9 @@ def get_mask_rcnn_cfg(
     Args:
         num_classes (FieldReference | int): Number of classes.
         basemodel (ConfigDict): Base model config.
+        no_overlap (bool, optional): Whether to remove overlapping pixels
+            between masks. Defaults to False.
+        weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################
     ##                        MODEL                     ##
@@ -107,7 +112,8 @@ def get_mask_rcnn_cfg(
         faster_rcnn_head=faster_rcnn_head,
         mask_head=mask_head,
         rcnn_box_decoder=rcnn_box_decoder,
-        # weights="mmdet",
+        no_overlap=no_overlap,
+        weights=weights,
     )
 
     ######################################################

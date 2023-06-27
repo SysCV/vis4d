@@ -11,31 +11,39 @@ from .base import Transform
 
 @Transform(
     in_keys=(K.boxes2d_classes, K.instance_masks),
-    out_keys=(K.seg_masks,),
+    out_keys=K.seg_masks,
 )
 class ConvertInstanceMaskToSegMask:
     """Merge all instance masks into a single segmentation map."""
 
-    def __call__(self, classes: NDArrayI32, masks: NDArrayUI8) -> NDArrayUI8:
+    def __call__(
+        self, classes_list: list[NDArrayI32], masks_list: list[NDArrayUI8]
+    ) -> list[NDArrayUI8]:
         """Execute conversion.
 
         Args:
-            classes (NDArrayI64): Array of class ids, shape [N,].
-            masks (NDArrayU8): Array of instance masks, shape [N, H, W].
+            classes_list (list[NDArrayI64]): List of Array of class ids, shape
+                [N,].
+            masks_list (NDArrayU8): List of array of instance masks, shape
+                [N, H, W].
 
         Returns:
-            NDArrayU8: Segmentation mask, shape [H, W].
+            list[NDArrayU8]: List of Segmentation mask, shape [H, W].
         """
-        classes = np.asarray(classes, dtype=masks.dtype)
-        target = np.max(masks * classes[:, None, None], axis=0)
-        # discard overlapping instances
-        target[np.sum(masks, axis=0) > 1] = 255
-        return target
+        seg_masks = []
+        for classes, masks in zip(classes_list, masks_list):
+            classes = np.asarray(classes, dtype=masks.dtype)
+            target = np.max(masks * classes[:, None, None], axis=0)
+            # discard overlapping instances
+            target[np.sum(masks, axis=0) > 1] = 255
+
+            seg_masks.append(target)
+        return seg_masks
 
 
 @Transform(
-    in_keys=(K.boxes2d_classes,),
-    out_keys=(K.boxes2d_classes,),
+    in_keys=K.boxes2d_classes,
+    out_keys=K.boxes2d_classes,
 )
 class RemappingCategories:
     """Remap classes using a mapping list."""
@@ -49,15 +57,17 @@ class RemappingCategories:
         """
         self.mapping = mapping
 
-    def __call__(self, classes: NDArrayI32) -> NDArrayI32:
+    def __call__(self, classes_list: list[NDArrayI32]) -> list[NDArrayI32]:
         """Execute remapping.
 
         Args:
-            classes (NDArrayI64): Array of class ids, shape [N,].
+            classes_list (list[NDArrayI64]): List of array of class ids, shape
+                [N,].
 
         Returns:
-            NDArrayI64: Array of remapped class ids, shape [N,].
+            list[NDArrayI64]: List of array of remapped class ids, shape [N,].
         """
-        for i, cls in enumerate(classes):
-            classes[i] = self.mapping.index(cls)
-        return classes
+        for i, classes in enumerate(classes_list):
+            for j, class_ in enumerate(classes):
+                classes_list[i][j] = self.mapping.index(class_)
+        return classes_list

@@ -6,7 +6,7 @@ import unittest
 from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
-from vis4d.config.common.datasets import get_coco_detection_cfg
+from vis4d.config.common.datasets.coco import get_coco_detection_cfg
 from vis4d.pl.data_module import DataModule
 
 
@@ -19,6 +19,7 @@ class DataModuleTest(unittest.TestCase):
             get_test_data("coco_test"),
             train_split="train",
             test_split="train",
+            cache_as_binary=False,
         )
         self.datamodule = DataModule(dataloader_cfg)
 

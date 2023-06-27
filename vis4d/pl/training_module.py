@@ -60,7 +60,7 @@ class TorchOptimizer(optim.Optimizer):
         self.optim.zero_grad()
 
 
-class TrainingModule(pl.LightningModule):  # type: ignore
+class TrainingModule(pl.LightningModule):
     """LightningModule that wraps around the vis4d implementations.
 
     This is a wrapper around the vis4d implementations that allows to use
@@ -111,7 +111,8 @@ class TrainingModule(pl.LightningModule):  # type: ignore
 
         # Instantiate the model and optimizers after the seed has been set
         self.model = instantiate_classes(self.model)
-        self.optims = set_up_optimizers(self.optims, self.model)
+        if stage == "fit":
+            self.optims = set_up_optimizers(self.optims, self.model)
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData

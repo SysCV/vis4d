@@ -4,14 +4,15 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.common import LossesType, ModelOutput
+from vis4d.common import LossesType
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
-from vis4d.op.detect.anchor_generator import AnchorGenerator
+from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.retinanet import (
     Dense2Det,
     RetinaNetHead,
@@ -80,7 +81,7 @@ class RetinaNet(nn.Module):
         images: torch.Tensor,
         input_hw: None | list[tuple[int, int]] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> RetinaNetOut | ModelOutput:
+    ) -> RetinaNetOut | DetOut:
         """Forward pass.
 
         Args:
@@ -92,8 +93,8 @@ class RetinaNet(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            RetinaNetOut | ModelOutput: Either raw model outputs (for
-                training) or predicted outputs (for testing).
+            RetinaNetOut | DetOut: Either raw model outputs (for training) or
+                predicted outputs (for testing).
         """
         if self.training:
             return self.forward_train(images)
@@ -117,7 +118,7 @@ class RetinaNet(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         original_hw: list[tuple[int, int]],
-    ) -> ModelOutput:
+    ) -> DetOut:
         """Forward testing stage.
 
         Args:
@@ -127,7 +128,7 @@ class RetinaNet(nn.Module):
                 (before padding and resizing).
 
         Returns:
-            ModelOutput: Predicted outputs.
+            DetOut: Predicted outputs.
         """
         features = self.fpn(self.basemodel(images))
         outs = self.retinanet_head(features[-5:])
@@ -138,11 +139,7 @@ class RetinaNet(nn.Module):
         )
         for i, boxs in enumerate(boxes):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
-        return {
-            "boxes2d": boxes,
-            "boxes2d_scores": scores,
-            "boxes2d_classes": class_ids,
-        }
+        return DetOut(boxes, scores, class_ids)
 
 
 class RetinaNetLoss(nn.Module):

@@ -6,7 +6,8 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.data import DictData
+from vis4d.common.logging import rank_zero_info, rank_zero_warn
+from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
@@ -21,45 +22,64 @@ class Trainer:
     def __init__(
         self,
         device: torch.device,
-        num_epochs: int,
-        train_data_connector: DataConnector | None,
-        test_data_connector: DataConnector | None,
         train_dataloader: DataLoader[DictData] | None,
         test_dataloader: list[DataLoader[DictData]] | None,
+        train_data_connector: DataConnector | None,
+        test_data_connector: DataConnector | None,
         callbacks: list[Callback],
+        num_epochs: int = 1000,
+        num_steps: int = -1,
         epoch: int = 0,
         global_step: int = 0,
-        check_val_every_n_epoch: int = 1,
+        check_val_every_n_epoch: int | None = 1,
+        val_check_interval: int | None = None,
     ) -> None:
         """Initialize the trainer.
 
         Args:
             device (torch.device): Device that should be used for training.
-            num_epochs (int): Number of training epochs.
-            dataloaders (DataLoader[DictData]): Dataloader for training.
+            train_dataloader (DataLoader[DictData] | None, optional):
+                Dataloader for training.
+            test_dataloader (list[DataLoader[DictData]] | None, optional):
+                Dataloaders for testing.
             train_data_connector (DataConnector | None): Data connector used
                 for generating training inputs from a batch of data.
             test_data_connector (DataConnector | None): Data connector used for
                 generating testing inputs from a batch of data.
-            train_dataloader (DataLoader[DictData] | None): Dataloader for
-                training. Defaults to None.
-            test_dataloader (list[DataLoader[DictData]] | None): Dataloader
-                list for testing.
             callbacks (list[Callback]): Callbacks that should be used during
                 training.
+            num_epochs (int, optional): Number of training epochs. Defaults to
+                1000.
+            num_steps (int, optional): Number of training steps. Defaults to
+                -1.
             epoch (int, optional): Starting epoch. Defaults to 0.
             global_step (int, optional): Starting step. Defaults to 0.
-            check_val_every_n_epoch (int, optional): Interval for evaluating
-                the model during training. Defaults to 1.
+            check_val_every_n_epoch (int | None, optional): Evaluate the model
+                every n epochs during training. Defaults to 1.
+            val_check_interval (int | None, optional): Interval for evaluating
+                the model during training. Defaults to None.
         """
         self.device = device
-        self.num_epochs = num_epochs
-        self.check_val_every_n_epoch = check_val_every_n_epoch
-        self.train_data_connector = train_data_connector
-        self.test_data_connector = test_data_connector
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
+        self.train_data_connector = train_data_connector
+        self.test_data_connector = test_data_connector
         self.callbacks = callbacks
+
+        if num_epochs == -1 and num_steps == -1:
+            rank_zero_info(
+                "Neither `num_epochs` nor `num_steps` is specified. "
+                + "Training will run indefinitely."
+            )
+
+        self.num_epochs = num_epochs
+        self.num_steps = num_steps
+
+        if check_val_every_n_epoch is None and val_check_interval is None:
+            rank_zero_warn("Validation is disabled during training.")
+
+        self.check_val_every_n_epoch = check_val_every_n_epoch
+        self.val_check_interval = val_check_interval
 
         self.epoch = epoch
         self.global_step = global_step
@@ -73,9 +93,38 @@ class Trainer:
         Returns:
             bool: Whether to run test.
         """
-        return epoch % self.check_val_every_n_epoch == (
-            self.check_val_every_n_epoch - 1
-        )
+        if self.check_val_every_n_epoch is None:
+            return False
+        return (epoch + 1) % self.check_val_every_n_epoch == 0
+
+    def _run_test_on_step(self, step: int) -> bool:
+        """Return whether to run test on current training step.
+
+        Args:
+            step (int): Current training step.
+
+        Returns:
+            bool: Whether to run test.
+        """
+        if self.val_check_interval is None:
+            return False
+        return (step + 1) % self.val_check_interval == 0
+
+    def done(self) -> bool:
+        """Return whether training is done."""
+        if _is_max_limit_reached(self.global_step, self.num_steps):
+            rank_zero_info(
+                f"`Trainer.fit` stopped: `num_steps={self.num_steps!r}` "
+                + "reached."
+            )
+            return True
+        if _is_max_limit_reached(self.epoch, self.num_epochs):
+            rank_zero_info(
+                f"`Trainer.fit` stopped: `num_epochs={self.num_epochs!r}` "
+                + "reached."
+            )
+            return True
+        return False
 
     def fit(
         self,
@@ -102,9 +151,7 @@ class Trainer:
         ), "No train data connector."
         assert self.train_dataloader is not None, "No train dataloader."
 
-        for epoch in range(self.epoch, self.num_epochs):
-            self.epoch = epoch
-
+        while True:
             # Run callbacks for epoch begin
             for callback in self.callbacks:
                 callback.on_train_epoch_start(self.get_state(), model)
@@ -116,7 +163,7 @@ class Trainer:
             if hasattr(self.train_dataloader, "sampler") and isinstance(
                 self.train_dataloader.sampler, DistributedSampler
             ):
-                self.train_dataloader.sampler.set_epoch(epoch)
+                self.train_dataloader.sampler.set_epoch(self.epoch)
 
             # Training loop for one epoch
             for batch_idx, data in enumerate(self.train_dataloader):
@@ -127,6 +174,14 @@ class Trainer:
                 # Input data
                 data = move_data_to_device(data, self.device)
                 train_input = self.train_data_connector(data)
+
+                for callback in self.callbacks:
+                    callback.on_train_batch_start(
+                        trainer_state=self.get_state(),
+                        model=model,
+                        batch=data,
+                        batch_idx=batch_idx,
+                    )
 
                 # Forward + backward + optimize
                 output = model(**train_input)
@@ -161,22 +216,40 @@ class Trainer:
                         batch_idx=batch_idx,
                     )
 
+                # Testing (step-based)
+                if (
+                    self._run_test_on_step(self.global_step)
+                    and self.test_dataloader is not None
+                ):
+                    self.test(model)
+
+                    # Set model back to train mode
+                    model.train()
+
+                if self.done():
+                    return
+
                 self.global_step += 1
 
             # Update learning rate on epoch
             for opt in optimizers:
-                opt.step_on_epoch(epoch)
+                opt.step_on_epoch(self.epoch)
 
             # Run callbacks for epoch end
             for callback in self.callbacks:
                 callback.on_train_epoch_end(self.get_state(), model)
 
-            # Testing
+            # Testing (epoch-based)
             if (
-                self._run_test_on_epoch(epoch)
+                self._run_test_on_epoch(self.epoch)
                 and self.test_dataloader is not None
             ):
                 self.test(model)
+
+            if self.done():
+                return
+
+            self.epoch += 1
 
     @torch.no_grad()
     def test(self, model: nn.Module) -> None:
@@ -236,6 +309,7 @@ class Trainer:
             current_epoch=self.epoch,
             num_epochs=self.num_epochs,
             global_step=self.global_step,
+            num_steps=self.num_steps,
             train_dataloader=self.train_dataloader,
             num_train_batches=num_train_batches,
             test_dataloader=self.test_dataloader,
@@ -246,3 +320,16 @@ class Trainer:
             trainer_state["metrics"] = metrics
 
         return trainer_state
+
+
+def _is_max_limit_reached(current: int, maximum: int = -1) -> bool:
+    """Check if the limit has been reached (if enabled).
+
+    Args:
+        current: the current value
+        maximum: the maximum value (or -1 to disable limit)
+
+    Returns:
+        bool: whether the limit has been reached
+    """
+    return maximum != -1 and current >= maximum

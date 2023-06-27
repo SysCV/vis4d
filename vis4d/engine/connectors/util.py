@@ -123,7 +123,7 @@ def get_inputs_for_pred_and_data(
             if old_key_name["key"] not in data:
                 raise ValueError(
                     f"Key {old_key_name['key']} not found in data dict."
-                    f"Available keys: {data.keys()}"
+                    f" Available keys: {data.keys()}"
                 )
             out[new_key_name] = data[old_key_name["key"]]
 
@@ -135,6 +135,6 @@ def get_inputs_for_pred_and_data(
         else:
             raise ValueError(
                 f"Unknown data source {old_key_name['source']}."
-                f"Available: [prediction, data]"
+                f" Available: [prediction, data]"
             )
     return out

@@ -1,0 +1,1 @@
+"""COCO datasets config tests."""

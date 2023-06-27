@@ -17,7 +17,12 @@ from vis4d.common.distributed import (
     get_rank,
     get_world_size,
 )
-from vis4d.common.logging import _info, rank_zero_info, setup_logger
+from vis4d.common.logging import (
+    _info,
+    rank_zero_info,
+    rank_zero_warn,
+    setup_logger,
+)
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
@@ -90,6 +95,7 @@ def main(argv: ArgsType) -> None:
     >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
+    assert len(argv) > 1, "Mode must be specified: `fit` or `test`"
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config: ExperimentConfig = _CONFIG.value
@@ -112,9 +118,20 @@ def main(argv: ArgsType) -> None:
         rank_zero_info(pprints_config(config))
 
     # Instantiate classes
-    train_data_connector = instantiate_classes(config.train_data_connector)
-
     model = instantiate_classes(config.model)
+
+    if config.get("sync_batchnorm", False):
+        if num_gpus > 1:
+            rank_zero_info(
+                "SyncBN enabled, converting BatchNorm layers to"
+                " SyncBatchNorm layers."
+            )
+            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        else:
+            rank_zero_warn(
+                "use_sync_bn is True, but not in a distributed setting."
+                " BatchNorm layers are not converted."
+            )
 
     # Callbacks
     callbacks = [instantiate_classes(cb) for cb in config.callbacks]
@@ -132,9 +149,7 @@ def main(argv: ArgsType) -> None:
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
-        train_data_connector = instantiate_classes(
-            config.data.train_data_connector
-        )
+        train_data_connector = instantiate_classes(config.train_data_connector)
         optimizers = set_up_optimizers(config.optimizers, model)
         loss = instantiate_classes(config.loss)
     else:
@@ -164,12 +179,15 @@ def main(argv: ArgsType) -> None:
 
     trainer = Trainer(
         device=device,
-        num_epochs=config.params.num_epochs,
-        train_data_connector=train_data_connector,
-        test_data_connector=test_data_connector,
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,
+        train_data_connector=train_data_connector,
+        test_data_connector=test_data_connector,
         callbacks=callbacks,
+        num_epochs=config.params.get("num_epochs", -1),
+        num_steps=config.params.get("num_steps", -1),
+        check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
+        val_check_interval=config.get("val_check_interval", None),
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?

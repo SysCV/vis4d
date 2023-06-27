@@ -6,9 +6,9 @@ import numpy as np
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
-    ArrayLikeBool,
     ArrayLikeFloat,
     ArrayLikeInt,
+    ArrayLikeUInt,
     NDArrayBool,
     NDArrayUI8,
 )
@@ -46,6 +46,24 @@ def _get_box_label(
     if score is not None:
         labels.append(f"{score * 100:.1f}%")
     return ", ".join(labels)
+
+
+def _to_binary_mask(mask: NDArrayUI8, ignore_class: int = 255) -> NDArrayUI8:
+    """Converts a mask to binary masks.
+
+    Args:
+        mask (NDArrayUI8): The mask to convert with shape [H, W].
+        ignore_class (int): The class id to ignore. Defaults to 255.
+
+    Returns:
+        NDArrayUI8: The binary masks with shape [N, H, W].
+    """
+    binary_masks = []
+    for class_id in np.unique(mask):
+        if class_id == ignore_class:
+            continue
+        binary_masks.append(mask == class_id)
+    return np.stack(binary_masks, axis=0)
 
 
 def preprocess_boxes(
@@ -132,31 +150,36 @@ def preprocess_boxes(
 
 
 def preprocess_masks(
-    masks: ArrayLikeBool,
+    masks: ArrayLikeUInt,
     class_ids: ArrayLikeInt | None,
     color_mapping: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
 ) -> tuple[list[NDArrayBool], list[tuple[int, int, int]]]:
-    """Preprocesses predicted semantic masks.
+    """Preprocesses predicted masks.
 
     Args:
-        masks (ArrayLikeBool): The semantic masks of shape [N, h, w].
+        masks (ArrayLikeUInt): Masks of shape [H, W].
         class_ids (ArrayLikeInt, None):  An array with class ids for each mask
-            shape [N]
+            shape [N].
         color_mapping (list[tuple[int, int, int]]): Color mapping for
-            each semantic class
+            each class.
 
     Returns:
         tuple[list[masks], list[colors]]: Returns a list with all masks of
-            shape [h,w] as well as a list with the corresponding colors.
+            shape [H, W] as well as a list with the corresponding colors.
     """
-    masks = array_to_numpy(masks, n_dims=3, dtype=np.bool_)
+    masks_np = array_to_numpy(masks, n_dims=None, dtype=np.uint8)
     class_ids = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+
+    if len(masks_np.shape) == 2:
+        masks_np = _to_binary_mask(masks_np)
+
+    masks_binary = masks_np.astype(bool)
 
     mask_list: list[NDArrayBool] = []
     color_list: list[tuple[int, int, int]] = []
 
-    for idx in range(masks.shape[0]):
-        mask = masks[idx, ...]
+    for idx in range(masks_binary.shape[0]):
+        mask = masks_binary[idx, ...]
 
         class_id = None if class_ids is None else class_ids[idx].item()
         if class_id is not None:

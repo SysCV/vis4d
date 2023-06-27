@@ -30,14 +30,16 @@ class SemanticFPNTest(unittest.TestCase):
             ],
             split="train",
             use_pascal_voc_cats=True,
-            minimum_box_area=10,
         )
 
     def test_inference(self) -> None:
         """Test inference of SemanticFPN."""
         state = torch.random.get_rng_state()
         torch.random.set_rng_state(torch.manual_seed(0).get_state())
-        model = SemanticFPN(num_classes=21, weights="bdd100k")
+        weights = (
+            "bdd100k://sem_seg/models/fpn_r50_512x1024_80k_sem_seg_bdd100k.pth"
+        )
+        model = SemanticFPN(num_classes=19, weights=weights)
         test_loader = get_test_dataloader(self.dataset, 2)
         batch = next(iter(test_loader))
 

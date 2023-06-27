@@ -431,12 +431,12 @@ def prints_datagraph_for_config(
                  <p>-scores |                       | *scores
               <p>-class_ids |                       | *class_ids
                             -------------------------
-                         -----------------
-        <d>-sample_names |               | *coco_image_id
-               <p>-boxes |               | *pred_boxes
-              <p>-scores | COCOEvaluator | *pred_scores
-           <p>-class_ids |               | *pred_classes
-                         -----------------
+                         ----------------------
+        <d>-sample_names |                     | *coco_image_id
+               <p>-boxes |                     | *pred_boxes
+              <p>-scores | COCODetectEvaluator | *pred_scores
+           <p>-class_ids |                     | *pred_classes
+                         ----------------------
     ```
     """
     model_connection_info = _get_model_conn_infos(model)
@@ -532,7 +532,7 @@ def main(
 ) -> None:  # pragma: no cover
     """Main entry point to show connected components in the config.
 
-    >>> python -m vis4d.config.show_connection --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.config.show_connection --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     """
     config = _CONFIG.value
 

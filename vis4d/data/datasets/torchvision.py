@@ -4,14 +4,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-import torch
+import numpy as np
 from PIL.Image import Image
 from torchvision.datasets import VisionDataset
 from torchvision.transforms import ToTensor
 
-from vis4d.data.const import CommonKeys
-from vis4d.data.datasets.base import Dataset
-from vis4d.data.typing import DictData
+from ..const import CommonKeys as K
+from ..typing import DictData
+from .base import Dataset
 
 
 class TorchvisionDataset(Dataset):
@@ -81,23 +81,20 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
     `TorchvisionDataset` class.
 
     The returned sample will have the following key, values:
-    images: torch.Tensor of dimension (C,H,W)
-    categories: torch.Tensor of dimension 1.
+    images: ndarray of dimension (1, H, W, C)
+    categories: ndarray of dimension 1.
 
     Example:
     >>> from torchvision.datasets.mnist import MNIST
     >>> ds = TorchvisionClassificationDataset(
-    >>>        MNIST("data/mnist_ds", train=False)
-    >>>    )
+    >>>     MNIST("data/mnist_ds", train=False)
+    >>> )
     >>> data = next(iter(ds))
     >>> print(data.keys)
     dict_keys(['images', 'categories'])
     """
 
-    def __init__(
-        self,
-        detection_ds: VisionDataset,
-    ) -> None:
+    def __init__(self, detection_ds: VisionDataset) -> None:
         """Creates a new instance of the class.
 
         Args:
@@ -122,8 +119,10 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
             """
             img, class_id = img_and_target
             data: DictData = {}
-            data[CommonKeys.images] = img_to_tensor(img)
-            data[CommonKeys.categories] = torch.tensor(class_id).reshape(1, 1)
+            data[K.images] = (
+                img_to_tensor(img).unsqueeze(0).permute(0, 2, 3, 1).numpy()
+            )
+            data[K.categories] = np.array([class_id], dtype=np.int64)
 
             return data
 

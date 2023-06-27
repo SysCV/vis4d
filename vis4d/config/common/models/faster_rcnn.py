@@ -7,10 +7,10 @@ from vis4d.config import class_config
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
@@ -58,6 +58,7 @@ def get_default_rcnn_box_codec_cfg(
 def get_faster_rcnn_cfg(
     num_classes: FieldReference | int,
     basemodel: ConfigDict,
+    weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Return default config for faster_rcnn model and loss.
 
@@ -67,6 +68,7 @@ def get_faster_rcnn_cfg(
     Args:
         num_classes (FieldReference | int): Number of classes.
         basemodel (ConfigDict): Base model config.
+        weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################
     ##                        MODEL                     ##
@@ -110,7 +112,7 @@ def get_faster_rcnn_cfg(
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         rcnn_box_decoder=rcnn_box_decoder,
-        # weights="mmdet",
+        weights=weights,
     )
 
     ######################################################

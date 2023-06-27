@@ -10,12 +10,12 @@ import numpy as np
 import pycocotools.mask as maskUtils
 from pycocotools.coco import COCO as COCOAPI
 
-from vis4d.common import DictStrAny
+from vis4d.common import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.io.base import DataBackend
-from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
+from ..const import CommonKeys as K
+from ..typing import DictData
 from .base import Dataset
 from .util import CacheMappingMixin, im_decode
 
@@ -129,7 +129,7 @@ coco_seg_map = {
 }
 
 
-class COCO(Dataset, CacheMappingMixin):
+class COCO(CacheMappingMixin, Dataset):
     """COCO dataset class."""
 
     DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
@@ -161,9 +161,10 @@ class COCO(Dataset, CacheMappingMixin):
         ),
         split: str = "train2017",
         remove_empty: bool = False,
-        minimum_box_area: float = 0.0,
         use_pascal_voc_cats: bool = False,
-        data_backend: None | DataBackend = None,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize the COCO dataset.
 
@@ -172,23 +173,20 @@ class COCO(Dataset, CacheMappingMixin):
             keys_to_load (tuple[str, ...]): Keys to load from the dataset.
             split (split): Which split to load. Default: "train2017".
             remove_empty (bool): Whether to remove images with no annotations.
-            minimum_box_area (float): Minimum area of the bounding boxes.
-                Default: 0.0.
             use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
-            data_backend (None | DataBackend): Data backend to use.
-                Default: None.
+            cache_as_binary (bool): Whether to cache the dataset as binary.
+                Default: False.
+            cached_file_path (str | None): Path to a cached file. If cached
+                file exist then it will load it instead of generating the data
+                mapping. Default: None.
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split
         self.remove_empty = remove_empty
-        self.minimum_box_area = minimum_box_area
         self.use_pascal_voc_cats = use_pascal_voc_cats
-        self.data_backend = (
-            data_backend if data_backend is not None else FileBackend()
-        )
 
         # handling keys to load
         self.validate_keys(keys_to_load)
@@ -200,21 +198,29 @@ class COCO(Dataset, CacheMappingMixin):
             or K.seg_masks in keys_to_load
         )
 
-        self.data = self._load_mapping(self._generate_data_mapping)
+        self.data = self._load_mapping(
+            self._generate_data_mapping,
+            self._filter_data,
+            cache_as_binary=cache_as_binary,
+            cached_file_path=cached_file_path,
+        )
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
         return (
             f"COCODataset(root={self.data_root}, split={self.split}, "
-            f"use_pascal_voc_cats={self.use_pascal_voc_cats}, "
-            f"remove_empty={self.remove_empty})"
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
         )
 
-    def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
-        """Filter empty or low occupied samples."""
-        if self.remove_empty and len(anns) == 0:
-            return False  # no annotations  # pragma: no cover
-        return sum(ann["area"] for ann in anns) >= self.minimum_box_area
+    def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
+        """Remove empty samples."""
+        if self.remove_empty:
+            samples = []
+            for sample in data:
+                if len(sample["anns"]) > 0:
+                    samples.append(sample)
+            return samples
+        return data
 
     def _generate_data_mapping(self) -> list[DictStrAny]:
         """Generate coco dataset mapping."""
@@ -245,13 +251,12 @@ class COCO(Dataset, CacheMappingMixin):
                     ann["category_id"] = coco_seg_map[cat_name]
                 else:
                     ann["category_id"] = coco_det_map[cat_name]
-            if self._has_valid_annotation(anns):
-                samples.append({"img_id": img_id, "img": img, "anns": anns})
+            samples.append({"img_id": img_id, "img": img, "anns": anns})
         return samples
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        return len(self.data)  # type: ignore
+        return len(self.data)
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform coco sample to vis4d input format.
@@ -269,7 +274,7 @@ class COCO(Dataset, CacheMappingMixin):
                 self.data_root, self.split, data["img"]["file_name"]
             )
             im_bytes = self.data_backend.get(img_path)
-            img = im_decode(im_bytes)
+            img = im_decode(im_bytes, mode=self.image_channel_mode)
             img_ = np.ascontiguousarray(img, dtype=np.float32)[None]
             assert (img_h, img_w) == img_.shape[
                 1:3

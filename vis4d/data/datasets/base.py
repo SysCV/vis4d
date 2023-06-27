@@ -10,6 +10,9 @@ from collections.abc import Sequence
 
 from torch.utils.data import Dataset as TorchDataset
 
+from vis4d.common import ArgsType
+from vis4d.data.io.base import DataBackend
+from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
 
@@ -24,6 +27,23 @@ class Dataset(TorchDataset[DictData]):
 
     # List of all keys supported by this dataset.
     KEYS: Sequence[str] = []
+
+    def __init__(
+        self,
+        image_channel_mode: str = "RGB",
+        data_backend: None | DataBackend = None,
+    ) -> None:
+        """Initialize dataset.
+
+        Args:
+            image_channel_mode (str): Image channel mode to use. Default: RGB.
+            data_backend (None | DataBackend): Data backend to use.
+                Default: None.
+        """
+        self.image_channel_mode = image_channel_mode
+        self.data_backend = (
+            data_backend if data_backend is not None else FileBackend()
+        )
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -47,14 +67,18 @@ class Dataset(TorchDataset[DictData]):
                 raise ValueError(f"Key '{k}' is not supported!")
 
 
-class VideoMixin:
-    """Mixin for video datasets.
+class VideoDataset(Dataset):
+    """Video datasets.
 
     Provides interface for video based data and reference view samplers.
     """
 
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
+    def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
+        """Initialize dataset."""
+        super().__init__(*args, **kwargs)
+        self.video_to_indices: dict[str, list[int]] = {}
+
+    def _generate_video_to_indices(self) -> dict[str, list[int]]:
         """Group dataset sample indices by their associated video ID.
 
         The sample index is an integer while video IDs are string.
@@ -70,47 +94,3 @@ class VideoMixin:
             if idx in indices:
                 return indices
         raise ValueError(f"Dataset index {idx} not found in video_to_indices!")
-
-
-class CategoryMapMixin:
-    """Mixin for category map.
-
-    Provides interface for filtering based on categories.
-    """
-
-    @property
-    def category_to_indices(self) -> dict[str, list[int]]:
-        """Group all dataset sample indices (int) by their category (str).
-
-        Returns:
-            dict[str, int]: Mapping category to index.
-        """
-        raise NotImplementedError
-
-    def get_category_indices(self, idx: int) -> list[int]:
-        """Get all indices that share the same category of the given index.
-
-        Indices refer to the index of the data samples within the dataset.
-        """
-        for indices in self.category_to_indices.values():
-            if idx in indices:
-                return indices
-        raise ValueError(
-            f"Dataset index {idx} not found in category_to_indices!"
-        )
-
-
-class AttributeMapMixin:
-    """Mixin for attributes map.
-
-    Provides interface for filtering based on attributes.
-    """
-
-    @property
-    def attribute_to_indices(self) -> dict[str, dict[str, list[int]]]:
-        """Groups all dataset sample indices (int) by their category (str).
-
-        Returns:
-            dict[str, dict[str, list[int]]]: Mapping category to index.
-        """
-        raise NotImplementedError

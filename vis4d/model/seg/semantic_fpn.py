@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.op.base import BaseModel, ResNet
+from vis4d.op.base import BaseModel, ResNetV1c
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.mask.util import clip_mask
 from vis4d.op.seg.semantic_fpn import SemanticFPNHead, SemanticFPNOut
@@ -39,45 +39,41 @@ class MaskOut(NamedTuple):
 
 
 class SemanticFPN(nn.Module):
-    """Semantic FPN."""
+    """Semantic FPN.
+
+    Args:
+        num_classes (int): Number of classes.
+        resize (bool): Resize output to input size.
+        weights (None | str): Pre-trained weights.
+        basemodel (BaseModel): Base model.
+    """
 
     def __init__(
         self,
         num_classes: int,
         resize: bool = True,
         weights: None | str = None,
-        basemodel: BaseModel = ResNet(
-            "resnet50", pretrained=True, trainable_layers=3
+        basemodel: BaseModel = ResNetV1c(
+            "resnet50_v1c",
+            pretrained=True,
+            trainable_layers=5,
+            norm_freezed=False,
         ),
-    ) -> None:
-        """Semantic FPN.
-
-        Args:
-            num_classes (int): Number of classes.
-            resize (bool): Resize output to input size.
-            weights (None | str): Pre-trained weights.
-            basemodel (BaseModel): Base model.
-        """
+    ):
+        """Init."""
         super().__init__()
         self.resize = resize
         self.basemodel = basemodel
-        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256, extra_blocks=None)
         self.seg_head = SemanticFPNHead(num_classes, 256)
 
-        if weights == "mmseg":
-            weights = (
-                "mmseg://sem_fpn/fpn_r50_512x1024_80k_cityscapes/"
-                "fpn_r50_512x1024_80k_cityscapes_20200717_021437-94018a0d.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights == "bdd100k":
-            weights = (
-                "bdd100k://sem_seg/models/"
-                "fpn_r50_512x1024_80k_sem_seg_bdd100k.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights is not None:
-            load_model_checkpoint(self, weights)
+        if weights is not None:
+            if weights.startswith("mmseg://") or weights.startswith(
+                "bdd100k://"
+            ):
+                load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
+            else:
+                load_model_checkpoint(self, weights)
 
     def forward_train(self, images: torch.Tensor) -> SemanticFPNOut:
         """Forward pass for training.
@@ -88,7 +84,7 @@ class SemanticFPN(nn.Module):
         Returns:
             SemanticFPNOut: Raw model predictions.
         """
-        features = self.fpn(self.basemodel(images))
+        features = self.fpn(self.basemodel(images.contiguous()))
         out = self.seg_head(features)
         if self.resize:
             out = SemanticFPNOut(

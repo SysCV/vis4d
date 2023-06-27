@@ -5,8 +5,8 @@ import logging
 import os.path as osp
 
 from absl import app, flags
+from lightning.fabric.utilities.exceptions import MisconfigurationException
 from lightning.pytorch import Callback
-from lightning.pytorch.utilities.exceptions import MisconfigurationException
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
@@ -78,7 +78,7 @@ def main(argv: ArgsType) -> None:
     test_data_connector = instantiate_classes(config.test_data_connector)
 
     # Callbacks
-    callbacks = [
+    callbacks: list[Callback] = [
         CallbackWrapper(instantiate_classes(cb)) for cb in config.callbacks
     ]
 

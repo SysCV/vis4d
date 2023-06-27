@@ -6,7 +6,7 @@ from typing import TypedDict
 from torch.utils.data import DataLoader
 from typing_extensions import NotRequired
 
-from vis4d.data import DictData
+from vis4d.data.typing import DictData
 
 
 class TrainerState(TypedDict):
@@ -16,6 +16,7 @@ class TrainerState(TypedDict):
         current_epoch (int): Current epoch.
         num_epochs (int): Total number of the training epochs.
         global_step (int): Global step.
+        num_steps (int): Total number of the training steps.
         train_dataloader (DataLoader[DictData] | None): Training dataloader.
         num_train_batches (int | None): Number of training batches.
         test_dataloader (list[DataLoader[DictData]] | None): List of test
@@ -27,6 +28,7 @@ class TrainerState(TypedDict):
     current_epoch: int
     num_epochs: int
     global_step: int
+    num_steps: int
     train_dataloader: DataLoader[DictData] | None
     num_train_batches: int | None
     test_dataloader: list[DataLoader[DictData]] | None

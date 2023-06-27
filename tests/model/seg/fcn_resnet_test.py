@@ -23,10 +23,7 @@ class FCNResNetTest(unittest.TestCase):
         """Test inference of FCNResNet."""
         model = FCNResNet(base_model="resnet50", resize=(64, 64))
         dataset = COCO(
-            get_test_data("coco_test"),
-            split="train",
-            use_pascal_voc_cats=True,
-            minimum_box_area=10,
+            get_test_data("coco_test"), split="train", use_pascal_voc_cats=True
         )
         test_loader = get_test_dataloader(dataset, 2)
         batch = next(iter(test_loader))
@@ -50,10 +47,7 @@ class FCNResNetTest(unittest.TestCase):
         loss_fn = MultiLevelSegLoss(feature_idx=(4, 5), weights=[0.5, 1])
         optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
         dataset = COCO(
-            get_test_data("coco_test"),
-            split="train",
-            use_pascal_voc_cats=True,
-            minimum_box_area=10,
+            get_test_data("coco_test"), split="train", use_pascal_voc_cats=True
         )
         train_loader = get_train_dataloader(dataset, 2)
         model.train()
