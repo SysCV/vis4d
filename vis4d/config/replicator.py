@@ -154,10 +154,9 @@ def replicate_config(  # type: ignore
     for key, value in sampling_args:
         # Convert Iterable to a callable generator
         if isinstance(value, Iterable):
-            value = iter(value)
 
             def _generator() -> Generator[Any, None, None]:  # type: ignore
-                for v in value:  # type: ignore
+                for v in value:  # type: ignore # pylint disable=cell-var-from-loop
                     yield v
 
             sampling_queue.put((key, _generator))
@@ -200,7 +199,7 @@ def _resolve_fstring(fstring: str, config: ConfigDict) -> str:
     """
     # match everything between { and ':' or '}'
     pattern = re.compile(r"{([^:}]+)")
-    required_params = set([p.strip() for p in pattern.findall(fstring)])
+    required_params = {[p.strip() for p in pattern.findall(fstring)]}
 
     format_dict: dict[str, str] = {}
     for param in required_params:
