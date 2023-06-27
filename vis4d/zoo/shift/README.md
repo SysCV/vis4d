@@ -57,15 +57,15 @@ SHIFT has 20k images for training and 3k images for validation under the clear-d
 
 | Base network | Lr schd | Box AP-val | Scores-val | Config | Weights | Pred | Log |
 | :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------: |
-| R-50-FPN |   12e    |   45.7   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_1x_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/faster_rcnn_r50_fpn_1x_shift_df1681.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/log.txt) |
-| R-50-FPN |   36e    |   46.0   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_3x_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_3x_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_3x_shift/faster_rcnn_r50_fpn_3x_shift_1c4d73.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_3x_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_3x_shift/log.txt) |
+| R-50-FPN |   12e    |   45.7   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_12e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/faster_rcnn_r50_fpn_12e_shift_df1681.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/log.txt) |
+| R-50-FPN |   36e    |   46.0   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_36e_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_36e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_36e_shift/faster_rcnn_r50_fpn_36e_shift_1c4d73.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_36e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_36e_shift/log.txt) |
 
 **All domains**
 SHIFT has 150k frames for training and 25k frames for validation for all domains. Below are the results of models trained and tested in all domains.
 
 | Base network | Lr schd | Box AP-val | Scores-val | Config | Weights | Pred | Log |
 | :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------: |
-| R-50-FPN |   6e   |   49.6   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_1x_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/faster_rcnn_r50_fpn_1x_shift_df1681.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_1x_shift/log.txt) |
+| R-50-FPN |   6e   |   49.6   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_12e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/faster_rcnn_r50_fpn_12e_shift_df1681.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/log.txt) |
 
 
 ---
@@ -92,13 +92,13 @@ The clear-daytime domain has 150k frames for training and 25k frames for validat
 
 | Base network | Lr schd | Mask AP-val | Box AP-val | Scores-val | Config | Weights | Pred | Log |
 | :------: | :-----: | :-------: | :--------: | :--------: | :---------: | :---------: | :---------: | :---------: |
-| R-50-FPN |   12e    |     38.6      |     43.9   | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_1x_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_1x_shift/mask_rcnn_r50_fpn_1x_shift_5a475c.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_1x_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_1x_shift/log.txt) |
+| R-50-FPN |   12e    |     38.6      |     43.9   | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_12e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/mask_rcnn_r50_fpn_12e_shift_5a475c.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/log.txt) |
 
 **All domains**
 SHIFT has 150k frames for training and 25k frames for validation for all domains. Below are the results of models trained and tested in all domains.
 
 | Base network | Lr schd | Mask AP-val | Box AP-val | Scores-val | Config | Weights | Pred | Log |
 | :------: | :-----: | :-------: | :--------: | :--------: | :---------: | :---------: | :---------: | :---------: |
-| R-50-FPN |   6e    |     -      |     -   | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_6e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_1x_shift/mask_rcnn_r50_fpn_1x_shift_5a475c.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_1x_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_1x_shift/log.txt) |
+| R-50-FPN |   6e    |     -      |     -   | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_6e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/mask_rcnn_r50_fpn_12e_shift_5a475c.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/log.txt) |
 
 ---
