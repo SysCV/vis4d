@@ -16,6 +16,7 @@ class TestSweep(unittest.TestCase):
 
     def test_one_param_sweep(self) -> None:
         """Test if one param config sweep works"""
+
         expected = np.linspace(0.001, 0.01, 3)
 
         exp_names_expected = [f"test_lr_{lr:.3f}_" for lr in expected]
@@ -46,6 +47,7 @@ class TestSweep(unittest.TestCase):
 
     def test_one_nested_param_sweep(self) -> None:
         """Test if one param config sweep works when it is nested,"""
+
         expected = np.linspace(0.001, 0.01, 3)
 
         exp_names_expected = [f"test_lr_{lr:.3f}_" for lr in expected]
