@@ -1,36 +1,16 @@
 """CLI interface."""
 from __future__ import annotations
 
-import logging
-import os
-
-import torch
 from absl import app, flags
-from torch.distributed import destroy_process_group, init_process_group
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
-from vis4d.common.distributed import (
-    broadcast,
-    get_local_rank,
-    get_rank,
-    get_world_size,
-)
-from vis4d.common.logging import (
-    _info,
-    rank_zero_info,
-    rank_zero_warn,
-    setup_logger,
-)
-from vis4d.common.slurm import init_dist_slurm
-from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
+from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
 from vis4d.config.common.types import ExperimentConfig
+from vis4d.config.replicator import replicate_config
+from vis4d.engine.parser import DEFINE_config_file
 
-from .optim import set_up_optimizers
-from .parser import DEFINE_config_file, pprints_config
-from .trainer import Trainer
+from .experiment import run_experiment
 
 # TODO: Currently this does not allow to load multpile config files.
 # Would be nice to extend functionality to chain multiple config files using
@@ -48,59 +28,21 @@ _SLURM = flags.DEFINE_bool(
 )
 
 
-def ddp_setup(
-    torch_distributed_backend: str = "nccl", slurm: bool = False
-) -> None:
-    """Setup DDP environment and init processes.
-
-    Args:
-        torch_distributed_backend (str): Backend to use (`nccl` or `gloo`)
-        slurm (bool): If set, setup slurm running jobs.
-    """
-    if slurm:
-        init_dist_slurm()
-
-    global_rank = get_rank()
-    world_size = get_world_size()
-    _info(
-        f"Initializing distributed: "
-        f"GLOBAL_RANK: {global_rank}, MEMBER: {global_rank + 1}/{world_size}"
-    )
-    init_process_group(
-        torch_distributed_backend, rank=global_rank, world_size=world_size
-    )
-
-    # On rank=0 let everyone know training is starting
-    rank_zero_info(
-        f"{'-' * 100}\n"
-        f"distributed_backend={torch_distributed_backend}\n"
-        f"All distributed processes registered. "
-        f"Starting with {world_size} processes\n"
-        f"{'-' * 100}\n"
-    )
-
-    local_rank = get_local_rank()
-    all_gpu_ids = ",".join(str(x) for x in range(torch.cuda.device_count()))
-    devices = os.getenv("CUDA_VISIBLE_DEVICES", all_gpu_ids)
-
-    torch.cuda.set_device(local_rank)
-
-    _info(f"LOCAL_RANK: {local_rank} - CUDA_VISIBLE_DEVICES: [{devices}]")
-
-
 def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.engine.cli --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.cli --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
+    With parameter sweep config:
+    >>> python -m vis4d.engine.cli fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep  vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     assert len(argv) > 1, "Mode must be specified: `fit` or `test`"
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config: ExperimentConfig = _CONFIG.value
-    num_gpus = _GPUS.value
+    experiment_config: ExperimentConfig = _CONFIG.value
 
+<<<<<<< HEAD
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
     log_dir = os.path.join(config.output_dir, f"log_{config.timestamp}.txt")
@@ -192,26 +134,47 @@ def main(argv: ArgsType) -> None:
     )
 
     # TODO: Parameter sweep. Where to save the results? What name for the run?
+=======
+>>>>>>> main
     if _SWEEP.value is not None:
-        # config = _CONFIG.value
-        # sweep_obj = instantiate_classes(_SWEEP.value)
+        # Perform parameter sweep
+        rank_zero_info(
+            "Found Parameter Sweep in config file. Running Parameter Sweep..."
+        )
+        experiment_config = _CONFIG.value
+        sweep_config = instantiate_classes(_SWEEP.value)
 
-        # from vis4d.config.replicator import replicate_config
+        for run_id, config in enumerate(
+            replicate_config(
+                experiment_config,
+                method=sweep_config.method,
+                sampling_args=sweep_config.sampling_args,
+                fstring=sweep_config.get("suffix", ""),
+            )
+        ):
+            rank_zero_info(
+                "Running experiment #%d: %s",
+                run_id,
+                config.experiment_name,
+            )
+            # Run single experiment
+            run_experiment(
+                experiment_config,
+                mode,
+                _GPUS.value,
+                _SHOW_CONFIG.value,
+                _SLURM.value,
+            )
 
-        # for config in replicate_config(
-        #     _CONFIG.value,
-        #     method=sweep_obj.method,
-        #     sampling_args=sweep_obj.sampling_args,
-        # ):
-        #     train(config.value)
-        pass
-    elif mode == "fit":
-        trainer.fit(model, optimizers, loss)
-    elif mode == "test":
-        trainer.test(model)
-
-    if num_gpus > 1:
-        destroy_process_group()
+    else:
+        # Run single experiment
+        run_experiment(
+            experiment_config,
+            mode,
+            _GPUS.value,
+            _SHOW_CONFIG.value,
+            _SLURM.value,
+        )
 
 
 def entrypoint() -> None:
