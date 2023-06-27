@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from absl import app, flags
+from torch.distributed import destroy_process_group
 
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
