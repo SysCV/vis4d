@@ -16,9 +16,9 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms.autoaugment import RandAug
-from vis4d.data.transforms.base import compose, compose_batch
+from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.crop import (
-    CropImage,
+    CropImages,
     GenCentralCropParameters,
     GenRandomSizeCropParameters,
 )
@@ -27,9 +27,9 @@ from vis4d.data.transforms.mixup import (
     MixupCategories,
     MixupImages,
 )
-from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.random_erasing import RandomErasing
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImage
+from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.cls import ClsOut
 from vis4d.model.cls.vit import ViTClassifer
@@ -43,9 +43,9 @@ def get_train_dataloader(
     """Get data loader for training."""
     random_resized_crop_trans = [
         GenRandomSizeCropParameters(),
-        CropImage(),
+        CropImages(),
         GenerateResizeParameters(im_hw, keep_ratio=False),
-        ResizeImage(),
+        ResizeImages(),
         RandAug(magnitude=10, use_increasing=True),
         RandomErasing(),
     ]
@@ -54,8 +54,8 @@ def get_train_dataloader(
         MixupImages(),
         MixupCategories(num_classes=2, label_smoothing=0.1),
     ]
-    preprocess_fn = compose([*random_resized_crop_trans, NormalizeImage()])
-    batchprocess_fn = compose_batch([*mixup_trans, ToTensor()])
+    preprocess_fn = compose([*random_resized_crop_trans, NormalizeImages()])
+    batchprocess_fn = compose([*mixup_trans, ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_train_dataloader(
         datapipe,
@@ -77,13 +77,13 @@ def get_test_dataloader(
                 keep_ratio=True,
                 allow_overflow=True,
             ),
-            ResizeImage(),
+            ResizeImages(),
             GenCentralCropParameters((224, 224)),
-            CropImage(),
-            NormalizeImage(),
+            CropImages(),
+            NormalizeImages(),
         ]
     )
-    batchprocess_fn = compose_batch([ToTensor()])
+    batchprocess_fn = compose([ToTensor()])
     datapipe = DataPipe(datasets, preprocess_fn)
     return build_inference_dataloaders(
         datapipe,
