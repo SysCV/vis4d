@@ -5,6 +5,15 @@ Welcome to Vis4D's documentation!
 
 .. toctree::
    :maxdepth: 1
+   :caption: Developer Guide
+
+   dev_guide/cli
+   dev_guide/config
+   dev_guide/data_connectors
+
+
+.. toctree::
+   :maxdepth: 1
    :caption: Tutorials
 
    tutorials/install
