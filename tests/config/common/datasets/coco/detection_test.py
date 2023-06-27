@@ -55,6 +55,7 @@ class TestDataloaderConfig(unittest.TestCase):
             self.COCO_DATA_ROOT,
             train_split="train",
             test_split="train",
+            cache_as_binary=False,
         )
         self.assertTrue(isinstance(dataloader_cfg, ConfigDict))
         train_dl = instantiate_classes(dataloader_cfg.train_dataloader)

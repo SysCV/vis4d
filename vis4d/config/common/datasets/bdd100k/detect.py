@@ -12,21 +12,21 @@ from vis4d.config.util import (
     get_train_dataloader_cfg,
 )
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.bdd100k import BDD100K
+from vis4d.data.data_pipe import DataPipe
+from vis4d.data.datasets import BDD100K
 from vis4d.data.io import DataBackend
-from vis4d.data.loader import DataPipe
-from vis4d.data.transforms.base import RandomApply, compose, compose_batch
+from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import (
     FlipBoxes2D,
-    FlipImage,
+    FlipImages,
     FlipInstanceMasks,
 )
-from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
-    ResizeImage,
+    ResizeImages,
     ResizeInstanceMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -40,12 +40,22 @@ CONN_BDD100K_DET_EVAL = {
     "pred_scores": pred_key("scores"),
     "pred_classes": pred_key("class_ids"),
 }
+CONN_BDD100K_INS_EVAL = {
+    "frame_ids": data_key("frame_ids"),
+    "sample_names": data_key("sample_names"),
+    "sequence_names": data_key("sequence_names"),
+    "pred_boxes": pred_key("boxes.boxes"),
+    "pred_scores": pred_key("boxes.scores"),
+    "pred_classes": pred_key("boxes.class_ids"),
+    "pred_masks": pred_key("masks.masks"),
+}
 
 
 def get_train_dataloader(
     data_root: str,
     anno_path: str,
     keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+    ins_seg: bool = False,
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
     multi_scale: bool = False,
@@ -58,10 +68,10 @@ def get_train_dataloader(
         BDD100K,
         data_root=data_root,
         annotation_path=anno_path,
-        config_path="det",
+        config_path="ins_seg" if ins_seg else "det",
         keys_to_load=keys_to_load,
         data_backend=data_backend,
-        remove_empty=True,
+        skip_empty_samples=True,
     )
 
     # Train Preprocessing
@@ -86,13 +96,13 @@ def get_train_dataloader(
             )
         ]
     preprocess_transforms += [
-        class_config(ResizeImage),
+        class_config(ResizeImages),
         class_config(ResizeBoxes2D),
     ]
     if K.instance_masks in keys_to_load:
         preprocess_transforms.append(class_config(ResizeInstanceMasks))
 
-    flip_transforms = [class_config(FlipImage), class_config(FlipBoxes2D)]
+    flip_transforms = [class_config(FlipImages), class_config(FlipBoxes2D)]
     if K.instance_masks in keys_to_load:
         flip_transforms.append(class_config(FlipInstanceMasks))
 
@@ -104,14 +114,14 @@ def get_train_dataloader(
         )
     )
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImages))
 
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     train_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 
@@ -127,7 +137,8 @@ def get_train_dataloader(
 def get_test_dataloader(
     data_root: str,
     anno_path: str,
-    keys_to_load: Sequence[str] = (K.images, K.boxes2d),
+    keys_to_load: Sequence[str] = (K.images, K.original_images),
+    ins_seg: bool = False,
     data_backend: None | DataBackend = None,
     image_size: tuple[int, int] = (720, 1280),
     samples_per_gpu: int = 1,
@@ -139,7 +150,7 @@ def get_test_dataloader(
         BDD100K,
         data_root=data_root,
         annotation_path=anno_path,
-        config_path="det",
+        config_path="ins_seg" if ins_seg else "det",
         keys_to_load=keys_to_load,
         data_backend=data_backend,
     )
@@ -152,18 +163,17 @@ def get_test_dataloader(
             keep_ratio=True,
             align_long_edge=True,
         ),
-        class_config(ResizeImage),
-        class_config(ResizeBoxes2D),
+        class_config(ResizeImages),
     ]
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImages))
 
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[class_config(PadImages), class_config(ToTensor)],
     )
 
@@ -185,11 +195,8 @@ def get_bdd100k_detection_config(
     train_split: str = "train",
     train_keys_to_load: Sequence[str] = (K.images, K.boxes2d),
     test_split: str = "val",
-    test_keys_to_load: Sequence[str] = (
-        K.images,
-        K.original_images,
-        K.boxes2d,
-    ),
+    test_keys_to_load: Sequence[str] = (K.images, K.original_images),
+    ins_seg: bool = False,
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (720, 1280),
     multi_scale: bool = False,
@@ -199,10 +206,18 @@ def get_bdd100k_detection_config(
     """Get the default config for BDD100K detection."""
     data = ConfigDict()
 
+    if K.instance_masks in train_keys_to_load:
+        train_anno_path = "data/bdd100k/labels/ins_seg_train_rle.json"
+        test_anno_path = "data/bdd100k/labels/ins_seg_val_rle.json"
+    else:
+        train_anno_path = "data/bdd100k/labels/det_20/det_train.json"
+        test_anno_path = "data/bdd100k/labels/det_20/det_val.json"
+
     data.train_dataloader = get_train_dataloader(
         data_root=f"{data_root}/{train_split}",
-        anno_path=f"data/bdd100k/labels/det_20/det_{train_split}.json",
+        anno_path=train_anno_path,
         keys_to_load=train_keys_to_load,
+        ins_seg=ins_seg,
         data_backend=data_backend,
         image_size=image_size,
         multi_scale=multi_scale,
@@ -212,8 +227,9 @@ def get_bdd100k_detection_config(
 
     data.test_dataloader = get_test_dataloader(
         data_root=f"{data_root}/{test_split}",
-        anno_path=f"data/bdd100k/labels/det_20/det_{test_split}.json",
+        anno_path=test_anno_path,
         keys_to_load=test_keys_to_load,
+        ins_seg=ins_seg,
         data_backend=data_backend,
         image_size=image_size,
         samples_per_gpu=1,

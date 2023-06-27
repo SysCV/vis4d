@@ -12,8 +12,8 @@ from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel, ResNet
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.detect_3d.filter import bev_3d_nms

@@ -9,7 +9,7 @@ from vis4d.common.typing import NDArrayF32, NDArrayI32
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import bbox_intersection
 
-from .base import BatchTransform
+from .base import Transform
 from .resize import get_resize_shape, resize_tensor
 
 
@@ -32,7 +32,7 @@ class MixupParam(TypedDict):
     pad_value: float
 
 
-@BatchTransform(in_keys=(K.images,), out_keys=("transforms.mixup",))
+@Transform(in_keys=(K.images,), out_keys=("transforms.mixup",))
 class GenMixupParameters:
     """Generate the parameters for a mixup operation."""
 
@@ -125,7 +125,7 @@ class GenMixupParameters:
         return parameter_list
 
 
-@BatchTransform(
+@Transform(
     in_keys=(K.images, "transforms.mixup"),
     out_keys=(K.images,),
 )
@@ -184,7 +184,7 @@ class MixupImages:
         return mixup_images
 
 
-@BatchTransform(
+@Transform(
     in_keys=(K.categories, "transforms.mixup"),
     out_keys=(K.categories,),
 )
@@ -245,7 +245,7 @@ class MixupCategories:
         return smooth_categories
 
 
-@BatchTransform(
+@Transform(
     in_keys=(K.boxes2d, K.boxes2d_classes, "transforms.mixup"),
     out_keys=(K.boxes2d, K.boxes2d_classes),
 )
@@ -315,7 +315,7 @@ class MixupBoxes2D:
         return mixup_boxes_list, mixup_classes_list
 
 
-@BatchTransform(
+@Transform(
     in_keys=(K.boxes2d, K.boxes2d_track_ids, "transforms.mixup"),
     out_keys=(K.boxes2d_track_ids,),
 )

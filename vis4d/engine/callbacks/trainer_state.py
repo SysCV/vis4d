@@ -6,7 +6,7 @@ from typing import TypedDict
 from torch.utils.data import DataLoader
 from typing_extensions import NotRequired
 
-from vis4d.data import DictData
+from vis4d.data.typing import DictData
 
 
 class TrainerState(TypedDict):

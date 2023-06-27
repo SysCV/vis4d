@@ -87,7 +87,10 @@ def relative_range_crop(
     return int(im_h * crop_h + 0.5), int(im_w * crop_w + 0.5)
 
 
-@Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
+@Transform(
+    in_keys=[K.input_hw, K.boxes2d, K.seg_masks],
+    out_keys="transforms.crop",
+)
 class GenCropParameters:
     """Generate the parameters for a crop operation."""
 
@@ -133,12 +136,15 @@ class GenCropParameters:
 
     def __call__(
         self,
-        input_hw: tuple[int, int],
-        boxes: NDArrayF32 | None,
-        masks: NDArrayUI8 | None,
-    ) -> CropParam:
+        input_hw_list: list[tuple[int, int]],
+        boxes_list: list[NDArrayF32 | None],
+        masks_list: list[NDArrayUI8 | None],
+    ) -> list[CropParam]:
         """Compute the parameters and put them in the data dict."""
-        im_h, im_w = input_hw
+        im_h, im_w = input_hw_list[0]
+        boxes = boxes_list[0]
+        masks = masks_list[0]
+
         crop_box, keep_mask = self._get_crop(im_h, im_w, boxes)
         if (boxes is not None and len(boxes) > 0) or self.cat_max_ratio != 1.0:
             # resample crop if conditions not satisfied
@@ -155,7 +161,11 @@ class GenCropParameters:
             if not found_crop:
                 rank_zero_warn("Random crop not found within 10 resamples.")
 
-        return CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        crop_params = [
+            CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        ] * len(input_hw_list)
+
+        return crop_params
 
 
 @Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
@@ -179,12 +189,14 @@ class GenCentralCropParameters:
 
     def __call__(
         self,
-        input_hw: tuple[int, int],
-        boxes: NDArrayF32 | None,
-        masks: NDArrayUI8 | None,
-    ) -> CropParam:
+        input_hw_list: list[tuple[int, int]],
+        boxes_list: list[NDArrayF32 | None],
+        masks_list: list[NDArrayUI8 | None],
+    ) -> list[CropParam]:
         """Compute the parameters and put them in the data dict."""
-        im_h, im_w = input_hw
+        im_h, im_w = input_hw_list[0]
+        boxes = boxes_list[0]
+
         crop_size = self.crop_func(im_h, im_w, self.shape)
         crop_box = _get_central_crop(im_h, im_w, crop_size)
         keep_mask = (
@@ -192,7 +204,11 @@ class GenCentralCropParameters:
             if boxes is not None
             else np.array([])
         )
-        return CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        crop_params = [
+            CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        ] * len(input_hw_list)
+
+        return crop_params
 
 
 @Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
@@ -258,95 +274,127 @@ class GenRandomSizeCropParameters:
 
     def __call__(
         self,
-        input_hw: tuple[int, int],
-        boxes: NDArrayF32 | None,
-        masks: NDArrayUI8 | None,
-    ) -> CropParam:
+        input_hw_list: list[tuple[int, int]],
+        boxes_list: list[NDArrayF32 | None],
+        masks_list: list[NDArrayUI8 | None],
+    ) -> list[CropParam]:
         """Compute the parameters and put them in the data dict."""
-        im_h, im_w = input_hw
+        im_h, im_w = input_hw_list[0]
+        boxes = boxes_list[0]
+
         crop_box = self.get_params(im_h, im_w)
         keep_mask = (
             _get_keep_mask(boxes, crop_box)
             if boxes is not None
             else np.array([])
         )
-        return CropParam(crop_box=crop_box, keep_mask=keep_mask)
+
+        crop_params = [
+            CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        ] * len(input_hw_list)
+
+        return crop_params
 
 
 @Transform([K.images, "transforms.crop.crop_box"], [K.images, K.input_hw])
-class CropImage:
-    """Crop Image."""
+class CropImages:
+    """Crop Images."""
 
     def __call__(
-        self, image: NDArrayF32, crop_box: NDArrayI32
-    ) -> tuple[NDArrayF32, tuple[int, int]]:
-        """Crop an image of dimensions [N, H, W, C].
+        self, images: list[NDArrayF32], crop_box_list: list[NDArrayI32]
+    ) -> tuple[list[NDArrayF32], list[tuple[int, int]]]:
+        """Crop a list of image of dimensions [N, H, W, C].
 
         Args:
-            image (NDArrayF32): The image.
-            crop_box (NDArrayI32): The box to crop.
+            images (list[NDArrayF32]): The list of image.
+            crop_box (list[NDArrayI32]): The list of box to crop.
 
         Returns:
-            NDArrayF32: Cropped image according to parameters in crop.
+            list[NDArrayF32]: List of cropped image according to parameters.
         """
-        h, w = image.shape[1], image.shape[2]
-        x1, y1, x2, y2 = crop_box
-        crop_w, crop_h = x2 - x1, y2 - y1
-        image = image[:, y1:y2, x1:x2, :]
-        input_hw = (min(crop_h, h), min(crop_w, w))
-        return image, input_hw
+        input_hw_list = []
+        for i, (image, crop_box) in enumerate(zip(images, crop_box_list)):
+            h, w = image.shape[1], image.shape[2]
+            x1, y1, x2, y2 = crop_box
+            crop_w, crop_h = x2 - x1, y2 - y1
+            image = image[:, y1:y2, x1:x2, :]
+            input_hw = (min(crop_h, h), min(crop_w, w))
+
+            images[i] = image
+            input_hw_list.append(input_hw)
+        return images, input_hw_list
 
 
 @Transform(
-    [
+    in_keys=[
         K.boxes2d,
         K.boxes2d_classes,
         K.boxes2d_track_ids,
         "transforms.crop.crop_box",
         "transforms.crop.keep_mask",
     ],
-    [K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
+    out_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
 )
 class CropBoxes2D:
     """Crop 2D bounding boxes."""
 
     def __call__(
         self,
-        boxes: NDArrayF32,
-        classes: NDArrayI32,
-        track_ids: NDArrayI32 | None,
-        crop_box: NDArrayI32,
-        keep_mask: NDArrayBool,
-    ) -> tuple[NDArrayF32, NDArrayI32, NDArrayI32 | None]:
+        boxes_list: list[NDArrayF32],
+        classes_list: list[NDArrayI32],
+        track_ids_list: list[NDArrayI32 | None],
+        crop_box_list: list[NDArrayI32],
+        keep_mask_list: list[NDArrayBool],
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
         """Crop 2D bounding boxes.
 
         Args:
-            boxes (NDArrayF32): The bounding boxes to be cropped.
-            classes (NDArrayI32): The corresponding classes.
-            crop_box (NDArrayI32): The box to crop.
-            keep_mask (NDArrayBool): Which boxes to keep.
-            track_ids (NDArrayI32, optional): The corresponding track IDs.
-                Defaults to None.
+            boxes_list (list[NDArrayF32]): The list of bounding boxes to be
+                cropped.
+            classes_list (list[NDArrayI32]): The list of the corresponding
+                classes.
+            crop_box_list (list[NDArrayI32]): The list of box to crop.
+            keep_mask (list[NDArrayBool]): Which boxes to keep.
+            track_ids (list[NDArrayI32] | None, optional): The list of
+                corresponding tracking IDs. Defaults to None.
 
         Returns:
-            tuple[NDArrayF32, NDArrayI32, NDArrayI32]: Cropped bounding boxes
-                according to parameters in crop.
+            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+                List of cropped bounding boxes according to parameters.
         """
-        x1, y1 = crop_box[:2]
-        boxes -= np.array([x1, y1, x1, y1])
-        track_ids = track_ids[keep_mask] if track_ids is not None else None
-        return boxes[keep_mask], classes[keep_mask], track_ids
+        for i, (boxes, classes, track_ids, crop_box, keep_mask) in enumerate(
+            zip(
+                boxes_list,
+                classes_list,
+                track_ids_list,
+                crop_box_list,
+                keep_mask_list,
+            )
+        ):
+            x1, y1 = crop_box[:2]
+            boxes -= np.array([x1, y1, x1, y1])
+
+            boxes_list[i] = boxes[keep_mask]
+            classes_list[i] = classes[keep_mask]
+
+            if track_ids is not None:
+                track_ids_list[i] = track_ids[keep_mask]
+
+        return boxes_list, classes_list, track_ids_list
 
 
 @Transform([K.seg_masks, "transforms.crop.crop_box"], K.seg_masks)
 class CropSegMasks:
     """Crop segmentation masks."""
 
-    def __call__(self, masks: NDArrayUI8, crop_box: NDArrayI32) -> NDArrayUI8:
+    def __call__(
+        self, masks_list: list[NDArrayUI8], crop_box_list: list[NDArrayI32]
+    ) -> list[NDArrayUI8]:
         """Crop masks."""
-        x1, y1, x2, y2 = crop_box
-        masks = masks[y1:y2, x1:x2]
-        return masks
+        for i, (masks, crop_box) in enumerate(zip(masks_list, crop_box_list)):
+            x1, y1, x2, y2 = crop_box
+            masks_list[i] = masks[y1:y2, x1:x2]
+        return masks_list
 
 
 @Transform([K.intrinsics, "transforms.crop.crop_box"], K.intrinsics)
@@ -354,13 +402,16 @@ class CropIntrinsics:
     """Crop Intrinsics."""
 
     def __call__(
-        self, intrinsics: NDArrayF32, crop_box: NDArrayI32
-    ) -> NDArrayF32:
+        self,
+        intrinsics_list: list[NDArrayF32],
+        crop_box_list: list[NDArrayI32],
+    ) -> list[NDArrayF32]:
         """Crop camera intrinsics."""
-        x1, y1 = crop_box[:2]
-        intrinsics[0, 2] -= x1
-        intrinsics[1, 2] -= y1
-        return intrinsics
+        for i, crop_box in enumerate(crop_box_list):
+            x1, y1 = crop_box[:2]
+            intrinsics_list[i][0, 2] -= x1
+            intrinsics_list[i][1, 2] -= y1
+        return intrinsics_list
 
 
 def _sample_crop(

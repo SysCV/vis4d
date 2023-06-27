@@ -11,21 +11,21 @@ from vis4d.config.util import get_train_dataloader_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.imagenet import ImageNet
 from vis4d.data.transforms.autoaugment import RandAug
-from vis4d.data.transforms.base import RandomApply, compose, compose_batch
+from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.crop import (
-    CropImage,
+    CropImages,
     GenCentralCropParameters,
     GenRandomSizeCropParameters,
 )
-from vis4d.data.transforms.flip import FlipImage
+from vis4d.data.transforms.flip import FlipImages
 from vis4d.data.transforms.mixup import (
     GenMixupParameters,
     MixupCategories,
     MixupImages,
 )
-from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.random_erasing import RandomErasing
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImage
+from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 
@@ -55,22 +55,22 @@ def get_train_dataloader(
 
     flip_trans = class_config(
         RandomApply,
-        transforms=[class_config(FlipImage)],
+        transforms=[class_config(FlipImages)],
         probability=0.5,
     )
     random_resized_crop_trans = [
         class_config(GenRandomSizeCropParameters),
-        class_config(CropImage),
+        class_config(CropImages),
         class_config(
             GenerateResizeParameters, shape=image_size, keep_ratio=False
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
     ]
     random_aug_trans = [
         class_config(RandAug, magnitude=10, use_increasing=True),
         class_config(RandomErasing),
     ]
-    normalize_trans = class_config(NormalizeImage)
+    normalize_trans = class_config(NormalizeImages)
     train_preprocess_cfg = class_config(
         compose,
         transforms=[
@@ -87,7 +87,7 @@ def get_train_dataloader(
         class_config(MixupCategories, num_classes=1000, label_smoothing=0.1),
     ]
     train_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             *mixup_trans,
             class_config(ToTensor),
@@ -131,13 +131,13 @@ def get_test_dataloader(
             keep_ratio=True,
             allow_overflow=True,
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
         class_config(
             GenCentralCropParameters, shape=image_size, keep_ratio=False
         ),
-        class_config(CropImage),
+        class_config(CropImages),
     ]
-    normalize_trans = class_config(NormalizeImage)
+    normalize_trans = class_config(NormalizeImages)
     test_preprocess_cfg = class_config(
         compose,
         transforms=[
@@ -152,7 +152,7 @@ def get_test_dataloader(
         class_config(MixupCategories, num_classes=1000, label_smoothing=0.1),
     ]
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             *mixup_trans,
             class_config(ToTensor),

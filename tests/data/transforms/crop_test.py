@@ -8,7 +8,7 @@ import numpy as np
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.crop import (
     CropBoxes2D,
-    CropImage,
+    CropImages,
     CropSegMasks,
     GenCentralCropParameters,
     GenCropParameters,
@@ -40,8 +40,10 @@ class TestCrop(unittest.TestCase):
 
     def test_crop_image(self):
         """Test the CropImage transform."""
+        data = copy.deepcopy(self.data)
+
         gen_param = GenCropParameters(shape=(8, 8))
-        data = gen_param.apply_to_data(copy.deepcopy(self.data))
+        data = gen_param.apply_to_data([data])[0]
         assert "transforms" in data and "crop" in data["transforms"]
         assert (
             "crop_box" in data["transforms"]["crop"]
@@ -49,8 +51,9 @@ class TestCrop(unittest.TestCase):
         )
         x1, y1, x2, y2 = data["transforms"]["crop"]["crop_box"]
         assert x2 - x1 == y2 - y1 == 8
-        transform = CropImage()
-        data = transform.apply_to_data(data)
+
+        transform = CropImages()
+        data = transform.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 8, 8, 3))
         self.assertEqual(data["input_hw"], (8, 8))
         assert np.isclose(
@@ -59,18 +62,20 @@ class TestCrop(unittest.TestCase):
 
     def test_central_crop_image(self):
         """Test the CropImage transform."""
+        data = copy.deepcopy(self.data)
+
         gen_param = GenCentralCropParameters(shape=(8, 8))
-        data = gen_param.apply_to_data(copy.deepcopy(self.data))
-        assert "transforms" in data and "crop" in data["transforms"]
+        data = gen_param.apply_to_data([data])
+        assert "transforms" in data[0] and "crop" in data[0]["transforms"]
         assert (
-            "crop_box" in data["transforms"]["crop"]
-            and "keep_mask" in data["transforms"]["crop"]
+            "crop_box" in data[0]["transforms"]["crop"]
+            and "keep_mask" in data[0]["transforms"]["crop"]
         )
-        x1, y1, x2, y2 = data["transforms"]["crop"]["crop_box"]
+        x1, y1, x2, y2 = data[0]["transforms"]["crop"]["crop_box"]
         assert x1 == y1 == 4
         assert x2 - x1 == y2 - y1 == 8
-        transform = CropImage()
-        data = transform.apply_to_data(data)
+        transform = CropImages()
+        data = transform.apply_to_data(data)[0]
         self.assertEqual(data["images"].shape, (1, 8, 8, 3))
         self.assertEqual(data["input_hw"], (8, 8))
         assert np.isclose(
@@ -79,10 +84,12 @@ class TestCrop(unittest.TestCase):
 
     def test_crop_boxes2d(self):
         """Test the CropBoxes2D transform."""
+        data = copy.deepcopy(self.data)
+
         gen_param = GenCropParameters(shape=(14, 14))
-        data = gen_param.apply_to_data(copy.deepcopy(self.data))
+        data = gen_param.apply_to_data([data])
         transform = CropBoxes2D()
-        data = transform.apply_to_data(data)
+        data = transform.apply_to_data(data)[0]
         crop_box = data["transforms"]["crop"]["crop_box"]
         keep_mask = data["transforms"]["crop"]["keep_mask"]
         assert (
@@ -112,10 +119,12 @@ class TestCrop(unittest.TestCase):
 
     def test_crop_seg_masks(self):
         """Test the CropSegMasks transform."""
+        data = copy.deepcopy(self.data)
+
         gen_param = GenCropParameters(shape=(14, 14))
-        data = gen_param.apply_to_data(copy.deepcopy(self.data))
+        data = gen_param.apply_to_data([data])
         transform = CropSegMasks()
-        data = transform.apply_to_data(data)
+        data = transform.apply_to_data(data)[0]
         self.assertEqual(data[K.seg_masks].shape, (14, 14))
 
     def test_absolute_crop(self):
@@ -149,19 +158,21 @@ class TestCrop(unittest.TestCase):
 
     def test_random_size_crop(self):
         """Test the GenRandomSizeCropParameters transform."""
+        data = copy.deepcopy(self.data)
+
         gen_param = GenRandomSizeCropParameters(
             scale=(0.25, 0.25), ratio=(1, 1)
         )
-        data = gen_param.apply_to_data(copy.deepcopy(self.data))
-        assert "transforms" in data and "crop" in data["transforms"]
+        data = gen_param.apply_to_data([data])
+        assert "transforms" in data[0] and "crop" in data[0]["transforms"]
         assert (
-            "crop_box" in data["transforms"]["crop"]
-            and "keep_mask" in data["transforms"]["crop"]
+            "crop_box" in data[0]["transforms"]["crop"]
+            and "keep_mask" in data[0]["transforms"]["crop"]
         )
-        x1, y1, x2, y2 = data["transforms"]["crop"]["crop_box"]
+        x1, y1, x2, y2 = data[0]["transforms"]["crop"]["crop_box"]
         assert x2 - x1 == y2 - y1 == 8
-        transform = CropImage()
-        data = transform.apply_to_data(data)
+        transform = CropImages()
+        data = transform.apply_to_data(data)[0]
         self.assertEqual(data["images"].shape, (1, 8, 8, 3))
         self.assertEqual(data["input_hw"], (8, 8))
         assert np.isclose(

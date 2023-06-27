@@ -95,11 +95,3 @@ plugins = ["numpy.typing.mypy_plugin"]
     follow_imports = "normal"
     follow_imports_for_stubs = true
     ignore_missing_imports = true
-
-
-# WARNING: TROUBLE ZONE! REMOVE THE FOLLOWING PART BEFORE MERGING
-# TODO: Remove following after refactoring data loader
-# Ignore mypy issues in loader
-[[tool.mypy.overrides]]
-    module = "vis4d.data.loader.*"
-    ignore_errors = true

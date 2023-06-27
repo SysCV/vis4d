@@ -9,14 +9,16 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
+from vis4d.common.typing import TorchLossFunc
+from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
+from vis4d.op.loss.common import l1_loss
 
 from ..layer import Conv2d
 from ..typing import Proposals
-from .anchor_generator import AnchorGenerator
 from .dense_anchor import DenseAnchorHeadLoss, DenseAnchorHeadLosses
 
 
@@ -337,6 +339,8 @@ class RPNLoss(DenseAnchorHeadLoss):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: DeltaXYWHBBoxEncoder,
+        loss_cls: TorchLossFunc = F.binary_cross_entropy_with_logits,
+        loss_bbox: TorchLossFunc = l1_loss,
     ):
         """Creates an instance of the class.
 
@@ -344,6 +348,10 @@ class RPNLoss(DenseAnchorHeadLoss):
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
             box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to the
                 desired network output.
+            loss_cls (TorchLossFunc): Classification loss function. Defaults to
+                F.binary_cross_entropy_with_logits.
+            loss_bbox (TorchLossFunc): Regression loss function. Defaults to
+                l1_loss.
         """
         matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.7],
@@ -352,9 +360,14 @@ class RPNLoss(DenseAnchorHeadLoss):
             min_positive_iou=0.3,
         )
         sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
-        loss_cls = F.binary_cross_entropy_with_logits
+
         super().__init__(
-            anchor_generator, box_encoder, matcher, sampler, loss_cls
+            anchor_generator,
+            box_encoder,
+            matcher,
+            sampler,
+            loss_cls,
+            loss_bbox,
         )
 
     def forward(

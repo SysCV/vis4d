@@ -18,10 +18,7 @@ class GenerateSamplingIndices:
     without replacement.
     """
 
-    def __init__(
-        self,
-        num_pts: int,
-    ) -> None:
+    def __init__(self, num_pts: int) -> None:
         """Creates an instance of the class.
 
         Args:
@@ -29,7 +26,7 @@ class GenerateSamplingIndices:
         """
         self.num_pts = num_pts
 
-    def __call__(self, data: NDArrayNumber) -> NDArrayInt:
+    def __call__(self, data_list: list[NDArrayNumber]) -> list[NDArrayInt]:
         """Samples num_pts from the first dim of the provided data tensor.
 
         If num_pts > data.shape[0], the indices will be upsampled with
@@ -37,22 +34,33 @@ class GenerateSamplingIndices:
         without replacement.
 
         Args:
-            data (NDArrayNumber): Data from which to sample indices
+            data_list (list[NDArrayNumber]): Data from which to sample indices.
+
+        Returns:
+            list[NDArrayInt]: List of indices.
 
         Raises:
             ValueError: If data is empty.
         """
+        data = data_list[0]
+
         if len(data) == 0:
             raise ValueError("Data sample was empty!")
 
         if self.num_pts > len(data):
-            return np.concatenate(
-                [
-                    np.arange(len(data)),
-                    np.random.randint(0, len(data), self.num_pts - len(data)),
-                ]
-            )
-        return np.random.choice(len(data), self.num_pts, replace=False)
+            return [
+                np.concatenate(
+                    [
+                        np.arange(len(data)),
+                        np.random.randint(
+                            0, len(data), self.num_pts - len(data)
+                        ),
+                    ]
+                )
+            ] * len(data_list)
+        return [
+            np.random.choice(len(data), self.num_pts, replace=False)
+        ] * len(data_list)
 
 
 @Transform(K.points3d, "transforms.sampling_idxs")
@@ -88,8 +96,10 @@ class GenerateBlockSamplingIndices:
 
         self._idx_sampler = GenerateSamplingIndices(num_pts)
 
-    def __call__(self, data: NDArrayNumber) -> NDArrayInt:
+    def __call__(self, data_list: list[NDArrayNumber]) -> list[NDArrayInt]:
         """Samples num_pts from the first dim of the provided data tensor."""
+        data = data_list[0]
+
         if self.center_point is None:
             center_point = data[np.random.choice(len(data), 1)]
         else:
@@ -103,13 +113,13 @@ class GenerateBlockSamplingIndices:
             np.all(data <= max_box, axis=1),
         )
         if box_mask.sum().item() == 0:  # No valid data sample found!
-            return np.array([], dtype=np.int32)
+            return [np.array([], dtype=np.int32)] * len(data_list)
 
-        idxs = self._idx_sampler(data[box_mask, ...])
+        idxs = self._idx_sampler([data[box_mask, ...]])[0]
 
         masked_idxs = np.arange(data.shape[0])[box_mask]
         selected_idxs_global = masked_idxs[idxs]
-        return selected_idxs_global
+        return [selected_idxs_global] * len(data_list)
 
 
 @Transform(K.points3d, "transforms.sampling_idxs")
@@ -139,8 +149,12 @@ class GenFullCovBlockSamplingIndices:
             block_dimensions=block_dimensions,
         )
 
-    def __call__(self, coordinates: NDArrayNumber) -> NDArrayInt:
+    def __call__(
+        self, coordinates_list: list[NDArrayNumber]
+    ) -> list[NDArrayInt]:
         """Subsamples the pointcloud using blocks of a given size."""
+        coordinates = coordinates_list[0]
+
         # Get bounding box for sampling
         coord_min, coord_max = (
             np.min(coordinates, axis=0),
@@ -161,10 +175,10 @@ class GenFullCovBlockSamplingIndices:
                     )
 
                     self._idx_sampler.center_point = center_pt
-                    selected_idxs = self._idx_sampler(coordinates)
+                    selected_idxs = self._idx_sampler([coordinates])[0]
                     if selected_idxs.sum() >= self.min_pts:
                         sampled_idxs.append(selected_idxs)
-        return np.stack(sampled_idxs)
+        return [np.stack(sampled_idxs)] * len(coordinates_list)
 
 
 @Transform([K.points3d, "transforms.sampling_idxs"], K.points3d)
@@ -180,17 +194,26 @@ class SamplePoints:
     """
 
     def __call__(
-        self, data: NDArrayNumber, selected_idxs: NDArrayInt
-    ) -> NDArrayNumber:
+        self,
+        data_list: list[NDArrayNumber],
+        selected_idxs_list: list[NDArrayInt],
+    ) -> list[NDArrayNumber]:
         """Returns data[selected_idxs].
 
         If the provided indices have two dimension (i.e n_masks, 64), then
         this operation indices the data n_masks times and returns an array
         """
-        assert selected_idxs.ndim <= 2, "Indices must be 1D or 2D"
-        if selected_idxs.ndim == 2:
-            return np.stack([data[idxs, ...] for idxs in selected_idxs])
-        return data[selected_idxs, ...]
+        for i, (data, selected_idxs) in enumerate(
+            zip(data_list, selected_idxs_list)
+        ):
+            assert selected_idxs.ndim <= 2, "Indices must be 1D or 2D"
+            if selected_idxs.ndim == 2:
+                data_list[i] = np.stack(
+                    [data[idxs, ...] for idxs in selected_idxs]
+                )
+            else:
+                data_list[i] = data[selected_idxs, ...]
+        return data_list
 
 
 @Transform([K.colors3d, "transforms.sampling_idxs"], K.colors3d)

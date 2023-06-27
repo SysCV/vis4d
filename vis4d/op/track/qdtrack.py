@@ -323,8 +323,9 @@ class QDSimilarityHead(nn.Module):
         Returns:
             list[Tensor]: An embedding vector per input box, .
         """
-        # take features of strides 4, 8, 16, 32
-        x = self.roi_pooler(features[2:6], boxes)
+        # RoI pooling
+        num_strides = len(self.roi_pooler.scales)  # type: ignore
+        x = self.roi_pooler(features[2 : 2 + num_strides], boxes)
 
         # convs
         if self.num_convs > 0:
@@ -337,8 +338,8 @@ class QDSimilarityHead(nn.Module):
             for fc in self.fcs:
                 x = fc(x)
 
-        embeddings: list[Tensor] = self.fc_embed(x).split(
-            [len(b) for b in boxes]
+        embeddings: list[Tensor] = list(
+            self.fc_embed(x).split([len(b) for b in boxes])
         )
         return embeddings
 
@@ -409,8 +410,8 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
             QDTrackInstanceSimilarityLosses: Scalar loss tensors.
         """
         if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
-            dummy_loss = torch.sum([e.sum() * 0.0 for e in key_embeddings])  # type: ignore  # pylint: disable=line-too-long
-            return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)
+            dummy_loss = sum(e.sum() * 0.0 for e in key_embeddings)
+            return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)  # type: ignore # pylint: disable=line-too-long
 
         loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
         loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)

@@ -11,6 +11,7 @@ import numpy as np
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
+from vis4d.common.typing import ArgsType
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
@@ -36,6 +37,7 @@ class ImageNet(Dataset):
         split: str = "train",
         num_classes: int = 1000,
         use_sample_lists: bool = False,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize ImageNet dataset.
 
@@ -65,6 +67,7 @@ class ImageNet(Dataset):
             Currently, we are not using the DataBackend for loading the tars to
             avoid keeping too many file pointers open at the same time.
         """
+        super().__init__(**kwargs)
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split

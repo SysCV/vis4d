@@ -1,9 +1,7 @@
 """BDD100K dataset."""
-from __future__ import annotations
-
 from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
 
-from .scalabel import ScalabelVideo
+from .scalabel import Scalabel
 
 bdd100k_det_map = {
     "pedestrian": 0,
@@ -98,7 +96,7 @@ if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
     from scalabel.label.typing import Dataset as ScalabelData
 
 
-class BDD100K(ScalabelVideo):
+class BDD100K(Scalabel):
     """BDD100K type dataset, based on Scalabel."""
 
     DESCRIPTION = """BDD100K is a large-scale dataset for driving scene

@@ -5,7 +5,6 @@ import shutil
 import unittest
 
 from ml_collections import ConfigDict
-from pytorch_lightning import Callback
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
@@ -16,15 +15,15 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_train_dataloader
 from vis4d.data.transforms import (
-    compose_batch,
+    compose,
     mask,
     normalize,
     pad,
     resize,
     to_tensor,
 )
-from vis4d.data.transforms.base import compose
 from vis4d.data.typing import DictData
+from vis4d.engine.callbacks import LoggingCallback
 from vis4d.engine.connectors import (
     DataConnector,
     LossConnector,
@@ -34,15 +33,14 @@ from vis4d.engine.connectors import (
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
+from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
 
 def seg_pipeline(data: list[DictData]) -> DictData:
     """Default data pipeline."""
-    return compose_batch([pad.PadImages(value=255), to_tensor.ToTensor()])(
-        data
-    )
+    return compose([pad.PadImages(value=255), to_tensor.ToTensor()])(data)
 
 
 def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -50,9 +48,9 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     preprocess_fn = compose(
         [
             resize.GenerateResizeParameters((64, 64)),
-            resize.ResizeImage(),
+            resize.ResizeImages(),
             resize.ResizeInstanceMasks(),
-            normalize.NormalizeImage(),
+            normalize.NormalizeImages(),
             mask.ConvertInstanceMaskToSegMask(),
         ]
     )
@@ -65,18 +63,13 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )
 
 
-def get_trainer(
-    exp_name: str, callbacks: None | list[Callback] = None
-) -> PLTrainer:
+def get_trainer(exp_name: str) -> PLTrainer:
     """Build mockup trainer.
 
     Args:
-        exp_name (str): Experiment name
-        callbacks (list[Callback], Callback, optional): pl.callbacks that
-                                                        should be executed
+        exp_name (str): Experiment name.
     """
-    if callbacks is None:
-        callbacks = []
+    callbacks = [OptimEpochCallback(), CallbackWrapper(LoggingCallback())]
 
     return PLTrainer(
         work_dir="./unittests/",

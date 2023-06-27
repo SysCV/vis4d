@@ -29,7 +29,7 @@ class MultiSensorDataConnector(DataConnector):
         super().__init__(*args, **kwargs)
         self.sensors = sensors
 
-    def __call__(self, data: DictData) -> DictData:
+    def __call__(self, data: DictData) -> DictData:  # type: ignore
         """Returns the train input for the model."""
         input_dict: DictData = {}
         for k, v in self.key_mapping.items():

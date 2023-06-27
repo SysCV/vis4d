@@ -23,7 +23,23 @@ model_urls = {
 
 
 class ResNet(BaseModel):
-    """Wrapper for torchvision ResNet."""
+    """Wrapper for torchvision ResNet.
+
+    Args:
+        resnet_name (str): Name of the ResNet variant.
+        trainable_layers (int, optional): Number layers for training or
+            fine-tuning. 5 means all the layers can be fine-tuned.
+            Defaults to 5.
+        norm_freezed (bool, optional): Whether to freeze batch norm.
+            Defaults to True.
+        pretrained (bool, optional): Whether to load ImageNet pre-trained
+            weights. Defaults to False.
+        replace_stride_with_dilation (None | list[bool], optional):
+            Whether to replace stride with dilation. Defaults to None.
+
+    Raises:
+        ValueError: trainable_layers should be between 0 and 5
+    """
 
     def __init__(
         self,
@@ -34,23 +50,7 @@ class ResNet(BaseModel):
         replace_stride_with_dilation: None | list[bool] = None,
         deep_stem: bool = False,
     ):
-        """Initialize the ResNet base model from torchvision.
-
-        Args:
-            resnet_name (str): Name of the ResNet variant.
-            trainable_layers (int, optional): Number layers for training or
-                fine-tuning. 5 means all the layers can be fine-tuned.
-                Defaults to 5.
-            norm_freezed (bool, optional): Whether to freeze batch norm.
-                Defaults to True.
-            pretrained (bool, optional): Whether to load ImageNet pre-trained
-                weights. Defaults to False.
-            replace_stride_with_dilation (None | list[bool], optional):
-                Whether to replace stride with dilation. Defaults to None.
-
-        Raises:
-            ValueError: trainable_layers should be between 0 and 5
-        """
+        """Initialize the ResNet base model from torchvision."""
         super().__init__()
         self.name = resnet_name
         self.norm_freezed = norm_freezed

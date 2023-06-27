@@ -26,8 +26,8 @@ class TestPhotometric(unittest.TestCase):
     def test_random_gamma(self):
         """Testcase for RandomGamma."""
         data = {"images": copy.deepcopy(self.test_image)}
-        tr1 = RandomGamma((0.5, 0.5))
-        data = tr1.apply_to_data(data)
+        transform = RandomGamma((0.5, 0.5))
+        data = transform.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))
         assert np.allclose(
             data["images"][0],
@@ -38,8 +38,8 @@ class TestPhotometric(unittest.TestCase):
     def test_random_brightness(self):
         """Testcase for RandomBrightness."""
         data = {"images": copy.deepcopy(self.test_image)}
-        tr1 = RandomBrightness((0.5, 0.5))
-        data = tr1.apply_to_data(data)
+        transform = RandomBrightness((0.5, 0.5))
+        data = transform.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))
         assert np.allclose(
             data["images"][0],
@@ -50,8 +50,8 @@ class TestPhotometric(unittest.TestCase):
     def test_random_contrast(self):
         """Testcase for RandomContrast."""
         data = {"images": copy.deepcopy(self.test_image)}
-        tr1 = RandomContrast((0.5, 0.5))
-        data = tr1.apply_to_data(data)
+        transform = RandomContrast((0.5, 0.5))
+        data = transform.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))
         assert np.allclose(
             data["images"][0],
@@ -62,8 +62,8 @@ class TestPhotometric(unittest.TestCase):
     def test_random_saturation(self):
         """Testcase for RandomSaturation."""
         data = {"images": copy.deepcopy(self.test_image)}
-        tr1 = RandomSaturation((0.5, 0.5))
-        data = tr1.apply_to_data(data)
+        transform = RandomSaturation((0.5, 0.5))
+        data = transform.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))
         assert np.allclose(
             data["images"][0],
@@ -74,8 +74,8 @@ class TestPhotometric(unittest.TestCase):
     def test_random_hue(self):
         """Testcase for RandomHue."""
         data = {"images": copy.deepcopy(self.test_image)}
-        tr1 = RandomHue((0.05, 0.05))
-        data = tr1.apply_to_data(data)
+        transform = RandomHue((0.05, 0.05))
+        data = transform.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))
         assert np.allclose(
             data["images"][0],
@@ -86,6 +86,6 @@ class TestPhotometric(unittest.TestCase):
     def test_color_jitter(self):
         """Testcase for ColorJitter."""
         data = {"images": copy.deepcopy(self.test_image)}
-        tr1 = ColorJitter()
-        data = tr1.apply_to_data(data)
+        transfrom = ColorJitter()
+        data = transfrom.apply_to_data([data])[0]
         self.assertEqual(data["images"].shape, (1, 230, 352, 3))

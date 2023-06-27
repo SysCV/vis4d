@@ -4,9 +4,10 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import numpy as np
+from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 
-from .datasets import Dataset, VideoMixin
+from .typing import DictDataOrList
 
 
 class VideoInferenceSampler(
@@ -22,7 +23,7 @@ class VideoInferenceSampler(
 
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: Dataset[DictDataOrList],
         num_replicas: None | int = None,
         rank: None | int = None,
         shuffle: bool = True,
@@ -51,9 +52,9 @@ class VideoInferenceSampler(
                 Default: ``False``.
         """
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
-        assert isinstance(
-            dataset, VideoMixin
-        ), "Dataset needs to inherit the VideoMixin functionality!"
+        assert hasattr(
+            dataset, "video_to_indices"
+        ), f"{dataset} needs to have video_to_indices attribute!"
         self.sequences = list(dataset.video_to_indices)
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (

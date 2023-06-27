@@ -12,14 +12,14 @@ import numpy as np
 from tqdm import tqdm
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
+from vis4d.common.typing import ArgsType, NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.base import Dataset
-from vis4d.data.datasets.util import im_decode, npy_decode
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
-from .scalabel import ScalabelVideo
+from .base import VideoDataset
+from .scalabel import Scalabel
+from .util import im_decode, npy_decode
 
 shift_det_map = {
     "pedestrian": 0,
@@ -95,7 +95,7 @@ def _get_extension(backend: DataBackend) -> str:
     raise ValueError(f"Unsupported backend {backend}.")  # pragma: no cover
 
 
-class _SHIFTScalabelLabels(ScalabelVideo):
+class _SHIFTScalabelLabels(Scalabel):
     """Helper class for labels in SHIFT that are stored in Scalabel format."""
 
     VIEWS = [
@@ -121,6 +121,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
         backend: DataBackend = HDF5Backend(),
         verbose: bool = False,
         num_workers: int = 1,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset for one view.
 
@@ -189,6 +190,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
             annotation_path,
             data_backend=backend,
             keys_to_load=keys_to_load,
+            **kwargs,
         )
 
     def _generate_mapping(self) -> ScalabelData:
@@ -254,7 +256,7 @@ class _SHIFTScalabelLabels(ScalabelVideo):
         return ScalabelData(frames=frames, config=config, groups=None)
 
 
-class SHIFT(Dataset):
+class SHIFT(VideoDataset):
     """SHIFT dataset class, supporting multiple tasks and views."""
 
     DESCRIPTION = """SHIFT Dataset, a synthetic driving dataset for continuous
@@ -347,8 +349,10 @@ class SHIFT(Dataset):
         backend: DataBackend = HDF5Backend(),
         num_workers: int = 1,
         verbose: bool = False,
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize SHIFT dataset."""
+        super().__init__(data_backend=backend, **kwargs)
         # Validate input
         assert split in {"train", "val", "test"}, f"Invalid split '{split}'."
         assert framerate in {
@@ -442,6 +446,8 @@ class SHIFT(Dataset):
                         verbose=verbose,
                     )
 
+        self.video_to_indices = self._generate_video_to_indices()
+
     def validate_keys(self, keys_to_load: Sequence[str]) -> None:
         """Validate that all keys to load are supported."""
         for k in keys_to_load:
@@ -517,9 +523,7 @@ class SHIFT(Dataset):
                 list(self.scalabel_datasets.keys())[0]
             ].frames
             return frames[idx].videoName, frames[idx].name
-        raise ValueError(
-            "No Scalabel file has been loaded."
-        )  # pragma: no cover
+        raise ValueError("No Scalabel file has been loaded.")
 
     def __len__(self) -> int:
         """Get the number of samples in the dataset."""
@@ -527,12 +531,9 @@ class SHIFT(Dataset):
             return len(
                 self.scalabel_datasets[list(self.scalabel_datasets.keys())[0]]
             )
-        raise ValueError(
-            "No Scalabel file has been loaded."
-        )  # pragma: no cover
+        raise ValueError("No Scalabel file has been loaded.")
 
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
+    def _generate_video_to_indices(self) -> dict[str, list[int]]:
         """Group all dataset sample indices (int) by their video ID (str).
 
         Returns:
@@ -545,9 +546,7 @@ class SHIFT(Dataset):
             return self.scalabel_datasets[
                 list(self.scalabel_datasets.keys())[0]
             ].video_to_indices
-        raise ValueError(
-            "No Scalabel file has been loaded."
-        )  # pragma: no cover
+        raise ValueError("No Scalabel file has been loaded.")
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.

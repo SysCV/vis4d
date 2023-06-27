@@ -12,17 +12,17 @@ from vis4d.config.util import (
     get_train_dataloader_cfg,
 )
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
-from vis4d.data.loader import DataPipe
-from vis4d.data.transforms.base import RandomApply, compose, compose_batch
-from vis4d.data.transforms.flip import FlipImage, FlipSegMasks
-from vis4d.data.transforms.normalize import NormalizeImage
+from vis4d.data.transforms.base import RandomApply, compose
+from vis4d.data.transforms.flip import FlipImages, FlipSegMasks
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages, PadSegMasks
 from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
-    ResizeImage,
+    ResizeImages,
     ResizeSegMasks,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
@@ -56,14 +56,14 @@ def get_train_dataloader(
             keep_ratio=True,
             scale_range=(0.5, 2.0),
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
         class_config(ResizeSegMasks),
     ]
 
     preprocess_transforms.append(
         class_config(
             RandomApply,
-            transforms=[class_config(FlipImage), class_config(FlipSegMasks)],
+            transforms=[class_config(FlipImages), class_config(FlipSegMasks)],
             probability=0.5,
         )
     )
@@ -76,14 +76,14 @@ def get_train_dataloader(
         )
     )
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImages))
 
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     train_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             class_config(PadImages),
             class_config(PadSegMasks),
@@ -124,18 +124,18 @@ def get_test_dataloader(
         class_config(
             GenerateResizeParameters, shape=image_size, keep_ratio=True
         ),
-        class_config(ResizeImage),
+        class_config(ResizeImages),
         class_config(ResizeSegMasks),
     ]
 
-    preprocess_transforms.append(class_config(NormalizeImage))
+    preprocess_transforms.append(class_config(NormalizeImages))
 
     test_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
 
     test_batchprocess_cfg = class_config(
-        compose_batch,
+        compose,
         transforms=[
             class_config(PadImages, shape=image_size),
             class_config(PadSegMasks, shape=image_size),

@@ -6,9 +6,9 @@ import copy
 import unittest
 
 import numpy as np
-import pytest
 
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.transforms import compose
 from vis4d.data.transforms.point_sampling import (
     GenerateBlockSamplingIndices,
     GenerateSamplingIndices,
@@ -24,18 +24,6 @@ class TestSampleFromBlock(unittest.TestCase):
     data_in_unit_square = np.sort(np.random.rand(100, 3), axis=0)
     data_outside_unit_square = np.sort(np.random.rand(100, 3), axis=0) + 10
     n_pts_to_sample = 100
-    data: dict[str, np.ndarray] = {}
-    original_data: dict[str, np.ndarray] = {}
-
-    @pytest.fixture(autouse=True)
-    def initdata(self) -> None:
-        """Loads dummy data."""
-        self.data = {
-            K.points3d: np.concatenate(
-                [self.data_in_unit_square, self.data_outside_unit_square]
-            ),
-        }
-        self.original_data = copy.deepcopy(self.data)
 
     def test_block_sampling(self) -> None:
         """Tests the functor."""
@@ -49,9 +37,10 @@ class TestSampleFromBlock(unittest.TestCase):
         )
 
         sampler = SamplePoints()
-        data_sampled = sampler.apply_to_data(
-            mask_gen.apply_to_data(data_to_sample_from)
-        )
+
+        tr1 = compose([mask_gen, sampler])
+
+        data_sampled = tr1([data_to_sample_from])[0]
 
         self.assertTrue(
             np.all(
@@ -72,15 +61,16 @@ class TestSampleFromBlock(unittest.TestCase):
             center_point=(0.5, 0.5, 0.5),
         )
 
-        data_sampled = sampler.apply_to_data(
-            mask_gen.apply_to_data(data_to_sample_from)
-        )
+        tr2 = compose([mask_gen, sampler])
+
+        data_sampled = tr2([data_to_sample_from])[0]
         self.assertTrue(
             np.all(
                 np.sort(data_sampled[K.points3d], axis=0)
                 == self.data_in_unit_square
             )
         )
+
         # Should only sample from the second block
         data_to_sample_from = {
             K.points3d: np.concatenate(
@@ -93,9 +83,9 @@ class TestSampleFromBlock(unittest.TestCase):
             center_point=(10.5, 10.5, 10.5),
         )
 
-        data_sampled = sampler.apply_to_data(
-            mask_gen.apply_to_data(data_to_sample_from)
-        )
+        tr3 = compose([mask_gen, sampler])
+
+        data_sampled = tr3([data_to_sample_from])[0]
         self.assertTrue(
             np.all(
                 np.sort(data_sampled[K.points3d], axis=0)
@@ -105,18 +95,30 @@ class TestSampleFromBlock(unittest.TestCase):
 
     def test_full_scale_block_sampling(self) -> None:
         """Tests if all points are sampled when using full coverage."""
+        data = {
+            K.points3d: np.concatenate(
+                [
+                    self.data_in_unit_square,
+                    self.data_in_unit_square,
+                ]
+            )
+        }
+
         mask_gen = GenFullCovBlockSamplingIndices(
             block_dimensions=(1, 1, 1),
             min_pts=1,
             num_pts=200,
         )
-
         sampler = SamplePoints()
-        data_sampled = sampler.apply_to_data(mask_gen.apply_to_data(self.data))
+
+        transform = compose([mask_gen, sampler])
+
+        data_sampled = transform([copy.deepcopy(data)])[0]
+
         self.assertTrue(
             np.all(
                 np.unique(data_sampled[K.points3d].reshape(-1, 3), axis=0)
-                == np.unique(self.original_data[K.points3d], axis=00)
+                == np.unique(data[K.points3d], axis=00)
             )
         )
 
@@ -129,8 +131,10 @@ class RandomPointSamplingTest(unittest.TestCase):
         data: DictData = dict(points3d=np.random.rand(100, 3))
         tr1 = GenerateSamplingIndices(num_pts=10)
         tr2 = SamplePoints()
-        with_idxs = tr1.apply_to_data(data)
-        sampled_points = tr2.apply_to_data(with_idxs)
+
+        transform = compose([tr1, tr2])
+        sampled_points = transform([data])[0]
+
         self.assertEqual(sampled_points["points3d"].shape[0], 10)
 
     def test_sample_more_pts(self) -> None:
@@ -141,6 +145,8 @@ class RandomPointSamplingTest(unittest.TestCase):
         data: DictData = dict(points3d=np.random.rand(100, 3))
         tr1 = GenerateSamplingIndices(num_pts=1000)
         tr2 = SamplePoints()
-        with_idxs = tr1.apply_to_data(data)
-        sampled_points = tr2.apply_to_data(with_idxs)
+
+        transform = compose([tr1, tr2])
+        sampled_points = transform([data])[0]
+
         self.assertEqual(sampled_points["points3d"].shape[0], 1000)

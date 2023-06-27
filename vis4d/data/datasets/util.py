@@ -2,25 +2,31 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import os
 import pickle
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from io import BytesIO
 from typing import Any
 
-import appdirs
 import numpy as np
 import plyfile
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 
-from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
+from vis4d.common.distributed import broadcast, rank_zero_only
 from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import NDArrayF32, NDArrayFloat, NDArrayInt
-from vis4d.data.typing import DictData
+from vis4d.common.typing import (
+    DictStrAny,
+    ListAny,
+    NDArrayFloat,
+    NDArrayI64,
+    NDArrayUI8,
+)
+
+from ..typing import DictData
 
 if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
@@ -143,15 +149,15 @@ def get_used_data_groups(
     return used_groups
 
 
-def to_onehot(categories: NDArrayInt, num_classes: int) -> NDArrayF32:
+def to_onehot(categories: NDArrayI64, num_classes: int) -> NDArrayFloat:
     """Transform integer categorical labels to onehot vectors.
 
     Args:
-        categories (NDArrayInt): Integer categorical labels of shape (N, ).
+        categories (NDArrayI64): Integer categorical labels of shape (N, ).
         num_classes (int): Number of classes.
 
     Returns:
-        category_vector (NDArrayF32): Onehot vector of shape (N, num_classes).
+        NDArrayFloat: Onehot vector of shape (N, num_classes).
     """
     _eye = np.eye(num_classes, dtype=np.float32)
     return _eye[categories]
@@ -166,62 +172,78 @@ class CacheMappingMixin:
     Caching the mapping reduces startup time by loading the mapping instead of
     re-computing it at every startup.
 
-    NOTE: The mapping will detect changes in the dataset by inspecting the
-    string representation (__repr__) of your dataset. Make sure your __repr__
-    implementation contains all parameters relevant to your mapping, so that
-    the mapping will get updated once one of those parameters is changed.
-    Conversely, make sure all non-relevant information is excluded from the
-    string representation, so that the mapping can be loaded and re-used.
+    NOTE: Make sure your annotations file is up-to-date. Otherwise, the mapping
+    will be wrong and you will get wrong samples.
     """
 
+    @rank_zero_only
     def _load_mapping_data(
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
-        use_cache: bool = True,
-    ) -> list[DictStrAny]:
-        """Load possibly cached mapping via generate_map_func."""
-        if use_cache:
-            app_dir = os.getenv(
-                "VIS4D_CACHE_DIR", appdirs.user_cache_dir(appname="vis4d")
-            )
-            cache_dir = os.path.join(
-                app_dir,
-                "data_mapping",
-                self.__class__.__name__,
-            )
-            os.makedirs(cache_dir, exist_ok=True)
-            cache_path = os.path.join(cache_dir, self._get_hash() + ".pkl")
-            if not os.path.exists(cache_path):
+        cache_as_binary: bool,
+        cached_file_path: str | None,
+    ) -> ListAny:
+        """Load possibly cached mapping via generate_map_func.
+
+        Args:
+            generate_map_func (Callable[[], list[DictStrAny]]): The function
+                that generates the mapping.
+            cache_as_binary (bool): Whether to cache the mapping as binary.
+            cached_file_path (str | None): The path to the cached mapping file.
+        """
+        if cache_as_binary:
+            assert (
+                cached_file_path is not None
+            ), "cached_file_path must be set if cache_as_binary is True!"
+            if not os.path.exists(cached_file_path):
+                rank_zero_info(
+                    f"Did not find {cached_file_path}, generating it..."
+                )
                 data = generate_map_func()
-                with open(cache_path, "wb") as file:
+                with open(cached_file_path, "wb") as file:
                     file.write(pickle.dumps(data))
             else:
-                with open(cache_path, "rb") as file:
+                dt = datetime.fromtimestamp(os.stat(cached_file_path).st_mtime)
+                rank_zero_info(
+                    f"Found {cached_file_path} generated at {dt.isoformat()} "
+                    + "and loading it..."
+                )
+                with open(cached_file_path, "rb") as file:
                     data = pickle.loads(file.read())
         else:
+            rank_zero_info(f"Generating {self} data mapping...")
             data = generate_map_func()
         return data
 
     def _load_mapping(
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
-        use_cache: bool = True,
-    ) -> Dataset[DictStrAny]:
-        """Load cached mapping or generate if not exists."""
-        timer = Timer()
-        data = self._load_mapping_data(generate_map_func, use_cache)
-        dataset = DatasetFromList(data)
-        rank_zero_info(
-            f"Loading {str(self.__repr__())} takes {timer.time():.2f} seconds."  # pylint: disable=unnecessary-dunder-call, line-too-long
-        )
-        return dataset
+        filter_func: Callable[[ListAny], ListAny] = lambda x: x,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
+    ) -> DatasetFromList:
+        """Load cached mapping or generate if not exists.
 
-    def _get_hash(self, length: int = 16) -> str:
-        """Get hash of current dataset instance."""
-        hasher = hashlib.sha256()
-        hasher.update(str(self.__repr__).encode("utf8"))
-        hash_value = hasher.hexdigest()[:length]
-        return hash_value
+        Args:
+            generate_map_func (Callable[[], list[DictStrAny]]): The function
+                that generates the mapping.
+            filter_func (Callable[[ListAny], ListAny], optional): The function
+                that filters the mapping. Defaults to lambda x: x.
+            cache_as_binary (bool, optional): Whether to cache the mapping as
+                binary. Defaults to True.
+            cached_file_path (str | None, optional): The path to the cached
+                mapping file. Defaults to None.
+        """
+        timer = Timer()
+        dataset = self._load_mapping_data(
+            generate_map_func, cache_as_binary, cached_file_path
+        )
+        if dataset is not None:
+            dataset = filter_func(dataset)
+            dataset = DatasetFromList(dataset)
+        dataset = broadcast(dataset)
+        rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
+        return dataset
 
 
 # reference:
@@ -234,8 +256,8 @@ class DatasetFromList(Dataset):  # type: ignore
     See: https://github.com/pytorch/pytorch/issues/13246
     """
 
-    def __init__(  # type: ignore
-        self, lst: list[Any], deepcopy: bool = False, serialize: bool = True
+    def __init__(
+        self, lst: ListAny, deepcopy: bool = False, serialize: bool = True
     ):
         """Creates an instance of the class.
 
