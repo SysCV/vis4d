@@ -20,3 +20,33 @@ class TestSemanticFPNConfig(unittest.TestCase):
                 self.varying_keys,
             )
         )
+
+    def test_r50_fpn_40k(self) -> None:
+        """Test the config."""
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.semantic_fpn_r50_40k_shift",
+                f"{self.gt_config_path}/semantic_fpn_r50_40k_shift.yaml",
+                self.varying_keys,
+            )
+        )
+
+    def test_r50_fpn_160k_all_domains(self) -> None:
+        """Test the config."""
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.semantic_fpn_r50_160k_shift_all_domains",
+                f"{self.gt_config_path}/semantic_fpn_r50_160k_shift_all_domains.yaml",
+                self.varying_keys,
+            )
+        )
+
+    def test_r50_fpn_40k_all_domains(self) -> None:
+        """Test the config."""
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.semantic_fpn_r50_40k_shift_all_domains",
+                f"{self.gt_config_path}/semantic_fpn_r50_40k_shift_all_domains.yaml",
+                self.varying_keys,
+            )
+        )
