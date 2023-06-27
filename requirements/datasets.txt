@@ -1,3 +1,0 @@
-git+https://github.com/bdd100k/bdd100k.git
-git+https://github.com/scalabel/scalabel.git
-nuscenes-devkit
