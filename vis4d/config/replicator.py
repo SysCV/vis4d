@@ -199,7 +199,7 @@ def _resolve_fstring(fstring: str, config: ConfigDict) -> str:
     """
     # match everything between { and ':' or '}'
     pattern = re.compile(r"{([^:}]+)")
-    required_params = {[p.strip() for p in pattern.findall(fstring)]}
+    required_params = {p.strip() for p in pattern.findall(fstring)}
 
     format_dict: dict[str, str] = {}
     for param in required_params:

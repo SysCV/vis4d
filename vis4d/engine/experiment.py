@@ -84,6 +84,7 @@ def run_experiment(
     use_slurm: bool = False,
 ) -> None:
     """Entry point for running a single experiment.
+
     Args:
         config (ExperimentConfig): Configuration dictionary.
         mode (str): Mode to run the experiment in. Either `fit` or `test`.
@@ -91,6 +92,7 @@ def run_experiment(
         show_config (bool): If set, prints the configuration.
         use_slurm (bool): If set, setup slurm running jobs. This will set the
             required environment variables for slurm.
+
     Raises:
         ValueError: If `mode` is not `fit` or `test`.
     """

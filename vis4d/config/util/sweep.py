@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict
 
+from vis4d.common.typing import ArgsType
+
 
 def grid_search(
     param_names: list[str] | str,
-    param_values: list[float] | list[list[float]],
+    param_values: list[ArgsType] | list[list[ArgsType]],
 ) -> ConfigDict:
     """Linear grid search configuration over a list of parameters.
 
@@ -16,7 +18,7 @@ def grid_search(
     Args:
         param_names (list[str] | str): The name of the parameters to be
             sampled.
-        param_values (list[float] | list[list[float]]): The values which
+        param_values (list[Any] | list[list[Any]]): The values which
             should be sampled.
 
     Example:
