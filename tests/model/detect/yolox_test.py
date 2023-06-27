@@ -17,10 +17,6 @@ from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.detect.common import DetOut
 
-import multiprocessing
-
-multiprocessing.set_start_method("fork")
-
 
 def get_test_dataloader(
     datasets: Dataset, batch_size: int, im_hw: tuple[int, int]
