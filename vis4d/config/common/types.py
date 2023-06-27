@@ -101,7 +101,6 @@ class ExperimentConfig(FieldConfigDict):
 
     """
 
-    # Experiment description
     data: DataConfig
 
     output_dir: str | FieldReference
@@ -116,3 +115,25 @@ class ExperimentConfig(FieldConfigDict):
     callbacks: list[FieldConfigDictOrRef] = []
 
     params: ExperimentParameters
+
+
+class ParameterSweepConfig(FieldConfigDict):
+    """Configuration for a parameter sweep.
+
+    Confguration object for a parameter sweep. It contains the minimal required
+    configuration to run a parameter sweep.
+
+    Attributes:
+        method (str): Sweep method that should be used (e.g. grid)
+        sampling_args (list[tuple[str, Any]]): Arguments that should be passed
+            to the sweep method. E.g. for grid, this would be a list of tuples
+            of the form (parameter_name, parameter_values).
+        suffix (str): Suffix that should be appended to the output directory.
+            This will be interpreted as a string template and can contain
+            references to the sampling_args.
+            E.g. "lr_{lr:.2e}_bs_{batch_size}".
+    """
+
+    method: str | FieldReference
+    sampling_args: list[tuple[str, Any]] | FieldReference  # type: ignore
+    suffix: str | FieldReference = ""

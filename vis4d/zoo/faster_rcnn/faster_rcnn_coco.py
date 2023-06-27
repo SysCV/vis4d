@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
+import numpy as np
 from torch.optim import SGD
 from torch.optim.lr_scheduler import MultiStepLR
 
@@ -12,7 +13,11 @@ from vis4d.config.common.datasets.coco import (
     get_coco_detection_cfg,
 )
 from vis4d.config.common.models import get_faster_rcnn_cfg
-from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
+from vis4d.config.common.types import (
+    ExperimentConfig,
+    ExperimentParameters,
+    ParameterSweepConfig,
+)
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -24,6 +29,7 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_VIS,
 )
 from vis4d.config.util import get_optimizer_cfg
+from vis4d.config.util.sweep import grid_search
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
@@ -171,3 +177,24 @@ def get_config() -> ExperimentConfig:
     config.pl_callbacks = pl_callbacks
 
     return config.value_mode()
+
+
+def get_sweep() -> ParameterSweepConfig:
+    """Returns the config dict for a grid search over learning rate.
+
+    The name of the experiments will also be updated to include the learning
+    rate in the format "lr_{params.lr:.3f}_".
+
+    Returns:
+        ConfigDict: The configuration that can be used to run a grid search.
+            It can be passed to replicate_config to create a list of configs
+            that can be used to run a grid search.
+    """
+    # Here we define the parameters that we want to sweep over.
+    # In order to sweep over multiple parameters, we can pass a list of
+    # parameters to the grid_search function.
+    sweep_config = grid_search("params.lr", list(np.linspace(0.001, 0.01, 3)))
+
+    # Here we update the name of the experiment to include the learning rate.
+    sweep_config.suffix = "lr_{params.lr:.3f}_"
+    return sweep_config
