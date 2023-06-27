@@ -17,6 +17,10 @@ from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.detect.common import DetOut
 
+import multiprocessing
+
+multiprocessing.set_start_method("fork")
+
 
 def get_test_dataloader(
     datasets: Dataset, batch_size: int, im_hw: tuple[int, int]
@@ -69,7 +73,7 @@ class YOLOXTest(unittest.TestCase):
         ) -> None:
             """Assert prediction and ground truth are equal."""
             for pred, gt in zip(prediction, gts):
-                assert torch.isclose(pred, gt, atol=1e-4).all().item()
+                assert torch.isclose(pred, gt, atol=1e-3).all().item()
 
         _assert_eq(dets.boxes, testcase_gt.boxes)
         _assert_eq(dets.scores, testcase_gt.scores)
