@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
-from vis4d.data.data_pipe import DataPipe, MosaicDataPipe
+from vis4d.data.data_pipe import DataPipe
 from vis4d.engine.loss_module import LossModule
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
 from vis4d.op.loss.common import l1_loss
