@@ -44,8 +44,6 @@ class PLTrainer(pl.Trainer):
                 Default: 1
             wandb: Use weights and biases logging instead of tensorboard.
                 Default: False
-            use_ema_model_for_test: Use the exponential moving average model
-                for testing if available. Default: True
         """
         self.work_dir = work_dir
         self.exp_name = exp_name

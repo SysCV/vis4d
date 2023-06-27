@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """VIT ImageNet-1k training example."""
 from __future__ import annotations
 
@@ -47,6 +48,7 @@ def get_config() -> ExperimentConfig:
     config = get_default_cfg(exp_name="vit_small_16_imagenet1k")
     config.sync_batchnorm = True
     config.check_val_every_n_epoch = 1
+    config.use_ema_model_for_test = True
     config.ema_decay_rate = 0.99996
 
     ## High level hyper parameters

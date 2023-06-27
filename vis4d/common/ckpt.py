@@ -66,28 +66,16 @@ def load_model_checkpoint(
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
         _load_checkpoint(
-            model,
-            weights,
-            map_location,
-            strict=strict,
-            revise_keys=rev_keys,
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
         )
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
         _load_checkpoint(
-            model,
-            weights,
-            map_location,
-            strict=strict,
-            revise_keys=rev_keys,
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
         )
     else:  # pragma: no cover
         _load_checkpoint(
-            model,
-            weights,
-            map_location,
-            strict=strict,
-            revise_keys=rev_keys,
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
         )
 
 

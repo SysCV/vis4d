@@ -77,7 +77,7 @@ class TrainingModule(pl.LightningModule):
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
         seed: None | int = None,
-        use_ema_model_for_test: bool = True,
+        use_ema_model_for_test: bool = False,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -93,7 +93,7 @@ class TrainingModule(pl.LightningModule):
                 state. Defaults to None.
             use_ema_model_for_test (bool, optional): Whether to use the
                 exponential moving average of the model for testing. Defaults
-                to True.
+                to False.
         """
         super().__init__()
         self.model = model
@@ -102,8 +102,7 @@ class TrainingModule(pl.LightningModule):
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.seed = seed
-        self.use_ema_for_test = use_ema_model_for_test
-        self._with_ema = False
+        self.use_ema_model_for_test = use_ema_model_for_test
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -123,9 +122,10 @@ class TrainingModule(pl.LightningModule):
             self.optims = set_up_optimizers(self.optims, self.model)
 
         # Set up the model EMA
-        if isinstance(self.model, ModelEMAAdapter):
-            self._with_ema = True
-            rank_zero_info("Using model EMA during training.")
+        if self.use_ema_model_for_test:
+            assert isinstance(
+                self.model, ModelEMAAdapter
+            ), "Model must be wrapped in ModelEMAAdapter"
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
@@ -168,7 +168,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        if self._with_ema and self.use_ema_for_test:
+        if self.use_ema_model_for_test:
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
@@ -179,7 +179,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        if self._with_ema and self.use_ema_for_test:
+        if self.use_ema_model_for_test:
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
@@ -200,5 +200,5 @@ class TrainingModule(pl.LightningModule):
         optimizer.step(closure=optimizer_closure)
 
         # Update EMA model if available
-        if self._with_ema:
+        if isinstance(self.model, ModelEMAAdapter):
             self.model.update()

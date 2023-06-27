@@ -7,8 +7,9 @@ from torch import nn
 
 from vis4d.common import ArgsType
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.model.cls import ClsOut
 from vis4d.op.base.vit import VisionTransformer, ViT_PRESET
+
+from .common import ClsOut
 
 
 class ViTClassifer(nn.Module):

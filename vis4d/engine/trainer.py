@@ -33,7 +33,7 @@ class Trainer:
         global_step: int = 0,
         check_val_every_n_epoch: int | None = 1,
         val_check_interval: int | None = None,
-        use_ema_model_for_test: bool = True,
+        use_ema_model_for_test: bool = False,
     ) -> None:
         """Initialize the trainer.
 
@@ -60,7 +60,7 @@ class Trainer:
             val_check_interval (int | None, optional): Interval for evaluating
                 the model during training. Defaults to None.
             use_ema_model_for_test (bool, optional): Use the EMA model for
-                testing if available. Defaults to True.
+                testing if available. Defaults to False.
         """
         self.device = device
         self.train_dataloader = train_dataloader
@@ -282,10 +282,10 @@ class Trainer:
                 test_input = self.test_data_connector(data)
 
                 # forward
-                if (
-                    isinstance(model, ModelEMAAdapter)
-                    and self.use_ema_model_for_test
-                ):
+                if self.use_ema_model_for_test:
+                    assert isinstance(
+                        model, ModelEMAAdapter
+                    ), "Model must be wrapped in ModelEMAAdapter"
                     output = model.ema_model(**test_input)
                 else:
                     output = model(**test_input)

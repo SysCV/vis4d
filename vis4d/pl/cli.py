@@ -58,7 +58,6 @@ def main(argv: ArgsType) -> None:
         config.pl_trainer.accelerator = "gpu"
         config.pl_trainer.devices = num_gpus
     else:
-        # Use CPU if no GPU is available (num_gpus == 0) for debugging and CI
         config.pl_trainer.accelerator = "cpu"
         config.pl_trainer.devices = 1
 
@@ -103,7 +102,6 @@ def main(argv: ArgsType) -> None:
     callbacks.append(OptimEpochCallback())
 
     trainer = PLTrainer(callbacks=callbacks, **trainer_args.to_dict())
-    use_ema_model_for_test = config.get("use_ema_model_for_test", True)
     training_module = TrainingModule(
         config.model,
         config.optimizers,
@@ -111,7 +109,7 @@ def main(argv: ArgsType) -> None:
         train_data_connector,
         test_data_connector,
         seed,
-        use_ema_model_for_test=use_ema_model_for_test,
+        use_ema_model_for_test=config.get("use_ema_model_for_test", False),
     )
     data_module = DataModule(config.data)
 
