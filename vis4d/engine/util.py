@@ -9,12 +9,10 @@ from copy import deepcopy
 from typing import Any
 
 import torch
-from ml_collections import ConfigDict
 from torch import Tensor, nn
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.named_tuple import is_namedtuple
-from vis4d.config import instantiate_classes
 
 _BLOCKING_DEVICE_TYPES = ("cpu", "mps")
 
@@ -228,7 +226,7 @@ class ModelEMAAdapter(nn.Module):
 
     def __init__(
         self,
-        model: ConfigDict | nn.Module,
+        model: nn.Module,
         decay: float = 0.9998,
         device: torch.device | None = None,
     ):
@@ -241,10 +239,7 @@ class ModelEMAAdapter(nn.Module):
 
         """
         super().__init__()
-        if isinstance(model, ConfigDict):
-            self.model = instantiate_classes(model)
-        else:
-            self.model = model
+        self.model = model
         self.ema_model = deepcopy(self.model)
         self.ema_model.eval()
         self.decay = decay

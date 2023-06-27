@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from vis4d.config.config_dict import class_config
 from vis4d.engine.util import ModelEMAAdapter, apply_to_collection
 
 
@@ -143,7 +142,3 @@ def test_model_ema() -> None:
 
     model_.set(model)
     assert model_.ema_model.param.data == model.param.data
-
-    model_cfg = class_config(MockModel)
-    model_ = ModelEMAAdapter(model_cfg, decay=0.99)
-    assert model_.model.param.data == torch.ones(1)
