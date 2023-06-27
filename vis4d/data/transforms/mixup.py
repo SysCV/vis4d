@@ -1,4 +1,6 @@
 """Mixup data augmentation."""
+from __future__ import annotations
+
 import random
 from typing import TypedDict
 
