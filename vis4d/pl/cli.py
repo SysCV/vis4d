@@ -15,7 +15,7 @@ from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.engine.callbacks.checkpoint import CheckpointCallback
 from vis4d.engine.parser import DEFINE_config_file, pprints_config
-from vis4d.pl.callbacks import CallbackWrapper, LRWarmUpCallback
+from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
@@ -100,7 +100,7 @@ def main(argv: ArgsType) -> None:
         callbacks.append(cb)
 
     # Add needed callbacks
-    callbacks.append(LRWarmUpCallback())
+    callbacks.append(LRSchedulerCallback())
 
     # Checkpoint path
     ckpt_path = _CKPT.value

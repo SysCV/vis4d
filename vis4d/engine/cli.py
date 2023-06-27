@@ -153,7 +153,9 @@ def main(argv: ArgsType) -> None:
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
         train_dataloader = instantiate_classes(config.data.train_dataloader)
         train_data_connector = instantiate_classes(config.train_data_connector)
-        optimizers = set_up_optimizers(config.optimizers, [model])
+        optimizers, lr_schedulers = set_up_optimizers(
+            config.optimizers, [model]
+        )
         loss = instantiate_classes(config.loss)
     else:
         train_dataloader = None
@@ -196,14 +198,13 @@ def main(argv: ArgsType) -> None:
         ckpt = torch.load(ckpt_path, map_location="cpu")
 
         epoch = ckpt["epoch"] + 1
-        global_step = ckpt["global_step"] + 1
+        global_step = ckpt["global_step"]
 
-        for i, optim in enumerate(optimizers):
-            optim.optimizer.load_state_dict(ckpt["optimizers"][i])
+        for i, optimizer in enumerate(optimizers):
+            optimizer.load_state_dict(ckpt["optimizers"][i])
 
-            if ckpt["lr_schedulers"][i] is not None:
-                assert optim.lr_scheduler is not None
-                optim.lr_scheduler.load_state_dict(ckpt["lr_schedulers"][i])
+        for i, lr_scheduler in enumerate(lr_schedulers):
+            lr_scheduler.load_state_dict(ckpt["lr_schedulers"][i])
     else:
         epoch = 0
         global_step = 0
@@ -251,7 +252,7 @@ def main(argv: ArgsType) -> None:
         #     train(config.value)
         pass
     elif mode == "fit":
-        trainer.fit(model, optimizers, loss)
+        trainer.fit(model, optimizers, lr_schedulers, loss)
     elif mode == "test":
         trainer.test(model)
 

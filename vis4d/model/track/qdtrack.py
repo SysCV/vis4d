@@ -36,6 +36,7 @@ REV_KEYS = [
     # ),
     # (r"\.conv.weight", ".weigh2t"),
     # (r"\.conv.bias", ".bias"),
+    (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
     (r"^backbone.body\.", "basemodel."),
 ]
 

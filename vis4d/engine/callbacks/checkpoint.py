@@ -38,7 +38,7 @@ class CheckpointCallback(Callback):
         """Hook to run at the end of a training epoch."""
         if get_rank() == 0:
             epoch = trainer_state["current_epoch"]
-            step = trainer_state["global_step"] - 1
+            step = trainer_state["global_step"]
             ckpt_dict = {
                 "epoch": epoch,
                 "global_step": step,
@@ -47,14 +47,14 @@ class CheckpointCallback(Callback):
 
             if "optimizers" in trainer_state:
                 ckpt_dict["optimizers"] = [
-                    opt.optimizer.state_dict()
-                    for opt in trainer_state["optimizers"]
+                    optimizer.state_dict()
+                    for optimizer in trainer_state["optimizers"]
                 ]
+
+            if "lr_schedulers" in trainer_state:
                 ckpt_dict["lr_schedulers"] = [
-                    opt.lr_scheduler.state_dict()
-                    if opt.lr_scheduler is not None
-                    else None
-                    for opt in trainer_state["optimizers"]
+                    lr_scheduler.state_dict()
+                    for lr_scheduler in trainer_state["lr_schedulers"]
                 ]
 
             torch.save(

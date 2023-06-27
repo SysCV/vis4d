@@ -125,7 +125,7 @@ class EngineTrainerTest(unittest.TestCase):
 
     def test_fit(self) -> None:
         """Test trainer training."""
-        optimizers = get_optimizer()
+        optimizers, lr_scheulders = get_optimizer()
         loss_module = LossModule(
             {
                 "loss": SegCrossEntropyLoss(),
@@ -138,7 +138,7 @@ class EngineTrainerTest(unittest.TestCase):
             }
         )
 
-        self.trainer.fit(self.model, optimizers, loss_module)
+        self.trainer.fit(self.model, optimizers, lr_scheulders, loss_module)
 
         # TODO: add callback to check loss
 

@@ -1,5 +1,5 @@
 """Callbacks handling data related stuff (evaluation, visualization, etc)."""
 from .callback_wrapper import CallbackWrapper
-from .optimizer import LRWarmUpCallback
+from .scheduler import LRSchedulerCallback
 
-__all__ = ["CallbackWrapper", "LRWarmUpCallback"]
+__all__ = ["CallbackWrapper", "LRSchedulerCallback"]

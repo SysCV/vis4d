@@ -1,7 +1,7 @@
 """LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
@@ -17,14 +17,7 @@ from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim import BaseLRWarmup, set_up_optimizers
-
-
-class WarmupDict(TypedDict):
-    """Warmup dictionary."""
-
-    warmup: BaseLRWarmup
-    epoch_based: bool
+from vis4d.engine.optim import LRSchedulerWrapper, set_up_optimizers
 
 
 class TrainingModule(pl.LightningModule):
@@ -71,7 +64,6 @@ class TrainingModule(pl.LightningModule):
         self.ckpt_path = ckpt_path
 
         self.model: nn.Module
-        self.lr_warmups: list[None | WarmupDict] = []
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -151,30 +143,13 @@ class TrainingModule(pl.LightningModule):
         out = self.model(**self.test_data_connector(batch))
         return out
 
+    def lr_scheduler_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
+        self, scheduler: LRSchedulerWrapper, metric: Any | None = None
+    ) -> None:
+        """Perform a step on the lr scheduler."""
+        # TODO: Support metric if needed
+        scheduler.step(self.current_epoch)
+
     def configure_optimizers(self) -> Any:  # type: ignore
         """Return the optimizer to use."""
-        optims = set_up_optimizers(self.optimizers_cfg, [self.model])
-
-        optimizers = []
-        for optim in optims:
-            optim_dict = {"optimizer": optim.optimizer}
-
-            if optim.lr_scheduler is not None:
-                optim_dict["lr_scheduler"] = {  # type: ignore
-                    "scheduler": optim.lr_scheduler,
-                    "interval": "epoch" if optim.epoch_based_lr else "step",
-                }
-
-            optimizers.append(optim_dict)
-
-            if optim.lr_warmup is not None:
-                self.lr_warmups.append(
-                    {
-                        "warmup": optim.lr_warmup,
-                        "epoch_based": optim.epoch_based_warmup,
-                    }
-                )
-            else:
-                self.lr_warmups.append(None)
-
-        return optimizers
+        return set_up_optimizers(self.optimizers_cfg, [self.model])
