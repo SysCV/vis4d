@@ -156,7 +156,7 @@ def replicate_config(  # type: ignore
         if isinstance(value, Iterable):
 
             def _generator() -> Generator[Any, None, None]:  # type: ignore
-                for v in value:  # type: ignore
+                for v in value:  # type: ignore # pylint: disable=cell-var-from-loop, line-too-long
                     yield v
 
             sampling_queue.put((key, _generator))
