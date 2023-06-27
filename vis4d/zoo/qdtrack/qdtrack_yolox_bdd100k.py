@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytorch_lightning as pl
 
 from vis4d.config import FieldConfigDict, class_config
+from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -49,11 +50,11 @@ CONN_BDD100K_EVAL = {
 }
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for qdtrack on bdd100k.
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -65,7 +66,7 @@ def get_config() -> FieldConfigDict:
     )
 
     # Hyper Parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 4
     params.workers_per_gpu = 4
     params.lr = 0.01
@@ -147,7 +148,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = None  # TODO: implement optimizer
+    config.optimizers = []  # TODO: implement optimizer
 
     ######################################################
     ##                  DATA CONNECTOR                  ##

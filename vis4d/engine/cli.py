@@ -26,6 +26,7 @@ from vis4d.common.logging import (
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
+from vis4d.config.common.types import ExperimentConfig
 
 from .optim import set_up_optimizers
 from .parser import DEFINE_config_file, pprints_config
@@ -97,7 +98,7 @@ def main(argv: ArgsType) -> None:
     assert len(argv) > 1, "Mode must be specified: `fit` or `test`"
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config = _CONFIG.value
+    config: ExperimentConfig = _CONFIG.value
     num_gpus = _GPUS.value
 
     # Setup logging
@@ -212,5 +213,10 @@ def main(argv: ArgsType) -> None:
         destroy_process_group()
 
 
-if __name__ == "__main__":
+def entrypoint() -> None:
+    """Entry point for the CLI."""
     app.run(main)
+
+
+if __name__ == "__main__":
+    entrypoint()

@@ -13,6 +13,7 @@ from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
+from vis4d.config.common.types import ExperimentConfig
 from vis4d.engine.parser import DEFINE_config_file, pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
 from vis4d.pl.data_module import DataModule
@@ -37,7 +38,7 @@ def main(argv: ArgsType) -> None:
     # Get config
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config = _CONFIG.value
+    config: ExperimentConfig = _CONFIG.value
     num_gpus = _GPUS.value
 
     # Setup logging
@@ -132,5 +133,10 @@ def main(argv: ArgsType) -> None:
         )
 
 
-if __name__ == "__main__":
+def entrypoint() -> None:
+    """Entry point for the CLI."""
     app.run(main)
+
+
+if __name__ == "__main__":
+    entrypoint()

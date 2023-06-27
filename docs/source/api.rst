@@ -1,6 +1,6 @@
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: api
    :recursive:
 
    vis4d
