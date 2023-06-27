@@ -80,6 +80,7 @@ jobs:
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip install -e .
+          python3 -m pip install build
           python3 -m pip freeze
 
       - name: test
@@ -89,4 +90,4 @@ jobs:
         run: python3 -m coverage report --fail-under=88 -m
 
       - name: build
-        run: python3 setup.py sdist bdist_wheel
+        run: python3 -m build
