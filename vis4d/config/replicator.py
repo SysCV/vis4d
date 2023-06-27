@@ -8,6 +8,8 @@ from typing import Any
 
 from ml_collections import ConfigDict
 
+from vis4d.common.typing import ArgsType
+
 
 def iterable_sampler(  # type: ignore
     samples: Iterable[Any],
@@ -154,12 +156,12 @@ def replicate_config(  # type: ignore
     for key, value in sampling_args:
         # Convert Iterable to a callable generator
         if isinstance(value, Iterable):
-
-            def _generator() -> Generator[Any, None, None]:  # type: ignore
-                for v in value:  # type: ignore # pylint: disable=cell-var-from-loop, line-too-long
-                    yield v
-
-            sampling_queue.put((key, _generator))
+            generator: Callable[
+                [], Generator[ArgsType, None, None]
+            ] = lambda value=value: (  # type: ignore
+                i for i in value
+            )
+            sampling_queue.put((key, generator))
         else:
             sampling_queue.put((key, value))
 
