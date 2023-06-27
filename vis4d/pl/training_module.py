@@ -1,12 +1,14 @@
 """LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
+from lightning.pytorch.core.optimizer import LightningOptimizer
 from ml_collections import ConfigDict
 from torch import Tensor, nn
+from torch.optim.optimizer import Optimizer
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
@@ -18,6 +20,7 @@ from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import LRSchedulerWrapper, set_up_optimizers
+from vis4d.engine.util import ModelEMAAdapter
 
 
 class TrainingModule(pl.LightningModule):
@@ -37,6 +40,7 @@ class TrainingModule(pl.LightningModule):
         hyper_parameters: DictStrAny | None = None,
         seed: None | int = None,
         ckpt_path: None | str = None,
+        use_ema_model_for_test: bool = False,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -52,6 +56,9 @@ class TrainingModule(pl.LightningModule):
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
             ckpt_path (str, optional): The path to the checkpoint to load.
+            use_ema_model_for_test (bool, optional): Whether to use the
+                exponential moving average of the model for testing. Defaults
+                to False.
         """
         super().__init__()
         self.model_cfg = model_cfg
@@ -64,6 +71,7 @@ class TrainingModule(pl.LightningModule):
         self.ckpt_path = ckpt_path
 
         self.model: nn.Module
+        self.use_ema_model_for_test = use_ema_model_for_test
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -90,6 +98,12 @@ class TrainingModule(pl.LightningModule):
                 self.ckpt_path,
                 rev_keys=[(r"^model\.", ""), (r"^module\.", "")],
             )
+
+        # Set up the model EMA
+        if self.use_ema_model_for_test:
+            assert isinstance(
+                self.model, ModelEMAAdapter
+            ), "Model must be wrapped in ModelEMAAdapter"
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
@@ -132,7 +146,10 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        out = self.model(**self.test_data_connector(batch))
+        if self.use_ema_model_for_test:
+            out = self.model.ema_model(**self.test_data_connector(batch))
+        else:
+            out = self.model(**self.test_data_connector(batch))
         return out
 
     def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
@@ -140,8 +157,15 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        out = self.model(**self.test_data_connector(batch))
+        if self.use_ema_model_for_test:
+            out = self.model.ema_model(**self.test_data_connector(batch))
+        else:
+            out = self.model(**self.test_data_connector(batch))
         return out
+
+    def configure_optimizers(self) -> Any:  # type: ignore
+        """Return the optimizer to use."""
+        return set_up_optimizers(self.optimizers_cfg, [self.model])
 
     def lr_scheduler_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, scheduler: LRSchedulerWrapper, metric: Any | None = None
@@ -150,6 +174,16 @@ class TrainingModule(pl.LightningModule):
         # TODO: Support metric if needed
         scheduler.step(self.current_epoch)
 
-    def configure_optimizers(self) -> Any:  # type: ignore
-        """Return the optimizer to use."""
-        return set_up_optimizers(self.optimizers_cfg, [self.model])
+    def optimizer_step(  # type: ignore
+        self,
+        epoch: int,
+        batch_idx: int,
+        optimizer: Optimizer | LightningOptimizer,
+        optimizer_closure: Callable[[], Any] | None = None,
+    ) -> None:
+        """Perform a single optimization step."""
+        optimizer.step(closure=optimizer_closure)
+
+        # Update EMA model if available
+        if isinstance(self.model, ModelEMAAdapter):
+            self.model.update()

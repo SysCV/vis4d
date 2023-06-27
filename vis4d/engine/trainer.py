@@ -16,7 +16,7 @@ from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 
 from .optim import LRSchedulerWrapper
-from .util import move_data_to_device
+from .util import ModelEMAAdapter, move_data_to_device
 
 
 class Trainer:
@@ -37,6 +37,7 @@ class Trainer:
         global_step: int = 0,
         check_val_every_n_epoch: int | None = 1,
         val_check_interval: int | None = None,
+        use_ema_model_for_test: bool = False,
     ) -> None:
         """Initialize the trainer.
 
@@ -63,6 +64,8 @@ class Trainer:
                 every n epochs during training. Defaults to 1.
             val_check_interval (int | None, optional): Interval for evaluating
                 the model during training. Defaults to None.
+            use_ema_model_for_test (bool, optional): Use the EMA model for
+                testing if available. Defaults to False.
         """
         self.device = device
         self.output_dir = output_dir
@@ -90,6 +93,7 @@ class Trainer:
         self.epoch = epoch
         self.global_step = global_step
 
+        self.use_ema_model_for_test = use_ema_model_for_test
         self._setup_logger()
 
     @rank_zero_only
@@ -259,6 +263,10 @@ class Trainer:
                 for lr_scheduler in lr_schedulers:
                     lr_scheduler.step_on_batch(self.global_step)
 
+                # update EMA model if available
+                if isinstance(model, ModelEMAAdapter):
+                    model.update()
+
                 for callback in self.callbacks:
                     log_dict = callback.on_train_batch_end(
                         trainer_state=self.get_state(metrics),
@@ -334,7 +342,13 @@ class Trainer:
                 test_input = self.test_data_connector(data)
 
                 # forward
-                output = model(**test_input)
+                if self.use_ema_model_for_test:
+                    assert isinstance(
+                        model, ModelEMAAdapter
+                    ), "Model must be wrapped in ModelEMAAdapter"
+                    output = model.ema_model(**test_input)
+                else:
+                    output = model(**test_input)
 
                 for callback in self.callbacks:
                     callback.on_test_batch_end(

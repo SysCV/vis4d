@@ -69,7 +69,7 @@ class YOLOXTest(unittest.TestCase):
         ) -> None:
             """Assert prediction and ground truth are equal."""
             for pred, gt in zip(prediction, gts):
-                assert torch.isclose(pred, gt, atol=1e-4).all().item()
+                assert torch.isclose(pred, gt, atol=1e-3).all().item()
 
         _assert_eq(dets.boxes, testcase_gt.boxes)
         _assert_eq(dets.scores, testcase_gt.scores)

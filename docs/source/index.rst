@@ -30,4 +30,4 @@ Welcome to Vis4D's documentation!
    :maxdepth: 2
    :caption: API Documentation
 
-   _autosummary/vis4d
+   api/vis4d

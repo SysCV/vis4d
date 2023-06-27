@@ -73,8 +73,8 @@ html_theme = "furo"
 
 # TODO revise logo
 html_theme_options = {
-    "light_logo": "icon.png",
-    "dark_logo": "icon.png",
+    "light_logo": "vis4d_logo.svg",
+    "dark_logo": "vis4d_logo.svg",
     "sidebar_hide_name": True,
     "navigation_with_keys": True,
 }

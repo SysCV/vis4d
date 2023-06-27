@@ -39,11 +39,12 @@ class ImageNetTest(unittest.TestCase):
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
         self.assertEqual(
-            tuple(self.dataset[0].keys()), ("images", "categories")
+            set(self.dataset[0].keys()),
+            {"images", "categories", "input_hw", "original_hw"},
         )
-        self.assertEqual(self.dataset[0][K.categories], 0)
-        self.assertEqual(self.dataset[1][K.categories], 1)
-        self.assertEqual(self.dataset[2][K.categories], 1)
+        assert (self.dataset[0][K.categories] == np.array([1.0, 0.0])).all()
+        assert (self.dataset[1][K.categories] == np.array([0.0, 1.0])).all()
+        assert (self.dataset[2][K.categories] == np.array([0.0, 1.0])).all()
         self.assertEqual(self.dataset[0][K.images].shape, (1, 500, 453, 3))
         assert isclose_on_all_indices_numpy(
             self.dataset[0][K.images].reshape(-1, 3),

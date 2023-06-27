@@ -14,6 +14,7 @@ from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.engine.callbacks.checkpoint import CheckpointCallback
+from vis4d.config.common.types import ExperimentConfig
 from vis4d.engine.parser import DEFINE_config_file, pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.data_module import DataModule
@@ -39,7 +40,7 @@ def main(argv: ArgsType) -> None:
     # Get config
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    config = _CONFIG.value
+    config: ExperimentConfig = _CONFIG.value
     num_gpus = _GPUS.value
 
     # Setup logging
@@ -54,10 +55,13 @@ def main(argv: ArgsType) -> None:
     # PyTorch Setting
     set_tf32(False)
 
-    # Setup GPU
-    config.pl_trainer.devices = num_gpus
+    # Setup device
     if num_gpus > 0:
         config.pl_trainer.accelerator = "gpu"
+        config.pl_trainer.devices = num_gpus
+    else:
+        config.pl_trainer.accelerator = "cpu"
+        config.pl_trainer.devices = 1
 
     trainer_args = instantiate_classes(config.pl_trainer).to_dict()
 
@@ -127,6 +131,7 @@ def main(argv: ArgsType) -> None:
         {**config.params.to_dict(), **trainer_args},
         seed,
         ckpt_path if not resume else None,
+        use_ema_model_for_test=config.get("use_ema_model_for_test", False),
     )
     data_module = DataModule(config.data)
 
@@ -138,5 +143,10 @@ def main(argv: ArgsType) -> None:
         trainer.test(training_module, datamodule=data_module, verbose=False)
 
 
-if __name__ == "__main__":
+def entrypoint() -> None:
+    """Entry point for the CLI."""
     app.run(main)
+
+
+if __name__ == "__main__":
+    entrypoint()
