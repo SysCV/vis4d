@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from absl import app, flags
-from torch.distributed import destroy_process_group
 
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
@@ -83,9 +82,6 @@ def main(argv: ArgsType) -> None:
             _SHOW_CONFIG.value,
             _SLURM.value,
         )
-
-    if num_gpus > 1:
-        destroy_process_group()
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import logging
 import os
 
 import torch
-from torch.distributed import init_process_group
+from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
@@ -189,3 +189,6 @@ def run_experiment(
         trainer.fit(model, optimizers, loss)
     elif mode == "test":
         trainer.test(model)
+
+    if num_gpus > 1:
+        destroy_process_group()
