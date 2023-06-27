@@ -101,6 +101,7 @@ name = "vis4d"
 version = "0.0"
 authors = [{name = "VIS @ ETH", email = "i@yf.io"}]
 description = "Vis4D Python package for Visual 4D scene understanding"
+readme = "README.md"
 license = { text="Apache 2.0"}
 requires-python = ">=3.9.0"
 classifiers = [
@@ -123,3 +124,7 @@ include = ["vis4d*"]
 "Documentation" = "https://vis.xyz/4d/"
 "Source" = "https://github.com/syscv/vis4d"
 "Tracker" = "https://github.com/syscv/"
+
+[project.scripts]
+vis4d = "vis4d.engine.cli:entrypoint"
+vis4d-pl = "vis4d.pl.cli:entrypoint"
