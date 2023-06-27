@@ -1,0 +1,6 @@
+# Adapted from https://github.com/kornia/kornia/tree/master/.github/ISSUE_TEMPLATE
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Ask a question
+    url: https://github.com/syscv/vis4d/discussions
+    about: Please post questions related to the library in discussions.
