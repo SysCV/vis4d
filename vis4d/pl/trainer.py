@@ -26,7 +26,6 @@ class PLTrainer(pl.Trainer):
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
         wandb: bool = False,
-        use_ema_model_for_test: bool = True,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -108,9 +107,6 @@ class PLTrainer(pl.Trainer):
         callbacks += [checkpoint_cb]
 
         kwargs["callbacks"] += callbacks
-
-        # add ema settings
-        self.use_ema_model_for_test = use_ema_model_for_test
 
         # add distributed strategy
         if kwargs["devices"] == 0:

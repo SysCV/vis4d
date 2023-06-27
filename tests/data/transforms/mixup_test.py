@@ -10,7 +10,6 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.mixup import (
     GenMixupParameters,
     MixupBoxes2D,
-    MixupBoxes2DTrackIds,
     MixupCategories,
     MixupImages,
 )
@@ -79,6 +78,7 @@ class TestMixup(unittest.TestCase):
         assert (
             batch[0]["boxes2d_classes"] == np.array([0, 1], dtype=np.int32)
         ).all()
+        assert "boxes2d_track_ids" not in batch[0]
 
     def test_mixup_padding(self):
         """Test batch mixup."""
@@ -106,12 +106,10 @@ class TestMixup(unittest.TestCase):
         tr1 = GenMixupParameters((64, 64), mixup_ratio_dist="const")
         tr2 = MixupImages()
         tr3 = MixupBoxes2D()
-        tr4 = MixupBoxes2DTrackIds()
 
         batch = tr1.apply_to_data(batch)  # pylint: disable=no-member
         batch = tr2.apply_to_data(batch)  # pylint: disable=no-member
         batch = tr3.apply_to_data(batch)  # pylint: disable=no-member
-        batch = tr4.apply_to_data(batch)  # pylint: disable=no-member
 
         boxes = [data["boxes2d"] for data in batch]
         classes = [data["boxes2d_classes"] for data in batch]

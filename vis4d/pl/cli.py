@@ -103,7 +103,7 @@ def main(argv: ArgsType) -> None:
     callbacks.append(OptimEpochCallback())
 
     trainer = PLTrainer(callbacks=callbacks, **trainer_args.to_dict())
-    use_ema_model_for_test = trainer.use_ema_model_for_test
+    use_ema_model_for_test = config.get("use_ema_model_for_test", True)
     training_module = TrainingModule(
         config.model,
         config.optimizers,
@@ -111,7 +111,6 @@ def main(argv: ArgsType) -> None:
         train_data_connector,
         test_data_connector,
         seed,
-        use_ema_model_for_validation=use_ema_model_for_test,
         use_ema_model_for_test=use_ema_model_for_test,
     )
     data_module = DataModule(config.data)

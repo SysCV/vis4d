@@ -246,28 +246,38 @@ class MixupCategories:
 
 
 @Transform(
-    in_keys=(K.boxes2d, K.boxes2d_classes, "transforms.mixup"),
+    in_keys=(
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        "transforms.mixup",
+    ),
     out_keys=(K.boxes2d, K.boxes2d_classes),
 )
 class MixupBoxes2D:
     """Mixup a batch of boxes."""
 
-    def __init__(self, clip_inside_image: bool = True) -> None:
+    def __init__(
+        self, clip_inside_image: bool = True, max_track_ids: int = 1000
+    ) -> None:
         """Init function."""
         self.clip_inside_image = clip_inside_image
+        self.max_track_ids = max_track_ids
 
     def __call__(
         self,
         boxes_list: list[NDArrayF32],
         classes_list: list[NDArrayI32],
+        track_ids_list: list[NDArrayI32 | None],
         mixup_parameters: list[MixupParam],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32]]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
         """Execute the boxes2d mixup operation."""
         batch_size = len(boxes_list)
         assert batch_size % 2 == 0, "Batch size must be even for mixup!"
 
         mixup_boxes_list = []
         mixup_classes_list = []
+        mixup_track_ids_list: list[NDArrayI32 | None] = []
         for i in range(batch_size):
             j = batch_size - i - 1
             ori_boxes, other_boxes = boxes_list[i].copy(), boxes_list[j].copy()
@@ -275,6 +285,13 @@ class MixupBoxes2D:
                 classes_list[i].copy(),
                 classes_list[j].copy(),
             )
+            ori_track_ids_ = track_ids_list[i]
+            other_track_ids_ = track_ids_list[j]
+            ori_track_ids = ori_track_ids_.copy() if ori_track_ids_ else None
+            other_track_ids = (
+                other_track_ids_.copy() if other_track_ids_ else None
+            )
+
             crop_coord = mixup_parameters[i]["crop_coord"]
             im_scale = mixup_parameters[i]["im_scale"]
             x1_c, y1_c, _, _ = crop_coord
@@ -287,7 +304,6 @@ class MixupBoxes2D:
                 other_boxes[:, [1, 3]] = (
                     im_scale[1] * other_boxes[:, [1, 3]] - y1_c
                 )
-
                 # filter boxes outside other image
                 crop_box = torch.tensor(crop_coord).unsqueeze(0)
                 is_overlap = (
@@ -297,6 +313,25 @@ class MixupBoxes2D:
                 )
                 other_boxes = other_boxes[is_overlap > 0]
                 other_classes = other_classes[is_overlap > 0]
+
+                # mixup track ids if available
+                if ori_track_ids is not None and other_track_ids is not None:
+                    if (
+                        max(ori_track_ids) >= self.max_track_ids
+                        or max(other_track_ids) >= self.max_track_ids
+                    ):
+                        raise ValueError(
+                            f"Track id exceeds maximum track id"
+                            f"{self.max_track_ids}!"
+                        )
+                    other_track_ids += max(ori_track_ids)
+                    other_track_ids = other_track_ids[is_overlap > 0]
+                    mixup_track_ids: NDArrayI32 = np.concatenate(
+                        (ori_track_ids, other_track_ids), 0  # type: ignore
+                    )
+                    mixup_track_ids_list.append(mixup_track_ids)
+                else:
+                    mixup_track_ids_list.append(None)
 
                 if self.clip_inside_image:
                     new_w, new_h = mixup_parameters[i]["other_new_wh"]
@@ -312,79 +347,4 @@ class MixupBoxes2D:
                 )
                 mixup_boxes_list.append(mixup_boxes)
                 mixup_classes_list.append(mixup_classes)
-        return mixup_boxes_list, mixup_classes_list
-
-
-@Transform(
-    in_keys=(K.boxes2d, K.boxes2d_track_ids, "transforms.mixup"),
-    out_keys=(K.boxes2d_track_ids,),
-)
-class MixupBoxes2DTrackIds:
-    """Mixup a batch of boxes."""
-
-    def __init__(
-        self, clip_inside_image: bool = True, max_track_ids: int = 1000
-    ) -> None:
-        """Init function.
-
-        Args:
-            clip_inside_image (bool, optional): Whether to clip the boxes
-                inside the image. Defaults to True.
-            max_track_ids (int, optional): The maximum number of track ids.
-                Defaults to 1000.
-        """
-        self.clip_inside_image = clip_inside_image
-        self.max_track_ids = max_track_ids
-
-    def __call__(
-        self,
-        boxes_list: list[NDArrayF32],
-        track_ids_list: list[NDArrayI32],
-        mixup_parameters: list[MixupParam],
-    ) -> list[NDArrayI32]:
-        """Execute the boxes2d mixup operation."""
-        batch_size = len(boxes_list)
-        assert batch_size % 2 == 0, "Batch size must be even for mixup!"
-
-        mixup_track_ids_list = []
-        for i in range(batch_size):
-            j = batch_size - i - 1
-            other_boxes = boxes_list[j].copy()
-            ori_track_ids, other_track_ids = (
-                track_ids_list[i].copy(),
-                track_ids_list[j].copy(),
-            )
-            crop_coord = mixup_parameters[i]["crop_coord"]
-            im_scale = mixup_parameters[i]["im_scale"]
-            x1_c, y1_c, _, _ = crop_coord
-
-            # adjust boxes to new image size and origin coord
-            if len(other_boxes) > 0:
-                other_boxes[:, [0, 2]] = (
-                    im_scale[0] * other_boxes[:, [0, 2]] - x1_c
-                )
-                other_boxes[:, [1, 3]] = (
-                    im_scale[1] * other_boxes[:, [1, 3]] - y1_c
-                )
-                if (
-                    max(other_track_ids) >= self.max_track_ids
-                    or max(ori_track_ids) >= self.max_track_ids
-                ):
-                    raise ValueError(
-                        f"Assumes < {self.max_track_ids} labels per image"
-                    )
-                other_track_ids += self.max_track_ids
-
-                # filter track_ids outside other image
-                crop_box = torch.tensor(crop_coord).unsqueeze(0)
-                is_overlap = (
-                    bbox_intersection(torch.from_numpy(other_boxes), crop_box)
-                    .squeeze(-1)
-                    .numpy()
-                )
-                other_track_ids = other_track_ids[is_overlap > 0]
-                mixup_track_ids = np.concatenate(
-                    (ori_track_ids, other_track_ids), axis=0
-                )
-                mixup_track_ids_list.append(mixup_track_ids)
-        return mixup_track_ids_list
+        return mixup_boxes_list, mixup_classes_list, mixup_track_ids_list

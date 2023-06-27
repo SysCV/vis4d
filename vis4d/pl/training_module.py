@@ -77,7 +77,6 @@ class TrainingModule(pl.LightningModule):
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
         seed: None | int = None,
-        use_ema_model_for_validation: bool = True,
         use_ema_model_for_test: bool = True,
     ) -> None:
         """Initialize the TrainingModule.
@@ -92,9 +91,6 @@ class TrainingModule(pl.LightningModule):
             data_connector: The data connector to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
-            use_ema_model_for_validation (bool, optional): Whether to use the
-                exponential moving average of the model for validation.
-                Defaults to True.
             use_ema_model_for_test (bool, optional): Whether to use the
                 exponential moving average of the model for testing. Defaults
                 to True.
@@ -106,7 +102,6 @@ class TrainingModule(pl.LightningModule):
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.seed = seed
-        self.use_ema_for_validation = use_ema_model_for_validation
         self.use_ema_for_test = use_ema_model_for_test
         self._with_ema = False
 
@@ -173,7 +168,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        if self._with_ema and self.use_ema_for_validation:
+        if self._with_ema and self.use_ema_for_test:
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))

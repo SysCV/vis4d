@@ -45,7 +45,6 @@ def load_model_checkpoint(
     strict: bool = False,
     rev_keys: None | list[tuple[str, str]] = None,
     map_location: str | torch.device | None = "cpu",
-    convert_fn: Callable[[TorchCheckpoint], TorchCheckpoint] | None = None,
 ) -> None:
     """Load checkpoint from a file or URI.
 
@@ -60,8 +59,6 @@ def load_model_checkpoint(
             Default: strip the prefix 'module.' by [(r'^module.', '')].
         map_location (str | torch.device | None): Same as :func:`torch.load`.
             Default: 'cpu'.
-        convert_fn (Callable[[TorchCheckpoint], TorchCheckpoint] | None): A
-            convert function for the state dicts. Defaults to None.
     """
     if rev_keys is None:  # pragma: no cover
         rev_keys = [(r"^module\.", "")]
@@ -74,7 +71,6 @@ def load_model_checkpoint(
             map_location,
             strict=strict,
             revise_keys=rev_keys,
-            convert_fn=convert_fn,
         )
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
@@ -84,7 +80,6 @@ def load_model_checkpoint(
             map_location,
             strict=strict,
             revise_keys=rev_keys,
-            convert_fn=convert_fn,
         )
     else:  # pragma: no cover
         _load_checkpoint(
@@ -93,7 +88,6 @@ def load_model_checkpoint(
             map_location,
             strict=strict,
             revise_keys=rev_keys,
-            convert_fn=convert_fn,
         )
 
 
@@ -413,7 +407,6 @@ def _load_checkpoint(
     strict: bool = False,
     revise_keys: tuple[tuple[str, str]]
     | list[tuple[str, str]] = ((r"^module\.", ""),),
-    convert_fn: Callable[[TorchCheckpoint], TorchCheckpoint] | None = None,
 ) -> TorchCheckpoint:
     """Load checkpoint from a file or URI.
 
@@ -429,8 +422,6 @@ def _load_checkpoint(
             modify the state_dict in checkpoint. Each item is a
             (pattern, replacement) pair of the regular expression operations.
             Default: strip the prefix 'module.' by [(r'^module.', '')].
-        convert_fn (Callable[[TorchCheckpoint], TorchCheckpoint] | None): A
-            convert function for state dicts.
 
     Raises:
         RuntimeError: If no state_dict is found in the checkpoint file.
@@ -449,9 +440,6 @@ def _load_checkpoint(
         state_dict = checkpoint["state_dict"]
     else:
         state_dict = checkpoint
-
-    if convert_fn:
-        state_dict = convert_fn(state_dict)
 
     # strip prefix of state_dict
     metadata = getattr(state_dict, "_metadata", OrderedDict())
