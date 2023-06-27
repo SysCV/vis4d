@@ -22,8 +22,6 @@ tqdm
 utm
 wheel
 
-git+https://github.com/facebookresearch/detectron2.git
-
 git+https://github.com/bdd100k/bdd100k.git
 git+https://github.com/scalabel/scalabel.git
 nuscenes-devkit
