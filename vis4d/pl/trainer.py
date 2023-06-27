@@ -26,6 +26,7 @@ class PLTrainer(pl.Trainer):
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
         wandb: bool = False,
+        use_ema_model_for_test: bool = True,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -43,6 +44,8 @@ class PLTrainer(pl.Trainer):
             checkpoint_period: After N epochs, save out checkpoints. Default: 1
             wandb: Use weights and biases logging instead of tensorboard.
                 Default: False
+            use_ema_model_for_test: Use the exponential moving average model
+                for testing if available. Default: True
         """
         self.work_dir = work_dir
         self.exp_name = exp_name
@@ -104,6 +107,9 @@ class PLTrainer(pl.Trainer):
         callbacks += [checkpoint_cb]
 
         kwargs["callbacks"] += callbacks
+
+        # add ema settings
+        self.use_ema_model_for_test = use_ema_model_for_test
 
         # add distributed strategy
         if kwargs["devices"] == 0:

@@ -9,7 +9,9 @@ from ..layer import PatchEmbed, TransformerBlock
 from .base import BaseModel
 
 
-def _init_weights_vit_timm(module: nn.Module) -> None:
+def _init_weights_vit_timm(  # pylint: disable=unused-argument
+    module: nn.Module, name: str
+) -> None:
     """Weight initialization, original timm impl (for reproducibility)."""
     if isinstance(module, nn.Linear):
         nn.init.trunc_normal_(module.weight, std=0.02)

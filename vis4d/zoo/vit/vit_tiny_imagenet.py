@@ -28,6 +28,7 @@ from vis4d.engine.connectors import (
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.warmup import LinearLRWarmup
+from vis4d.engine.util import ModelEMAAdapter
 from vis4d.eval.common.cls import ClassificationEvaluator
 from vis4d.model.cls.vit import ViTClassifer
 
@@ -79,11 +80,15 @@ def get_config() -> FieldConfigDict:
     ##                        MODEL                     ##
     ######################################################
     config.model = class_config(
-        ViTClassifer,
-        variant="vit_tiny_patch16_224",
-        num_classes=params.num_classes,
-        drop_rate=0.1,
-        drop_path_rate=0.1,
+        ModelEMAAdapter,
+        model=class_config(
+            ViTClassifer,
+            variant="vit_tiny_patch16_224",
+            num_classes=params.num_classes,
+            drop_rate=0.1,
+            drop_path_rate=0.1,
+        ),
+        decay=0.99998,
     )
 
     ######################################################

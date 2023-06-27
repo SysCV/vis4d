@@ -223,7 +223,7 @@ def move_data_to_device(  # type: ignore
     )
 
 
-class ModelEMAWrapper(nn.Module):
+class ModelEMAAdapter(nn.Module):
     """Torch module with Exponential Moving Average (EMA)."""
 
     def __init__(
@@ -232,7 +232,7 @@ class ModelEMAWrapper(nn.Module):
         decay: float = 0.9998,
         device: torch.device | None = None,
     ):
-        """Init ModelEMAWrapper class.
+        """Init ModelEMAAdapter class.
 
         Args:
             model (nn.Module): model to apply EMA.

@@ -18,7 +18,7 @@ from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import Optimizer, set_up_optimizers
-from vis4d.engine.util import ModelEMAWrapper
+from vis4d.engine.util import ModelEMAAdapter
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -77,6 +77,8 @@ class TrainingModule(pl.LightningModule):
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
         seed: None | int = None,
+        use_ema_model_for_validation: bool = True,
+        use_ema_model_for_test: bool = True,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -90,8 +92,12 @@ class TrainingModule(pl.LightningModule):
             data_connector: The data connector to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
-            ema_decay_rate (float, optional): The decay rate for the
-                model EMA. Defaults to None, which disables EMA.
+            use_ema_model_for_validation (bool, optional): Whether to use the
+                exponential moving average of the model for validation.
+                Defaults to True.
+            use_ema_model_for_test (bool, optional): Whether to use the
+                exponential moving average of the model for testing. Defaults
+                to True.
         """
         super().__init__()
         self.model = model
@@ -100,7 +106,9 @@ class TrainingModule(pl.LightningModule):
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.seed = seed
-        self.has_ema = False
+        self.use_ema_for_validation = use_ema_model_for_validation
+        self.use_ema_for_test = use_ema_model_for_test
+        self._with_ema = False
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -119,8 +127,8 @@ class TrainingModule(pl.LightningModule):
         self.optims = set_up_optimizers(self.optims, self.model)
 
         # Set up the model EMA
-        if isinstance(self.model, ModelEMAWrapper):
-            self.has_ema = True
+        if isinstance(self.model, ModelEMAAdapter):
+            self._with_ema = True
             rank_zero_info("Using model EMA during training.")
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
@@ -164,7 +172,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        if self.has_ema and self.use_ema_for_validation:
+        if self._with_ema and self.use_ema_for_validation:
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
@@ -175,7 +183,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        if self.has_ema and self.use_ema_for_test:
+        if self._with_ema and self.use_ema_for_test:
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
@@ -196,5 +204,5 @@ class TrainingModule(pl.LightningModule):
         optimizer.step(closure=optimizer_closure)
 
         # Update EMA model if available
-        if self.has_ema:
+        if self._with_ema:
             self.model.update()
