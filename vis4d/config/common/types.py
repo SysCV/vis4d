@@ -1,7 +1,7 @@
 """Type definitions for configuration files."""
 from __future__ import annotations
 
-from typing import Union
+from typing import Any, Union
 
 from ml_collections import FieldReference
 
@@ -37,7 +37,24 @@ class DataConfig(FieldConfigDict):
 
 
 class OptimizerConfig(FieldConfigDict):
-    """Configuration for an optimizer."""
+    """Configuration for an optimizer.
+
+    Attributes:
+        lr_scheduler (FieldConfigDictOrRef | None): Configuration for the
+            learning rate scheduler. If None, no learning rate scheduler is
+            used.
+        lr_warmup (FieldConfigDictOrRef | None): Configuration for the
+            learning rate warmup. If None, no learning rate warmup is used.
+        optimizer (FieldConfigDictOrRef): Configuration for the optimizer.
+        epoch_based_lr (bool | FieldReference): Whether to use epoch-based
+            learning rate scheduling. If True, the learning rate scheduler is
+            called at the end of each epoch. If False, the learning rate
+            scheduler is called at the end of each batch.
+        epoch_based_warmup (bool | FieldReference): Whether to use epoch-based
+            learning rate warmup. If True, the learning rate warmup is called
+            at the end of each epoch. If False, the learning rate warmup is
+            called at the end of each batch.
+    """
 
     lr_scheduler: FieldConfigDictOrRef | None
     lr_warmup: FieldConfigDictOrRef | None
@@ -47,7 +64,11 @@ class OptimizerConfig(FieldConfigDict):
 
 
 class ExperimentParameters(FieldConfigDict):
-    """Parameters for an experiment."""
+    """Parameters for an experiment.
+
+    Attributes:
+        num_epochs (int | FieldReference): The number of epochs to train for.
+    """
 
     num_epochs: int | FieldReference
 
@@ -60,6 +81,24 @@ class ExperimentConfig(FieldConfigDict):
     data, model, optimizers, and loss need to be config dicts that can be
     instantiated as a data set, model, optimizer, and loss function,
     respectively.
+
+    Attributes:
+        data (DataConfig): Configuration for the dataset.
+        output_dir (str | FieldReference): The output directory for the
+            experiment.
+        timestamp (str | FieldReference): The timestamp of the experiment.
+        benchmark (bool | FieldReference): Whether to enable benchmarking.
+        data_connector (FieldConfigDictOrRef): Configuration for the data
+            connector.
+        model (FieldConfigDictOrRef): Configuration for the model.
+        optimizers (list[OptimizerConfig]): Configuration for the optimizers.
+        loss (FieldConfigDictOrRef): Configuration for the loss function.
+        callbacks (list[FieldConfigDictOrRef]): Configuration for the
+            callbacks which are used in the engine.
+        params (ExperimentParameters): Configuration for the experiment
+            parameters.
+
+
     """
 
     # Experiment description
