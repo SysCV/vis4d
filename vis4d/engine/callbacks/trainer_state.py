@@ -8,6 +8,7 @@ from typing_extensions import NotRequired
 
 from vis4d.data.typing import DictData
 from vis4d.engine.optim import Optimizer
+from vis4d.pl.training_module import TrainingModule
 
 
 class TrainerState(TypedDict):
@@ -37,3 +38,5 @@ class TrainerState(TypedDict):
     num_test_batches: list[int] | None
     optimizers: NotRequired[list[Optimizer]]
     metrics: NotRequired[dict[str, float]]
+    train_module: NotRequired[TrainingModule]
+    train_engine: NotRequired[str]

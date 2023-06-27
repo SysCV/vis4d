@@ -50,6 +50,8 @@ def get_trainer_state(
         num_train_batches=num_train_batches,
         test_dataloader=test_dataloader,
         num_test_batches=num_test_batches,
+        train_module=trainer,
+        train_engine="pl",
     )
 
 

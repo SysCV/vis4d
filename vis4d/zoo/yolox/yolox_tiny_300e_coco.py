@@ -91,8 +91,9 @@ def get_config() -> FieldConfigDict:
         train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
-        test_image_size=(416, 416),
+        scaling_ratio_range=(0.5, 1.5),
         resize_size=(320, 320),
+        test_image_size=(416, 416),
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )

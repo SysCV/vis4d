@@ -111,7 +111,6 @@ class Trainer:
         tag = f"lr-{optimizer.__class__.__name__}"
 
         if len(optimizer.param_groups) > 1:
-            print(f"{tag}/pg{1}", optimizer.param_groups[0]["lr"])
             for i, param_group in enumerate(optimizer.param_groups):
                 self._log_scalar(f"{tag}/pg{i+1}", param_group["lr"])
         else:
@@ -382,6 +381,8 @@ class Trainer:
             num_train_batches=num_train_batches,
             test_dataloader=self.test_dataloader,
             num_test_batches=num_test_batches,
+            train_module=self,
+            train_engine="vis4d",
         )
 
         if metrics is not None:

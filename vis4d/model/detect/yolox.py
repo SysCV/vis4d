@@ -119,7 +119,7 @@ class YOLOX(nn.Module):
 
         # for i in range(len(images)):
         #     imshow_bboxes(
-        #         images[i], None, image_mode="RGB", save_path=f"test{i}.png"
+        #         images[i], None, image_mode="BGR", save_path=f"test{i}.png"
         #     )
         return self.yolox_head(features[-3:])
 
