@@ -40,7 +40,6 @@ def main(argv: ArgsType) -> None:
     assert len(argv) > 1, "Mode must be specified: `fit` or `test`"
     mode = argv[1]
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
-    num_gpus = _GPUS.value
     experiment_config: ExperimentConfig = _CONFIG.value
 
     if _SWEEP.value is not None:
