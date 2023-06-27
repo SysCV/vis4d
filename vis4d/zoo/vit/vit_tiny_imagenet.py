@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytorch_lightning as pl
-from torch import nn, optim
+from torch import nn
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
 from vis4d.config.common.datasets.imagenet import (
@@ -21,7 +23,7 @@ from vis4d.config.default.data_connectors.cls import (
     CONN_CLS_TEST,
     CONN_CLS_TRAIN,
 )
-from vis4d.config.util import get_optimizer_cfg
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
@@ -29,7 +31,6 @@ from vis4d.engine.connectors import (
     LossConnector,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.engine.util import ModelEMAAdapter
 from vis4d.eval.common.cls import ClassificationEvaluator
 from vis4d.model.cls.vit import ViTClassifer
@@ -48,7 +49,6 @@ def get_config() -> ExperimentConfig:
     config = get_default_cfg(exp_name="vit_tiny_16_imagenet1k")
     config.sync_batchnorm = True
     config.check_val_every_n_epoch = 1
-    config.use_ema_model_for_test = True
 
     ## High level hyper parameters
     params = ExperimentParameters()
@@ -114,18 +114,22 @@ def get_config() -> ExperimentConfig:
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
-                optim.AdamW, lr=params.lr, weight_decay=params.weight_decay
+                AdamW, lr=params.lr, weight_decay=params.weight_decay
             ),
-            lr_scheduler=class_config(
-                optim.lr_scheduler.CosineAnnealingLR,
-                T_max=params.num_epochs,
-                eta_min=1e-9,
-            ),
-            lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=1e-3, warmup_steps=10
-            ),
-            epoch_based_lr=True,
-            epoch_based_warmup=True,
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(LinearLR, estart_factor=1e-3, total_iters=10),
+                    end=9,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(
+                        CosineAnnealingLR,
+                        T_max=params.num_epochs,
+                        eta_min=1e-9,
+                    ),
+                    begin=10,
+                ),
+            ],
         )
     ]
 

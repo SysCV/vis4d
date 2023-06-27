@@ -109,11 +109,9 @@ def run_experiment(
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
     # PyTorch Setting
-    set_tf32(False)
-    if "benchmark" in config:
-        torch.backends.cudnn.benchmark = config.benchmark
+    set_tf32(config.use_tf32)
+    torch.backends.cudnn.benchmark = config.benchmark
 
-    # TODO: Add random seed and DDP
     if show_config:
         rank_zero_info(pprints_config(config))
 
@@ -137,7 +135,8 @@ def run_experiment(
     callbacks = [instantiate_classes(cb) for cb in config.callbacks]
 
     # Setup DDP & seed
-    seed = config.get("seed", init_random_seed())
+    seed = init_random_seed() if config.seed == -1 else config.seed
+
     if num_gpus > 1:
         ddp_setup(slurm=use_slurm)
 
@@ -223,7 +222,8 @@ def run_experiment(
         global_step=global_step,
         check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
         val_check_interval=config.get("val_check_interval", None),
-        use_ema_model_for_test=config.get("use_ema_model_for_test", False),
+        log_every_n_steps=config.get("log_every_n_steps", 50),
+        use_ema=config.get("use_ema", True),
     )
 
     if resume:

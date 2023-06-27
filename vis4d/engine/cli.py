@@ -19,13 +19,13 @@ from .experiment import run_experiment
 
 # TODO: Support resume from folder and load config directly from it.
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
-_SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
 _RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
+_SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _SLURM = flags.DEFINE_bool(
     "slurm", default=False, help="If set, setup slurm running jobs."
 )

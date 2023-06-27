@@ -1,7 +1,8 @@
 """LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
@@ -38,9 +39,9 @@ class TrainingModule(pl.LightningModule):
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
         hyper_parameters: DictStrAny | None = None,
-        seed: None | int = None,
+        seed: int = -1,
         ckpt_path: None | str = None,
-        use_ema_model_for_test: bool = False,
+        use_ema: bool = True,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -54,11 +55,10 @@ class TrainingModule(pl.LightningModule):
             hyper_parameters (DictStrAny | None, optional): The hyper
                 parameters to use. Defaults to None.
             seed (int, optional): The integer value seed for global random
-                state. Defaults to None.
+                state. Defaults to -1. If -1, a random seed will be generated.
             ckpt_path (str, optional): The path to the checkpoint to load.
-            use_ema_model_for_test (bool, optional): Whether to use the
-                exponential moving average of the model for testing. Defaults
-                to False.
+            use_ema (bool, optional): Use the EMA model for testing if model is
+                ModelEMAAdapter. Defaults to True.
         """
         super().__init__()
         self.model_cfg = model_cfg
@@ -69,24 +69,23 @@ class TrainingModule(pl.LightningModule):
         self.hyper_parameters = hyper_parameters
         self.seed = seed
         self.ckpt_path = ckpt_path
+        self.use_ema = use_ema
 
+        # Create model placeholder
         self.model: nn.Module
-        self.use_ema_model_for_test = use_ema_model_for_test
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
         if stage == "fit":
-            if self.seed is None:
-                seed = init_random_seed()
-                seed = broadcast(seed)
-            else:
-                seed = self.seed
+            if self.seed == -1:
+                self.seed = init_random_seed()
+                self.seed = broadcast(self.seed)
 
-            seed_everything(seed, workers=True)
-            rank_zero_info(f"Global seed set to {seed}")
+            seed_everything(self.seed, workers=True)
+            rank_zero_info(f"Global seed set to {self.seed}")
 
             if self.hyper_parameters is not None:
-                self.hyper_parameters["seed"] = seed
+                self.hyper_parameters["seed"] = self.seed
                 self.save_hyperparameters(self.hyper_parameters)
 
         # Instantiate the model after the seed has been set
@@ -98,12 +97,6 @@ class TrainingModule(pl.LightningModule):
                 self.ckpt_path,
                 rev_keys=[(r"^model\.", ""), (r"^module\.", "")],
             )
-
-        # Set up the model EMA
-        if self.use_ema_model_for_test:
-            assert isinstance(
-                self.model, ModelEMAAdapter
-            ), "Model must be wrapped in ModelEMAAdapter"
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
@@ -146,7 +139,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        if self.use_ema_model_for_test:
+        if self.use_ema and isinstance(self.model, ModelEMAAdapter):
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
@@ -157,7 +150,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        if self.use_ema_model_for_test:
+        if self.use_ema and isinstance(self.model, ModelEMAAdapter):
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))

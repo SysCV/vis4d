@@ -178,7 +178,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = None  # TODO: implement optimizer
+    config.optimizers = []  # TODO: implement optimizer
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
