@@ -4,11 +4,12 @@ from __future__ import annotations
 import pytorch_lightning as pl
 from torch import nn, optim
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.imagenet import (
     CONN_IMAGENET_CLS_EVAL,
     get_imagenet_cls_cfg,
 )
+from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -33,7 +34,7 @@ from vis4d.eval.common.cls import ClassificationEvaluator
 from vis4d.model.cls.vit import ViTClassifer
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for the ImageNet Classification task.
 
     Returns:
@@ -48,7 +49,7 @@ def get_config() -> FieldConfigDict:
     config.check_val_every_n_epoch = 1
 
     ## High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 256
     params.workers_per_gpu = 8
     params.num_epochs = 300
