@@ -1,7 +1,7 @@
 """Type definitions for configuration files."""
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Union
 
 from ml_collections import FieldReference
 
