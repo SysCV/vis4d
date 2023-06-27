@@ -212,7 +212,7 @@ def main(argv: ArgsType) -> None:
         destroy_process_group()
 
 
-def entrypoint():
+def entrypoint() -> None:
     """Entry point for the CLI."""
     app.run(main)
 

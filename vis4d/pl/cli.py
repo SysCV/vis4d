@@ -132,7 +132,7 @@ def main(argv: ArgsType) -> None:
         )
 
 
-def entrypoint():
+def entrypoint() -> None:
     """Entry point for the CLI."""
     app.run(main)
 
