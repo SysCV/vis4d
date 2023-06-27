@@ -16,6 +16,7 @@ class TestViTConfig(unittest.TestCase):
         This instantiates the config and compares it to a ground truth.
         """
         config = get_config_for_name("vit.vit_small_imagenet").to_yaml()
+
         with open(
             f"{self.gt_config_path}/vit_small_imagenet.yaml",
             "r",
@@ -31,6 +32,7 @@ class TestViTConfig(unittest.TestCase):
         This instantiates the config and compares it to a ground truth.
         """
         config = get_config_for_name("vit.vit_tiny_imagenet").to_yaml()
+
         with open(
             f"{self.gt_config_path}/vit_tiny_imagenet.yaml",
             "r",

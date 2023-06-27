@@ -53,8 +53,8 @@ class RandomErasing:
         self.mean = mean
         self.num_attempt = num_attempt
 
-    def __call__(self, images: NDArrayNumber) -> NDArrayNumber:
-        """Execute the transform."""
+    def do_erasing(self, images: NDArrayNumber) -> NDArrayNumber:
+        """Execute the random erasing."""
         fill = np.array(self.mean)
         for i in range(images.shape[0]):
             image = images[i]
@@ -80,3 +80,11 @@ class RandomErasing:
                     ] = fill
                     break
         return images
+
+    def __call__(
+        self, images_list: list[NDArrayNumber]
+    ) -> list[NDArrayNumber]:
+        """Execute the transform."""
+        for i, images in enumerate(images_list):
+            images_list[i] = self.do_erasing(images)
+        return images_list

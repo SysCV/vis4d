@@ -18,7 +18,7 @@ def test_autoaugment() -> None:
     batch_size = 4
     x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
-    x = transform(x)
+    x = transform([x])[0]
 
     assert x.shape == (batch_size, 32, 32, 3)
     assert x.min() == 120
@@ -33,7 +33,7 @@ def test_autoaugment_v0() -> None:
     batch_size = 4
     x = 128 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
-    x = transform(x)
+    x = transform([x])[0]
 
     assert x.shape == (batch_size, 32, 32, 3)
     assert x.min() == 127
@@ -48,7 +48,7 @@ def test_randaugment() -> None:
     batch_size = 4
     x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
-    x = transform(x)
+    x = transform([x])[0]
 
     assert x.shape == (batch_size, 32, 32, 3)
     assert x.min() == 120
@@ -63,7 +63,7 @@ def test_randaugment_increasing() -> None:
     batch_size = 4
     x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
-    x = transform(x)
+    x = transform([x])[0]
 
     assert x.shape == (batch_size, 32, 32, 3)
     assert x.min() == 120
@@ -78,7 +78,7 @@ def test_mixaugment() -> None:
     batch_size = 4
     x = 120 * np.ones((batch_size, 32, 32, 3), dtype=np.uint8)
 
-    x = transform(x)
+    x = transform([x])[0]
 
     assert x.shape == (batch_size, 32, 32, 3)
     assert x.min() == 48

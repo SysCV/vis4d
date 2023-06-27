@@ -49,10 +49,12 @@ class _AutoAug:
         aa_policy = auto_augment_policy(policy, hparams=hparams)
         return AutoAugment(aa_policy)
 
-    def __call__(self, images: NDArrayUI8) -> NDArrayUI8:
-        """Execute augmentation op."""
-        assert self.aug_op is not None, "Augmentation op not initialized."
-        return _apply_aug(images, self.aug_op)
+    def __call__(self, images: list[NDArrayUI8]) -> list[NDArrayUI8]:
+        """Execute the transform."""
+        assert self.aug_op is not None, "Augmentation op is not created."
+        for i, img in enumerate(images):
+            images[i] = _apply_aug(img, self.aug_op)
+        return images
 
 
 class AutoAugV0(_AutoAug):
@@ -133,9 +135,11 @@ class RandAug:
         )
         self.aug_op = RandAugment(ra_ops, self.num_layers)
 
-    def __call__(self, images: NDArrayUI8) -> NDArrayUI8:
+    def __call__(self, images: list[NDArrayUI8]) -> list[NDArrayUI8]:
         """Execute the transform."""
-        return _apply_aug(images, self.aug_op)
+        for i, img in enumerate(images):
+            images[i] = _apply_aug(img, self.aug_op)
+        return images
 
 
 @Transform(K.images, K.images)
@@ -193,6 +197,8 @@ class AugMix:
             blended=self.blended,
         )
 
-    def __call__(self, images: NDArrayUI8) -> NDArrayUI8:
+    def __call__(self, images: list[NDArrayUI8]) -> list[NDArrayUI8]:
         """Execute the transform."""
-        return _apply_aug(images, self.aug_op)
+        for i, img in enumerate(images):
+            images[i] = _apply_aug(img, self.aug_op)
+        return images
