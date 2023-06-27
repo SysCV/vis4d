@@ -94,3 +94,32 @@ plugins = ["numpy.typing.mypy_plugin"]
     follow_imports = "normal"
     follow_imports_for_stubs = true
     ignore_missing_imports = true
+
+
+[project]
+name = "vis4d"
+version = "0.0"
+authors = [{name = "VIS @ ETH", email = "i@yf.io"}]
+description = "Vis4D Python package for Visual 4D scene understanding"
+license = { text="Apache 2.0"}
+requires-python = ">=3.9.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements/base.txt"]}
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+[tool.setuptools.packages.find]
+include = ["vis4d*"]
+
+[project.urls]
+"Documentation" = "https://vis.xyz/4d/"
+"Source" = "https://github.com/syscv/vis4d"
+"Tracker" = "https://github.com/syscv/"
