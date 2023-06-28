@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict
 
-from vis4d.engine.optim.optimizer import ParamGroupsCfg
+from vis4d.engine.optim import ParamGroupsCfg
 
 
 def get_lr_scheduler_cfg(

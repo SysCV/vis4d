@@ -1,18 +1,17 @@
 """Optimizer modules."""
-from .optimizer import set_up_optimizers
+from .optimizer import set_up_optimizers, ParamGroupsCfg
 from .scheduler import (
     ConstantLR,
     LRSchedulerWrapper,
     PolyLR,
     QuadraticLRWarmup,
-    YOLOXCosineAnnealingLR,
 )
 
 __all__ = [
     "set_up_optimizers",
     "LRSchedulerWrapper",
+    "ParamGroupsCfg",
     "ConstantLR",
     "PolyLR",
-    "YOLOXCosineAnnealingLR",
     "QuadraticLRWarmup",
 ]

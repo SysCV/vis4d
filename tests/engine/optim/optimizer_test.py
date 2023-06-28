@@ -12,13 +12,19 @@ from torch.optim.optimizer import Optimizer
 from tests.util import MockModel
 from vis4d.config import class_config
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.engine.optim import LRSchedulerWrapper, PolyLR, set_up_optimizers
+from vis4d.engine.optim import (
+    LRSchedulerWrapper,
+    PolyLR,
+    set_up_optimizers,
+    ParamGroupsCfg,
+)
 
 
 def get_optimizer(
     model: nn.Module = MockModel(0),
     optimizer: ConfigDict = class_config(torch.optim.SGD, lr=0.01),
     lr_schedulers: list[ConfigDict] | None = None,
+    param_groups: list[ParamGroupsCfg] | None = None,
 ) -> tuple[list[Optimizer], list[LRSchedulerWrapper]]:
     """Get an optimizer for testing."""
     if lr_schedulers is None:
@@ -26,17 +32,17 @@ def get_optimizer(
             get_lr_scheduler_cfg(
                 class_config(LinearLR, start_factor=0.1, total_iters=10),
                 begin=0,
-                end=9,
+                end=10,
             ),
             get_lr_scheduler_cfg(
-                class_config(PolyLR, max_steps=10, power=1.0),
-                begin=10,
-                end=20,
+                class_config(PolyLR, max_steps=10, power=1.0), begin=10
             ),
         ]
 
     optimizer_cfg = get_optimizer_cfg(
-        optimizer=optimizer, lr_schedulers=lr_schedulers
+        optimizer=optimizer,
+        lr_schedulers=lr_schedulers,
+        param_groups=param_groups,
     )
     return set_up_optimizers([optimizer_cfg], [model])
 
@@ -119,13 +125,12 @@ class TestOptimizer(unittest.TestCase):
                 get_lr_scheduler_cfg(
                     class_config(LinearLR, start_factor=0.1, total_iters=10),
                     begin=0,
-                    end=9,
+                    end=10,
                     epoch_based=False,
                 ),
                 get_lr_scheduler_cfg(
                     class_config(PolyLR, max_steps=10, power=1.0),
                     begin=10,
-                    end=20,
                     epoch_based=False,
                 ),
             ]
@@ -146,4 +151,34 @@ class TestOptimizer(unittest.TestCase):
                 optimizer.step()
                 step += 1
                 lr_scheulder.step_on_batch(step)
+            lr_scheulder.step(epoch)
+
+    def test_optimizer_with_param_groups_cfg(self):
+        """Test the optimizer with param_groups_cfg."""
+        optimizers, lr_scheulders = get_optimizer(
+            param_groups=[
+                ParamGroupsCfg(custom_keys=["linear.weight"], lr_mult=0.1)
+            ]
+        )
+
+        optimizer = optimizers[0]
+        lr_scheulder = lr_scheulders[0]
+
+        step = 0
+        for epoch in range(20):
+            if epoch in self.learning_rates:
+                for _ in range(2):
+                    self.assertAlmostEqual(
+                        optimizer.param_groups[0]["lr"],
+                        self.learning_rates[epoch] * 0.1,
+                        places=5,
+                    )
+                    self.assertAlmostEqual(
+                        optimizer.param_groups[1]["lr"],
+                        self.learning_rates[epoch],
+                        places=5,
+                    )
+                    optimizer.step()
+                    step += 1
+                    lr_scheulder.step_on_batch(step)
             lr_scheulder.step(epoch)

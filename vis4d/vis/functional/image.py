@@ -236,7 +236,6 @@ def imshow_bboxes3d(
     n_colors: int = 50,
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
-    save_path: str | None = None,
 ) -> None:
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode=image_mode)
@@ -251,11 +250,7 @@ def imshow_bboxes3d(
         n_colors=n_colors,
         image_mode=image_mode,
     )
-
-    if save_path is not None:
-        imsave(img, save_path, image_mode, image_viewer)
-    else:
-        imshow(img, image_mode, image_viewer)
+    imshow(img, image_mode, image_viewer)
 
 
 def imshow_masks(

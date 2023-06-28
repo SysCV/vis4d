@@ -78,7 +78,7 @@ class LRSchedulerWrapper(LRScheduler):
     def _step_lr(self, lr_scheduler: LRSchedulerDict, step: int) -> None:
         """Step the learning rate."""
         if lr_scheduler["begin"] <= step and (
-            lr_scheduler["end"] == -1 or lr_scheduler["end"] >= step
+            lr_scheduler["end"] == -1 or lr_scheduler["end"] > step
         ):
             lr_scheduler["scheduler"].step()
 

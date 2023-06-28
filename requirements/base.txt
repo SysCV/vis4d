@@ -12,7 +12,6 @@ pillow
 plyfile
 pycocotools
 setuptools
-tensorboard
 termcolor
 terminaltables
 timm>=0.6.0
