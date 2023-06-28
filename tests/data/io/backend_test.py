@@ -1,4 +1,5 @@
 """Testcases for data backends."""
+import shutil
 import os
 import sys
 import unittest
@@ -72,6 +73,9 @@ class TestBackends(unittest.TestCase):
         invalid_zip_path = f"{base_path}/images_.zip/000/000.jpg"
         self.assertRaises(ValueError, backend_hdf5.get, invalid_hdf5_path)
         self.assertRaises(ValueError, backend_zip.get, invalid_zip_path)
+
+        # Remove test file
+        shutil.rmtree("./unittests/test_file.bin")
 
     def test_str_decode(self) -> None:
         """Test str decode method in utils."""
