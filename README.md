@@ -1,13 +1,20 @@
-# Vis4D
-
-A library for dynamic scene understanding.
+<p align="center">
+    <!-- pypi-strip -->
+    <picture>
+    <!-- /pypi-strip -->
+    <img alt="vis4d" src="https://raw.githubusercontent.com/SysCV/vis4d/main/docs/source/_static/vis4d_logo.svg?token=GHSAT0AAAAAABYDLNCVDF6MM3PS4DCJYSUAZE4OKSA" width="400">
+    <!-- pypi-strip -->
+    </picture>
+    <!-- /pypi-strip -->
+    A modular library for 4D scene understanding
+</p>
 
 ## Installation
 
-Installation is as easy as:
+Installation is as easy as
 
 ```bash
-python3 -m pip install .
+python3 -m pip install vis4d
 ```
 
 [For more detailed information, check out our installation guide](docs/source/tutorials/install.rst)
@@ -18,20 +25,20 @@ python3 -m pip install .
 
 ```bash
 # vis4d.engine
-python -m vis4d fit --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl fit --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 - To test a model
 
 ```bash
 # vis4d.engine
-python -m vis4d test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl test --config configs/faster_rcnn/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 ## DDP
