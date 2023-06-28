@@ -27,5 +27,7 @@ class LRSchedulerCallback(pl.Callback):
             schedulers = [schedulers]  # type: ignore
 
         for scheduler in schedulers:
+            if scheduler is None:
+                continue
             assert isinstance(scheduler, LRSchedulerWrapper)
             scheduler.step_on_batch(trainer.global_step)
