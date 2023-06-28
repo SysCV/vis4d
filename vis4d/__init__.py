@@ -6,8 +6,6 @@ for further research and development of 4D Vision algorithms.
 """
 import logging
 
-from .engine.run import entrypoint
-
 _root_logger = logging.getLogger()
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.INFO)
@@ -20,4 +18,6 @@ if not _root_logger.hasHandlers():
 
 
 if __name__ == "__main__":
+    from .engine.run import entrypoint
+
     entrypoint()
