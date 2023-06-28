@@ -14,12 +14,14 @@ from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.common.types import ExperimentConfig
+from vis4d.engine.callbacks.checkpoint import CheckpointCallback
 from vis4d.engine.parser import DEFINE_config_file, pprints_config
-from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
+from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
+# TODO: Support resume from folder and load config directly from it.
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
@@ -51,7 +53,7 @@ def main(argv: ArgsType) -> None:
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
     # PyTorch Setting
-    set_tf32(False)
+    set_tf32(config.use_tf32)
 
     # Setup device
     if num_gpus > 0:
@@ -61,14 +63,10 @@ def main(argv: ArgsType) -> None:
         config.pl_trainer.accelerator = "cpu"
         config.pl_trainer.devices = 1
 
-    trainer_args = instantiate_classes(config.pl_trainer)
+    trainer_args = instantiate_classes(config.pl_trainer).to_dict()
 
-    # TODO: Add random seed and DDP
     if _SHOW_CONFIG.value:
         rank_zero_info(pprints_config(config))
-
-    # Seed
-    seed = config.get("seed", None)
 
     # Instantiate classes
     if mode == "fit":
@@ -81,9 +79,12 @@ def main(argv: ArgsType) -> None:
     test_data_connector = instantiate_classes(config.test_data_connector)
 
     # Callbacks
-    callbacks: list[Callback] = [
-        CallbackWrapper(instantiate_classes(cb)) for cb in config.callbacks
-    ]
+    callbacks: list[Callback] = []
+    for cb in config.callbacks:
+        callback = instantiate_classes(cb)
+        # Skip checkpoint callback to use PL ModelCheckpoint
+        if not isinstance(callback, CheckpointCallback):
+            callbacks.append(CallbackWrapper(callback))
 
     if "pl_callbacks" in config:
         pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]
@@ -99,19 +100,7 @@ def main(argv: ArgsType) -> None:
         callbacks.append(cb)
 
     # Add needed callbacks
-    callbacks.append(OptimEpochCallback())
-
-    trainer = PLTrainer(callbacks=callbacks, **trainer_args.to_dict())
-    training_module = TrainingModule(
-        config.model,
-        config.optimizers,
-        loss,
-        train_data_connector,
-        test_data_connector,
-        seed,
-        use_ema_model_for_test=config.get("use_ema_model_for_test", False),
-    )
-    data_module = DataModule(config.data)
+    callbacks.append(LRSchedulerCallback())
 
     # Checkpoint path
     ckpt_path = _CKPT.value
@@ -120,21 +109,34 @@ def main(argv: ArgsType) -> None:
     resume = _RESUME.value
     if resume:
         if ckpt_path is None:
-            ckpt_path = osp.join(config.output_dir, "checkpoints/last.ckpt")
+            resume_ckpt_path = osp.join(
+                config.output_dir, "checkpoints/last.ckpt"
+            )
+        else:
+            resume_ckpt_path = ckpt_path
+    else:
+        resume_ckpt_path = None
+
+    trainer = PLTrainer(callbacks=callbacks, **trainer_args)
+    training_module = TrainingModule(
+        config.model,
+        config.optimizers,
+        loss,
+        train_data_connector,
+        test_data_connector,
+        {**config.params.to_dict(), **trainer_args},
+        config.seed,
+        ckpt_path if not resume else None,
+        use_ema=config.get("use_ema", True),
+    )
+    data_module = DataModule(config.data)
 
     if mode == "fit":
         trainer.fit(
-            training_module,
-            datamodule=data_module,
-            ckpt_path=ckpt_path,
+            training_module, datamodule=data_module, ckpt_path=resume_ckpt_path
         )
     elif mode == "test":
-        trainer.test(
-            training_module,
-            datamodule=data_module,
-            verbose=False,
-            ckpt_path=ckpt_path,
-        )
+        trainer.test(training_module, datamodule=data_module, verbose=False)
 
 
 def entrypoint() -> None:

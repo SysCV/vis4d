@@ -56,6 +56,13 @@ def get_default_cfg(
         + config.get_ref("version")
     )
 
+    # Set default value for the following fields
+    config.seed = -1
+    config.use_ema = True
+    config.log_every_n_steps = 50
+    config.use_tf32 = False
+    config.benchmark = False
+
     return config
 
 

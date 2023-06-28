@@ -3,16 +3,19 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor, nn
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.tensorboard.writer import SummaryWriter
 
+from vis4d.common.distributed import rank_zero_only
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 
-from .optim import Optimizer
+from .optim import LRSchedulerWrapper
 from .util import ModelEMAAdapter, move_data_to_device
 
 
@@ -22,6 +25,7 @@ class Trainer:
     def __init__(
         self,
         device: torch.device,
+        output_dir: str,
         train_dataloader: DataLoader[DictData] | None,
         test_dataloader: list[DataLoader[DictData]] | None,
         train_data_connector: DataConnector | None,
@@ -33,12 +37,14 @@ class Trainer:
         global_step: int = 0,
         check_val_every_n_epoch: int | None = 1,
         val_check_interval: int | None = None,
-        use_ema_model_for_test: bool = False,
+        log_every_n_steps: int = 50,
+        use_ema: bool = True,
     ) -> None:
         """Initialize the trainer.
 
         Args:
             device (torch.device): Device that should be used for training.
+            output_dir (str): Output directory for saving tensorboard logs.
             train_dataloader (DataLoader[DictData] | None, optional):
                 Dataloader for training.
             test_dataloader (list[DataLoader[DictData]] | None, optional):
@@ -59,10 +65,13 @@ class Trainer:
                 every n epochs during training. Defaults to 1.
             val_check_interval (int | None, optional): Interval for evaluating
                 the model during training. Defaults to None.
-            use_ema_model_for_test (bool, optional): Use the EMA model for
-                testing if available. Defaults to False.
+            log_every_n_steps (int, optional): Log the training status every n
+                steps. Defaults to 50.
+            use_ema (bool, optional): Use the EMA model for testing if model is
+                ModelEMAAdapter. Defaults to True.
         """
         self.device = device
+        self.output_dir = output_dir
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
         self.train_data_connector = train_data_connector
@@ -84,10 +93,38 @@ class Trainer:
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.val_check_interval = val_check_interval
 
+        self.use_ema = use_ema
+        self.log_every_n_steps = log_every_n_steps
+
         self.epoch = epoch
         self.global_step = global_step
 
-        self.use_ema_model_for_test = use_ema_model_for_test
+        self._setup_logger()
+
+    @rank_zero_only
+    def _setup_logger(self) -> None:
+        """Setup trainer logger."""
+        self.writer = SummaryWriter(self.output_dir)
+
+    @rank_zero_only
+    def _teardown_logger(self) -> None:
+        """Teardown trainer logger."""
+        self.writer.close()
+
+    @rank_zero_only
+    def _log_scalar(self, tag: str, scalar_value: float) -> None:
+        """Setup trainer logger."""
+        self.writer.add_scalar(tag, scalar_value, self.global_step)
+
+    def _log_lr(self, optimizer: Optimizer) -> None:
+        """Log learning rate."""
+        tag = f"lr-{optimizer.__class__.__name__}"
+
+        if len(optimizer.param_groups) > 1:
+            for i, param_group in enumerate(optimizer.param_groups):
+                self._log_scalar(f"{tag}/pg{i+1}", param_group["lr"])
+        else:
+            self._log_scalar(tag, optimizer.param_groups[0]["lr"])
 
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
@@ -117,24 +154,30 @@ class Trainer:
 
     def done(self) -> bool:
         """Return whether training is done."""
+        is_done = False
         if _is_max_limit_reached(self.global_step, self.num_steps):
             rank_zero_info(
                 f"`Trainer.fit` stopped: `num_steps={self.num_steps!r}` "
                 + "reached."
             )
-            return True
-        if _is_max_limit_reached(self.epoch, self.num_epochs):
+            is_done = True
+        elif _is_max_limit_reached(self.epoch, self.num_epochs):
             rank_zero_info(
                 f"`Trainer.fit` stopped: `num_epochs={self.num_epochs!r}` "
                 + "reached."
             )
-            return True
-        return False
+            is_done = True
+
+        if is_done:
+            self._teardown_logger()
+
+        return is_done
 
     def fit(
         self,
         model: nn.Module,
         optimizers: list[Optimizer],
+        lr_schedulers: list[LRSchedulerWrapper],
         loss_module: LossModule,
     ) -> None:
         """Training loop.
@@ -142,8 +185,9 @@ class Trainer:
         Args:
             model (nn.Module): Model that should be trained.
             optimizers (list[Optimizer]): Optimizers that should be used for
-                training. This bundles the optimizers, the learning rate
-                schedulers, and the warmup schedulers.
+                training.
+            lr_schedulers (list[LRSchedulerWrapper]): Learning rate schedulers
+                that should be used for training.
             loss_module (LossModule): Loss module that should be used for
                 training.
 
@@ -172,6 +216,10 @@ class Trainer:
 
             # Training loop for one epoch
             for batch_idx, data in enumerate(self.train_dataloader):
+                # Log epoch
+                if (self.global_step + 1) % self.log_every_n_steps == 0:
+                    self._log_scalar("epoch", self.epoch)
+
                 # Zero grad optimizers
                 for opt in optimizers:
                     opt.zero_grad()
@@ -209,21 +257,35 @@ class Trainer:
 
                 total_loss.backward()
 
-                for opt in optimizers:
-                    opt.step_on_batch(self.global_step)
+                for optimizer in optimizers:
+                    # Log learning rate
+                    if (self.global_step + 1) % self.log_every_n_steps == 0:
+                        self._log_lr(optimizer)
+
+                    # Step optimizers
+                    optimizer.step()
+                    self.global_step += 1
+
+                # Step learning rate schedulers
+                for lr_scheduler in lr_schedulers:
+                    lr_scheduler.step_on_batch(self.global_step)
 
                 # update EMA model if available
                 if isinstance(model, ModelEMAAdapter):
                     model.update()
 
                 for callback in self.callbacks:
-                    callback.on_train_batch_end(
+                    log_dict = callback.on_train_batch_end(
                         trainer_state=self.get_state(metrics),
                         model=model,
                         outputs=output,
                         batch=data,
                         batch_idx=batch_idx,
                     )
+
+                    if log_dict is not None:
+                        for k, v in log_dict.items():
+                            self._log_scalar(f"train/{k}", v)
 
                 # Testing (step-based)
                 if (
@@ -238,34 +300,39 @@ class Trainer:
                 if self.done():
                     return
 
-                self.global_step += 1
-
             # Update learning rate on epoch
-            for opt in optimizers:
-                opt.step_on_epoch(self.epoch)
+            for lr_scheduler in lr_schedulers:
+                lr_scheduler.step(self.epoch)
 
             # Run callbacks for epoch end
             for callback in self.callbacks:
-                callback.on_train_epoch_end(self.get_state(), model)
+                callback.on_train_epoch_end(
+                    self.get_state(
+                        optimizers=optimizers, lr_schedulers=lr_schedulers
+                    ),
+                    model,
+                )
 
             # Testing (epoch-based)
             if (
                 self._run_test_on_epoch(self.epoch)
                 and self.test_dataloader is not None
             ):
-                self.test(model)
+                self.test(model, is_val=True)
+
+            self.epoch += 1
 
             if self.done():
                 return
 
-            self.epoch += 1
-
     @torch.no_grad()
-    def test(self, model: nn.Module) -> None:
+    def test(self, model: nn.Module, is_val: bool = False) -> None:
         """Testing loop.
 
         Args:
             model (nn.Module): Model that should be tested.
+            is_val (bool): Whether the test is run on the validation set during
+                training.
         """
         assert self.test_data_connector is not None, "No test data connector."
         assert self.test_dataloader is not None, "No test dataloader."
@@ -282,10 +349,7 @@ class Trainer:
                 test_input = self.test_data_connector(data)
 
                 # forward
-                if self.use_ema_model_for_test:
-                    assert isinstance(
-                        model, ModelEMAAdapter
-                    ), "Model must be wrapped in ModelEMAAdapter"
+                if self.use_ema and isinstance(model, ModelEMAAdapter):
                     output = model.ema_model(**test_input)
                 else:
                     output = model(**test_input)
@@ -302,10 +366,18 @@ class Trainer:
 
         # run callbacks on test epoch end
         for callback in self.callbacks:
-            callback.on_test_epoch_end(self.get_state(), model)
+            log_dict = callback.on_test_epoch_end(self.get_state(), model)
+
+            if log_dict is not None:
+                for k, v in log_dict.items():
+                    key = f"val/{k}" if is_val else f"test/{k}"
+                    self._log_scalar(key, v)
 
     def get_state(
-        self, metrics: dict[str, float] | None = None
+        self,
+        metrics: dict[str, float] | None = None,
+        optimizers: list[Optimizer] | None = None,
+        lr_schedulers: list[LRSchedulerWrapper] | None = None,
     ) -> TrainerState:
         """Get the state of the trainer."""
         num_train_batches = (
@@ -333,6 +405,12 @@ class Trainer:
 
         if metrics is not None:
             trainer_state["metrics"] = metrics
+
+        if optimizers is not None:
+            trainer_state["optimizers"] = optimizers
+
+        if lr_schedulers is not None:
+            trainer_state["lr_schedulers"] = lr_schedulers
 
         return trainer_state
 

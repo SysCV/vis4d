@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import pytorch_lightning as pl
-from torch.optim import SGD
-from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import class_config
 from vis4d.config.common.types import (
@@ -16,7 +14,7 @@ from vis4d.config.default import (
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
-from vis4d.config.util import get_inference_dataloaders_cfg, get_optimizer_cfg
+from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_detection_range
@@ -38,7 +36,6 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 
@@ -181,21 +178,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = [
-        get_optimizer_cfg(
-            optimizer=class_config(
-                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
-            ),
-            lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
-            ),
-            lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.1, warmup_steps=1000
-            ),
-            epoch_based_lr=True,
-            epoch_based_warmup=False,
-        )
-    ]
+    config.optimizers = []  # TODO: implement optimizer
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
