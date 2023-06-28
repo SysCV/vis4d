@@ -53,10 +53,13 @@ def main(argv: ArgsType) -> None:
     # PyTorch Setting
     set_tf32(False)
 
-    # Setup GPU
-    config.pl_trainer.devices = num_gpus
+    # Setup device
     if num_gpus > 0:
         config.pl_trainer.accelerator = "gpu"
+        config.pl_trainer.devices = num_gpus
+    else:
+        config.pl_trainer.accelerator = "cpu"
+        config.pl_trainer.devices = 1
 
     trainer_args = instantiate_classes(config.pl_trainer)
 
@@ -106,6 +109,7 @@ def main(argv: ArgsType) -> None:
         train_data_connector,
         test_data_connector,
         seed,
+        use_ema_model_for_test=config.get("use_ema_model_for_test", False),
     )
     data_module = DataModule(config.data)
 

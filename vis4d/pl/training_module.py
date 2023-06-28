@@ -6,6 +6,7 @@ from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
+from lightning.pytorch.core.optimizer import LightningOptimizer
 from ml_collections import ConfigDict
 from torch import Tensor, optim
 
@@ -17,6 +18,7 @@ from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import Optimizer, set_up_optimizers
+from vis4d.engine.util import ModelEMAAdapter
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -75,6 +77,7 @@ class TrainingModule(pl.LightningModule):
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
         seed: None | int = None,
+        use_ema_model_for_test: bool = False,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -88,6 +91,9 @@ class TrainingModule(pl.LightningModule):
             data_connector: The data connector to use.
             seed (int, optional): The integer value seed for global random
                 state. Defaults to None.
+            use_ema_model_for_test (bool, optional): Whether to use the
+                exponential moving average of the model for testing. Defaults
+                to False.
         """
         super().__init__()
         self.model = model
@@ -96,6 +102,7 @@ class TrainingModule(pl.LightningModule):
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
         self.seed = seed
+        self.use_ema_model_for_test = use_ema_model_for_test
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
@@ -113,6 +120,12 @@ class TrainingModule(pl.LightningModule):
         self.model = instantiate_classes(self.model)
         if stage == "fit":
             self.optims = set_up_optimizers(self.optims, self.model)
+
+        # Set up the model EMA
+        if self.use_ema_model_for_test:
+            assert isinstance(
+                self.model, ModelEMAAdapter
+            ), "Model must be wrapped in ModelEMAAdapter"
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
@@ -155,7 +168,10 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        out = self.model(**self.test_data_connector(batch))
+        if self.use_ema_model_for_test:
+            out = self.model.ema_model(**self.test_data_connector(batch))
+        else:
+            out = self.model(**self.test_data_connector(batch))
         return out
 
     def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
@@ -163,9 +179,26 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        out = self.model(**self.test_data_connector(batch))
+        if self.use_ema_model_for_test:
+            out = self.model.ema_model(**self.test_data_connector(batch))
+        else:
+            out = self.model(**self.test_data_connector(batch))
         return out
 
     def configure_optimizers(self) -> list[TorchOptimizer]:
         """Return the optimizer to use."""
         return [TorchOptimizer(o) for o in self.optims]
+
+    def optimizer_step(  # type: ignore # pylint: disable=arguments-differ
+        self,
+        epoch: int,
+        batch_idx: int,
+        optimizer: TorchOptimizer | LightningOptimizer,
+        optimizer_closure: Callable[[], float] | None = None,
+    ) -> None:
+        """Perform a single optimization step."""
+        optimizer.step(closure=optimizer_closure)
+
+        # Update EMA model if available
+        if isinstance(self.model, ModelEMAAdapter):
+            self.model.update()
