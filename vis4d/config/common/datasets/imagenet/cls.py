@@ -25,7 +25,7 @@ from vis4d.data.transforms.mixup import (
 )
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.random_erasing import RandomErasing
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 
@@ -61,9 +61,7 @@ def get_train_dataloader(
     random_resized_crop_trans = [
         class_config(GenRandomSizeCropParameters),
         class_config(CropImages),
-        class_config(
-            GenerateResizeParameters, shape=image_size, keep_ratio=False
-        ),
+        class_config(GenResizeParameters, shape=image_size, keep_ratio=False),
         class_config(ResizeImages),
     ]
     random_aug_trans = [
@@ -126,7 +124,7 @@ def get_test_dataloader(
     crop_size = tuple(int(size / crop_pct) for size in image_size)
     resized_crop_trans = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=crop_size,
             keep_ratio=True,
             allow_overflow=True,

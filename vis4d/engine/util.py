@@ -246,7 +246,7 @@ class ModelEMAAdapter(nn.Module):
         self.device = device
         if self.device is not None:
             self.ema_model.to(device=device)
-        self.register_buffer("steps", torch.LongTensor(0, device=device))
+        self.register_buffer("steps", torch.LongTensor([0.0], device=device))
         rank_zero_info("Using model EMA with decay rate %f", self.decay)
 
     def _update(

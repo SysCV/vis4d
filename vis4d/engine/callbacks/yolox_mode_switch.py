@@ -8,7 +8,7 @@ from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
 from vis4d.data.data_pipe import DataPipe
 from vis4d.engine.loss_module import LossModule
-from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
+from vis4d.op.detect.yolox import YOLOXHeadLoss
 from vis4d.op.loss.common import l1_loss
 
 from .base import Callback
@@ -37,9 +37,6 @@ class YOLOXModeSwitchCallback(Callback):
         loss_module: LossModule,
     ) -> None:
         """Hook to run at the beginning of a training epoch."""
-        assert hasattr(model, "yolox_head") and isinstance(
-            model.yolox_head, YOLOXHead
-        ), "YOLOXModeSwitchCallback can only be used with YOLOX."
         found_loss = False
         for loss in loss_module.losses:
             if isinstance(loss["loss"], YOLOXHeadLoss):
@@ -58,6 +55,7 @@ class YOLOXModeSwitchCallback(Callback):
             yolox_loss.loss_l1 = l1_loss  # set L1 loss function
             # Set data pipeline to default DataPipe to skip strong augs.
             dataloader = trainer_state["train_dataloader"]
+            assert dataloader is not None
             new_dataloader = DataLoader(
                 DataPipe(dataloader.dataset.datasets),
                 batch_size=dataloader.batch_size,
@@ -85,6 +83,7 @@ class YOLOXModeSwitchCallback(Callback):
         ) >= self.switch_epoch - 1 and trainer_state["train_engine"] == "pl":
             # Set data pipeline to default DataPipe to skip strong augs.
             dataloader = trainer_state["train_dataloader"]
+            assert dataloader is not None
             new_dataloader = DataLoader(
                 DataPipe(dataloader.dataset.datasets),
                 batch_size=dataloader.batch_size,

@@ -275,7 +275,9 @@ class SimOTAMatcher(nn.Module):
         dynamic_ks = torch.clamp(topk_ious.sum(0).int(), min=1)
         for gt_idx in range(num_gt):
             _, pos_idx = torch.topk(
-                cost[:, gt_idx], k=dynamic_ks[gt_idx].item(), largest=False
+                cost[:, gt_idx],
+                k=dynamic_ks[gt_idx].item(),  # type: ignore
+                largest=False,
             )
             matching_matrix[:, gt_idx][pos_idx] = 1.0
 

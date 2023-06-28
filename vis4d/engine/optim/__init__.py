@@ -1,5 +1,5 @@
 """Optimizer modules."""
-from .optimizer import set_up_optimizers, ParamGroupsCfg
+from .optimizer import ParamGroupsCfg, set_up_optimizers
 from .scheduler import (
     ConstantLR,
     LRSchedulerWrapper,

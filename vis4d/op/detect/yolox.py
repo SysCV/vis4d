@@ -488,12 +488,12 @@ class YOLOXHeadLoss(nn.Module):
 
     def _get_target_single(
         self,
-        cls_preds,
-        objectness,
-        priors,
-        decoded_bboxes,
-        gt_bboxes,
-        gt_labels,
+        cls_preds: Tensor,
+        objectness: Tensor,
+        priors: Tensor,
+        decoded_bboxes: Tensor,
+        gt_bboxes: Tensor,
+        gt_labels: Tensor,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, int]:
         """Compute YOLOX training targets in a single image.
 
