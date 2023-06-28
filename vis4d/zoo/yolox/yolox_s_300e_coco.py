@@ -134,7 +134,7 @@ def get_config() -> FieldConfigDict:
                     ),
                 ),
             ],
-            param_groups_cfg=[
+            param_groups=[
                 {
                     "custom_keys": ["basemodel", "fpn", "yolox_head"],
                     "norm_decay_mult": 0.0,

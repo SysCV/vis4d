@@ -268,7 +268,7 @@ class ModelEMAAdapter(nn.Module):
             self.model,
             update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,
         )
-        self.steps += 1
+        self.steps += 1  # type: ignore
 
     def set(self, model: nn.Module) -> None:
         """Copy model params into the internal EMA."""
@@ -313,4 +313,4 @@ class ModelExpEMAAdapter(ModelEMAAdapter):
             self.model,
             update_fn=lambda e, m: decay * e + (1.0 - decay) * m,
         )
-        self.steps += 1
+        self.steps += 1  # type: ignore

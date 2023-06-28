@@ -16,8 +16,8 @@ from vis4d.config.default import (
 )
 from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
 from vis4d.config.util import (
-    get_callable_cfg,
     get_inference_dataloaders_cfg,
+    get_lr_scheduler_cfg,
     get_optimizer_cfg,
     get_train_dataloader_cfg,
 )
@@ -55,7 +55,7 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim.warmup import QuadraticLRWarmup
+from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import YOLOXQDTrack
 from vis4d.op.loss.common import smooth_l1_loss
@@ -248,11 +248,11 @@ def get_test_dataloader(
     )
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for qdtrack on bdd100k.
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -264,7 +264,7 @@ def get_config() -> FieldConfigDict:
     )
 
     # Hyper Parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
@@ -328,6 +328,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
+    steps_per_epoch, num_last_epochs, warmup_epochs = 1833, 3, 1
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
@@ -337,15 +338,39 @@ def get_config() -> FieldConfigDict:
                 weight_decay=0.0005,
                 nesterov=True,
             ),
-            lr_scheduler=class_config(
-                CosineAnnealingLR, T_max=999, eta_min=params.lr * 0.05
-            ),
-            lr_warmup=class_config(
-                QuadraticLRWarmup, warmup_ratio=1.0, warmup_steps=1000
-            ),
-            epoch_based_lr=True,
-            epoch_based_warmup=False,
-            param_groups_cfg=[
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(
+                        QuadraticLRWarmup,
+                        max_steps=steps_per_epoch * warmup_epochs,
+                    ),
+                    end=steps_per_epoch * warmup_epochs,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(
+                        CosineAnnealingLR,
+                        T_max=(
+                            params.num_epochs - num_last_epochs - warmup_epochs
+                        )
+                        * steps_per_epoch,
+                        eta_min=params.lr * 0.05,
+                    ),
+                    begin=steps_per_epoch * warmup_epochs,
+                    end=(params.num_epochs - num_last_epochs)
+                    * steps_per_epoch,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(
+                        ConstantLR, max_steps=num_last_epochs, factor=1.0
+                    ),
+                    begin=params.num_epochs - num_last_epochs,
+                    end=params.num_epochs,
+                    epoch_based=True,
+                ),
+            ],
+            param_groups=[
                 {
                     "custom_keys": ["basemodel", "fpn", "yolox_head"],
                     "norm_decay_mult": 0.0,

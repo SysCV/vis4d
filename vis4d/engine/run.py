@@ -10,28 +10,7 @@ from vis4d.config.common.types import ExperimentConfig
 from vis4d.config.replicator import replicate_config
 
 from .experiment import run_experiment
-<<<<<<< HEAD:vis4d/engine/cli.py
-
-# TODO: Currently this does not allow to load multpile config files.
-# Would be nice to extend functionality to chain multiple config files using
-# e.g. --config=model_1.py --config=loader_args.py
-# or --config=my_config.py --config.train_dl=different_dl.py
-
-# TODO: Support resume from folder and load config directly from it.
-_CONFIG = DEFINE_config_file("config", method_name="get_config")
-_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
-_CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
-_RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
-_SHOW_CONFIG = flags.DEFINE_bool(
-    "print-config", default=False, help="If set, prints the configuration."
-)
-_SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
-_SLURM = flags.DEFINE_bool(
-    "slurm", default=False, help="If set, setup slurm running jobs."
-)
-=======
 from .flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG, _SLURM, _SWEEP
->>>>>>> main:vis4d/engine/run.py
 
 
 def main(argv: ArgsType) -> None:

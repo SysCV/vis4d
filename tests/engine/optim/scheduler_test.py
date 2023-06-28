@@ -1,6 +1,5 @@
 """Test cases for learning rate schedulers."""
 import copy
-import math
 import unittest
 
 import torch

@@ -98,7 +98,7 @@ class YOLOXModeSwitchCallback(Callback):
             # Override train_dataloader method in PL datamodule.
             # Set reload_dataloaders_every_n_epochs to 1 to use the new
             # dataloader.
-            def train_dataloader():
+            def train_dataloader() -> DataLoader:
                 """Return dataloader for training."""
                 return new_dataloader
 

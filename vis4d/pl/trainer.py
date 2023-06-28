@@ -24,6 +24,7 @@ class PLTrainer(pl.Trainer):
         version: str,
         epoch_based: bool = True,
         find_unused_parameters: bool = False,
+        save_top_k: int = -1,
         checkpoint_period: int = 1,
         wandb: bool = False,
         **kwargs: ArgsType,
@@ -40,10 +41,11 @@ class PLTrainer(pl.Trainer):
             find_unused_parameters: Activates PyTorch checking for unused
                 parameters in DDP setting. Default: False, for better
                 performance.
+            save_top_k: Save top k checkpoints. Default: -1 (save all).
             checkpoint_period: After N epochs / stpes, save out checkpoints.
-                Default: 1
+                Default: 1.
             wandb: Use weights and biases logging instead of tensorboard.
-                Default: False
+                Default: False.
         """
         self.work_dir = work_dir
         self.exp_name = exp_name
@@ -91,7 +93,7 @@ class PLTrainer(pl.Trainer):
                 dirpath=osp.join(self.output_dir, "checkpoints"),
                 verbose=True,
                 save_last=True,
-                save_top_k=-1,
+                save_top_k=save_top_k,
                 every_n_epochs=checkpoint_period,
                 save_on_train_epoch_end=True,
             )
@@ -101,6 +103,7 @@ class PLTrainer(pl.Trainer):
                 dirpath=osp.join(self.output_dir, "checkpoints"),
                 verbose=True,
                 save_last=True,
+                save_top_k=save_top_k,
                 every_n_train_steps=checkpoint_period,
             )
         callbacks += [checkpoint_cb]
