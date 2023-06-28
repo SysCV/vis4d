@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict
 
+from vis4d.config.common.types import LrSchedulerConfig, OptimizerConfig
 from vis4d.engine.optim import ParamGroupsCfg
 
 
@@ -11,7 +12,7 @@ def get_lr_scheduler_cfg(
     begin: int = 0,
     end: int = -1,
     epoch_based: bool = True,
-) -> ConfigDict:
+) -> LrSchedulerConfig:
     """Default learning rate scheduler configuration.
 
     This creates a config object that can be initialized as a LearningRate
@@ -25,10 +26,10 @@ def get_lr_scheduler_cfg(
             epoch based or step based. Defaults to True.
 
     Returns:
-        ConfigDict: Config dict that can be instantiated as LearningRate
+        LrSchedulerConfig: Config dict that can be instantiated as LearningRate
             scheduler.
     """
-    lr_scheduler = ConfigDict()
+    lr_scheduler = LrSchedulerConfig()
 
     lr_scheduler.scheduler = scheduler
     lr_scheduler.begin = begin
@@ -40,9 +41,9 @@ def get_lr_scheduler_cfg(
 
 def get_optimizer_cfg(
     optimizer: ConfigDict,
-    lr_schedulers: list[ConfigDict] | None = None,
+    lr_schedulers: list[LrSchedulerConfig] | None = None,
     param_groups: list[ParamGroupsCfg] | None = None,
-) -> ConfigDict:
+) -> OptimizerConfig:
     """Default optimizer configuration.
 
     This creates a config object that can be initialized as an Optimizer for
@@ -50,15 +51,15 @@ def get_optimizer_cfg(
 
     Args:
         optimizer (ConfigDict): Optimizer configuration.
-        lr_schedulers (list[ConfigDict] | None, optional): Learning rate
+        lr_schedulers (list[LrSchedulerConfig] | None, optional): Learning rate
             schedulers configuration. Defaults to None.
         param_groups (list[ParamGroupsCfg] | None, optional): Parameter groups
             configuration. Defaults to None.
 
     Returns:
-        ConfigDict: Config dict that can be instantiated as Optimizer.
+        OptimizerConfig: Config dict that can be instantiated as Optimizer.
     """
-    optim = ConfigDict()
+    optim = OptimizerConfig()
 
     optim.optimizer = optimizer
     optim.lr_schedulers = lr_schedulers

@@ -6,6 +6,8 @@ import unittest
 from tests.util import MOCKLOSS, MockModel
 from vis4d.engine.callbacks import CheckpointCallback, TrainerState
 
+from ..optim.optimizer_test import get_optimizer
+
 
 class TestCheckpointCallback(unittest.TestCase):
     """Test cases for callback functions."""
@@ -20,6 +22,8 @@ class TestCheckpointCallback(unittest.TestCase):
 
         self.callback.setup()
 
+        optimizers, lr_scheulders = get_optimizer()
+
         self.trainer_state = TrainerState(
             current_epoch=0,
             num_epochs=0,
@@ -28,6 +32,8 @@ class TestCheckpointCallback(unittest.TestCase):
             num_train_batches=None,
             test_dataloader=None,
             num_test_batches=None,
+            optimizers=optimizers,
+            lr_schedulers=lr_scheulders,
         )
 
     def tearDown(self) -> None:

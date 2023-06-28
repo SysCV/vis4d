@@ -36,7 +36,7 @@ Additionally, you can also define a `get_sweep` function that returns a `ConfigD
 
 ### Training
 
-To train a model, you can either use our engine or use the pytorch_lightning trainer directly. The CLI interfaces for both are the same, however, the main script is either `vis4d.engine.cli` or `vis4d.pl.cli`.
+To train a model, you can either use our engine or use the pytorch_lightning trainer directly. The CLI interfaces for both are the same, however, the main script is either `vis4d.engine.run` or `vis4d.pl.run`.
 
 Here are a few examples on how to train a model using the CLI interfaces:
 
@@ -44,16 +44,16 @@ Here are a few examples on how to train a model using the CLI interfaces:
 
 ```bash
 # Training faster_rcnn on the coco dataset and one gpu
-python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
+python -m vis4d.engine.run --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
 # You can overwrite any config value by passing it to the cli. This updates the "num_epochs" value in the config dict.
-python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --gpus 1 --config.num_epochs 100
+python -m vis4d.engine.run --config vis4d/config/example/faster_rcnn_coco.py --gpus 1 --config.num_epochs 100
 # You can also perform a hyperparameter sweep by passing a sweep config file to the cli.
-python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/faster_rcnn_coco.py
+python -m vis4d.engine.run --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/faster_rcnn_coco.py
 ```
 
 #### Using Pytorch Lightning
 
 ```bash
 # Training faster_rcnn on the coco dataset and one gpu
-python -m vis4d.pl.cli --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
+python -m vis4d.pl.run --config vis4d/config/example/faster_rcnn_coco.py --gpus 1
 ```

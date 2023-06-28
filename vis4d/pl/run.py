@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import os.path as osp
 
-from absl import app, flags
+from absl import app
 from lightning.fabric.utilities.exceptions import MisconfigurationException
 from lightning.pytorch import Callback
 from torch.utils.collect_env import get_pretty_env_info
@@ -15,27 +15,19 @@ from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.common.types import ExperimentConfig
 from vis4d.engine.callbacks.checkpoint import CheckpointCallback
-from vis4d.engine.parser import DEFINE_config_file, pprints_config
+from vis4d.engine.flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG
+from vis4d.engine.parser import pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
-
-# TODO: Support resume from folder and load config directly from it.
-_CONFIG = DEFINE_config_file("config", method_name="get_config")
-_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
-_CKPT = flags.DEFINE_string("ckpt", default=None, help="Checkpoint path")
-_RESUME = flags.DEFINE_bool("resume", default=False, help="Resume training")
-_SHOW_CONFIG = flags.DEFINE_bool(
-    "print-config", default=False, help="If set, prints the configuration."
-)
 
 
 def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.pl.run fit --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     mode = argv[1]

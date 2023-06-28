@@ -119,7 +119,6 @@ class Trainer:
     def _log_lr(self, optimizer: Optimizer) -> None:
         """Log learning rate."""
         tag = f"lr-{optimizer.__class__.__name__}"
-        print(f"{tag}/pg{1}", optimizer.param_groups[0]["lr"])
 
         if len(optimizer.param_groups) > 1:
             for i, param_group in enumerate(optimizer.param_groups):

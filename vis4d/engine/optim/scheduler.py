@@ -28,14 +28,16 @@ class LRSchedulerWrapper(LRScheduler):
     ) -> None:
         """Initialize LRSchedulerWrapper."""
         self.lr_schedulers_cfg = lr_schedulers_cfg
-        self.lr_schedulers: list[LRSchedulerDict] = []
+        self.lr_schedulers: dict[int, LRSchedulerDict] = {}
         super().__init__(optimizer)
 
-        for lr_scheduler_cfg in self.lr_schedulers_cfg:
+        for i, lr_scheduler_cfg in enumerate(self.lr_schedulers_cfg):
             if lr_scheduler_cfg["begin"] == 0:
-                self._instantiate_lr_scheduler(lr_scheduler_cfg)
+                self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
-    def _instantiate_lr_scheduler(self, lr_scheduler_cfg: ConfigDict) -> None:
+    def _instantiate_lr_scheduler(
+        self, scheduler_idx: int, lr_scheduler_cfg: ConfigDict
+    ) -> None:
         """Instantiate LR schedulers."""
         # OneCycleLR needs max_lr to be set
         if "max_lr" in lr_scheduler_cfg["scheduler"]["init_args"]:
@@ -43,35 +45,40 @@ class LRSchedulerWrapper(LRScheduler):
                 pg["lr"] for pg in self.optimizer.param_groups
             ]
 
-        self.lr_schedulers.append(
-            {
-                "scheduler": instantiate_classes(
-                    lr_scheduler_cfg["scheduler"], optimizer=self.optimizer
-                ),
-                "begin": lr_scheduler_cfg["begin"],
-                "end": lr_scheduler_cfg["end"],
-                "epoch_based": lr_scheduler_cfg["epoch_based"],
-            }
-        )
+        self.lr_schedulers[scheduler_idx] = {
+            "scheduler": instantiate_classes(
+                lr_scheduler_cfg["scheduler"], optimizer=self.optimizer
+            ),
+            "begin": lr_scheduler_cfg["begin"],
+            "end": lr_scheduler_cfg["end"],
+            "epoch_based": lr_scheduler_cfg["epoch_based"],
+        }
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Get current learning rate."""
         return [
             lr_scheduler["scheduler"].get_lr()
-            for lr_scheduler in self.lr_schedulers
+            for lr_scheduler in self.lr_schedulers.values()
         ]
 
-    def state_dict(self) -> list[DictStrAny]:  # type: ignore
+    def state_dict(self) -> dict[int, DictStrAny]:  # type: ignore
         """Get state dict."""
-        return [
-            lr_scheduler["scheduler"].state_dict()
-            for lr_scheduler in self.lr_schedulers
-        ]
+        state_dict = {}
+        for scheduler_idx, lr_scheduler in self.lr_schedulers.items():
+            state_dict[scheduler_idx] = lr_scheduler["scheduler"].state_dict()
+        return state_dict
 
-    def load_state_dict(self, state_dict: list[DictStrAny]) -> None:  # type: ignore # pylint: disable=line-too-long
+    def load_state_dict(self, state_dict: dict[int, DictStrAny]) -> None:  # type: ignore # pylint: disable=line-too-long
         """Load state dict."""
-        for lr_scheduler, state_dict_ in zip(self.lr_schedulers, state_dict):
-            lr_scheduler["scheduler"].load_state_dict(state_dict_)
+        for scheduler_idx, _state_dict in state_dict.items():
+            # Instantiate the lr scheduler if it is not instantiated yet
+            if not scheduler_idx in self.lr_schedulers:
+                self._instantiate_lr_scheduler(
+                    scheduler_idx, self.lr_schedulers_cfg[scheduler_idx]
+                )
+            self.lr_schedulers[scheduler_idx]["scheduler"].load_state_dict(
+                _state_dict
+            )
 
     def _step_lr(self, lr_scheduler: LRSchedulerDict, step: int) -> None:
         """Step the learning rate."""
@@ -83,29 +90,29 @@ class LRSchedulerWrapper(LRScheduler):
     def step(self, epoch: int | None = None) -> None:
         """Step on training epoch end."""
         if epoch is not None:
-            for lr_scheduler in self.lr_schedulers:
+            for lr_scheduler in self.lr_schedulers.values():
                 if lr_scheduler["epoch_based"]:
                     self._step_lr(lr_scheduler, epoch)
 
-            for lr_scheduler_cfg in self.lr_schedulers_cfg:
+            for i, lr_scheduler_cfg in enumerate(self.lr_schedulers_cfg):
                 if lr_scheduler_cfg["epoch_based"] and (
                     lr_scheduler_cfg["begin"] == epoch + 1
                 ):
-                    self._instantiate_lr_scheduler(lr_scheduler_cfg)
+                    self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
     def step_on_batch(self, step: int) -> None:
         """Step on training batch end."""
         # Minus 1 because the step is called after the optimizer.step()
         step -= 1
-        for lr_scheduler in self.lr_schedulers:
+        for lr_scheduler in self.lr_schedulers.values():
             if not lr_scheduler["epoch_based"]:
                 self._step_lr(lr_scheduler, step)
 
-        for lr_scheduler_cfg in self.lr_schedulers_cfg:
+        for i, lr_scheduler_cfg in enumerate(self.lr_schedulers_cfg):
             if not lr_scheduler_cfg["epoch_based"] and (
                 lr_scheduler_cfg["begin"] == step + 1
             ):
-                self._instantiate_lr_scheduler(lr_scheduler_cfg)
+                self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
 
 class ConstantLR(LRScheduler):

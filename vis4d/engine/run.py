@@ -1,16 +1,16 @@
 """CLI interface."""
 from __future__ import annotations
 
-from absl import app, flags
+from absl import app
 
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
 from vis4d.config.common.types import ExperimentConfig
 from vis4d.config.replicator import replicate_config
-from vis4d.engine.parser import DEFINE_config_file
 
 from .experiment import run_experiment
+<<<<<<< HEAD:vis4d/engine/cli.py
 
 # TODO: Currently this does not allow to load multpile config files.
 # Would be nice to extend functionality to chain multiple config files using
@@ -29,15 +29,18 @@ _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _SLURM = flags.DEFINE_bool(
     "slurm", default=False, help="If set, setup slurm running jobs."
 )
+=======
+from .flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG, _SLURM, _SWEEP
+>>>>>>> main:vis4d/engine/run.py
 
 
 def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.engine.cli --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.run --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     With parameter sweep config:
-    >>> python -m vis4d.engine.cli fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep  vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.run fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep  vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     assert len(argv) > 1, "Mode must be specified: `fit` or `test`"

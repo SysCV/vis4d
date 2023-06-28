@@ -2,7 +2,7 @@
 
 Helper functions to execute a single experiment.
 
-This will be called by the CLI for each experiment configuration.
+This will be called for each experiment configuration.
 """
 from __future__ import annotations
 

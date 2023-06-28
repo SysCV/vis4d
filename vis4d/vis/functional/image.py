@@ -253,6 +253,68 @@ def imshow_bboxes3d(
     imshow(img, image_mode, image_viewer)
 
 
+def draw_bbox3d(
+    image: NDArrayUI8,
+    boxes3d: ArrayLikeFloat,
+    intrinsics: NDArrayF32,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
+    class_id_mapping: None | dict[int, str] = None,
+    n_colors: int = 50,
+    image_mode: str = "RGB",
+    canvas: CanvasBackend = PillowCanvasBackend(),
+    width: int = 4,
+    camera_near_clip: float = 0.15,
+) -> NDArrayUI8:
+    """Draw 3D box onto image."""
+    image = preprocess_image(image, image_mode)
+    boxes3d_data = preprocess_boxes3d(
+        boxes3d,
+        intrinsics,
+        scores,
+        class_ids,
+        track_ids,
+        color_palette=generate_color_map(n_colors),
+        class_id_mapping=class_id_mapping,
+    )
+    canvas.create_canvas(image)
+
+    for corners, label, color in zip(*boxes3d_data):
+        canvas.draw_box_3d(corners, color, width, camera_near_clip)
+        canvas.draw_text((corners[0][0], corners[0][1]), label)
+
+    return canvas.as_numpy_image()
+
+
+def imshow_bboxes3d(
+    image: ArrayLike,
+    boxes3d: ArrayLikeFloat,
+    intrinsics: NDArrayF32,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
+    class_id_mapping: None | dict[int, str] = None,
+    n_colors: int = 50,
+    image_mode: str = "RGB",
+    image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+) -> None:
+    """Show image with bounding boxes."""
+    image = preprocess_image(image, mode=image_mode)
+    img = draw_bbox3d(
+        image,
+        boxes3d,
+        intrinsics,
+        scores,
+        class_ids,
+        track_ids,
+        class_id_mapping=class_id_mapping,
+        n_colors=n_colors,
+        image_mode=image_mode,
+    )
+    imshow(img, image_mode, image_viewer)
+
+
 def imshow_masks(
     image: ArrayLike,
     masks: ArrayLikeBool,

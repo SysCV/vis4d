@@ -32,7 +32,7 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim.warmup import QuadraticLRWarmup
+from vis4d.engine.optim.scheduler import QuadraticLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.detect.yolox import YOLOXHeadLoss
@@ -119,12 +119,6 @@ def get_config() -> FieldConfigDict:
                 momentum=0.9,
                 weight_decay=0.0005,
                 nesterov=True,
-            ),
-            lr_scheduler=class_config(
-                CosineAnnealingLR, T_max=999, eta_min=params.lr * 0.05
-            ),
-            lr_warmup=class_config(
-                QuadraticLRWarmup, warmup_ratio=1.0, warmup_steps=1000
             ),
             lr_schedulers=[
                 get_lr_scheduler_cfg(

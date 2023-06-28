@@ -156,9 +156,11 @@ class TestOptimizer(unittest.TestCase):
     def test_optimizer_with_param_groups_cfg(self):
         """Test the optimizer with param_groups_cfg."""
         optimizers, lr_scheulders = get_optimizer(
+            model=MockModel(0),
+            optimizer=class_config(torch.optim.AdamW, lr=0.01),
             param_groups=[
                 ParamGroupsCfg(custom_keys=["linear.weight"], lr_mult=0.1)
-            ]
+            ],
         )
 
         optimizer = optimizers[0]
