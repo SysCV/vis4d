@@ -1,5 +1,10 @@
 """Optimizer modules."""
-from .optimizer import set_up_optimizers
+from .optimizer import set_up_optimizers, ParamGroupsCfg
 from .scheduler import LRSchedulerWrapper, PolyLR
 
-__all__ = ["set_up_optimizers", "LRSchedulerWrapper", "PolyLR"]
+__all__ = [
+    "set_up_optimizers",
+    "LRSchedulerWrapper",
+    "PolyLR",
+    "ParamGroupsCfg",
+]

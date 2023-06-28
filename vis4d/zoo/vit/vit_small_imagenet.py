@@ -119,7 +119,7 @@ def get_config() -> ExperimentConfig:
             lr_schedulers=[
                 get_lr_scheduler_cfg(
                     class_config(LinearLR, estart_factor=1e-3, total_iters=10),
-                    end=9,
+                    end=10,
                 ),
                 get_lr_scheduler_cfg(
                     class_config(
