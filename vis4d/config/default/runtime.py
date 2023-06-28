@@ -5,12 +5,13 @@ from datetime import datetime
 from ml_collections import ConfigDict
 
 from vis4d.config import FieldConfigDict, class_config
+from vis4d.config.common.types import ExperimentConfig
 from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
 def get_default_cfg(
     exp_name: str, work_dir: str = "vis4d-workspace"
-) -> FieldConfigDict:
+) -> ExperimentConfig:
     """Set default config for the project.
 
     It will set the following fields:
@@ -54,6 +55,13 @@ def get_default_cfg(
         + path_component
         + config.get_ref("version")
     )
+
+    # Set default value for the following fields
+    config.seed = -1
+    config.use_ema = True
+    config.log_every_n_steps = 50
+    config.use_tf32 = False
+    config.benchmark = False
 
     return config
 

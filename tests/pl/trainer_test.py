@@ -34,7 +34,7 @@ from vis4d.engine.connectors import (
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
-from vis4d.pl.callbacks import CallbackWrapper, LRWarmUpCallback
+from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
@@ -102,7 +102,7 @@ class PLTrainerTest(unittest.TestCase):
         """Setup."""
         self.test_dir = tempfile.mkdtemp()
 
-        callbacks = [LRWarmUpCallback(), CallbackWrapper(LoggingCallback())]
+        callbacks = [LRSchedulerCallback(), CallbackWrapper(LoggingCallback())]
 
         self.trainer = PLTrainer(
             work_dir=self.test_dir,

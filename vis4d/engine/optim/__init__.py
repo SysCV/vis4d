@@ -1,21 +1,5 @@
 """Optimizer modules."""
-from .optimizer import Optimizer, set_up_optimizers
-from .scheduler import PolyLR
-from .warmup import (
-    BaseLRWarmup,
-    ConstantLRWarmup,
-    ExponentialLRWarmup,
-    LinearLRWarmup,
-    QuadraticLRWarmup,
-)
+from .optimizer import set_up_optimizers
+from .scheduler import LRSchedulerWrapper, PolyLR, YOLOXCosineAnnealingLR
 
-__all__ = [
-    "Optimizer",
-    "PolyLR",
-    "BaseLRWarmup",
-    "LinearLRWarmup",
-    "ConstantLRWarmup",
-    "ExponentialLRWarmup",
-    "QuadraticLRWarmup",
-    "set_up_optimizers",
-]
+__all__ = ["set_up_optimizers", "LRSchedulerWrapper", "PolyLR", "YOLOXCosineAnnealingLR"]

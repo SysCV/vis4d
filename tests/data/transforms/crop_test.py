@@ -10,7 +10,9 @@ from vis4d.data.transforms.crop import (
     CropBoxes2D,
     CropImages,
     CropSegMasks,
+    GenCentralCropParameters,
     GenCropParameters,
+    GenRandomSizeCropParameters,
     absolute_crop,
     absolute_range_crop,
     relative_crop,
@@ -52,6 +54,28 @@ class TestCrop(unittest.TestCase):
 
         transform = CropImages()
         data = transform.apply_to_data([data])[0]
+        self.assertEqual(data["images"].shape, (1, 8, 8, 3))
+        self.assertEqual(data["input_hw"], (8, 8))
+        assert np.isclose(
+            self.data["images"][:, y1:y2, x1:x2, :], data["images"]
+        ).all()
+
+    def test_central_crop_image(self):
+        """Test the CropImage transform."""
+        data = copy.deepcopy(self.data)
+
+        gen_param = GenCentralCropParameters(shape=(8, 8))
+        data = gen_param.apply_to_data([data])
+        assert "transforms" in data[0] and "crop" in data[0]["transforms"]
+        assert (
+            "crop_box" in data[0]["transforms"]["crop"]
+            and "keep_mask" in data[0]["transforms"]["crop"]
+        )
+        x1, y1, x2, y2 = data[0]["transforms"]["crop"]["crop_box"]
+        assert x1 == y1 == 4
+        assert x2 - x1 == y2 - y1 == 8
+        transform = CropImages()
+        data = transform.apply_to_data(data)[0]
         self.assertEqual(data["images"].shape, (1, 8, 8, 3))
         self.assertEqual(data["input_hw"], (8, 8))
         assert np.isclose(
@@ -131,3 +155,26 @@ class TestCrop(unittest.TestCase):
         crop_h, crop_w = relative_range_crop(im_h, im_w, shape)
         assert 3 <= crop_h <= 5
         assert 5 <= crop_w <= 7
+
+    def test_random_size_crop(self):
+        """Test the GenRandomSizeCropParameters transform."""
+        data = copy.deepcopy(self.data)
+
+        gen_param = GenRandomSizeCropParameters(
+            scale=(0.25, 0.25), ratio=(1, 1)
+        )
+        data = gen_param.apply_to_data([data])
+        assert "transforms" in data[0] and "crop" in data[0]["transforms"]
+        assert (
+            "crop_box" in data[0]["transforms"]["crop"]
+            and "keep_mask" in data[0]["transforms"]["crop"]
+        )
+        x1, y1, x2, y2 = data[0]["transforms"]["crop"]["crop_box"]
+        assert x2 - x1 == y2 - y1 == 8
+        transform = CropImages()
+        data = transform.apply_to_data(data)[0]
+        self.assertEqual(data["images"].shape, (1, 8, 8, 3))
+        self.assertEqual(data["input_hw"], (8, 8))
+        assert np.isclose(
+            self.data["images"][:, y1:y2, x1:x2, :], data["images"]
+        ).all()

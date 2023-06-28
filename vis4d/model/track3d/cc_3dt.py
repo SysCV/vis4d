@@ -32,6 +32,7 @@ from vis4d.op.track_3d.motion.kf3d import (
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 
 REV_KEYS = [
+    (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
     (r"^backbone.body\.", "basemodel."),
 ]
 

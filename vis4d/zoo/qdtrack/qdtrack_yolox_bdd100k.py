@@ -8,6 +8,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vis4d.config import FieldConfigDict, class_config
+from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,

@@ -20,10 +20,7 @@ class LoggingCallback(Callback):
     """Callback for logging."""
 
     def __init__(
-        self,
-        *args: ArgsType,
-        refresh_rate: int = 50,
-        **kwargs: ArgsType,
+        self, *args: ArgsType, refresh_rate: int = 50, **kwargs: ArgsType
     ) -> None:
         """Init callback."""
         super().__init__(*args, **kwargs)
