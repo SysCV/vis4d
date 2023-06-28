@@ -32,9 +32,9 @@ def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.engine.cli --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.run --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     With parameter sweep config:
-    >>> python -m vis4d.engine.cli fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep  vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.run fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep  vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     assert len(argv) > 1, "Mode must be specified: `fit` or `test`"

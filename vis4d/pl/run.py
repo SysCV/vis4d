@@ -33,7 +33,7 @@ def main(argv: ArgsType) -> None:
     """Main entry point for the CLI.
 
     Example to run this script:
-    >>> python -m vis4d.pl.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.pl.run fit --config configs/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     mode = argv[1]

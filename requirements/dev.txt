@@ -1,4 +1,5 @@
 black
+build
 coverage[toml]
 isort
 mypy

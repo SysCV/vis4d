@@ -127,5 +127,5 @@ include = ["vis4d*"]
 "Tracker" = "https://github.com/syscv/"
 
 [project.scripts]
-vis4d = "vis4d.engine.cli:entrypoint"
-vis4d-pl = "vis4d.pl.cli:entrypoint"
+vis4d = "vis4d.engine.run:entrypoint"
+vis4d-pl = "vis4d.pl.run:entrypoint"
