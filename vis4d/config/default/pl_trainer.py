@@ -22,6 +22,7 @@ def get_default_pl_trainer_cfg(config: FieldConfigDict) -> FieldConfigDict:
 
     # logger
     pl_trainer.enable_progress_bar = False
+    pl_trainer.log_every_n_steps = config.log_every_n_steps
 
     # Default Trainer arguments
     pl_trainer.work_dir = config.work_dir

@@ -36,6 +36,7 @@ REV_KEYS = [
     # ),
     # (r"\.conv.weight", ".weigh2t"),
     # (r"\.conv.bias", ".bias"),
+    (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
     (r"^backbone.body\.", "basemodel."),
 ]
 
@@ -362,9 +363,9 @@ class FasterRCNNQDTrack(nn.Module):
         self.fpn = FPN(self.basemodel.out_channels[2:], 256)
 
         if faster_rcnn_head is None:
-            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+            self.faster_rcnn_head = FasterRCNNHead(num_classes=num_classes)
         else:
-            self.faster_rcnn_heads = faster_rcnn_head
+            self.faster_rcnn_head = faster_rcnn_head
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
@@ -435,7 +436,7 @@ class FasterRCNNQDTrack(nn.Module):
             for ref_index in ref_indices
         ]
 
-        key_detector_out = self.faster_rcnn_heads(
+        key_detector_out = self.faster_rcnn_head(
             key_features,
             images_hw[key_index],
             target_boxes[key_index],
@@ -444,7 +445,7 @@ class FasterRCNNQDTrack(nn.Module):
 
         with torch.no_grad():
             ref_detector_out = [
-                self.faster_rcnn_heads(
+                self.faster_rcnn_head(
                     ref_features[i],
                     images_hw[ref_index],
                     target_boxes[ref_index],
@@ -495,7 +496,7 @@ class FasterRCNNQDTrack(nn.Module):
         """Forward inference stage."""
         features = self.basemodel(images)
         features = self.fpn(features)
-        detector_out = self.faster_rcnn_heads(features, images_hw)
+        detector_out = self.faster_rcnn_head(features, images_hw)
 
         boxes, scores, class_ids = self.roi2det(
             *detector_out.roi, detector_out.proposals.boxes, images_hw

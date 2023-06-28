@@ -1,6 +1,8 @@
 """Engine trainer tests."""
 from __future__ import annotations
 
+import shutil
+import tempfile
 import unittest
 
 import torch
@@ -85,6 +87,8 @@ class EngineTrainerTest(unittest.TestCase):
 
     def setUp(self) -> None:
         """Set up test."""
+        self.test_dir = tempfile.mkdtemp()
+
         dataset = COCO(
             get_test_data("coco_test"),
             keys_to_load=[
@@ -106,6 +110,7 @@ class EngineTrainerTest(unittest.TestCase):
 
         self.trainer = Trainer(
             device=torch.device("cpu"),
+            output_dir=self.test_dir,
             num_epochs=2,
             train_data_connector=train_data_connector,
             test_data_connector=test_data_connector,
@@ -114,9 +119,13 @@ class EngineTrainerTest(unittest.TestCase):
             test_dataloader=test_dataloader,
         )
 
+    def tearDown(self) -> None:
+        """Tear down test."""
+        shutil.rmtree(self.test_dir)
+
     def test_fit(self) -> None:
         """Test trainer training."""
-        optimizers = get_optimizer()
+        optimizers, lr_scheulders = get_optimizer()
         loss_module = LossModule(
             {
                 "loss": SegCrossEntropyLoss(),
@@ -129,7 +138,7 @@ class EngineTrainerTest(unittest.TestCase):
             }
         )
 
-        self.trainer.fit(self.model, optimizers, loss_module)
+        self.trainer.fit(self.model, optimizers, lr_scheulders, loss_module)
 
         # TODO: add callback to check loss
 

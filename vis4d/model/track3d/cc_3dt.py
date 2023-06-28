@@ -32,6 +32,7 @@ from vis4d.op.track_3d.motion.kf3d import (
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 
 REV_KEYS = [
+    (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
     (r"^backbone.body\.", "basemodel."),
 ]
 
@@ -487,13 +488,13 @@ class FasterRCNNCC3DT(nn.Module):
                 strides=[4, 8, 16, 32, 64],
             )
             roi_head = RCNNHead(num_shared_convs=4, num_classes=num_classes)
-            self.faster_rcnn_heads = FasterRCNNHead(
+            self.faster_rcnn_head = FasterRCNNHead(
                 num_classes=num_classes,
                 anchor_generator=anchor_generator,
                 roi_head=roi_head,
             )
         else:
-            self.faster_rcnn_heads = faster_rcnn_head
+            self.faster_rcnn_head = faster_rcnn_head
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
         self.bbox_3d_head = QD3DTBBox3DHead(num_classes=num_classes)
@@ -543,7 +544,7 @@ class FasterRCNNCC3DT(nn.Module):
 
         features = self.basemodel(images)
         features = self.fpn(features)
-        _, roi, proposals, _, _, _ = self.faster_rcnn_heads(
+        _, roi, proposals, _, _, _ = self.faster_rcnn_head(
             features, images_hw_list
         )
 

@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from vis4d.common.typing import NDArrayBool, NDArrayF64, NDArrayUI8
 
+from ..util import get_intersection_point
 from .base import CanvasBackend
 
 
@@ -183,6 +184,101 @@ class PillowCanvasBackend(CanvasBackend):
                 "No Image Draw initialized! Did you call 'create_canvas'?"
             )
         self._image_draw.line((point1, point2), width=width, fill=color)
+
+    def _draw_box_3d_line(
+        self,
+        point1: tuple[float, float, float],
+        point2: tuple[float, float, float],
+        color: tuple[int, int, int],
+        width: int = 0,
+        camera_near_clip: float = 0.15,
+    ) -> None:
+        """Draws a line between two points.
+
+        Args:
+            point1 (tuple[float, float, float]): The first point. The third
+                coordinate is the depth.
+            point2 (tuple[float, float, float]): The first point. The third
+                coordinate is the depth.
+            color (tuple[int, int, int]): Color of the line.
+            width (int, optional): The width of the line. Defaults to 0.
+            camera_near_clip (float, optional): The near clipping plane of the
+                camera. Defaults to 0.15.
+
+        Raises:
+            ValueError: If the canvas is not initialized.
+        """
+        if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
+            return
+
+        pt1 = point1[:2]
+        pt2 = point2[:2]
+
+        if point1[2] < camera_near_clip:
+            pt1 = get_intersection_point(point1, point2, camera_near_clip)
+        elif point2[2] < camera_near_clip:
+            pt2 = get_intersection_point(point1, point2, camera_near_clip)
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
+        self._image_draw.line(
+            (tuple(pt1), tuple(pt2)), width=width, fill=color
+        )
+
+    def draw_box_3d(
+        self,
+        corners: list[tuple[float, float, float]],
+        color: tuple[int, int, int],
+        width: int = 0,
+        camera_near_clip: float = 0.15,
+    ) -> None:
+        """Draws a 3D box onto the given canvas."""
+        # Draw Front
+        self._draw_box_3d_line(
+            corners[0], corners[1], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[1], corners[5], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[5], corners[4], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[4], corners[0], color, width, camera_near_clip
+        )
+        # Draw Sides
+        self._draw_box_3d_line(
+            corners[0], corners[2], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[1], corners[3], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[4], corners[4], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[5], corners[7], color, width, camera_near_clip
+        )
+
+        # Draw Back
+        self._draw_box_3d_line(
+            corners[2], corners[3], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[3], corners[7], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[7], corners[6], color, width, camera_near_clip
+        )
+        self._draw_box_3d_line(
+            corners[6], corners[2], color, width, camera_near_clip
+        )
+
+        # Draw line indicating the front
+        center_bottom_forward = np.mean(corners[:2], axis=0)
+        center_bottom = np.mean(corners[:4], axis=0)
+        self._draw_box_3d_line(center_bottom, center_bottom_forward, color)
 
     def as_numpy_image(self) -> NDArrayUI8:
         """Returns the current canvas as numpy image.

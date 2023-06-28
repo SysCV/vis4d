@@ -91,6 +91,7 @@ class PLTrainer(pl.Trainer):
                 dirpath=osp.join(self.output_dir, "checkpoints"),
                 verbose=True,
                 save_last=True,
+                save_top_k=-1,
                 every_n_epochs=checkpoint_period,
                 save_on_train_epoch_end=True,
             )
