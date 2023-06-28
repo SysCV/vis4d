@@ -1,7 +1,34 @@
+=====
 CLI
 =====
-We provide a command line interface for training your own NeRFs (no coding necessary). You can learn more about each command by using the --help argument.
+We provide a command line interface for training and evaluating your models.
 
-Commands
------
-Here are the popular commands that we offer. If you’ve cloned the repo, you can also look at the pyproject.toml file at the [project.scripts] section for details.
+TL;DR
+=====
+Train a model
+------
+.. code-block:: bash
+
+   python -m vis4d.engine.cli train --config <path_to_experiment_cfg>
+
+
+Test a model
+------
+.. code-block:: bash
+
+   python -m vis4d.engine.cli test --config <path_to_experiment_cfg>
+
+Parameter Sweeps
+------
+
+.. code-block:: bash
+
+   python -m vis4d.engine.cli train --config <path_to_experiment_cfg> --sweep <path_to_sweep_cfg>
+
+
+Overwrite Config Parameters
+------
+
+.. code-block:: bash
+
+   python -m vis4d.engine.cli train --config <path_to_experiment_cfg> --config.my_field=2 --config.my.nested.field="test"
