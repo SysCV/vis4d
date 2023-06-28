@@ -25,7 +25,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
-          python3 -m pip install -e .
           python3 -m pip freeze
 
       - name: isort
@@ -80,7 +79,6 @@ jobs:
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip install -e .
-          python3 -m pip install build
           python3 -m pip freeze
 
       - name: test
