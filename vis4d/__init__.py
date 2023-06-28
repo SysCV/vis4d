@@ -15,9 +15,3 @@ _logger.setLevel(logging.INFO)
 if not _root_logger.hasHandlers():
     _logger.addHandler(logging.StreamHandler())
     _logger.propagate = False
-
-
-if __name__ == "__main__":
-    from .engine.run import entrypoint
-
-    entrypoint()
