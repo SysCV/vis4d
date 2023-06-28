@@ -135,7 +135,9 @@ def get_config() -> FieldConfigDict:
                     epoch_based=False,
                 ),
                 get_lr_scheduler_cfg(
-                    class_config(CosineAnnealingLR, T_max=999, eta_min=params.lr * 0.05),
+                    class_config(
+                        CosineAnnealingLR, T_max=999, eta_min=params.lr * 0.05
+                    ),
                 ),
             ],
             param_groups_cfg=[
@@ -147,6 +149,7 @@ def get_config() -> FieldConfigDict:
                     "custom_keys": ["basemodel", "fpn", "yolox_head"],
                     "bias_decay_mult": 0.0,
                 },
+            ],
         )
     ]
 

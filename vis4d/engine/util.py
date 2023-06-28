@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from abc import ABC
 from collections import OrderedDict, defaultdict
 from collections.abc import Callable, Mapping, Sequence
@@ -222,7 +223,13 @@ def move_data_to_device(  # type: ignore
 
 
 class ModelEMAAdapter(nn.Module):
-    """Torch module with Exponential Moving Average (EMA)."""
+    """Torch module with Exponential Moving Average (EMA).
+
+    Args:
+        model (nn.Module): model to apply EMA.
+        decay (float): Decay factor for EMA. Defaults to 0.9998.
+        device (torch.device | None): Device to use. Defaults to None.
+    """
 
     def __init__(
         self,
@@ -230,14 +237,7 @@ class ModelEMAAdapter(nn.Module):
         decay: float = 0.9998,
         device: torch.device | None = None,
     ):
-        """Init ModelEMAAdapter class.
-
-        Args:
-            model (nn.Module): model to apply EMA.
-            decay (float): Decay factor for EMA. Defaults to 0.9998.
-            device (torch.device | None): Device to use. Defaults to None.
-
-        """
+        """Init ModelEMAAdapter class."""
         super().__init__()
         self.model = model
         self.ema_model = deepcopy(self.model)
@@ -246,6 +246,7 @@ class ModelEMAAdapter(nn.Module):
         self.device = device
         if self.device is not None:
             self.ema_model.to(device=device)
+        self.register_buffer("steps", torch.LongTensor(0, device=device))
         rank_zero_info("Using model EMA with decay rate %f", self.decay)
 
     def _update(
@@ -267,6 +268,7 @@ class ModelEMAAdapter(nn.Module):
             self.model,
             update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,
         )
+        self.steps += 1
 
     def set(self, model: nn.Module) -> None:
         """Copy model params into the internal EMA."""
@@ -275,3 +277,40 @@ class ModelEMAAdapter(nn.Module):
     def forward(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
         """Forward pass with original model."""
         return self.model(*args, **kwargs)
+
+
+class ModelExpEMAAdapter(ModelEMAAdapter):
+    """Exponential Moving Average (EMA) with exponential decay strategy.
+
+    Used by YOLOX.
+
+    Args:
+        model (nn.Module): model to apply EMA.
+        decay (float): Decay factor for EMA. Defaults to 0.9998.
+        gamma (int): Use a larger momentum early in training and gradually
+            annealing to a smaller value to update the ema model smoothly.
+        device (torch.device | None): Device to use. Defaults to None.
+    """
+
+    def __init__(
+        self,
+        model: nn.Module,
+        decay: float = 0.9998,
+        gamma: int = 2000,
+        device: torch.device | None = None,
+    ):
+        """Init ModelEMAAdapter class."""
+        super().__init__(model, decay, device)
+        assert gamma > 0, f"gamma must be greater than 0, got {gamma}"
+        self.gamma = gamma
+
+    def update(self) -> None:
+        """Update the internal EMA model."""
+        decay = self.decay * math.exp(-float(1 + self.steps) / self.gamma) + (
+            1 - self.decay
+        )
+        self._update(
+            self.model,
+            update_fn=lambda e, m: decay * e + (1.0 - decay) * m,
+        )
+        self.steps += 1

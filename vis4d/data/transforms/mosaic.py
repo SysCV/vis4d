@@ -15,7 +15,7 @@ from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
 from .crop import _get_keep_mask
-from .resize import _get_resize_shape, _resize_tensor
+from .resize import get_resize_shape, resize_tensor
 
 NUM_SAMPLES = 4
 
@@ -164,7 +164,7 @@ class GenMosaicParameters:
             imgs = input_hw[i : i + NUM_SAMPLES]
             for idx, ori_hw in enumerate(imgs):
                 # compute the resize shape
-                h_i, w_i = _get_resize_shape(
+                h_i, w_i = get_resize_shape(
                     ori_hw, (h, w), align_long_edge=True
                 )
 
@@ -237,7 +237,7 @@ class MosaicImages:
                 # resize current image
                 h_i, w_i = im_shapes[i][idx]
                 img_ = torch.from_numpy(img).permute(0, 3, 1, 2)
-                img_ = _resize_tensor(
+                img_ = resize_tensor(
                     img_, (h_i, w_i), interpolation=self.interpolation
                 )
 

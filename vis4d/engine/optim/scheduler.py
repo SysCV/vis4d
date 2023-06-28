@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import math
-
-from torch.optim import Optimizer
 from typing import TypedDict
 
 from ml_collections import ConfigDict
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim.optimizer import Optimizer
 
@@ -111,6 +110,41 @@ class LRSchedulerWrapper(LRScheduler):
                 self._instantiate_lr_scheduler(lr_scheduler_cfg)
 
 
+class ConstantLR(LRScheduler):
+    """Constant learning rate scheduler.
+
+    Args:
+        optimizer (Optimizer): Wrapped optimizer.
+        max_steps (int): Maximum number of steps.
+        factor (float): Scale factor. Default: 1.0 / 3.0.
+        last_epoch (int): The index of last epoch. Default: -1.
+        verbose (bool): If ``True``, prints a message to stdout for each
+            update. Default: ``False``.
+    """
+
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        max_steps: int,
+        factor: float = 1.0 / 3.0,
+        last_epoch: int = -1,
+        verbose: bool = False,
+    ):
+        """Initialize ConstantLR."""
+        self.max_steps = max_steps
+        self.factor = factor
+        super().__init__(optimizer, last_epoch, verbose)
+
+    def get_lr(self) -> list[float]:  # type: ignore
+        """Compute current learning rate."""
+        step_count = self._step_count  # type: ignore
+        if step_count > self.max_steps:
+            return self.base_lrs
+        return [
+            group["lr"] * self.factor for group in self.optimizer.param_groups
+        ]
+
+
 class PolyLR(LRScheduler):
     """Polynomial learning rate decay.
 
@@ -160,47 +194,40 @@ class PolyLR(LRScheduler):
         ]
 
 
-class YOLOXCosineAnnealingLR(LRScheduler):
-    """YOLOX version of cosine annealing scheduler.
-
-    Set the learning rate of each parameter group using a cosine annealing
-    schedule and uses a fixed learning rate (eta_min) after the maximum number
-    of iterations (max_steps).
+class QuadraticLRWarmup(LRScheduler):
+    """Quadratic learning rate warmup.
 
     Args:
         optimizer (Optimizer): Wrapped optimizer.
-        max_steps (int): Maximum number of iterations.
-        eta_min (float): Minimum learning rate. Default: 0.
+        max_steps (int): Maximum number of steps.
         last_epoch (int): The index of last epoch. Default: -1.
-        verbose (bool): If ``True``, prints a message to stdout for
-            each update. Default: ``False``.
+        verbose (bool): If ``True``, prints a message to stdout for each
+            update. Default: ``False``.
     """
 
     def __init__(
-        self, optimizer, max_steps, eta_min=0, last_epoch=-1, verbose=False
+        self,
+        optimizer: Optimizer,
+        max_steps: int,
+        last_epoch: int = -1,
+        verbose: bool = False,
     ):
-        """Init."""
+        """Initialize QuadraticLRWarmup."""
         self.max_steps = max_steps
-        self.eta_min = eta_min
         super().__init__(optimizer, last_epoch, verbose)
 
-    def get_lr(self) -> list[float]:
+    def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        if self._step_count == 1:
-            return [group["lr"] for group in self.optimizer.param_groups]
-        if self._step_count <= self.max_steps:
-            return [
-                self.eta_min
-                + (base_lr - self.eta_min)
-                * (
-                    1
-                    + math.cos(
-                        (self._step_count - 1) * math.pi / self.max_steps
-                    )
-                )
-                / 2
-                for base_lr, group in zip(
-                    self.base_lrs, self.optimizer.param_groups
-                )
-            ]
-        return [self.eta_min for _ in self.optimizer.param_groups]
+        step_count = self._step_count - 1  # type: ignore
+        if step_count >= self.max_steps:
+            return self.base_lrs
+        factors = [
+            base_lr * (2 * step_count + 1) / self.max_steps**2
+            for base_lr in self.base_lrs
+        ]
+        if step_count == 0:
+            return factors
+        return [
+            group["lr"] + factor
+            for factor, group in zip(factors, self.optimizer.param_groups)
+        ]

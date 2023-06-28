@@ -8,9 +8,8 @@ from torch.utils.data import DataLoader
 from typing_extensions import NotRequired
 
 from vis4d.data.typing import DictData
-from vis4d.engine.optim import Optimizer
-from vis4d.pl.training_module import TrainingModule
 from vis4d.engine.optim import LRSchedulerWrapper
+from vis4d.pl.training_module import TrainingModule
 
 
 class TrainerState(TypedDict):
