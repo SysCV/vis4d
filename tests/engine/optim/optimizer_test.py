@@ -14,9 +14,9 @@ from vis4d.config import class_config
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.engine.optim import (
     LRSchedulerWrapper,
+    ParamGroupsCfg,
     PolyLR,
     set_up_optimizers,
-    ParamGroupsCfg,
 )
 
 
@@ -156,9 +156,11 @@ class TestOptimizer(unittest.TestCase):
     def test_optimizer_with_param_groups_cfg(self):
         """Test the optimizer with param_groups_cfg."""
         optimizers, lr_scheulders = get_optimizer(
+            model=MockModel(0),
+            optimizer=class_config(torch.optim.AdamW, lr=0.01),
             param_groups=[
                 ParamGroupsCfg(custom_keys=["linear.weight"], lr_mult=0.1)
-            ]
+            ],
         )
 
         optimizer = optimizers[0]
