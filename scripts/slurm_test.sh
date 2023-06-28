@@ -19,7 +19,7 @@ export PYTHONPATH=
 source /cluster/home/$USER/vis4d/bin/activate
 
 srun --cpus-per-task=4 --gres=gpumem:20G --kill-on-bad-exit=1 \
-    python -m vis4d.engine.cli test \
+    python -m vis4d.engine.run test \
     --config configs/faster_rcnn/faster_rcnn_coco.py \
     --gpus 8 \
     --slurm True

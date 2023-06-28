@@ -50,7 +50,7 @@ def get_config() -> FieldConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli fit --config vis4d/zoo/retinanet/retinanet_rcnn_coco.py --config.num_epochs 100 --config.params.lr 0.001
+    >>> python -m vis4d.engine.run fit --config vis4d/zoo/retinanet/retinanet_rcnn_coco.py --config.num_epochs 100 --config.params.lr 0.001
 
     Returns:
         ConfigDict: The configuration

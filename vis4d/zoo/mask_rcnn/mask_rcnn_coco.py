@@ -46,7 +46,7 @@ def get_config() -> ExperimentConfig:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
+    >>> python -m vis4d.engine.run fit --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
 
     Returns:
         ExperimentConfig: The configuration
