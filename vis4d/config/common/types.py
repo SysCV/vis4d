@@ -6,6 +6,7 @@ from typing import Any, Union
 from ml_collections import FieldReference
 
 from vis4d.config.config_dict import FieldConfigDict
+from vis4d.engine.optim import ParamGroupsCfg
 
 FieldConfigDictOrRef = Union[FieldConfigDict, FieldReference]
 
@@ -36,31 +37,38 @@ class DataConfig(FieldConfigDict):
     test_dataloader: FieldConfigDict
 
 
+class LrSchedulerConfig(FieldConfigDict):
+    """Configuration for a learning rate scheduler.
+
+    Attributes:
+        scheduler (FieldConfigDict): Configuration for the learning rate
+            scheduler.
+        begin (int): Begin epoch.
+        end (int): End epoch.
+        epoch_based (bool): Whether the learning rate scheduler is epoch based
+            or step based.
+    """
+
+    scheduler: FieldConfigDict
+    begin: int
+    end: int
+    epoch_based: bool
+
+
 class OptimizerConfig(FieldConfigDict):
     """Configuration for an optimizer.
 
     Attributes:
-        lr_scheduler (FieldConfigDictOrRef | None): Configuration for the
-            learning rate scheduler. If None, no learning rate scheduler is
-            used.
-        lr_warmup (FieldConfigDictOrRef | None): Configuration for the
-            learning rate warmup. If None, no learning rate warmup is used.
         optimizer (FieldConfigDictOrRef): Configuration for the optimizer.
-        epoch_based_lr (bool | FieldReference): Whether to use epoch-based
-            learning rate scheduling. If True, the learning rate scheduler is
-            called at the end of each epoch. If False, the learning rate
-            scheduler is called at the end of each batch.
-        epoch_based_warmup (bool | FieldReference): Whether to use epoch-based
-            learning rate warmup. If True, the learning rate warmup is called
-            at the end of each epoch. If False, the learning rate warmup is
-            called at the end of each batch.
+        lr_scheduler (list[LrSchedulerConfig] | None): Configuration for the
+            learning rate scheduler.
+        param_groups (list[ParamGroupsCfg] | None): Configuration for the
+            parameter groups.
     """
 
-    lr_scheduler: FieldConfigDictOrRef | None
-    lr_warmup: FieldConfigDictOrRef | None
     optimizer: FieldConfigDictOrRef
-    epoch_based_lr: bool | FieldReference = True
-    epoch_based_warmup: bool | FieldReference = True
+    lr_scheduler: list[LrSchedulerConfig] | None
+    param_groups: list[ParamGroupsCfg] | None
 
 
 class ExperimentParameters(FieldConfigDict):
@@ -84,34 +92,54 @@ class ExperimentConfig(FieldConfigDict):
 
     Attributes:
         data (DataConfig): Configuration for the dataset.
+        work_dir (str | FieldReference): The working directory for the
+            experiment.
+        experiment_name (str | FieldReference): The name of the experiment.
+        timestamp (str | FieldReference): The timestamp of the experiment.
         output_dir (str | FieldReference): The output directory for the
             experiment.
-        timestamp (str | FieldReference): The timestamp of the experiment.
+        seed (int | FieldReference): The random seed for the experiment.
+        log_every_n_steps (int | FieldReference): The number of steps after
+            which the logs should be written.
+        use_tf32 (bool | FieldReference): Whether to use tf32.
         benchmark (bool | FieldReference): Whether to enable benchmarking.
         data_connector (FieldConfigDictOrRef): Configuration for the data
             connector.
         model (FieldConfigDictOrRef): Configuration for the model.
-        optimizers (list[OptimizerConfig]): Configuration for the optimizers.
         loss (FieldConfigDictOrRef): Configuration for the loss function.
+        optimizers (list[OptimizerConfig]): Configuration for the optimizers.
         callbacks (list[FieldConfigDictOrRef]): Configuration for the
             callbacks which are used in the engine.
         params (ExperimentParameters): Configuration for the experiment
             parameters.
-
-
     """
 
+    # Data
     data: DataConfig
 
-    output_dir: str | FieldReference
+    # Base
+    work_dir: str | FieldReference
+    experiment_name: str | FieldReference
     timestamp: str | FieldReference
+    output_dir: str | FieldReference
+    seed: int | FieldReference
+    log_every_n_steps: int | FieldReference
+    use_tf32: bool | FieldReference
     benchmark: bool | FieldReference
+
+    # Data connector
     data_connector: FieldConfigDictOrRef
 
+    # Model
     model: FieldConfigDictOrRef
-    optimizers: list[OptimizerConfig]
+
+    # Loss
     loss: FieldConfigDictOrRef
 
+    # Optimizer
+    optimizers: list[OptimizerConfig]
+
+    # Callbacks
     callbacks: list[FieldConfigDictOrRef] = []
 
     params: ExperimentParameters
