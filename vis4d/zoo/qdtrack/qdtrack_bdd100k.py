@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 from torch.optim import SGD
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
 from vis4d.config.common.datasets.bdd100k import get_bdd100k_track_cfg
@@ -19,7 +19,11 @@ from vis4d.config.default import (
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
-from vis4d.config.util import get_callable_cfg, get_optimizer_cfg
+from vis4d.config.util import (
+    get_callable_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -32,7 +36,6 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 from vis4d.op.box.anchor.anchor_generator import AnchorGenerator
@@ -193,14 +196,16 @@ def get_config() -> FieldConfigDict:
             optimizer=class_config(
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
-            lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
-            ),
-            lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.1, warmup_steps=1000
-            ),
-            epoch_based_lr=True,
-            epoch_based_warmup=False,
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(LinearLR, start_factor=0.1, total_iters=1000),
+                    end=1000,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
+                ),
+            ],
         )
     ]
 

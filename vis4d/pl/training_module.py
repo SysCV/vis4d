@@ -8,58 +8,20 @@ import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
 from lightning.pytorch.core.optimizer import LightningOptimizer
 from ml_collections import ConfigDict
-from torch import Tensor, optim
+from torch import Tensor, nn
+from torch.optim.optimizer import Optimizer
 
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.typing import DictStrAny
 from vis4d.common.util import init_random_seed
 from vis4d.config import instantiate_classes
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim import Optimizer, set_up_optimizers
+from vis4d.engine.optim import LRSchedulerWrapper, set_up_optimizers
 from vis4d.engine.util import ModelEMAAdapter
-
-
-class TorchOptimizer(optim.Optimizer):
-    """Wrapper around vis4d optimizer to make it compatible with pl."""
-
-    def __init__(self, optimizer: Optimizer) -> None:
-        """Creates a new Optimizer.
-
-        Args:
-            optimizer: The vis4d optimizer to wrap.
-            model: The model to optimize.
-        """
-        self.optim = optimizer
-        assert self.optim.optimizer is not None
-        self._step = 0  # TODO: Check resume from checkpoint
-
-        super().__init__(
-            params=self.optim.optimizer.param_groups,
-            defaults=self.optim.optimizer.defaults,
-        )
-
-    def step(self, closure: Callable[[], float] | None = None) -> None:
-        """Performs a single optimization step.
-
-        Args:
-           closure: A closure that reevaluates the model and returns the loss.
-        """
-        self.optim.step_on_batch(self._step, closure)
-        self._step += 1
-
-    def step_on_epoch(self, epoch: int) -> None:
-        """Performs a single optimization step.
-
-        Args:
-           epoch (int): The current epoch of the training loop.
-        """
-        self.optim.step_on_epoch(epoch)
-
-    def zero_grad(self, set_to_none: bool = False) -> None:
-        """Clears the gradients of all optimized parameters."""
-        self.optim.zero_grad()
 
 
 class TrainingModule(pl.LightningModule):
@@ -71,61 +33,70 @@ class TrainingModule(pl.LightningModule):
 
     def __init__(
         self,
-        model: ConfigDict,
-        optimizers: list[ConfigDict],
+        model_cfg: ConfigDict,
+        optimizers_cfg: list[ConfigDict],
         loss_module: None | LossModule,
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,
-        seed: None | int = None,
-        use_ema_model_for_test: bool = False,
+        hyper_parameters: DictStrAny | None = None,
+        seed: int = -1,
+        ckpt_path: None | str = None,
+        use_ema: bool = True,
     ) -> None:
         """Initialize the TrainingModule.
 
         Args:
-            model: The model config  to train.
-            optimizers: The optimizers to use. Will be wrapped into a pytorch
-                optimizer.
-            loss_module: The loss function to use.
+            model_cfg: The model config.
+            optimizers_cfg: The optimizers config.
+            loss_module: The loss module.
             train_data_connector: The data connector to use.
             test_data_connector: The data connector to use.
             data_connector: The data connector to use.
+            hyper_parameters (DictStrAny | None, optional): The hyper
+                parameters to use. Defaults to None.
             seed (int, optional): The integer value seed for global random
-                state. Defaults to None.
-            use_ema_model_for_test (bool, optional): Whether to use the
-                exponential moving average of the model for testing. Defaults
-                to False.
+                state. Defaults to -1. If -1, a random seed will be generated.
+            ckpt_path (str, optional): The path to the checkpoint to load.
+            use_ema (bool, optional): Use the EMA model for testing if model is
+                ModelEMAAdapter. Defaults to True.
         """
         super().__init__()
-        self.model = model
-        self.optims = optimizers
+        self.model_cfg = model_cfg
+        self.optimizers_cfg = optimizers_cfg
         self.loss_module = loss_module
         self.train_data_connector = train_data_connector
         self.test_data_connector = test_data_connector
+        self.hyper_parameters = hyper_parameters
         self.seed = seed
-        self.use_ema_model_for_test = use_ema_model_for_test
+        self.ckpt_path = ckpt_path
+        self.use_ema = use_ema
+
+        # Create model placeholder
+        self.model: nn.Module
 
     def setup(self, stage: str) -> None:
         """Setup the model."""
         if stage == "fit":
-            if self.seed is None:
-                seed = init_random_seed()
-                seed = broadcast(seed)
-            else:
-                seed = self.seed
+            if self.seed == -1:
+                self.seed = init_random_seed()
+                self.seed = broadcast(self.seed)
 
-            seed_everything(seed, workers=True)
-            rank_zero_info(f"Global seed set to {seed}")
+            seed_everything(self.seed, workers=True)
+            rank_zero_info(f"Global seed set to {self.seed}")
 
-        # Instantiate the model and optimizers after the seed has been set
-        self.model = instantiate_classes(self.model)
-        if stage == "fit":
-            self.optims = set_up_optimizers(self.optims, self.model)
+            if self.hyper_parameters is not None:
+                self.hyper_parameters["seed"] = self.seed
+                self.save_hyperparameters(self.hyper_parameters)
 
-        # Set up the model EMA
-        if self.use_ema_model_for_test:
-            assert isinstance(
-                self.model, ModelEMAAdapter
-            ), "Model must be wrapped in ModelEMAAdapter"
+        # Instantiate the model after the seed has been set
+        self.model = instantiate_classes(self.model_cfg)
+
+        if self.ckpt_path is not None:
+            load_model_checkpoint(
+                self.model,
+                self.ckpt_path,
+                rev_keys=[(r"^model\.", ""), (r"^module\.", "")],
+            )
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, data: DictData
@@ -168,7 +139,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        if self.use_ema_model_for_test:
+        if self.use_ema and isinstance(self.model, ModelEMAAdapter):
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
@@ -179,22 +150,29 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        if self.use_ema_model_for_test:
+        if self.use_ema and isinstance(self.model, ModelEMAAdapter):
             out = self.model.ema_model(**self.test_data_connector(batch))
         else:
             out = self.model(**self.test_data_connector(batch))
         return out
 
-    def configure_optimizers(self) -> list[TorchOptimizer]:
+    def configure_optimizers(self) -> Any:  # type: ignore
         """Return the optimizer to use."""
-        return [TorchOptimizer(o) for o in self.optims]
+        return set_up_optimizers(self.optimizers_cfg, [self.model])
 
-    def optimizer_step(  # type: ignore # pylint: disable=arguments-differ
+    def lr_scheduler_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
+        self, scheduler: LRSchedulerWrapper, metric: Any | None = None
+    ) -> None:
+        """Perform a step on the lr scheduler."""
+        # TODO: Support metric if needed
+        scheduler.step(self.current_epoch)
+
+    def optimizer_step(  # type: ignore
         self,
         epoch: int,
         batch_idx: int,
-        optimizer: TorchOptimizer | LightningOptimizer,
-        optimizer_closure: Callable[[], float] | None = None,
+        optimizer: Optimizer | LightningOptimizer,
+        optimizer_closure: Callable[[], Any] | None = None,
     ) -> None:
         """Perform a single optimization step."""
         optimizer.step(closure=optimizer_closure)
