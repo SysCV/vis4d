@@ -6,6 +6,7 @@
     <!-- pypi-strip -->
     </picture>
     <!-- /pypi-strip -->
+    <br/>
     A modular library for 4D scene understanding
 </p>
 
