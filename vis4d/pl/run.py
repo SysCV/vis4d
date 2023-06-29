@@ -13,7 +13,7 @@ from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.config.common.types import ExperimentConfig
+from vis4d.config.typing import ExperimentConfig
 from vis4d.engine.callbacks.checkpoint import CheckpointCallback
 from vis4d.engine.flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG
 from vis4d.engine.parser import pprints_config

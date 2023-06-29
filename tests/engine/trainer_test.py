@@ -8,7 +8,8 @@ import unittest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from tests.util import get_test_data
+from tests.util import MockModel, get_test_data
+from vis4d.config import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -125,7 +126,9 @@ class EngineTrainerTest(unittest.TestCase):
 
     def test_fit(self) -> None:
         """Test trainer training."""
-        optimizers, lr_scheulders = get_optimizer()
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0), class_config(torch.optim.SGD, lr=0.01)
+        )
         loss_module = LossModule(
             {
                 "loss": SegCrossEntropyLoss(),

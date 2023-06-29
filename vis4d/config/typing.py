@@ -1,14 +1,28 @@
 """Type definitions for configuration files."""
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any, TypedDict
 
 from ml_collections import ConfigDict, FieldReference
+from typing_extensions import NotRequired
 
 from vis4d.config.config_dict import FieldConfigDict
-from vis4d.engine.optim import ParamGroupsCfg
 
-FieldConfigDictOrRef = Union[FieldConfigDict, FieldReference]
+
+class ParamGroupCfg(TypedDict):
+    """Parameter group config.
+
+    Attributes:
+        custom_keys (list[str]): List of custom keys.
+        lr_mult (NotRequired[float]): Learning rate multiplier.
+        decay_mult (NotRequired[float]): Weight Decay multiplier.
+    """
+
+    custom_keys: list[str]
+    lr_mult: NotRequired[float]
+    decay_mult: NotRequired[float]
+    norm_decay_mult: NotRequired[float]
+    bias_decay_mult: NotRequired[float]
 
 
 class DataConfig(ConfigDict):  # type: ignore
@@ -60,13 +74,13 @@ class OptimizerConfig(ConfigDict):  # type: ignore
         optimizer (ConfigDict): Configuration for the optimizer.
         lr_scheduler (list[LrSchedulerConfig] | None): Configuration for the
             learning rate scheduler.
-        param_groups (list[ParamGroupsCfg] | None): Configuration for the
+        param_groups (list[ParamGroupCfg] | None): Configuration for the
             parameter groups.
     """
 
     optimizer: ConfigDict
     lr_scheduler: list[LrSchedulerConfig] | None
-    param_groups: list[ParamGroupsCfg] | None
+    param_groups: list[ParamGroupCfg] | None
 
 
 class ExperimentParameters(FieldConfigDict):
@@ -95,6 +109,7 @@ class ExperimentConfig(FieldConfigDict):
             experiment.
         experiment_name (str | FieldReference): The name of the experiment.
         timestamp (str | FieldReference): The timestamp of the experiment.
+        version (str | FieldReference): The version of the experiment.
         output_dir (str | FieldReference): The output directory for the
             experiment.
         seed (int | FieldReference): The random seed for the experiment.
@@ -118,6 +133,7 @@ class ExperimentConfig(FieldConfigDict):
     work_dir: str | FieldReference
     experiment_name: str | FieldReference
     timestamp: str | FieldReference
+    version: str | FieldReference
     output_dir: str | FieldReference
     seed: int | FieldReference
     log_every_n_steps: int | FieldReference
@@ -130,19 +146,20 @@ class ExperimentConfig(FieldConfigDict):
     data: DataConfig
 
     # Model
-    model: FieldConfigDictOrRef
+    model: ConfigDict
 
     # Loss
-    loss: FieldConfigDictOrRef
+    loss: ConfigDict
 
     # Optimizer
     optimizers: list[OptimizerConfig]
 
     # Data connector
-    data_connector: FieldConfigDictOrRef
+    train_data_connector: ConfigDict
+    test_data_connector: ConfigDict
 
     # Callbacks
-    callbacks: list[FieldConfigDictOrRef] = []
+    callbacks: list[ConfigDict]
 
 
 class ParameterSweepConfig(FieldConfigDict):

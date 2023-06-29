@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
+from vis4d.config.typing import DataConfig
 from vis4d.config.util import (
     get_inference_dataloaders_cfg,
     get_train_dataloader_cfg,
@@ -202,9 +203,9 @@ def get_bdd100k_detection_config(
     multi_scale: bool = False,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
-) -> ConfigDict:
+) -> DataConfig:
     """Get the default config for BDD100K detection."""
-    data = ConfigDict()
+    data = DataConfig()
 
     if K.instance_masks in train_keys_to_load:
         train_anno_path = "data/bdd100k/labels/ins_seg_train_rle.json"

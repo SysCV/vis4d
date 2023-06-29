@@ -17,6 +17,7 @@ from vis4d.common.logging import rank_zero_info
 from vis4d.common.typing import DictStrAny
 from vis4d.common.util import init_random_seed
 from vis4d.config import instantiate_classes
+from vis4d.config.typing import OptimizerConfig
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
@@ -34,7 +35,7 @@ class TrainingModule(pl.LightningModule):
     def __init__(
         self,
         model_cfg: ConfigDict,
-        optimizers_cfg: list[ConfigDict],
+        optimizers_cfg: list[OptimizerConfig],
         loss_module: None | LossModule,
         train_data_connector: None | DataConnector,
         test_data_connector: None | DataConnector,

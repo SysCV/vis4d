@@ -68,9 +68,18 @@ class LoggingCallback(Callback):
             for k, v in trainer_state["metrics"].items():
                 self._metrics[k].append(v)
 
-        cur_iter, total_iters = self.get_iteration(
-            trainer_state, train=True, batch_idx=batch_idx
-        )
+        if self.epoch_based:
+            cur_iter = batch_idx + 1
+
+            total_iters = (
+                trainer_state["num_train_batches"]
+                if trainer_state["num_train_batches"] is not None
+                else -1
+            )
+        else:
+            # After optimizer.step(), global_step is already incremented by 1.
+            cur_iter = trainer_state["global_step"]
+            total_iters = trainer_state["num_steps"]
 
         log_dict: None | MetricLogs = None
         if cur_iter % self._refresh_rate == 0:
@@ -95,7 +104,7 @@ class LoggingCallback(Callback):
     def on_test_epoch_start(
         self, trainer_state: TrainerState, model: nn.Module
     ) -> None:
-        """Hook to run at the start of a training epoch."""
+        """Hook to run at the start of a testing epoch."""
         self.test_timer.reset()
         if not self.epoch_based:
             self.train_timer.pause()
@@ -109,7 +118,7 @@ class LoggingCallback(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        """Hook to run at the end of a training batch."""
+        """Hook to run at the end of a testing batch."""
         cur_iter = batch_idx + 1
         total_iters = (
             trainer_state["num_test_batches"][dataloader_idx]

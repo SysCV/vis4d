@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from ml_collections import ConfigDict
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from vis4d.common.typing import DictStrAny
 from vis4d.config import instantiate_classes
+from vis4d.config.typing import LrSchedulerConfig
 
 
 class LRSchedulerDict(TypedDict):
@@ -24,7 +24,7 @@ class LRSchedulerWrapper(LRScheduler):
     """LR scheduler wrapper."""
 
     def __init__(
-        self, lr_schedulers_cfg: ConfigDict, optimizer: Optimizer
+        self, lr_schedulers_cfg: list[LrSchedulerConfig], optimizer: Optimizer
     ) -> None:
         """Initialize LRSchedulerWrapper."""
         self.lr_schedulers_cfg = lr_schedulers_cfg
@@ -36,7 +36,7 @@ class LRSchedulerWrapper(LRScheduler):
                 self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
     def _instantiate_lr_scheduler(
-        self, scheduler_idx: int, lr_scheduler_cfg: ConfigDict
+        self, scheduler_idx: int, lr_scheduler_cfg: LrSchedulerConfig
     ) -> None:
         """Instantiate LR schedulers."""
         # OneCycleLR needs max_lr to be set

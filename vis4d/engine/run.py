@@ -6,8 +6,8 @@ from absl import app
 from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
-from vis4d.config.common.types import ExperimentConfig
 from vis4d.config.replicator import replicate_config
+from vis4d.config.typing import ExperimentConfig
 
 from .experiment import run_experiment
 from .flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG, _SLURM, _SWEEP
@@ -19,7 +19,7 @@ def main(argv: ArgsType) -> None:
     Example to run this script:
     >>> python -m vis4d.engine.run --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     With parameter sweep config:
-    >>> python -m vis4d.engine.run fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep  vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
+    >>> python -m vis4d.engine.run fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --sweep vis4d/zoo/faster_rcnn/faster_rcnn_coco.py
     """
     # Get config
     assert len(argv) > 1, "Mode must be specified: `fit` or `test`"

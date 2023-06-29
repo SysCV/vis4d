@@ -7,14 +7,18 @@ from ml_collections import ConfigDict
 from torch.optim import SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
+from vis4d.config import class_config
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
 from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
+from vis4d.config.typing import (
+    DataConfig,
+    ExperimentConfig,
+    ExperimentParameters,
+)
 from vis4d.config.util import (
     get_inference_dataloaders_cfg,
     get_lr_scheduler_cfg,
@@ -273,7 +277,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data = FieldConfigDict()
+    data = DataConfig()
     data_backend = class_config(HDF5Backend)
 
     data.train_dataloader = get_train_dataloader(
@@ -397,7 +401,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(

@@ -3,8 +3,11 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict
 
-from vis4d.config.common.types import LrSchedulerConfig, OptimizerConfig
-from vis4d.engine.optim import ParamGroupsCfg
+from vis4d.config.typing import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+    ParamGroupCfg,
+)
 
 
 def get_lr_scheduler_cfg(
@@ -42,7 +45,7 @@ def get_lr_scheduler_cfg(
 def get_optimizer_cfg(
     optimizer: ConfigDict,
     lr_schedulers: list[LrSchedulerConfig] | None = None,
-    param_groups: list[ParamGroupsCfg] | None = None,
+    param_groups: list[ParamGroupCfg] | None = None,
 ) -> OptimizerConfig:
     """Default optimizer configuration.
 
@@ -53,7 +56,7 @@ def get_optimizer_cfg(
         optimizer (ConfigDict): Optimizer configuration.
         lr_schedulers (list[LrSchedulerConfig] | None, optional): Learning rate
             schedulers configuration. Defaults to None.
-        param_groups (list[ParamGroupsCfg] | None, optional): Parameter groups
+        param_groups (list[ParamGroupCfg] | None, optional): Parameter groups
             configuration. Defaults to None.
 
     Returns:

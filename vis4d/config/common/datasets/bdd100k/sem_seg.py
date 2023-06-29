@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
+from vis4d.config.typing import DataConfig
 from vis4d.config.util import (
     get_inference_dataloaders_cfg,
     get_train_dataloader_cfg,
@@ -184,9 +185,9 @@ def get_bdd100k_sem_seg_cfg(
     crop_size: tuple[int, int] = (512, 1024),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
-) -> ConfigDict:
+) -> DataConfig:
     """Get the default config for BDD100K semantic segmentation."""
-    data = ConfigDict()
+    data = DataConfig()
 
     data.train_dataloader = get_train_dataloader(
         data_root=f"{data_root}/{train_split}",

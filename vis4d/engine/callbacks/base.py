@@ -39,35 +39,6 @@ class Callback:
     def setup(self) -> None:
         """Setup callback."""
 
-    def get_iteration(
-        self,
-        trainer_state: TrainerState,
-        train: bool,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> tuple[int, int]:
-        """Returns the current iteration and total iterations."""
-        if self.epoch_based or not train:
-            cur_iter = batch_idx + 1
-
-            if train:
-                total_iters = (
-                    trainer_state["num_train_batches"]
-                    if trainer_state["num_train_batches"] is not None
-                    else -1
-                )
-            else:
-                total_iters = (
-                    trainer_state["num_test_batches"][dataloader_idx]
-                    if trainer_state["num_test_batches"] is not None
-                    else -1
-                )
-        else:
-            cur_iter = trainer_state["global_step"] + 1
-            total_iters = trainer_state["num_steps"]
-
-        return cur_iter, total_iters
-
     def get_train_callback_inputs(
         self, outputs: DictData, batch: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
