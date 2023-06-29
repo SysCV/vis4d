@@ -11,20 +11,16 @@ from torch.optim.optimizer import Optimizer
 
 from tests.util import MockModel
 from vis4d.config import class_config
+from vis4d.config.typing import LrSchedulerConfig, ParamGroupCfg
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.engine.optim import (
-    LRSchedulerWrapper,
-    ParamGroupsCfg,
-    PolyLR,
-    set_up_optimizers,
-)
+from vis4d.engine.optim import LRSchedulerWrapper, PolyLR, set_up_optimizers
 
 
 def get_optimizer(
-    model: nn.Module = MockModel(0),
-    optimizer: ConfigDict = class_config(torch.optim.SGD, lr=0.01),
-    lr_schedulers: list[ConfigDict] | None = None,
-    param_groups: list[ParamGroupsCfg] | None = None,
+    model: nn.Module,
+    optimizer: ConfigDict,
+    lr_schedulers: list[LrSchedulerConfig] | None = None,
+    param_groups: list[ParamGroupCfg] | None = None,
 ) -> tuple[list[Optimizer], list[LRSchedulerWrapper]]:
     """Get an optimizer for testing."""
     if lr_schedulers is None:
@@ -70,7 +66,9 @@ class TestOptimizer(unittest.TestCase):
 
     def test_optimizer_epoch_based(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
-        optimizers, lr_scheulders = get_optimizer()
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0), class_config(torch.optim.SGD, lr=0.01)
+        )
 
         optimizer = optimizers[0]
         lr_scheulder = lr_scheulders[0]
@@ -92,13 +90,15 @@ class TestOptimizer(unittest.TestCase):
     def test_optimizer_epoch_based_no_warmup(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
         optimizers, lr_scheulders = get_optimizer(
+            MockModel(0),
+            class_config(torch.optim.SGD, lr=0.01),
             lr_schedulers=[
                 get_lr_scheduler_cfg(
                     class_config(PolyLR, max_steps=20, power=1.0),
                     begin=0,
                     end=20,
                 )
-            ]
+            ],
         )
 
         optimizer = optimizers[0]
@@ -121,6 +121,8 @@ class TestOptimizer(unittest.TestCase):
     def test_optimizer_batch_based(self) -> None:
         """Test the optimizer with batch-based LR scheduling."""
         optimizers, lr_scheulders = get_optimizer(
+            MockModel(0),
+            class_config(torch.optim.SGD, lr=0.01),
             lr_schedulers=[
                 get_lr_scheduler_cfg(
                     class_config(LinearLR, start_factor=0.1, total_iters=10),
@@ -133,7 +135,7 @@ class TestOptimizer(unittest.TestCase):
                     begin=10,
                     epoch_based=False,
                 ),
-            ]
+            ],
         )
 
         optimizer = optimizers[0]
@@ -156,10 +158,10 @@ class TestOptimizer(unittest.TestCase):
     def test_optimizer_with_param_groups_cfg(self):
         """Test the optimizer with param_groups_cfg."""
         optimizers, lr_scheulders = get_optimizer(
-            model=MockModel(0),
-            optimizer=class_config(torch.optim.AdamW, lr=0.01),
+            MockModel(0),
+            class_config(torch.optim.AdamW, lr=0.01),
             param_groups=[
-                ParamGroupsCfg(custom_keys=["linear.weight"], lr_mult=0.1)
+                ParamGroupCfg(custom_keys=["linear.weight"], lr_mult=0.1)
             ],
         )
 

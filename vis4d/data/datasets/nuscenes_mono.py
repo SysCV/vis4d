@@ -1,15 +1,13 @@
 """NuScenes monocular dataset."""
 from __future__ import annotations
 
-from tqdm import tqdm
-
 import numpy as np
+from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.typing import ArgsType, DictStrAny
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
-
 from vis4d.data.typing import DictData
 
 from .nuscenes import NuScenes
@@ -56,11 +54,11 @@ class NuScenesMono(NuScenes):
         for scene in tqdm(scenes):
             scene_name = scene["name"]
             # Get the sample data for each camera
-            for cam in self._CAMERAS:
+            for cam in self.CAMERAS:
                 frame_ids = 0
                 sample_token = scene["first_sample_token"]
                 while sample_token:
-                    frame = {}
+                    frame: DictStrAny = {}
                     sample = data.get("sample", sample_token)
 
                     frame["scene_name"] = f"{scene_name}_{cam}"

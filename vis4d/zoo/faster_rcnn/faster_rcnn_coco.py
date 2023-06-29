@@ -13,11 +13,6 @@ from vis4d.config.common.datasets.coco import (
     get_coco_detection_cfg,
 )
 from vis4d.config.common.models import get_faster_rcnn_cfg
-from vis4d.config.common.types import (
-    ExperimentConfig,
-    ExperimentParameters,
-    ParameterSweepConfig,
-)
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -27,6 +22,11 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
+)
+from vis4d.config.typing import (
+    ExperimentConfig,
+    ExperimentParameters,
+    ParameterSweepConfig,
 )
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.config.util.sweep import grid_search
@@ -135,7 +135,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(
@@ -189,9 +189,9 @@ def get_sweep() -> ParameterSweepConfig:
     rate in the format "lr_{params.lr:.3f}_".
 
     Returns:
-        ConfigDict: The configuration that can be used to run a grid search.
-            It can be passed to replicate_config to create a list of configs
-            that can be used to run a grid search.
+        ParameterSweepConfig: The configuration that can be used to run a grid
+            search. It can be passed to replicate_config to create a list of
+            configs that can be used to run a grid search.
     """
     # Here we define the parameters that we want to sweep over.
     # In order to sweep over multiple parameters, we can pass a list of

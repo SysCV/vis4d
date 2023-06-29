@@ -30,7 +30,7 @@ from vis4d.common.logging import (
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.config.common.types import ExperimentConfig
+from vis4d.config.typing import ExperimentConfig
 
 from .optim import set_up_optimizers
 from .parser import pprints_config

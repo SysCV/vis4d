@@ -6,25 +6,26 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.bdd100k import (
     CONN_BDD100K_SEG_EVAL,
     get_bdd100k_sem_seg_cfg,
 )
-from vis4d.config.default import get_default_cfg, get_default_pl_trainer_cfg
+from vis4d.config.default import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+)
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
     CONN_SEG_LOSS,
     CONN_SEG_VIS,
 )
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import (
-    EvaluatorCallback,
-    LoggingCallback,
-    VisualizerCallback,
-)
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
@@ -38,11 +39,11 @@ from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.vis.image import SegMaskVisualizer
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for the BDD100K semantic segmentation task.
 
     Returns:
-        FieldConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -53,7 +54,7 @@ def get_config() -> FieldConfigDict:
     config.check_val_every_n_epoch = None
 
     ## High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
@@ -138,17 +139,11 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    callbacks = []
-
-    # Logger
-    callbacks.append(
-        class_config(LoggingCallback, epoch_based=False, refresh_rate=50)
+    callbacks = get_default_callbacks_cfg(
+        config.output_dir,
+        epoch_based=False,
+        checkpoint_period=config.val_check_interval,
     )
-
-    # # Checkpoint
-    # callbacks.append(
-    #     class_config(CheckpointCallback, save_prefix=config.output_dir)
-    # )
 
     # Evaluator
     callbacks.append(

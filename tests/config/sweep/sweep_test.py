@@ -6,8 +6,8 @@ import unittest
 import numpy as np
 from ml_collections import ConfigDict
 
-from vis4d.config.common.types import ExperimentConfig
 from vis4d.config.replicator import replicate_config
+from vis4d.config.typing import ExperimentConfig
 from vis4d.config.util.sweep import grid_search
 
 

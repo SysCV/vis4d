@@ -12,7 +12,6 @@ from vis4d.config.common.datasets.coco import (
     get_coco_detection_cfg,
 )
 from vis4d.config.common.models import get_mask_rcnn_cfg
-from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -23,6 +22,7 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -147,7 +147,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(

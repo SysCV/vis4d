@@ -32,6 +32,10 @@ include = ["vis4d"]
             "vis4d/common/slurm.py",
             "vis4d/common/util.py",
             "vis4d/common/distributed.py",
+            "vis4d/engine/run.py",
+            "vis4d/engine/experiment.py",
+            "vis4d/engine/flag.py",
+            "vis4d/pl/run.py",
         ]
 
 [tool.flake8]

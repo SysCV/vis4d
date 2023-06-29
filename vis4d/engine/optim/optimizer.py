@@ -3,29 +3,15 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from ml_collections import ConfigDict
 from torch import nn
 from torch.optim.optimizer import Optimizer
 from typing_extensions import NotRequired
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
+from vis4d.config.typing import OptimizerConfig, ParamGroupCfg
 
 from .scheduler import LRSchedulerWrapper
-
-
-class ParamGroupsCfg(TypedDict):
-    """Parameter groups config.
-
-    Attributes:
-        custom_keys (list[str]): List of custom keys.
-        lr_mult (NotRequired[float]): Learning rate multiplier.
-        decay_mult (NotRequired[float]): Weight Decay multiplier.
-    """
-
-    custom_keys: list[str]
-    lr_mult: NotRequired[float]
-    decay_mult: NotRequired[float]
 
 
 class ParamGroup(TypedDict):
@@ -45,7 +31,7 @@ class ParamGroup(TypedDict):
 # TODO: Add true support for multiple optimizers. This will need to
 # modify config to specify which optimizer to use for which module.
 def set_up_optimizers(
-    optimizers_cfg: list[ConfigDict], models: list[nn.Module]
+    optimizers_cfg: list[OptimizerConfig], models: list[nn.Module]
 ) -> tuple[list[Optimizer], list[LRSchedulerWrapper]]:
     """Set up optimizers."""
     optimizers = []
@@ -62,7 +48,9 @@ def set_up_optimizers(
     return optimizers, lr_schedulers
 
 
-def configure_optimizer(optim_cfg: ConfigDict, model: nn.Module) -> Optimizer:
+def configure_optimizer(
+    optim_cfg: OptimizerConfig, model: nn.Module
+) -> Optimizer:
     """Configure optimizer with parameter groups."""
     param_groups_cfg = optim_cfg.get("param_groups", None)
 
@@ -103,7 +91,7 @@ def configure_optimizer(optim_cfg: ConfigDict, model: nn.Module) -> Optimizer:
 def add_params(
     params: list[ParamGroup],
     module: nn.Module,
-    param_groups_cfg: list[ParamGroupsCfg],
+    param_groups_cfg: list[ParamGroupCfg],
     prefix: str = "",
 ) -> None:
     """Add all parameters of module to the params list.
