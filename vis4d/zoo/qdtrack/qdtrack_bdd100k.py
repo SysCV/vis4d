@@ -6,7 +6,7 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.bdd100k import get_bdd100k_track_cfg
 from vis4d.config.common.models.faster_rcnn import (
     CONN_ROI_LOSS_2D,
@@ -19,6 +19,7 @@ from vis4d.config.default import (
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import (
     get_callable_cfg,
     get_lr_scheduler_cfg,
@@ -95,11 +96,11 @@ CONN_TRACK_LOSS_2D = {
 }
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for qdtrack on bdd100k.
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -107,7 +108,7 @@ def get_config() -> FieldConfigDict:
     config = get_default_cfg(exp_name="qdtrack_frcnn_r50_fpn_bdd100k")
 
     # High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02
@@ -224,7 +225,7 @@ def get_config() -> FieldConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config, refresh_rate=50)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Evaluator
     callbacks.append(

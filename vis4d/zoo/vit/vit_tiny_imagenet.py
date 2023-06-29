@@ -12,7 +12,6 @@ from vis4d.config.common.datasets.imagenet import (
     CONN_IMAGENET_CLS_EVAL,
     get_imagenet_cls_cfg,
 )
-from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -23,6 +22,7 @@ from vis4d.config.default.data_connectors.cls import (
     CONN_CLS_TEST,
     CONN_CLS_TRAIN,
 )
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -40,7 +40,7 @@ def get_config() -> ExperimentConfig:
     """Returns the config dict for the ImageNet Classification task.
 
     Returns:
-        ConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -149,7 +149,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Evaluator
     callbacks.append(

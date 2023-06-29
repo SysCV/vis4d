@@ -1,11 +1,13 @@
 """Default runtime configuration for the project."""
+from __future__ import annotations
+
 import platform
 from datetime import datetime
 
-from ml_collections import ConfigDict
+from ml_collections import ConfigDict, FieldReference
 
-from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.types import ExperimentConfig
+from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig
 from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 
 
@@ -14,22 +16,15 @@ def get_default_cfg(
 ) -> ExperimentConfig:
     """Set default config for the project.
 
-    It will set the following fields:
-        - work_dir (str): Default to "vis4d-workspace"
-        - experiment_name (str): Experiment name.
-        - timestamp (str): Current time
-        - version (str): Same as timestamp
-        - output_dir (str): work_dir/experiment_name/version
-
     Args:
         exp_name (str): Experiment name.
         work_dir (str, optional): Working directory. Defaults to
             "vis4d-workspace".
 
     Returns:
-        FieldConfigDict: Config for the project.
+        ExperimentConfig: Config for the project.
     """
-    config = FieldConfigDict()
+    config = ExperimentConfig()
 
     config.work_dir = work_dir
     config.experiment_name = exp_name
@@ -67,7 +62,10 @@ def get_default_cfg(
 
 
 def get_default_callbacks_cfg(
-    config: FieldConfigDict, refresh_rate: int = 50
+    output_dir: str | FieldReference,
+    checkpoint_period: int = 1,
+    epoch_based: bool = True,
+    refresh_rate: int = 50,
 ) -> list[ConfigDict]:
     """Get default callbacks config.
 
@@ -76,7 +74,9 @@ def get_default_callbacks_cfg(
         - CheckpointCallback
 
     Args:
-        config (FieldConfigDict): Config for the project.
+        output_dir (str | FieldReference): Output directory.
+        checkpoint_period (int, optional): Checkpoint period. Defaults to 1.
+        epoch_based (bool, optional): Whether to use epoch based logging.
         refresh_rate (int, optional): Refresh rate for the logging. Defaults to
             50.
 
@@ -86,11 +86,20 @@ def get_default_callbacks_cfg(
     callbacks = []
 
     # Logger
-    callbacks.append(class_config(LoggingCallback, refresh_rate=refresh_rate))
+    callbacks.append(
+        class_config(
+            LoggingCallback, epoch_based=epoch_based, refresh_rate=refresh_rate
+        )
+    )
 
     # Checkpoint
     callbacks.append(
-        class_config(CheckpointCallback, save_prefix=config.output_dir)
+        class_config(
+            CheckpointCallback,
+            epoch_based=epoch_based,
+            save_prefix=output_dir,
+            checkpoint_period=checkpoint_period,
+        )
     )
 
     return callbacks

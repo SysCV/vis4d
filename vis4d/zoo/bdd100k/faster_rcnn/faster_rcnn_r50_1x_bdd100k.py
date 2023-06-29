@@ -6,7 +6,7 @@ import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.bdd100k import (
     CONN_BDD100K_DET_EVAL,
     get_bdd100k_detection_config,
@@ -22,6 +22,7 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
@@ -31,11 +32,11 @@ from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the Faster-RCNN config dict for the BDD100K detection task.
 
     Returns:
-        FieldConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -43,7 +44,7 @@ def get_config() -> FieldConfigDict:
     config = get_default_cfg(exp_name="faster_rcnn_r50_1x_bdd100k")
 
     # High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.02
@@ -118,7 +119,7 @@ def get_config() -> FieldConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(

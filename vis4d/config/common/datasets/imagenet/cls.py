@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
+from vis4d.config.typing import DataConfig
 from vis4d.config.util import get_train_dataloader_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.imagenet import ImageNet
@@ -184,9 +185,9 @@ def get_imagenet_cls_cfg(
     image_size: tuple[int, int] = (224, 224),
     samples_per_gpu: int = 256,
     workers_per_gpu: int = 8,
-) -> ConfigDict:
+) -> DataConfig:
     """Get the default config for COCO detection."""
-    data = ConfigDict()
+    data = DataConfig()
 
     data.train_dataloader = get_train_dataloader(
         data_root=data_root,
