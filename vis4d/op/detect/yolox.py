@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from functools import partial
 from typing import NamedTuple
 
 import numpy as np
@@ -418,28 +417,6 @@ def get_l1_target(
     return l1_target
 
 
-def multi_apply(func, *args, **kwargs):  # type: ignore
-    """Apply function to a list of arguments.
-
-    Note:
-        This function applies the ``func`` to multiple inputs and
-        map the multiple outputs of the ``func`` into different
-        list. Each list contains the same type of outputs corresponding
-        to different inputs.
-
-    Args:
-        func (Function): A function that will be applied to a list of
-            arguments.
-
-    Returns:
-        tuple(list): A tuple containing multiple list, each list contains \
-            a kind of returned results by the function
-    """
-    pfunc = partial(func, **kwargs) if kwargs else func
-    map_results = map(pfunc, *args)
-    return tuple(map(list, zip(*map_results)))
-
-
 class YOLOXHeadLoss(nn.Module):
     """Loss of YOLOX head."""
 
@@ -613,34 +590,37 @@ class YOLOXHeadLoss(nn.Module):
         )
 
         num_imgs = len(images_hw)
-        (
-            pos_masks,
-            cls_targets,
-            obj_targets,
-            bbox_targets,
-            l1_targets,
-            num_fg_imgs,
-        ) = multi_apply(
-            self._get_target_single,
+        pos_masks_list, cls_targets_list, obj_targets_list = [], [], []
+        bbox_targets_list, l1_targets_list, num_fg_imgs_list = [], [], []
+        for flat_cls, flat_obj, flat_pts, flat_bxs, tgt_bxs, tgt_cls in zip(
             flatten_cls.detach(),
             flatten_obj.detach(),
             flatten_points.unsqueeze(0).repeat(num_imgs, 1, 1),
             flatten_boxes.detach(),
             target_boxes,
             target_class_ids,
-        )
+        ):
+            targets = self._get_target_single(
+                flat_cls, flat_obj, flat_pts, flat_bxs, tgt_bxs, tgt_cls
+            )
+            pos_masks_list.append(targets[0])
+            cls_targets_list.append(targets[1])
+            obj_targets_list.append(targets[2])
+            bbox_targets_list.append(targets[3])
+            l1_targets_list.append(targets[4])
+            num_fg_imgs_list.append(targets[5])
 
         num_pos = torch.tensor(
-            sum(num_fg_imgs), dtype=torch.float, device=flatten_cls.device
+            sum(num_fg_imgs_list), dtype=torch.float, device=flatten_cls.device
         )
         num_total_samples = max(reduce_mean(num_pos), 1.0)  # type: ignore
 
-        pos_masks = torch.cat(pos_masks, 0)
-        cls_targets = torch.cat(cls_targets, 0)
-        obj_targets = torch.cat(obj_targets, 0)
-        bbox_targets = torch.cat(bbox_targets, 0)
+        pos_masks = torch.cat(pos_masks_list, 0)
+        cls_targets = torch.cat(cls_targets_list, 0)
+        obj_targets = torch.cat(obj_targets_list, 0)
+        bbox_targets = torch.cat(bbox_targets_list, 0)
         if self.loss_l1 is not None:
-            l1_targets = torch.cat(l1_targets, 0)
+            l1_targets = torch.cat(l1_targets_list, 0)
 
         loss_cls = self.loss_cls(
             flatten_cls.view(-1, self.num_classes)[pos_masks],

@@ -35,7 +35,7 @@ class PostProcessBoxes2D:
         self,
         boxes_list: list[NDArrayF32],
         classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32 | None] | None,
+        track_ids_list: list[NDArrayI32 | None],
         input_hw_list: list[tuple[int, int]],
     ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
         """Resize 2D bounding boxes.
@@ -47,13 +47,8 @@ class PostProcessBoxes2D:
         Returns:
             Tensor: Resized bounding boxes according to parameters in resize.
         """
-        track_ids = (
-            track_ids_list
-            if track_ids_list is not None
-            else [None] * len(boxes_list)
-        )
-        for i, (boxes, classes, track_ids_) in enumerate(
-            zip(boxes_list, classes_list, track_ids)
+        for i, (boxes, classes, track_ids) in enumerate(
+            zip(boxes_list, classes_list, track_ids_list)
         ):
             boxes_ = torch.from_numpy(boxes)
             if self.clip_bboxes_to_image:
@@ -64,7 +59,7 @@ class PostProcessBoxes2D:
             boxes_list[i] = boxes[keep]
             classes_list[i] = classes[keep]
 
-            if track_ids_ is not None:
-                track_ids_list[i] = track_ids_[keep]
+            if track_ids is not None:
+                track_ids_list[i] = track_ids[keep]
 
         return boxes_list, classes_list, track_ids_list

@@ -57,7 +57,7 @@ class YOLOXModeSwitchCallback(Callback):
             dataloader = trainer_state["train_dataloader"]
             assert dataloader is not None
             new_dataloader = DataLoader(
-                DataPipe(dataloader.dataset.datasets),
+                DataPipe(dataloader.dataset.datasets),  # type: ignore
                 batch_size=dataloader.batch_size,
                 num_workers=dataloader.num_workers,
                 collate_fn=dataloader.collate_fn,
@@ -85,7 +85,7 @@ class YOLOXModeSwitchCallback(Callback):
             dataloader = trainer_state["train_dataloader"]
             assert dataloader is not None
             new_dataloader = DataLoader(
-                DataPipe(dataloader.dataset.datasets),
+                DataPipe(dataloader.dataset.datasets),  # type: ignore
                 batch_size=dataloader.batch_size,
                 num_workers=dataloader.num_workers,
                 collate_fn=dataloader.collate_fn,
@@ -98,7 +98,7 @@ class YOLOXModeSwitchCallback(Callback):
             # Override train_dataloader method in PL datamodule.
             # Set reload_dataloaders_every_n_epochs to 1 to use the new
             # dataloader.
-            def train_dataloader() -> DataLoader:
+            def train_dataloader() -> DataLoader:  # type: ignore
                 """Return dataloader for training."""
                 return new_dataloader
 

@@ -38,7 +38,6 @@ class Trainer:
         check_val_every_n_epoch: int | None = 1,
         val_check_interval: int | None = None,
         log_every_n_steps: int = 50,
-        use_ema: bool = True,
     ) -> None:
         """Initialize the trainer.
 
@@ -67,8 +66,6 @@ class Trainer:
                 the model during training. Defaults to None.
             log_every_n_steps (int, optional): Log the training status every n
                 steps. Defaults to 50.
-            use_ema (bool, optional): Use the EMA model for testing if model is
-                ModelEMAAdapter. Defaults to True.
         """
         self.device = device
         self.output_dir = output_dir
@@ -92,8 +89,6 @@ class Trainer:
 
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.val_check_interval = val_check_interval
-
-        self.use_ema = use_ema
         self.log_every_n_steps = log_every_n_steps
 
         self.epoch = epoch
@@ -354,10 +349,7 @@ class Trainer:
                 test_input = self.test_data_connector(data)
 
                 # forward
-                if self.use_ema and isinstance(model, ModelEMAAdapter):
-                    output = model.ema_model(**test_input)
-                else:
-                    output = model(**test_input)
+                output = model(**test_input)
 
                 for callback in self.callbacks:
                     callback.on_test_batch_end(

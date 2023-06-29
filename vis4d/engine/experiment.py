@@ -223,7 +223,6 @@ def run_experiment(
         check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
         val_check_interval=config.get("val_check_interval", None),
         log_every_n_steps=config.get("log_every_n_steps", 50),
-        use_ema=config.get("use_ema", True),
     )
 
     if resume:

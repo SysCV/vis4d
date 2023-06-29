@@ -58,7 +58,6 @@ from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.model.track.qdtrack import YOLOXQDTrack
-from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 from vis4d.vis.image import BoundingBoxVisualizer
 

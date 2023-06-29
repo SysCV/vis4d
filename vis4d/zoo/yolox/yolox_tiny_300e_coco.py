@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 from torch.optim import SGD
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vis4d.config import FieldConfigDict, class_config
 from vis4d.config.common.datasets.coco.yolox import (
@@ -19,7 +20,7 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.util import get_optimizer_cfg
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import (
@@ -35,8 +36,7 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim.scheduler import YOLOXCosineAnnealingLR
-from vis4d.engine.optim.warmup import QuadraticLRWarmup
+from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.base import CSPDarknet
@@ -151,20 +151,39 @@ def get_config() -> FieldConfigDict:
                 weight_decay=0.0005,
                 nesterov=True,
             ),
-            lr_scheduler=class_config(
-                YOLOXCosineAnnealingLR,
-                max_steps=(params.num_epochs - num_last_epochs)
-                * steps_per_epoch,
-                eta_min=params.lr * 0.05,
-            ),
-            lr_warmup=class_config(
-                QuadraticLRWarmup,
-                warmup_ratio=1.0,
-                warmup_steps=steps_per_epoch * warmup_epochs,
-            ),
-            epoch_based_lr=False,
-            epoch_based_warmup=False,
-            param_groups_cfg=[
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(
+                        QuadraticLRWarmup,
+                        max_steps=steps_per_epoch * warmup_epochs,
+                    ),
+                    end=steps_per_epoch * warmup_epochs,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(
+                        CosineAnnealingLR,
+                        T_max=(
+                            params.num_epochs - num_last_epochs - warmup_epochs
+                        )
+                        * steps_per_epoch,
+                        eta_min=params.lr * 0.05,
+                    ),
+                    begin=steps_per_epoch * warmup_epochs,
+                    end=(params.num_epochs - num_last_epochs)
+                    * steps_per_epoch,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(
+                        ConstantLR, max_steps=num_last_epochs, factor=1.0
+                    ),
+                    begin=params.num_epochs - num_last_epochs,
+                    end=params.num_epochs,
+                    epoch_based=True,
+                ),
+            ],
+            param_groups=[
                 {
                     "custom_keys": ["basemodel", "fpn", "yolox_head"],
                     "norm_decay_mult": 0.0,

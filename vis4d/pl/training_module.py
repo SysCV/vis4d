@@ -41,7 +41,6 @@ class TrainingModule(pl.LightningModule):
         hyper_parameters: DictStrAny | None = None,
         seed: int = -1,
         ckpt_path: None | str = None,
-        use_ema: bool = True,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -57,8 +56,6 @@ class TrainingModule(pl.LightningModule):
             seed (int, optional): The integer value seed for global random
                 state. Defaults to -1. If -1, a random seed will be generated.
             ckpt_path (str, optional): The path to the checkpoint to load.
-            use_ema (bool, optional): Use the EMA model for testing if model is
-                ModelEMAAdapter. Defaults to True.
         """
         super().__init__()
         self.model_cfg = model_cfg
@@ -69,7 +66,6 @@ class TrainingModule(pl.LightningModule):
         self.hyper_parameters = hyper_parameters
         self.seed = seed
         self.ckpt_path = ckpt_path
-        self.use_ema = use_ema
 
         # Create model placeholder
         self.model: nn.Module
@@ -139,10 +135,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single validation step."""
         assert self.test_data_connector is not None
-        if self.use_ema and isinstance(self.model, ModelEMAAdapter):
-            out = self.model.ema_model(**self.test_data_connector(batch))
-        else:
-            out = self.model(**self.test_data_connector(batch))
+        out = self.model(**self.test_data_connector(batch))
         return out
 
     def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument
@@ -150,10 +143,7 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
-        if self.use_ema and isinstance(self.model, ModelEMAAdapter):
-            out = self.model.ema_model(**self.test_data_connector(batch))
-        else:
-            out = self.model(**self.test_data_connector(batch))
+        out = self.model(**self.test_data_connector(batch))
         return out
 
     def configure_optimizers(self) -> Any:  # type: ignore

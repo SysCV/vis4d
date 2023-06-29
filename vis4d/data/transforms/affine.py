@@ -137,7 +137,9 @@ class GenAffineParameters:
         self.max_shear_degree = max_shear_degree
         self.border = border
 
-    def _get_random_homography_matrix(self, height, width) -> NDArrayF32:
+    def _get_random_homography_matrix(
+        self, height: int, width: int
+    ) -> NDArrayF32:
         """Generate random homography matrix."""
         # Rotation
         rotation_degree = random.uniform(

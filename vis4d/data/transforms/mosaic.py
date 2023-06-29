@@ -249,7 +249,7 @@ class MosaicImages:
                     :, :, y1_c:y2_c, x1_c:x2_c
                 ]
             mosaic_imgs.append(mosaic_img.transpose(0, 2, 3, 1))
-        return mosaic_imgs, [m.shape[1:3] for m in mosaic_imgs]
+        return mosaic_imgs, [(m.shape[1], m.shape[2]) for m in mosaic_imgs]
 
 
 @Transform(
@@ -279,14 +279,16 @@ class MosaicBoxes2D:
         self,
         boxes: list[NDArrayF32],
         classes: list[NDArrayI32],
-        track_ids: list[NDArrayI32 | None],
+        track_ids: list[NDArrayI32] | None,
         paste_coords: list[list[tuple[int, int, int, int]]],
         crop_coords: list[list[tuple[int, int, int, int]]],
         im_scales: list[list[tuple[float, float]]],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
         """Apply Mosaic to 2D bounding boxes."""
         new_boxes, new_classes = [], []
-        new_track_ids = [] if track_ids is not None else None
+        new_track_ids: list[NDArrayI32] | None = (
+            [] if track_ids is not None else None
+        )
         for i in range(0, len(boxes), NUM_SAMPLES):
             for idx in range(NUM_SAMPLES):
                 j = i * NUM_SAMPLES + idx
@@ -309,7 +311,7 @@ class MosaicBoxes2D:
                 )
                 boxes[j] = boxes[j][keep_mask]
                 classes[j] = classes[j][keep_mask]
-                if track_ids is not None and track_ids[j] is not None:
+                if track_ids is not None:
                     track_ids[j] = track_ids[j][keep_mask]
 
                 if self.clip_inside_image:
@@ -318,6 +320,7 @@ class MosaicBoxes2D:
             new_boxes.append(np.concatenate(boxes[i : i + NUM_SAMPLES]))
             new_classes.append(np.concatenate(classes[i : i + NUM_SAMPLES]))
             if track_ids is not None:
+                assert new_track_ids is not None
                 new_track_ids.append(
                     np.concatenate(track_ids[i : i + NUM_SAMPLES])
                 )
