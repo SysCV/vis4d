@@ -5,6 +5,8 @@ import numpy as np
 from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.time import Timer
 from vis4d.common.typing import ArgsType, DictStrAny
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
@@ -24,6 +26,54 @@ class NuScenesMono(NuScenes):
     def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
         """Initialize the dataset."""
         super().__init__(*args, **kwargs)
+
+    def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
+        """Remove empty samples."""
+        if self.skip_empty_samples:
+            samples = []
+
+        t = Timer()
+        for sample in data:
+            (
+                mask,
+                boxes3d,
+                boxes3d_classes,
+                boxes3d_attributes,
+                boxes3d_track_ids,
+                boxes3d_velocities,
+            ) = self._filter_boxes(sample["CAM"]["annotations"])
+
+            sample["CAM"]["annotations"]["boxes3d"] = boxes3d
+            sample["CAM"]["annotations"]["boxes3d_classes"] = boxes3d_classes
+            sample["CAM"]["annotations"][
+                "boxes3d_attributes"
+            ] = boxes3d_attributes
+            sample["CAM"]["annotations"][
+                "boxes3d_track_ids"
+            ] = boxes3d_track_ids
+            sample["CAM"]["annotations"][
+                "boxes3d_velocities"
+            ] = boxes3d_velocities
+            sample["CAM"]["annotations"]["boxes2d"] = sample["CAM"][
+                "annotations"
+            ]["boxes2d"][mask]
+
+            if self.skip_empty_samples:
+                if len(sample["CAM"]["annotations"]["boxes3d"]) > 0:
+                    samples.append(sample)
+
+        rank_zero_info(
+            f"Preprocessing {len(data)} frames takes {t.time():.2f}"
+            " seconds."
+        )
+
+        if self.skip_empty_samples:
+            rank_zero_info(
+                f"Filtered {len(data) - len(samples)} empty frames."
+            )
+            return samples
+
+        return data
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
@@ -144,40 +194,28 @@ class NuScenesMono(NuScenes):
             data_dict[K.original_images] = image
             data_dict[K.original_hw] = sample["CAM"]["image_hw"]
 
-        (
-            mask,
-            boxes3d,
-            boxes3d_classes,
-            boxes3d_attributes,
-            boxes3d_track_ids,
-            boxes3d_velocities,
-        ) = self._filter_boxes(sample["CAM"]["annotations"])
-
         if K.boxes3d in self.keys_to_load or K.boxes2d in self.keys_to_load:
-            (
-                mask,
-                boxes3d,
-                boxes3d_classes,
-                boxes3d_attributes,
-                boxes3d_track_ids,
-                boxes3d_velocities,
-            ) = self._filter_boxes(sample["CAM"]["annotations"])
-
             if K.boxes3d in self.keys_to_load:
-                data_dict[K.boxes3d] = boxes3d
-                data_dict[K.boxes3d_classes] = boxes3d_classes
-                data_dict[K.boxes3d_track_ids] = boxes3d_track_ids
-                data_dict[K.boxes3d_velocities] = boxes3d_velocities
-                data_dict["attributes"] = boxes3d_attributes
+                data_dict[K.boxes3d] = sample["CAM"]["annotations"]["boxes3d"]
+                data_dict[K.boxes3d_classes] = sample["CAM"]["annotations"][
+                    "boxes3d_classes"
+                ]
+                data_dict[K.boxes3d_track_ids] = sample["CAM"]["annotations"][
+                    "boxes3d_track_ids"
+                ]
+                data_dict[K.boxes3d_velocities] = sample["CAM"]["annotations"][
+                    "boxes3d_velocities"
+                ]
+                data_dict["attributes"] = sample["CAM"]["annotations"][
+                    "boxes3d_attributes"
+                ]
                 data_dict[K.extrinsics] = sample["CAM"]["extrinsics"]
                 data_dict[K.axis_mode] = AxisMode.OPENCV
 
             if K.boxes2d in self.keys_to_load:
-                boxes2d = sample["CAM"]["annotations"]["boxes2d"][mask]
-
-                data_dict[K.boxes2d] = boxes2d
-                data_dict[K.boxes2d_classes] = boxes3d_classes
-                data_dict[K.boxes2d_track_ids] = boxes3d_track_ids
+                data_dict[K.boxes2d] = sample["CAM"]["annotations"]["boxes2d"]
+                data_dict[K.boxes2d_classes] = data_dict[K.boxes3d_classes]
+                data_dict[K.boxes2d_track_ids] = data_dict[K.boxes3d_track_ids]
 
         if K.depth_maps in self.keys_to_load:
             depth_maps = self._load_depth_map(

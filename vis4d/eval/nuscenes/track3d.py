@@ -1,6 +1,7 @@
 """NuScenes evaluation code."""
 from __future__ import annotations
 
+import os
 import itertools
 import json
 from collections.abc import Callable
@@ -11,13 +12,19 @@ from nuscenes.utils.data_classes import Quaternion
 from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
-from vis4d.common import DictStrAny, MetricLogs
+from vis4d.common.imports import NUSCENES_AVAILABLE
+from vis4d.common.typing import DictStrAny, MetricLogs
 from vis4d.data.datasets.nuscenes import (
     nuscenes_attribute_map,
     nuscenes_class_map,
 )
 
 from ..base import Evaluator
+
+if NUSCENES_AVAILABLE:
+    from nuscenes import NuScenes as NuScenesDevkit
+    from nuscenes.eval.detection.config import config_factory
+    from nuscenes.eval.detection.evaluate import NuScenesEval
 
 
 # TODO: Refactor it to work with our own boxes3d
@@ -52,9 +59,32 @@ class NuScenesEvaluator(Evaluator):
         "truck",
     ]
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        data_root: str,
+        version: str,
+        split: str,
+        output_dir: str,
+        metadata: tuple[str, ...] = ("use_camera",),
+    ) -> None:
         """Initialize NuScenes evaluator."""
         super().__init__()
+        self.data_root = data_root
+        self.version = version
+        self.split = split
+        self.output_dir = output_dir
+
+        self.meta_data = {
+            "use_camera": False,
+            "use_lidar": False,
+            "use_radar": False,
+            "use_map": False,
+            "use_external": False,
+        }
+
+        for m in metadata:
+            self.meta_data[m] = True
+
         self.detect_3d: DictStrAny = {}
         self.tracks_3d: DictStrAny = {}
         self.reset()
@@ -256,33 +286,113 @@ class NuScenesEvaluator(Evaluator):
             token, boxes_3d, scores_3d, class_ids, track_ids
         )
 
-    def evaluate(
-        self,
-        metric: str,
-    ) -> tuple[MetricLogs, str]:
+    @staticmethod
+    def _parse_detect_high_level_metrics(
+        tp_errors: dict[str, float],
+        mean_ap: float,
+        nd_score: float,
+        eval_time: float,
+    ) -> tuple[list[str], int | float, int | float]:
+        """Collect high-level metrics."""
+        str_summary_list = ["\nHigh-level metrics:"]
+        str_summary_list.append(f"mAP: {mean_ap:.4f}")
+        err_name_mapping = {
+            "trans_err": "mATE",
+            "scale_err": "mASE",
+            "orient_err": "mAOE",
+            "vel_err": "mAVE",
+            "attr_err": "mAAE",
+        }
+        for tp_name, tp_val in tp_errors.items():
+            str_summary_list.append(
+                f"{err_name_mapping[tp_name]}: {tp_val:.4f}"
+            )
+        str_summary_list.append(f"NDS: {nd_score:.4f}")
+        str_summary_list.append(f"Eval time: {eval_time:.1f}s")
+
+        if mean_ap == 0:
+            mean_ap = int(mean_ap)
+        if nd_score == 0:
+            nd_score = int(nd_score)
+
+        return str_summary_list, mean_ap, nd_score
+
+    @staticmethod
+    def _parse_detect_per_class_metrics(
+        str_summary_list: list[str],
+        class_aps: dict[str, float],
+        class_tps: dict[str, dict[str, float]],
+    ) -> list[str]:
+        """Collect per-class metrics."""
+        str_summary_list.append("\nPer-class results:")
+        str_summary_list.append("Object Class\tAP\tATE\tASE\tAOE\tAVE\tAAE")
+
+        for class_name in class_aps.keys():
+            tmp_str_list = [class_name]
+            tmp_str_list.append(f"{class_aps[class_name]:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['trans_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['scale_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['orient_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['vel_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['attr_err']:.3f}")
+
+            str_summary_list.append("\t".join(tmp_str_list))
+        return str_summary_list
+
+    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""
-        # TODO: Add nuscenes eval code.
-        return {}, "Currently only save the json files."
+        output_dir = os.path.join(self.output_dir, metric)
+        if metric == "detect_3d":
+            nusc = NuScenesDevkit(
+                version=self.version, dataroot=self.data_root, verbose=False
+            )
+
+            nusc_eval = NuScenesEval(
+                nusc,
+                config=config_factory("detection_cvpr_2019"),
+                result_path=f"{output_dir}/detect_3d_predictions.json",
+                eval_set=self.split,
+                output_dir=os.path.join(output_dir, "detection"),
+                verbose=False,
+            )
+            metrics, _ = nusc_eval.evaluate()
+            metrics_summary = metrics.serialize()
+
+            (
+                str_summary_list,
+                mean_ap,
+                nd_score,
+            ) = self._parse_detect_high_level_metrics(
+                metrics_summary["tp_errors"],
+                metrics_summary["mean_ap"],
+                metrics_summary["nd_score"],
+                metrics_summary["eval_time"],
+            )
+
+            class_aps = metrics_summary["mean_dist_aps"]
+            class_tps = metrics_summary["label_tp_errors"]
+            str_summary_list = self._parse_detect_per_class_metrics(
+                str_summary_list, class_aps, class_tps
+            )
+
+            log_dict = {"mAP": mean_ap, "NDS": nd_score}
+            str_summary = "\n".join(str_summary_list)
+            return log_dict, str_summary
+        else:
+            return {}, "Currently only save the json files."
 
     def save(self, metric: str, output_dir: str) -> None:
         """Save the results to json files."""
-        metadata = {
-            "use_camera": True,
-            "use_lidar": False,
-            "use_radar": False,
-            "use_map": False,
-            "use_external": False,
-        }
         if metric == "track_3d":
             nusc_annos = {
                 "results": self.tracks_3d,
-                "meta": metadata,
+                "meta": self.meta_data,
             }
             result_file = f"{output_dir}/track_3d_predictions.json"
         elif metric == "detect_3d":
             nusc_annos = {
                 "results": self.detect_3d,
-                "meta": metadata,
+                "meta": self.meta_data,
             }
             result_file = f"{output_dir}/detect_3d_predictions.json"
 

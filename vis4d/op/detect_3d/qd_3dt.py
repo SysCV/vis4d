@@ -7,12 +7,28 @@ import numpy as np
 import torch
 from torch import Tensor, nn
 
-from vis4d.op.box.encoder import QD3DTBox3DDecoder
+from vis4d.common.typing import LossesType
+from vis4d.op.box.encoder.qd_3dt import QD3DTBox3DDecoder, QD3DTBox3DEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
-from vis4d.op.box.samplers import CombinedSampler, Sampler
+from vis4d.op.box.samplers import (
+    CombinedSampler,
+    Sampler,
+    match_and_sample_proposals,
+)
 from vis4d.op.geometry.rotation import generate_rotation_output
 from vis4d.op.layer import add_conv_branch
+from vis4d.op.loss.base import Loss
+from vis4d.op.loss.common import rotation_loss, smooth_l1_loss
+from vis4d.op.loss.reducer import LossReducer, SumWeightedLoss, mean_loss
+
+
+class QD3DTBBox3DHeadTrainOut(NamedTuple):
+    """QD-3DT bounding box 3D head training output."""
+
+    predictions: Tensor
+    targets: Tensor
+    labels: Tensor
 
 
 class QD3DTBBox3DHeadOutput(NamedTuple):
@@ -48,9 +64,29 @@ def get_default_box_matcher() -> MaxIoUMatcher:
     )
 
 
-def get_default_box_decoder() -> QD3DTBox3DDecoder:
-    """Get the default bounding box decoder of QD-3DT bounding box 3D head."""
-    return QD3DTBox3DDecoder()
+def get_default_box_codec(
+    center_scale: float = 10.0,
+    depth_log_scale: float = 2.0,
+    dim_log_scale: float = 2.0,
+    num_rotation_bins: int = 2,
+    bin_overlap: float = 1 / 6,
+) -> tuple[QD3DTBox3DEncoder, QD3DTBox3DDecoder]:
+    """Get the default bounding box encoder and decoder."""
+    return (
+        QD3DTBox3DEncoder(
+            center_scale=center_scale,
+            depth_log_scale=depth_log_scale,
+            dim_log_scale=dim_log_scale,
+            num_rotation_bins=num_rotation_bins,
+            bin_overlap=bin_overlap,
+        ),
+        QD3DTBox3DDecoder(
+            center_scale=center_scale,
+            depth_log_scale=depth_log_scale,
+            dim_log_scale=dim_log_scale,
+            num_rotation_bins=num_rotation_bins,
+        ),
+    )
 
 
 class QD3DTBBox3DHead(nn.Module):
@@ -62,6 +98,7 @@ class QD3DTBBox3DHead(nn.Module):
         proposal_pooler: None | RoIPooler = None,
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
+        box_encoder: None | QD3DTBox3DEncoder = None,
         box_decoder: None | QD3DTBox3DDecoder = None,
         proposal_append_gt: bool = True,
         num_shared_convs: int = 2,
@@ -101,10 +138,11 @@ class QD3DTBBox3DHead(nn.Module):
             if box_sampler is not None
             else get_default_box_sampler()
         )
+        self.box_encoder = (
+            box_encoder if box_encoder is not None else QD3DTBox3DEncoder()
+        )
         self.box_decoder = (
-            box_decoder
-            if box_decoder is not None
-            else get_default_box_decoder()
+            box_decoder if box_decoder is not None else QD3DTBox3DDecoder()
         )
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
@@ -328,11 +366,7 @@ class QD3DTBBox3DHead(nn.Module):
         return x_dep, x_dim, x_rot, x_cen_2d
 
     def get_outputs(
-        self,
-        x_dep: Tensor,
-        x_dim: Tensor,
-        x_rot: Tensor,
-        x_cen_2d: Tensor,
+        self, x_dep: Tensor, x_dim: Tensor, x_rot: Tensor, x_cen_2d: Tensor
     ) -> Tensor:
         """Generate output 3D bounding box parameters."""
         depth = self.fc_dep(x_dep).view(-1, self.cls_out_channels, 1)
@@ -351,88 +385,98 @@ class QD3DTBBox3DHead(nn.Module):
         )
 
     def get_predictions(
-        self,
-        features: list[Tensor],
-        boxes_2d: list[Tensor],
+        self, features: list[Tensor], boxes_2d: list[Tensor]
     ) -> list[Tensor]:
         """Get 3D bounding box prediction parameters."""
         roi_feats = self.proposal_pooler(features[2:6], boxes_2d)
         x_dep, x_dim, x_rot, x_cen_2d = self.get_embeds(roi_feats)
 
-        outputs: list[Tensor] = self.get_outputs(
-            x_dep, x_dim, x_rot, x_cen_2d
-        ).split([len(b) for b in boxes_2d])
+        outputs: list[Tensor] = list(
+            self.get_outputs(x_dep, x_dim, x_rot, x_cen_2d).split(
+                [len(b) for b in boxes_2d]
+            )
+        )
         return outputs
 
-    # def get_targets(
-    #     self,
-    #     pos_assigned_gt_inds: List[Tensor],
-    #     targets: LabelInstances,
-    #     cam_intrinsics: Intrinsics,
-    # ) -> Tuple[List[Tensor], List[Tensor]]:
-    #     """Get 3D bounding box targets for training."""
-    #     bbox_targets = self.bbox_coder.encode(
-    #         targets.boxes2d, targets.boxes3d, cam_intrinsics
-    #     )
+    def get_targets(
+        self,
+        pos_assigned_gt_inds: list[Tensor],
+        target_boxes: list[Tensor],
+        target_boxes3d: list[Tensor],
+        target_class_ids: list[Tensor],
+        intrinsics: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        """Get 3D bounding box targets for training."""
+        targets = []
+        labels = []
+        for i, (tgt_boxes, tgt_boxes3d, intrinsics_) in enumerate(
+            zip(target_boxes, target_boxes3d, intrinsics)
+        ):
+            bbox_target = self.box_encoder(tgt_boxes, tgt_boxes3d, intrinsics_)
+            targets.append(bbox_target[pos_assigned_gt_inds[i]])
 
-    #     bbox_targets = [
-    #         b[p] for b, p in zip(bbox_targets, pos_assigned_gt_inds)
-    #     ]
+            labels.append(target_class_ids[i][pos_assigned_gt_inds[i]])
 
-    #     labels = [
-    #         t.class_ids[p]
-    #         for t, p in zip(targets.boxes2d, pos_assigned_gt_inds)
-    #     ]
-    #     return bbox_targets, labels
+        return torch.cat(targets), torch.cat(labels)
 
-    # def forward_train(
-    #     self,
-    #     inputs: InputSample,
-    #     features: FeatureMaps,
-    #     boxes: List[Boxes2D],
-    #     targets: LabelInstances,
-    # ) -> Tuple[LossesType, SamplingResult]:
-    #     """Forward pass during training stage.
+    def _forward_train(
+        self,
+        features: list[Tensor],
+        det_boxes: list[Tensor],
+        target_boxes: list[Tensor],
+        target_boxes3d: list[Tensor],
+        target_class_ids: list[Tensor],
+        intrinsics: Tensor,
+    ) -> QD3DTBBox3DHeadTrainOut:
+        """Forward pass during training stage.
 
-    #     Args:
-    #         inputs: InputSamples (images, metadata, etc). Batched.
-    #         features: Input feature maps. Batched.
-    #         boxes: Input boxes to apply RoIHead on.
-    #         targets: Targets corresponding to InputSamples.
+        Args:
+            features (list[Tensor]): Features from the upstream network.
+            det_boxes (list[Tensor]): 2D detection boxes.
+            target_boxes (list[Tensor]): 2D ground-truth boxes.
+            target_boxes3d (list[Tensor]): 3D ground-truth boxes.
+            target_class_ids (list[Tensor]): Class labels of ground-truth
+                boxes.
+            intrinsics (Tensor): Camera intrinsics.
 
-    #     Returns:
-    #         LossesType: A dict of scalar loss tensors.
-    #         SamplingResult: Sampling result.
-    #     """
-    #     assert features is not None, "QD-3DT box3D head requires features!"
-    #     features_list = [features[f] for f in self.in_features]
+        Returns:
+            QD3DTBBox3DHeadTrainOut: Output of this head during training.
+        """
+        # match and sample
+        if self.proposal_append_gt:
+            det_boxes = [
+                torch.cat([d, t]) for d, t in zip(det_boxes, target_boxes)
+            ]
 
-    #     # match and sample
-    #     sampling_results = match_and_sample_proposals(
-    #         self.matcher,
-    #         self.sampler,
-    #         boxes,
-    #         inputs.targets.boxes2d,
-    #         self.proposal_append_gt,
-    #     )
-    #     positives = [l == 1 for l in sampling_results.sampled_labels]
-    #     pos_assigned_gt_inds = [
-    #         i[p] if len(p) != 0 else p
-    #         for i, p in zip(sampling_results.sampled_target_indices, positives) # pylint: disable=line-too-long
-    #     ]
-    #     pos_boxes = [
-    #         b[p] for b, p in zip(sampling_results.sampled_boxes, positives)
-    #     ]
+        (
+            sampled_box_indices,
+            sampled_target_indices,
+            sampled_labels,
+        ) = match_and_sample_proposals(
+            self.box_matcher, self.box_sampler, det_boxes, target_boxes
+        )
+        positives = [l == 1 for l in sampled_labels]
+        pos_assigned_gt_inds = [
+            i[p] if len(p) != 0 else p
+            for i, p in zip(sampled_target_indices, positives)
+        ]
+        pos_boxes = [
+            b[s_i][p]
+            for b, s_i, p in zip(det_boxes, sampled_box_indices, positives)
+        ]
+        predictions = torch.cat(self.get_predictions(features, pos_boxes))
 
-    #     predictions = self.get_predictions(features_list, pos_boxes)
+        targets, labels = self.get_targets(
+            pos_assigned_gt_inds,
+            target_boxes,
+            target_boxes3d,
+            target_class_ids,
+            intrinsics,
+        )
 
-    #     tgt_params, labels = self.get_targets(
-    #         pos_assigned_gt_inds, targets, inputs.intrinsics
-    #     )
-    #     loss = self.loss(
-    #         torch.cat(predictions), torch.cat(tgt_params), torch.cat(labels)
-    #     )
-    #     return loss, sampling_results
+        return QD3DTBBox3DHeadTrainOut(
+            predictions=predictions, targets=targets, labels=labels
+        )
 
     def _forward_test(
         self,
@@ -498,20 +542,175 @@ class QD3DTBBox3DHead(nn.Module):
     def forward(
         self,
         features: list[Tensor],
-        boxes_2d: list[Tensor],
-        class_ids: list[Tensor],
         intrinsics: Tensor,
-    ) -> QD3DTBBox3DHeadOutput:
+        det_boxes: list[Tensor],
+        det_class_ids: list[Tensor] | None = None,
+        target_boxes: list[Tensor] | None = None,
+        target_boxes3d: list[Tensor] | None = None,
+        target_class_ids: list[Tensor] | None = None,
+    ) -> QD3DTBBox3DHeadOutput | QD3DTBBox3DHeadTrainOut:
         """Forward."""
-        # TODO implement forward_train
-        return self._forward_test(features, boxes_2d, class_ids, intrinsics)
+        if self.training:
+            assert (
+                target_boxes is not None
+                and target_boxes3d is not None
+                and target_class_ids is not None
+            )
+            return self._forward_train(
+                features,
+                det_boxes,
+                target_boxes,
+                target_boxes3d,
+                target_class_ids,
+                intrinsics,
+            )
+
+        assert det_class_ids is not None
+        return self._forward_test(
+            features, det_boxes, det_class_ids, intrinsics
+        )
 
     def __call__(
         self,
         features: list[Tensor],
-        boxes_2d: list[Tensor],
-        class_ids: list[Tensor],
         intrinsics: Tensor,
-    ) -> QD3DTBBox3DHeadOutput:
+        det_boxes: list[Tensor],
+        det_class_ids: list[Tensor] | None = None,
+        target_boxes: list[Tensor] | None = None,
+        target_boxes3d: list[Tensor] | None = None,
+        target_class_ids: list[Tensor] | None = None,
+    ) -> QD3DTBBox3DHeadOutput | QD3DTBBox3DHeadTrainOut:
         """Type definition."""
-        return self._call_impl(features, boxes_2d, class_ids, intrinsics)
+        return self._call_impl(
+            features,
+            intrinsics,
+            det_boxes,
+            det_class_ids,
+            target_boxes,
+            target_boxes3d,
+            target_class_ids,
+        )
+
+
+class Box3DUncertaintyLoss(Loss):
+    """Box3d loss for QD-3DT."""
+
+    def __init__(
+        self,
+        reducer: LossReducer = mean_loss,
+        center_loss_weight: float = 1.0,
+        depth_loss_weight: float = 1.0,
+        dimension_loss_weight: float = 1.0,
+        rotation_loss_weight: float = 1.0,
+        uncertainty_loss_weight: float = 1.0,
+        num_rotation_bins: int = 2,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            reducer (LossReducer): Reducer for the loss function.
+            center_loss_weight (float): Weight for center loss.
+            depth_loss_weight (float): Weight for depth loss.
+            dimension_loss_weight (float): Weight for dimension loss.
+            rotation_loss_weight (float): Weight for rotation loss.
+            uncertainty_loss_weight (float): Weight for uncertainty loss.
+            num_rotation_bins (int): Number of rotation bins.
+        """
+        super().__init__(reducer)
+        self.center_loss_weight = center_loss_weight
+        self.depth_loss_weight = depth_loss_weight
+        self.dimension_loss_weight = dimension_loss_weight
+        self.rotation_loss_weight = rotation_loss_weight
+        self.uncertainty_loss_weight = uncertainty_loss_weight
+        self.num_rotation_bins = num_rotation_bins
+
+    def forward(
+        self, pred: Tensor, target: Tensor, labels: Tensor
+    ) -> LossesType:
+        """Compute box3d loss.
+
+        Args:
+            pred (Tensor): Box predictions of shape [N,
+                6 + 3 * num_rotations_bins].
+            target (torcch.Tensor): Target boxes of shape [N,
+                6 + num_rotation_bins].
+            labels (Tensor): Target Labels of shape [N].
+
+        Returns:
+           dict[str, Tensor] containing 'delta 2dc', 'dimension', 'depth',
+             'rotation' and 'uncertainty' loss.
+        """
+        if pred.size(0) == 0:
+            loss_ctr3d = loss_dep3d = loss_dim3d = loss_rot3d = loss_conf3d = (
+                pred.sum() * 0
+            )
+            result_dict = {
+                "loss_ctr3d": loss_ctr3d,
+                "loss_dep3d": loss_dep3d,
+                "loss_dim3d": loss_dim3d,
+                "loss_rot3d": loss_rot3d,
+                "loss_conf3d": loss_conf3d,
+            }
+
+            return result_dict
+
+        pred = pred[torch.arange(pred.shape[0], device=pred.device), labels]
+
+        # delta 2dc loss
+        loss_cen = smooth_l1_loss(
+            pred[:, :2], target[:, :2], reducer=self.reducer, beta=1 / 9
+        )
+
+        # dimension loss
+        dim_mask = target[:, 3:6] != 100.0
+        loss_dim = smooth_l1_loss(
+            pred[:, 3:6][dim_mask],
+            target[:, 3:6][dim_mask],
+            reducer=self.reducer,
+            beta=1 / 9,
+        )
+
+        # depth loss
+        depth_mask = target[:, 2] > 0
+        loss_dep = smooth_l1_loss(
+            pred[:, 2][depth_mask],
+            target[:, 2][depth_mask],
+            reducer=self.reducer,
+            beta=1 / 9,
+        )
+
+        # rotation loss
+        loss_rot = rotation_loss(
+            pred[:, 6 : 6 + self.num_rotation_bins * 3],
+            target[:, 6 : 6 + self.num_rotation_bins],
+            target[:, 6 + self.num_rotation_bins :],
+            self.num_rotation_bins,
+            reducer=self.reducer,
+        )
+
+        # uncertainty loss
+        pos_depth_self_labels = torch.exp(
+            -torch.abs(pred[:, 2] - target[:, 2]) * 5.0
+        )
+        pos_depth_self_weights = torch.where(
+            pos_depth_self_labels > 0.8,
+            pos_depth_self_labels.new_ones(1) * 5.0,
+            pos_depth_self_labels.new_ones(1) * 0.1,
+        )
+
+        loss_unc3d = smooth_l1_loss(
+            pred[:, -1],
+            pos_depth_self_labels.detach().clone(),
+            reducer=SumWeightedLoss(
+                pos_depth_self_weights, len(pos_depth_self_weights)
+            ),
+            beta=1 / 9,
+        )
+
+        return {
+            "loss_ctr3d": self.center_loss_weight * loss_cen,
+            "loss_dep3d": self.depth_loss_weight * loss_dep,
+            "loss_dim3d": self.dimension_loss_weight * loss_dim,
+            "loss_rot3d": self.rotation_loss_weight * loss_rot,
+            "loss_unc3d": self.uncertainty_loss_weight * loss_unc3d,
+        }

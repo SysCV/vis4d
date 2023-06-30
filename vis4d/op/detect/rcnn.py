@@ -156,7 +156,7 @@ class RCNNHead(nn.Module):
         bbox_feats = self.roi_pooler(features[2:6], boxes)
         if self.num_shared_convs > 0:
             for conv in self.shared_convs:
-                bbox_feats = self.relu(conv(bbox_feats))
+                bbox_feats = conv(bbox_feats)
 
         bbox_feats = bbox_feats.flatten(start_dim=1)
 

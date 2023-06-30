@@ -7,12 +7,20 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.bdd100k import get_bdd100k_track_cfg
+from vis4d.config.common.datasets.bdd100k import (
+    CONN_BDD100K_TRACK_EVAL,
+    get_bdd100k_track_cfg,
+)
 from vis4d.config.common.models.faster_rcnn import (
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
     get_default_rcnn_box_codec_cfg,
     get_default_rpn_box_codec_cfg,
+)
+from vis4d.config.common.models.qdtrack import (
+    CONN_BBOX_2D_TEST,
+    CONN_BBOX_2D_TRAIN,
+    CONN_ROI_LOSS_2D,
+    CONN_RPN_LOSS_2D,
+    CONN_TRACK_LOSS_2D,
 )
 from vis4d.config.default import (
     get_default_callbacks_cfg,
@@ -25,7 +33,6 @@ from vis4d.config.util import (
     get_lr_scheduler_cfg,
     get_optimizer_cfg,
 )
-from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
@@ -33,8 +40,6 @@ from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
     LossConnector,
-    data_key,
-    pred_key,
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
@@ -44,56 +49,6 @@ from vis4d.op.detect.rcnn import RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
-
-CONN_BBOX_2D_TRAIN = {
-    "images": K.images,
-    "images_hw": K.input_hw,
-    "frame_ids": K.frame_ids,
-    "boxes2d": K.boxes2d,
-    "boxes2d_classes": K.boxes2d_classes,
-    "boxes2d_track_ids": K.boxes2d_track_ids,
-    "keyframes": "keyframes",
-}
-
-CONN_BBOX_2D_TEST = {
-    "images": K.images,
-    "images_hw": K.input_hw,
-    "frame_ids": K.frame_ids,
-}
-
-CONN_BDD100K_EVAL = {
-    "frame_ids": data_key("frame_ids"),
-    "sample_names": data_key(K.sample_names),
-    "sequence_names": data_key(K.sequence_names),
-    "pred_boxes": pred_key("boxes"),
-    "pred_classes": pred_key("class_ids"),
-    "pred_scores": pred_key("scores"),
-    "pred_track_ids": pred_key("track_ids"),
-}
-
-
-CONN_RPN_LOSS_2D = {
-    "cls_outs": pred_key("detector_out.rpn.cls"),
-    "reg_outs": pred_key("detector_out.rpn.box"),
-    "target_boxes": pred_key("key_target_boxes"),
-    "images_hw": pred_key("key_images_hw"),
-}
-
-CONN_ROI_LOSS_2D = {
-    "class_outs": pred_key("detector_out.roi.cls_score"),
-    "regression_outs": pred_key("detector_out.roi.bbox_pred"),
-    "boxes": pred_key("detector_out.sampled_proposals.boxes"),
-    "boxes_mask": pred_key("detector_out.sampled_targets.labels"),
-    "target_boxes": pred_key("detector_out.sampled_targets.boxes"),
-    "target_classes": pred_key("detector_out.sampled_targets.classes"),
-}
-
-CONN_TRACK_LOSS_2D = {
-    "key_embeddings": pred_key("key_embeddings"),
-    "ref_embeddings": pred_key("ref_embeddings"),
-    "key_track_ids": pred_key("key_track_ids"),
-    "ref_track_ids": pred_key("ref_track_ids"),
-}
 
 
 def get_config() -> ExperimentConfig:
@@ -236,7 +191,7 @@ def get_config() -> ExperimentConfig:
                 annotation_path="data/bdd100k/labels/box_track_20/val/",
             ),
             test_connector=class_config(
-                CallbackConnector, key_mapping=CONN_BDD100K_EVAL
+                CallbackConnector, key_mapping=CONN_BDD100K_TRACK_EVAL
             ),
         )
     )

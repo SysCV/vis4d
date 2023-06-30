@@ -13,9 +13,19 @@ from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
 from vis4d.op.box.samplers.combined import CombinedSampler
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
+from vis4d.state.track.qdtrack import QDTrackState, QDTrackMemory
 
 from .assignment import TrackIDCounter, greedy_assign
 from .matching import calc_bisoftmax_affinity, cosine_similarity
+
+
+class TrackOut(NamedTuple):
+    """Output of track model."""
+
+    boxes: list[Tensor]  # (N, 4)
+    class_ids: list[Tensor]
+    scores: list[Tensor]
+    track_ids: list[Tensor]
 
 
 def get_default_box_sampler() -> CombinedSampler:
@@ -37,6 +47,81 @@ def get_default_box_matcher() -> MaxIoUMatcher:
         allow_low_quality_matches=False,
     )
     return box_matcher
+
+
+class QDTrackGraph:
+    """Quasi-dense embedding similarity based graph."""
+
+    def __init__(
+        self,
+        track_graph: QDTrackAssociation | None = None,
+        memory_size: int = 10,
+        memory_momentum: float = 0.8,
+    ) -> None:
+        """Init."""
+        assert 0 <= memory_momentum <= 1.0
+        self.memory_size = memory_size
+        self.memory_momentum = memory_momentum
+        self.track = (
+            QDTrackAssociation() if track_graph is None else track_graph
+        )
+        self.track_memory = QDTrackMemory(memory_limit=memory_size)
+
+    def __call__(
+        self,
+        embeddings: list[Tensor],
+        det_boxes: list[Tensor],
+        det_scores: list[Tensor],
+        det_class_ids: list[Tensor],
+        frame_ids: list[int],
+    ) -> TrackOut:
+        """Forward during test."""
+        batched_tracks = []
+        for frame_id, box, score, cls_id, embeds in zip(
+            frame_ids, det_boxes, det_scores, det_class_ids, embeddings
+        ):
+            # reset graph at begin of sequence
+            if frame_id == 0:
+                self.track_memory.reset()
+                TrackIDCounter.reset()
+
+            cur_memory = self.track_memory.get_current_tracks(box.device)
+            track_ids, match_ids, filter_indices = self.track(
+                box,
+                score,
+                cls_id,
+                embeds,
+                cur_memory.track_ids,
+                cur_memory.class_ids,
+                cur_memory.embeddings,
+            )
+
+            valid_embeds = embeds[filter_indices]
+
+            for i, track_id in enumerate(track_ids):
+                if track_id in match_ids:
+                    track = self.track_memory.get_track(track_id)[-1]
+                    valid_embeds[i] = (
+                        (1 - self.memo_momentum) * track.embeddings
+                        + self.memo_momentum * valid_embeds[i]
+                    )
+
+            data = QDTrackState(
+                track_ids,
+                box[filter_indices],
+                score[filter_indices],
+                cls_id[filter_indices],
+                valid_embeds,
+            )
+            self.track_memory.update(data)
+            batched_tracks.append(self.track_memory.frames[-1])
+
+        return TrackOut(
+            [t.boxes for t in batched_tracks],
+            [t.class_ids for t in batched_tracks],
+            [t.scores for t in batched_tracks],
+            [t.track_ids for t in batched_tracks],
+        )
 
 
 # @torch.jit.script TODO

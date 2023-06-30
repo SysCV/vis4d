@@ -7,6 +7,7 @@ from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
 from vis4d.config.common.datasets.nuscenes import get_nusc_track_cfg
+from vis4d.config.common.models import get_cc_3dt_cfg
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -26,14 +27,17 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.eval.nuscenes import NuScenesEvaluator
-from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
+from vis4d.op.base import ResNet
 
 CONN_BBOX_3D_TRAIN = {
     "images": K.images,
-    "images_hw": K.original_hw,
+    "images_hw": K.input_hw,
     "intrinsics": K.intrinsics,
-    "extrinsics": K.extrinsics,
-    "frame_ids": K.frame_ids,
+    "boxes2d": K.boxes2d,
+    "boxes3d": K.boxes3d,
+    "boxes3d_classes": K.boxes3d_classes,
+    "boxes3d_track_ids": K.boxes3d_track_ids,
+    "keyframes": "keyframes",
 }
 
 CONN_BBOX_3D_TEST = {
@@ -68,7 +72,7 @@ def get_config() -> ExperimentConfig:
 
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 4
+    params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
     params.num_epochs = 12
@@ -79,31 +83,38 @@ def get_config() -> ExperimentConfig:
     ######################################################
     data_root = "data/nuscenes"
     version = "v1.0-mini"
+    train_split = "mini_train"
     test_split = "mini_val"
+
+    # version = "v1.0-trainval"
+    # train_split = "train"
+    # test_split = "val"
 
     data_backend = class_config(HDF5Backend)
 
     config.data = get_nusc_track_cfg(
         data_root=data_root,
         version=version,
+        train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
+        samples_per_gpu=params.samples_per_gpu,
+        workers_per_gpu=params.workers_per_gpu,
     )
 
     ######################################################
-    ##                        MODEL                     ##
+    ##                  MODEL & LOSS                    ##
     ######################################################
-    config.model = class_config(
-        FasterRCNNCC3DT,
+    basemodel = class_config(
+        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+    )
+
+    config.model, config.loss = get_cc_3dt_cfg(
         num_classes=10,
-        class_range_map=nuscenes_detection_range,
-        weights=ckpt_path,
+        basemodel=basemodel,
+        detection_range=nuscenes_detection_range,
+        # weights=ckpt_path,
     )
-
-    ######################################################
-    ##                        LOSS                      ##
-    ######################################################
-    config.loss = None  # TODO: implement loss
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -143,13 +154,19 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg(config.output_dir, refresh_rate=1)
 
     # Evaluator
     callbacks.append(
         class_config(
             EvaluatorCallback,
-            evaluator=class_config(NuScenesEvaluator),
+            evaluator=class_config(
+                NuScenesEvaluator,
+                data_root=data_root,
+                version=version,
+                split=test_split,
+                output_dir=config.output_dir,
+            ),
             save_predictions=True,
             save_prefix=config.output_dir,
             test_connector=class_config(

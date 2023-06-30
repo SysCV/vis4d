@@ -219,12 +219,21 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         # Load annotations
         self.samples = self._load_mapping(
             self._generate_data_mapping,
+            self._filter_data,
             cache_as_binary=cache_as_binary,
             cached_file_path=cached_file_path,
         )
 
         # Generate video to indices mapping
         self.video_to_indices = self._generate_video_to_indices()
+
+    def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
+        """Remove empty samples."""
+        if self.skip_empty_samples:
+            raise NotImplementedError(
+                "skip_empty_samples is not implemented for NuScenes"
+            )
+        return data
 
     def _check_version_and_split(self, version: str, split: str) -> None:
         """Check that the version and split are valid."""

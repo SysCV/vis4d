@@ -17,9 +17,13 @@ from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXPostprocess
 from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
-from vis4d.op.track.assignment import TrackIDCounter
-from vis4d.op.track.qdtrack import QDSimilarityHead, QDTrackAssociation
-from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
+from vis4d.op.track.qdtrack import (
+    QDSimilarityHead,
+    QDTrackAssociation,
+    QDTrackGraph,
+    get_default_box_matcher,
+    get_default_box_sampler,
+)
 
 REV_KEYS = [
     # (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
@@ -62,6 +66,15 @@ class TrackOut(NamedTuple):
 
 
 class QDTrackOut(NamedTuple):
+    """Output of QDTrack during training."""
+
+    key_embeddings: list[Tensor]
+    ref_embeddings: list[list[Tensor]]
+    key_track_ids: list[Tensor]
+    ref_track_ids: list[list[Tensor]]
+
+
+class FasterRCNNQDTrackOut(NamedTuple):
     """Output of QDtrack model."""
 
     detector_out: FRCNNOut
@@ -100,72 +113,29 @@ class QDTrack(nn.Module):
     def __init__(
         self,
         similarity_head: QDSimilarityHead | None = None,
-        track_graph: QDTrackAssociation | None = None,
-        memory_size: int = 10,
-        memory_momentum: float = 0.8,
-        num_ref_views: int = 1,
+        box_sampler: CombinedSampler | None = None,
+        box_matcher: MaxIoUMatcher | None = None,
         proposal_append_gt: bool = True,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
-        self.num_ref_views = num_ref_views
         self.similarity_head = (
             QDSimilarityHead() if similarity_head is None else similarity_head
         )
 
-        # only in inference
-        assert 0 <= memory_momentum <= 1.0
-        self.memo_momentum = memory_momentum
-        self.track_graph = (
-            QDTrackAssociation() if track_graph is None else track_graph
-        )
-        self.track_memory = QDTrackMemory(memory_limit=memory_size)
-
-        self.box_sampler = CombinedSampler(
-            batch_size=256,
-            positive_fraction=0.5,
-            pos_strategy="instance_balanced",
-            neg_strategy="iou_balanced",
+        self.box_sampler = (
+            box_sampler
+            if box_sampler is not None
+            else get_default_box_sampler()
         )
 
-        self.box_matcher = MaxIoUMatcher(
-            thresholds=[0.3, 0.7],
-            labels=[0, -1, 1],
-            allow_low_quality_matches=False,
+        self.box_matcher = (
+            box_matcher
+            if box_matcher is not None
+            else get_default_box_matcher()
         )
+
         self.proposal_append_gt = proposal_append_gt
-
-    def forward(
-        self,
-        features: list[Tensor] | list[list[Tensor]],
-        det_boxes: list[Tensor] | list[list[Tensor]],
-        det_scores: None | list[Tensor] = None,
-        det_class_ids: None | list[Tensor] = None,
-        frame_ids: None | list[int] = None,
-        target_boxes: None | list[list[Tensor]] = None,
-        target_track_ids: None | list[list[Tensor]] = None,
-    ) -> (
-        TrackOut
-        | tuple[
-            list[Tensor], list[list[Tensor]], list[Tensor], list[list[Tensor]]
-        ]
-    ):
-        """Forward function."""
-        if target_boxes is not None:
-            assert (
-                target_boxes is not None and target_track_ids is not None
-            ), "Need targets during training!"
-            return self._forward_train(
-                features, det_boxes, target_boxes, target_track_ids  # type: ignore # pylint: disable=line-too-long
-            )
-        assert (
-            frame_ids is not None
-            and det_scores is not None
-            and det_class_ids is not None
-        )
-        return self._forward_test(
-            features, det_boxes, det_scores, det_class_ids, frame_ids  # type: ignore # pylint: disable=line-too-long
-        )
 
     @torch.no_grad()
     def _sample_proposals(
@@ -185,10 +155,7 @@ class QDTrack(nn.Module):
                 sampled_target_indices,
                 sampled_labels,
             ) = match_and_sample_proposals(
-                self.box_matcher,
-                self.box_sampler,
-                boxes,
-                tgt_boxes,
+                self.box_matcher, self.box_sampler, boxes, tgt_boxes
             )
 
             positives = [l == 1 for l in sampled_labels]
@@ -220,16 +187,31 @@ class QDTrack(nn.Module):
             sampled_track_ids.append(sampled_tr_id)
         return sampled_boxes, sampled_track_ids
 
+    def forward(
+        self,
+        features: list[Tensor] | list[list[Tensor]],
+        det_boxes: list[Tensor] | list[list[Tensor]],
+        target_boxes: None | list[list[Tensor]] = None,
+        target_track_ids: None | list[list[Tensor]] = None,
+    ) -> list[Tensor] | QDTrackOut:
+        """Forward function."""
+        if self.training:
+            assert (
+                target_boxes is not None and target_track_ids is not None
+            ), "Need targets during training!"
+            return self._forward_train(
+                features, det_boxes, target_boxes, target_track_ids  # type: ignore # pylint: disable=line-too-long
+            )
+        return self._forward_test(features, det_boxes)
+
     def _forward_train(
         self,
         features: list[list[Tensor]],
         det_boxes: list[list[Tensor]],
         target_boxes: list[list[Tensor]],
         target_track_ids: list[list[Tensor]],
-    ) -> tuple[
-        list[Tensor], list[list[Tensor]], list[Tensor], list[list[Tensor]]
-    ]:
-        """Forward train."""  # TODO doc, verify training
+    ) -> QDTrackOut:
+        """Forward train."""
         sampled_boxes, sampled_track_ids = self._sample_proposals(
             det_boxes, target_boxes, target_track_ids
         )
@@ -238,7 +220,7 @@ class QDTrack(nn.Module):
         for feats, boxes in zip(features, sampled_boxes):
             embeddings.append(self.similarity_head(feats, boxes))
 
-        return (
+        return QDTrackOut(
             embeddings[0],
             embeddings[1:],
             sampled_track_ids[0],
@@ -246,87 +228,21 @@ class QDTrack(nn.Module):
         )
 
     def _forward_test(
-        self,
-        features: list[Tensor],
-        det_boxes: list[Tensor],
-        det_scores: list[Tensor],
-        det_class_ids: list[Tensor],
-        frame_ids: list[int],
-    ) -> TrackOut:
+        self, features: list[Tensor], det_boxes: list[Tensor]
+    ) -> list[Tensor]:
         """Forward during test."""
-        embeddings = self.similarity_head(features, det_boxes)
-
-        batched_tracks = []
-        for frame_id, box, score, cls_id, embeds in zip(
-            frame_ids, det_boxes, det_scores, det_class_ids, embeddings
-        ):
-            # reset graph at begin of sequence
-            if frame_id == 0:
-                self.track_memory.reset()
-                TrackIDCounter.reset()
-
-            cur_memory = self.track_memory.get_current_tracks(box.device)
-            track_ids, match_ids, filter_indices = self.track_graph(
-                box,
-                score,
-                cls_id,
-                embeds,
-                cur_memory.track_ids,
-                cur_memory.class_ids,
-                cur_memory.embeddings,
-            )
-
-            valid_embeds = embeds[filter_indices]
-
-            for i, track_id in enumerate(track_ids):
-                if track_id in match_ids:
-                    track = self.track_memory.get_track(track_id)[-1]
-                    valid_embeds[i] = (
-                        (1 - self.memo_momentum) * track.embeddings
-                        + self.memo_momentum * valid_embeds[i]
-                    )
-
-            data = QDTrackState(
-                track_ids,
-                box[filter_indices],
-                score[filter_indices],
-                cls_id[filter_indices],
-                valid_embeds,
-            )
-            self.track_memory.update(data)
-            batched_tracks.append(self.track_memory.frames[-1])
-
-        return TrackOut(
-            [t.boxes for t in batched_tracks],
-            [t.class_ids for t in batched_tracks],
-            [t.scores for t in batched_tracks],
-            [t.track_ids for t in batched_tracks],
-        )
+        return self.similarity_head(features, det_boxes)
 
     def __call__(
         self,
         features: list[Tensor] | list[list[Tensor]],
         det_boxes: list[Tensor] | list[list[Tensor]],
-        det_scores: None | list[Tensor] = None,
-        det_class_ids: None | list[Tensor] = None,
-        frame_ids: None | list[int] = None,
         target_boxes: None | list[list[Tensor]] = None,
         target_track_ids: None | list[list[Tensor]] = None,
-    ) -> (
-        TrackOut
-        | tuple[
-            list[Tensor], list[list[Tensor]], list[Tensor], list[list[Tensor]]
-        ]
-    ):
+    ) -> list[Tensor] | QDTrackOut:
         """Type definition for call implementation."""
         return self._call_impl(
-            features,
-            det_boxes,
-            det_scores,
-            det_class_ids,
-            frame_ids,
-            target_boxes,
-            target_track_ids,
+            features, det_boxes, target_boxes, target_track_ids
         )
 
 
@@ -371,6 +287,8 @@ class FasterRCNNQDTrack(nn.Module):
 
         self.qdtrack = QDTrack()
 
+        self.track_graph = QDTrackGraph()
+
         if weights is not None:
             load_model_checkpoint(
                 self, weights, map_location="cpu", rev_keys=REV_KEYS
@@ -385,7 +303,7 @@ class FasterRCNNQDTrack(nn.Module):
         boxes2d_classes: None | list[list[Tensor]] = None,
         boxes2d_track_ids: None | list[list[Tensor]] = None,
         keyframes: None | list[list[bool]] = None,
-    ) -> TrackOut | QDTrackOut:
+    ) -> TrackOut | FasterRCNNQDTrackOut:
         """Forward."""
         if self.training:
             assert (
@@ -413,7 +331,7 @@ class FasterRCNNQDTrack(nn.Module):
         target_classes: list[list[Tensor]],
         target_track_ids: list[list[Tensor]],
         keyframes: list[list[bool]],
-    ) -> QDTrackOut:
+    ) -> FasterRCNNQDTrackOut:
         """Forward training stage.
 
         Args:
@@ -477,7 +395,7 @@ class FasterRCNNQDTrack(nn.Module):
             target_track_ids=[key_target_track_ids, *ref_target_track_ids],
         )
 
-        return QDTrackOut(
+        return FasterRCNNQDTrackOut(
             detector_out=key_detector_out,
             key_images_hw=images_hw[key_index],
             key_target_boxes=key_target_boxes,
@@ -501,8 +419,12 @@ class FasterRCNNQDTrack(nn.Module):
         boxes, scores, class_ids = self.roi2det(
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
-        outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
-        return outs  # type: ignore
+        embeddings = self.qdtrack(features, boxes)
+
+        outs = self.track_graph(
+            embeddings, boxes, scores, class_ids, frame_ids
+        )
+        return outs
 
     def __call__(
         self,
@@ -513,7 +435,7 @@ class FasterRCNNQDTrack(nn.Module):
         boxes2d_classes: None | list[list[Tensor]] = None,
         boxes2d_track_ids: None | list[list[Tensor]] = None,
         keyframes: None | list[list[bool]] = None,
-    ) -> TrackOut | QDTrackOut:
+    ) -> TrackOut | FasterRCNNQDTrackOut:
         """Type definition for call implementation."""
         return self._call_impl(
             images,
@@ -580,10 +502,11 @@ class YOLOXQDTrack(nn.Module):
                     resolution=[7, 7], strides=[8, 16, 32], sampling_ratio=0
                 ),
                 in_dim=320,
-            ),
-            track_graph=QDTrackAssociation(
-                init_score_thr=0.5, obj_score_thr=0.35
-            ),
+            )
+        )
+
+        self.track_graph = QDTrackGraph(
+            QDTrackAssociation(init_score_thr=0.5, obj_score_thr=0.35),
         )
 
         if weights is not None:
@@ -619,8 +542,12 @@ class YOLOXQDTrack(nn.Module):
             images_hw=images_hw,
         )
 
-        tracks = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
-        assert isinstance(tracks, TrackOut)
+        embeddings = self.qdtrack(features, boxes)
+
+        tracks = self.track_graph(
+            embeddings, boxes, scores, class_ids, frame_ids
+        )
+
         for i, boxs in enumerate(tracks.boxes):
             tracks.boxes[i] = scale_and_clip_boxes(
                 boxs, original_hw[i], images_hw[i]
