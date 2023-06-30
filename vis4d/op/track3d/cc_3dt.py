@@ -8,13 +8,13 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
-from vis4d.op.detect_3d.filter import bev_3d_nms, filter_distance
+from vis4d.op.detect3d.filter import bev_3d_nms, filter_distance
 from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
 from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter, greedy_assign
 from vis4d.op.track.matching import calc_bisoftmax_affinity
 from vis4d.op.track.motion.kalman_filter import predict
-from vis4d.op.track_3d.motion.kf3d import (
+from vis4d.op.track3d.motion.kf3d import (
     kf3d_init,
     kf3d_init_mean_cov,
     kf3d_predict,

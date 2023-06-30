@@ -21,9 +21,9 @@ from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
-from vis4d.op.detect_3d.qd_3dt import QD3DTBBox3DHead
+from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead
 from vis4d.op.fpp import FPN
-from vis4d.op.track_3d.cc_3dt import CC3DTrackGraph, Track3DOut
+from vis4d.op.track3d.cc_3dt import CC3DTrackGraph, Track3DOut
 
 REV_KEYS = [
     (r"^backbone.body\.", "basemodel."),

@@ -12,7 +12,7 @@ from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
-from vis4d.op.detect_3d.qd_3dt import Box3DUncertaintyLoss
+from vis4d.op.detect3d.qd_3dt import Box3DUncertaintyLoss
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 
