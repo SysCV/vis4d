@@ -157,8 +157,8 @@ class Transform:
             elif self_.same_on_batch:
                 input_batch = _transform_fn(input_batch)
             else:
-                for i, data in input_batch:
-                    input_batch[i] = _transform_fn(data)
+                for i, data in enumerate(input_batch):
+                    input_batch[i] = _transform_fn([data])[0]
 
             return input_batch
 

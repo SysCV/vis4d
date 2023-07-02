@@ -132,6 +132,50 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     return iou
 
 
+@torch.jit.script  # type: ignore
+def bbox_intersection_aligned(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
+    """Given two lists of boxes both of size N, compute N intersection.
+
+    Args:
+        boxes1: N 2D boxes in format (x1, y1, x2, y2)
+        boxes2: N 2D boxes in format (x1, y1, x2, y2)
+
+    Returns:
+        Tensor: intersection (N).
+    """
+    width_height = torch.min(boxes1[:, 2:], boxes2[:, 2:]) - torch.max(
+        boxes1[:, :2], boxes2[:, :2]
+    )
+    width_height.clamp_(min=0)
+    intersection = width_height.prod(dim=1)
+    return intersection
+
+
+@torch.jit.script  # type: ignore
+def bbox_iou_aligned(
+    boxes1: torch.Tensor, boxes2: torch.Tensor
+) -> torch.Tensor:
+    """Compute IoU between all pairs of boxes.
+
+    Args:
+        boxes1: N 2D boxes in format (x1, y1, x2, y2)
+        boxes2: M 2D boxes in format (x1, y1, x2, y2)
+
+    Returns:
+        Tensor: IoU (N).
+    """
+    area1 = bbox_area(boxes1)
+    area2 = bbox_area(boxes2)
+    inter = bbox_intersection_aligned(boxes1, boxes2)
+
+    iou = torch.where(
+        inter > 0,
+        inter / (area1 + area2 - inter),
+        torch.zeros(1, dtype=inter.dtype, device=inter.device),
+    )
+    return iou
+
+
 def transform_bbox(
     trans_mat: torch.Tensor, boxes: torch.Tensor
 ) -> torch.Tensor:

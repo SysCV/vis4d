@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch.optim import SGD
-from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.coco.yolox import (
     CONN_COCO_BBOX_EVAL,
     get_coco_yolox_cfg,
+)
+from vis4d.config.common.models.yolox import (
+    get_yolox_cfg,
+    get_yolox_optimizers_cfg,
 )
 from vis4d.config.default import (
     get_default_callbacks_cfg,
@@ -20,7 +22,7 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import (
@@ -28,48 +30,28 @@ from vis4d.engine.callbacks import (
     VisualizerCallback,
     YOLOXModeSwitchCallback,
 )
-from vis4d.engine.connectors import (
-    CallbackConnector,
-    DataConnector,
-    LossConnector,
-    data_key,
-    pred_key,
-)
-from vis4d.engine.loss_module import LossModule
-from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
+from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.coco import COCODetectEvaluator
-from vis4d.model.detect.yolox import YOLOX
-from vis4d.op.base import CSPDarknet
-from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
-from vis4d.op.fpp import YOLOXPAFPN
 from vis4d.vis.image import BoundingBoxVisualizer
 
 CONN_BBOX_2D_TRAIN = {"images": K.images}
 
-CONN_YOLOX_LOSS_2D = {
-    "cls_outs": pred_key("cls_score"),
-    "reg_outs": pred_key("bbox_pred"),
-    "obj_outs": pred_key("objectness"),
-    "target_boxes": data_key(K.boxes2d),
-    "target_class_ids": data_key(K.boxes2d_classes),
-    "images_hw": data_key(K.input_hw),
-}
 
-
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the YOLOX config dict for the coco detection task.
 
     Returns:
-        FieldConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
     ######################################################
     config = get_default_cfg(exp_name="yolox_tiny_300e_coco")
+    config.sync_batchnorm = True
     config.check_val_every_n_epoch = 10
 
     # High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 8
     params.workers_per_gpu = 4
     params.lr = 0.01
@@ -101,100 +83,19 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                  MODEL & LOSS                    ##
     ######################################################
-    basemodel = class_config(
-        CSPDarknet, deepen_factor=0.33, widen_factor=0.375
-    )
-    fpn = class_config(
-        YOLOXPAFPN,
-        in_channels=[96, 192, 384],
-        out_channels=96,
-        num_csp_blocks=1,
-    )
-    yolox_head = class_config(
-        YOLOXHead,
-        num_classes=params.num_classes,
-        in_channels=96,
-        feat_channels=96,
-    )
-    config.model = class_config(
-        YOLOX,
-        num_classes=params.num_classes,
-        basemodel=basemodel,
-        fpn=fpn,
-        yolox_head=yolox_head,
-    )
-
-    config.loss = class_config(
-        LossModule,
-        losses=[
-            {
-                "loss": class_config(
-                    YOLOXHeadLoss, num_classes=params.num_classes
-                ),
-                "connector": class_config(
-                    LossConnector, key_mapping=CONN_YOLOX_LOSS_2D
-                ),
-            },
-        ],
-    )
+    config.model, config.loss = get_yolox_cfg(params.num_classes, "tiny")
 
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    steps_per_epoch, num_last_epochs, warmup_epochs = 1833, 15, 5
-    config.optimizers = [
-        get_optimizer_cfg(
-            optimizer=class_config(
-                SGD,
-                lr=params.lr,
-                momentum=0.9,
-                weight_decay=0.0005,
-                nesterov=True,
-            ),
-            lr_schedulers=[
-                get_lr_scheduler_cfg(
-                    class_config(
-                        QuadraticLRWarmup,
-                        max_steps=steps_per_epoch * warmup_epochs,
-                    ),
-                    end=steps_per_epoch * warmup_epochs,
-                    epoch_based=False,
-                ),
-                get_lr_scheduler_cfg(
-                    class_config(
-                        CosineAnnealingLR,
-                        T_max=(
-                            params.num_epochs - num_last_epochs - warmup_epochs
-                        )
-                        * steps_per_epoch,
-                        eta_min=params.lr * 0.05,
-                    ),
-                    begin=steps_per_epoch * warmup_epochs,
-                    end=(params.num_epochs - num_last_epochs)
-                    * steps_per_epoch,
-                    epoch_based=False,
-                ),
-                get_lr_scheduler_cfg(
-                    class_config(
-                        ConstantLR, max_steps=num_last_epochs, factor=1.0
-                    ),
-                    begin=params.num_epochs - num_last_epochs,
-                    end=params.num_epochs,
-                    epoch_based=True,
-                ),
-            ],
-            param_groups=[
-                {
-                    "custom_keys": ["basemodel", "fpn", "yolox_head"],
-                    "norm_decay_mult": 0.0,
-                },
-                {
-                    "custom_keys": ["basemodel", "fpn", "yolox_head"],
-                    "bias_decay_mult": 0.0,
-                },
-            ],
-        )
-    ]
+    steps_per_epoch, num_last_epochs, warmup_epochs = 1849, 15, 5
+    config.optimizers = get_yolox_optimizers_cfg(
+        params.lr,
+        params.num_epochs,
+        steps_per_epoch,
+        warmup_epochs,
+        num_last_epochs,
+    )
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
@@ -211,7 +112,9 @@ def get_config() -> FieldConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(
+        config.output_dir, refresh_rate=config.log_every_n_steps
+    )
 
     # YOLOX mode switch
     callbacks.append(
@@ -225,7 +128,9 @@ def get_config() -> FieldConfigDict:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
+            visualizer=class_config(
+                BoundingBoxVisualizer, vis_freq=100, image_mode="BGR"
+            ),
             save_prefix=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_BBOX_2D_VIS
@@ -255,8 +160,11 @@ def get_config() -> FieldConfigDict:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.sync_batchnorm = config.sync_batchnorm
     pl_trainer.checkpoint_period = config.check_val_every_n_epoch
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
+    pl_trainer.save_top_k = 1
+    pl_trainer.find_unused_parameters = True
     pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 

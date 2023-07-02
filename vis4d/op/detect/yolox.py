@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-from torchvision.ops import batched_nms, generalized_box_iou_loss
+from torchvision.ops import batched_nms
 
 from vis4d.common import TorchLossFunc
 from vis4d.common.distributed import reduce_mean
@@ -21,6 +21,7 @@ from vis4d.op.box.encoder import YOLOXBBoxDecoder
 from vis4d.op.box.matchers import SimOTAMatcher
 from vis4d.op.box.samplers import PseudoSampler
 from vis4d.op.layer import Conv2d
+from vis4d.op.loss import IoULoss
 from vis4d.op.loss.reducer import SumWeightedLoss
 
 from .common import DetOut
@@ -426,7 +427,7 @@ class YOLOXHeadLoss(nn.Module):
         point_generator: MlvlPointGenerator | None = None,
         box_decoder: YOLOXBBoxDecoder | None = None,
         loss_cls: TorchLossFunc = F.binary_cross_entropy_with_logits,
-        loss_bbox: TorchLossFunc = generalized_box_iou_loss,
+        loss_bbox: TorchLossFunc = IoULoss(mode="square", eps=1e-16),
         loss_obj: TorchLossFunc = F.binary_cross_entropy_with_logits,
         loss_l1: TorchLossFunc | None = None,
     ) -> None:
@@ -629,9 +630,7 @@ class YOLOXHeadLoss(nn.Module):
         )
         loss_cls = SumWeightedLoss(1.0, num_total_samples)(loss_cls)
         loss_bbox = self.loss_bbox(
-            flatten_boxes.view(-1, 4)[pos_masks],
-            bbox_targets,
-            reduction="none",
+            flatten_boxes.view(-1, 4)[pos_masks], bbox_targets
         )
         loss_bbox = SumWeightedLoss(5.0, num_total_samples)(loss_bbox)
         loss_obj = self.loss_obj(

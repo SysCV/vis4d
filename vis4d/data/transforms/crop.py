@@ -443,7 +443,7 @@ def _get_central_crop(
 def _get_keep_mask(boxes: NDArrayF32, crop_box: NDArrayI32) -> NDArrayBool:
     """Get mask for 2D annotations to keep."""
     if len(boxes) == 0:
-        return np.array([])
+        return np.array([], dtype=bool)
     # will be better to compute mask intersection (if exists) instead
     overlap = bbox_intersection(
         torch.tensor(boxes), torch.tensor(crop_box).unsqueeze(0)

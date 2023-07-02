@@ -29,7 +29,7 @@ from vis4d.data.transforms.mosaic import (
     MosaicImages,
 )
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.photometric import ColorJitter
+from vis4d.data.transforms.photometric import RandomHSV
 from vis4d.data.transforms.resize import (
     GenResizeParameters,
     ResizeBoxes2D,
@@ -72,7 +72,7 @@ def get_train_dataloader(
         keys_to_load=keys_to_load,
         data_root=data_root,
         split=split,
-        remove_empty=True,
+        remove_empty=False,
         image_channel_mode="BGR",
         data_backend=data_backend,
     )
@@ -94,16 +94,6 @@ def get_train_dataloader(
         class_config(AffineBoxes2D),
     ]
 
-    preprocess_transforms.append(class_config(ColorJitter))
-
-    preprocess_transforms.append(
-        class_config(
-            RandomApply,
-            transforms=[class_config(FlipImages), class_config(FlipBoxes2D)],
-            probability=0.5,
-        )
-    )
-
     train_preprocess_cfg = class_config(
         compose, transforms=preprocess_transforms
     )
@@ -111,6 +101,16 @@ def get_train_dataloader(
     train_batchprocess_cfg = class_config(
         compose,
         transforms=[
+            class_config(RandomHSV, same_on_batch=False),
+            class_config(
+                RandomApply,
+                transforms=[
+                    class_config(FlipImages),
+                    class_config(FlipBoxes2D),
+                ],
+                probability=0.5,
+                same_on_batch=False,
+            ),
             class_config(  # ensure same size for all images in batch
                 GenResizeParameters,
                 shape=[
