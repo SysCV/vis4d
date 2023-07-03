@@ -24,6 +24,7 @@ SHIFT has 20k images for training and 3k images for validation under the clear-d
 
 | Base network | Iters |    Train crop size    | mIoU-val | Scores-val | Config    |  Weights  |   Preds   |   Log   |
 | :----------: | :---: | :---------: | :------: | :--------: | :-------: | :---------: | :-------: | :-------: |
+|   R-50-FPN   |  40K  | 512 \* 1024 |   80.71   | [scores](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift/scores.txt) | [config](./semantic_fpn/semantic_fpn_r50_40k_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/semantic_fpn_r50_160k_shift_95ade2.pt) | [pred]() | [log](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift/log.txt) |
 |   R-50-FPN   |  160K  | 512 \* 1024 |   85.28   | [scores](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/scores.txt) | [config](./semantic_fpn/semantic_fpn_r50_160k_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/semantic_fpn_r50_160k_shift_95ade2.pt) | [pred]() | [log](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/log.txt) |
 
 **All domains**
@@ -32,7 +33,7 @@ SHIFT has 150k frames for training and 25k frames for validation for all domains
 | Base network | Iters |    Train crop size    | mIoU-val | Scores-val | Config    |  Weights  |   Preds   |   Log   |
 | :----------: | :---: | :---------: | :------: | :--------: | :-------: | :---------: | :-------: | :-------: |
 |   R-50-FPN   |  40K  | 512 \* 1024 |   74.22   | [scores](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift_all_domains/scores.txt) | [config](./semantic_fpn/semantic_fpn_r50_40k_shift_all_domains.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift_all_domains/semantic_fpn_r50_40k_shift_all_domains_eccc81.pt) | [pred]() | [log](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/log.txt) |
-|   R-50-FPN   |  160K  | 512 \* 1024 |   -  | [scores](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift_all_domains/scores.txt) | [config](./semantic_fpn/semantic_fpn_r50_40k_shift_all_domains.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift_all_domains/semantic_fpn_r50_40k_shift_all_domains_eccc81.pt) | [pred]() | [log](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/log.txt) |
+|   R-50-FPN   |  160K  | 512 \* 1024 |   78.87  | [scores](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift_all_domains/scores.txt) | [config](./semantic_fpn/semantic_fpn_r50_40k_shift_all_domains.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_40k_shift_all_domains/semantic_fpn_r50_40k_shift_all_domains_eccc81.pt) | [pred]() | [log](https://dl.cv.ethz.ch/vis4d/shift/semantic_fpn/semantic_fpn_r50_160k_shift/log.txt) |
 
 ---
 ## Object Detection
@@ -67,38 +68,5 @@ SHIFT has 150k frames for training and 25k frames for validation for all domains
 | :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------: |
 | R-50-FPN |   6e   |   49.6   | [scores](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/scores.txt) | [config](./faster_rcnn/faster_rcnn_r50_12e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/faster_rcnn_r50_fpn_12e_shift_df1681.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/faster_rcnn/faster_rcnn_r50_fpn_12e_shift/log.txt) |
 
-
----
-
-## Instance Segmentation
-
-The instance segmentation task involves detecting and segmenting each distinct object of interest in the scene. The SHIFT dataset contains fine-grained instance segmentation annotations from different domains. For details about downloading the data and the annotation format for this task, see the [official documentation](https://www.vis.xyz/shift/).
-
-### Mask R-CNN
-
-[Mask R-CNN](https://arxiv.org/abs/1703.06870) [ICCV 2017]
-
-Authors: [Kaiming He](http://kaiminghe.com/), [Georgia Gkioxari](https://gkioxari.github.io/), [Piotr Dollár](https://pdollar.github.io/), [Ross Girshick](https://www.rossgirshick.info/)
-
-<details>
-<summary>Abstract</summary>
-We present a conceptually simple, flexible, and general framework for object instance segmentation. Our approach efficiently detects objects in an image while simultaneously generating a high-quality segmentation mask for each instance. The method, called Mask R-CNN, extends Faster R-CNN by adding a branch for predicting an object mask in parallel with the existing branch for bounding box recognition. Mask R-CNN is simple to train and adds only a small overhead to Faster R-CNN, running at 5 fps. Moreover, Mask R-CNN is easy to generalize to other tasks, e.g., allowing us to estimate human poses in the same framework. We show top results in all three tracks of the COCO suite of challenges, including instance segmentation, bounding-box object detection, and person keypoint detection. Without bells and whistles, Mask R-CNN outperforms all existing, single-model entries on every task, including the COCO 2016 challenge winners. We hope our simple and effective approach will serve as a solid baseline and help ease future research in instance-level recognition. Code has been made available at: [this https URL](https://github.com/facebookresearch/detectron2).
-</details>
-
-#### Results
-
-**Clear-daytime domain**
-The clear-daytime domain has 150k frames for training and 25k frames for validation. Below are the results of models trained and tested in the clear-daytime domain.
-
-| Base network | Lr schd | Mask AP-val | Box AP-val | Scores-val | Config | Weights | Pred | Log |
-| :------: | :-----: | :-------: | :--------: | :--------: | :---------: | :---------: | :---------: | :---------: |
-| R-50-FPN |   12e    |     38.6      |     43.9   | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_12e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/mask_rcnn_r50_fpn_12e_shift_5a475c.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/log.txt) |
-
-**All domains**
-SHIFT has 150k frames for training and 25k frames for validation for all domains. Below are the results of models trained and tested in all domains.
-
-| Base network | Lr schd | Mask AP-val | Box AP-val | Scores-val | Config | Weights | Pred | Log |
-| :------: | :-----: | :-------: | :--------: | :--------: | :---------: | :---------: | :---------: | :---------: |
-| R-50-FPN |   6e    |     -      |     -   | [scores]() | [config](./mask_rcnn/mask_rcnn_r50_6e_shift.py) | [model](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/mask_rcnn_r50_fpn_12e_shift_5a475c.pt) | [pred](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/pred.json) | [log](https://dl.cv.ethz.ch/vis4d/shift/mask_rcnn/mask_rcnn_r50_fpn_12e_shift/log.txt) |
 
 ---

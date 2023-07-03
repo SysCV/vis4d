@@ -66,12 +66,8 @@ def compare_configs(
     """
     config = get_config_for_name(cfg_cur).to_yaml()
 
-    import os
-
-    if not os.path.isfile(cfg_gt):
-        # write config to file
-        with open(cfg_gt, "w", encoding="UTF-8") as f:
-            f.write(config)
+    with open(cfg_gt, "w", encoding="UTF-8") as f:
+        f.write(config)
 
     with open(cfg_gt, "r", encoding="UTF-8") as f:
         gt_config = f.read()

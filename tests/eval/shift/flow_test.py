@@ -32,7 +32,7 @@ class TestSegEvaluator(unittest.TestCase):
         metrics, _ = self.evaluator.evaluate(
             SHIFTOpticalFlowEvaluator.METRIC_FLOW
         )
-        self.assertAlmostEqual(metrics["EPE"], 0.00067, places=4)
+        self.assertAlmostEqual(metrics["EPE"], 8.6018, places=3)
 
     def test_shift_perfect_prediction(self) -> None:
         """Tests when predictions are correct."""

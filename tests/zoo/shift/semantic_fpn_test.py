@@ -35,8 +35,8 @@ class TestSemanticFPNConfig(unittest.TestCase):
         """Test the config."""
         self.assertTrue(
             compare_configs(
-                f"{self.config_prefix}.semantic_fpn_r50_160k_shift_all_domains",
-                f"{self.gt_config_path}/semantic_fpn_r50_160k_shift_all_domains.yaml",
+                f"{self.config_prefix}.semantic_fpn_r50_160k_shift_all_domains",  # pylint: disable=line-too-long
+                f"{self.gt_config_path}/semantic_fpn_r50_160k_shift_all_domains.yaml",  # pylint: disable=line-too-long
                 self.varying_keys,
             )
         )
@@ -46,7 +46,7 @@ class TestSemanticFPNConfig(unittest.TestCase):
         self.assertTrue(
             compare_configs(
                 f"{self.config_prefix}.semantic_fpn_r50_40k_shift_all_domains",
-                f"{self.gt_config_path}/semantic_fpn_r50_40k_shift_all_domains.yaml",
+                f"{self.gt_config_path}/semantic_fpn_r50_40k_shift_all_domains.yaml",  # pylint: disable=line-too-long
                 self.varying_keys,
             )
         )

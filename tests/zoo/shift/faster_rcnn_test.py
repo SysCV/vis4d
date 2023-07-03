@@ -36,7 +36,7 @@ class TestFasterRCNNConfig(unittest.TestCase):
         self.assertTrue(
             compare_configs(
                 f"{self.config_prefix}.faster_rcnn_r50_6e_shift_all_domains",
-                f"{self.gt_config_path}/faster_rcnn_r50_6e_shift_all_domains.yaml",
+                f"{self.gt_config_path}/faster_rcnn_r50_6e_shift_all_domains.yaml",  # pylint: disable=line-too-long
                 self.varying_keys,
             )
         )

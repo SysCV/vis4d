@@ -213,7 +213,7 @@ class ResizeDepthMaps:
         ):
             depth_map_ = torch.from_numpy(depth_map)
             depth_map_ = (
-                _resize_tensor(
+                resize_tensor(
                     depth_map_.float().unsqueeze(0).unsqueeze(0),
                     target_shape,
                     interpolation="bilinear",
@@ -264,7 +264,7 @@ class ResizeOpticalFlows:
         ):
             optical_flow_ = torch.from_numpy(optical_flow).permute(2, 0, 1)
             optical_flow_ = (
-                _resize_tensor(
+                resize_tensor(
                     optical_flow_.float().unsqueeze(0),
                     target_shape,
                     interpolation="bilinear",
