@@ -29,6 +29,7 @@ from vis4d.data.transforms.flip import (
     FlipBoxes2D,
     FlipDepthMaps,
     FlipImages,
+    FlipInstanceMasks,
     FlipOpticalFlows,
     FlipSegMasks,
 )
@@ -39,6 +40,7 @@ from vis4d.data.transforms.resize import (
     ResizeBoxes2D,
     ResizeDepthMaps,
     ResizeImages,
+    ResizeInstanceMasks,
     ResizeOpticalFlows,
     ResizeSegMasks,
 )
@@ -98,6 +100,10 @@ def get_train_preprocessing(
             preprocess_transforms.append(
                 class_config(ResizeBoxes2D, **views_arg)
             )
+        if K.instance_masks in keys_to_load:
+            preprocess_transforms.append(
+                class_config(ResizeInstanceMasks, **views_arg)
+            )
         if K.depth_maps in keys_to_load:
             preprocess_transforms.append(
                 class_config(ResizeDepthMaps, **views_arg)
@@ -145,6 +151,8 @@ def get_train_preprocessing(
             flip_transforms.append(class_config(FlipSegMasks))
         if K.boxes2d in keys_to_load:
             flip_transforms.append(class_config(FlipBoxes2D))
+        if K.instance_masks in keys_to_load:
+            flip_transforms.append(class_config(FlipInstanceMasks))
         if K.depth_maps in keys_to_load:
             flip_transforms.append(class_config(FlipDepthMaps))
         if K.optical_flows in keys_to_load:
