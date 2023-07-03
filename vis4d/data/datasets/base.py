@@ -87,10 +87,3 @@ class VideoDataset(Dataset):
             dict[str, list[int]]: Mapping video to index.
         """
         raise NotImplementedError
-
-    def get_video_indices(self, idx: int) -> list[int]:
-        """Get all dataset indices in a video given a single dataset index."""
-        for indices in self.video_to_indices.values():
-            if idx in indices:
-                return indices
-        raise ValueError(f"Dataset index {idx} not found in video_to_indices!")

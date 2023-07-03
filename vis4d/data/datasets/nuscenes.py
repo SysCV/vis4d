@@ -268,10 +268,12 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         Returns:
             dict[str, list[int]]: Mapping video to index.
         """
-        video_mapping = defaultdict(list)
+        indices = defaultdict(list)
+        frame_ids = defaultdict(list)
         for i, sample in enumerate(self.samples):  # type: ignore
-            video_mapping[sample["scene_name"]].append(i)
-        return video_mapping
+            indices[sample["scene_name"]].append(i)
+            frame_ids[sample["scene_name"]].append(sample["frame_ids"])
+        return {"indices": indices, "frame_ids": frame_ids}
 
     def _generate_data_mapping(self) -> list[DictStrAny]:
         """Generate data mapping.

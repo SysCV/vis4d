@@ -72,8 +72,8 @@ def get_config() -> ExperimentConfig:
 
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
+    params.samples_per_gpu = 4
+    params.workers_per_gpu = 4
     params.lr = 0.01
     params.num_epochs = 12
     config.params = params
@@ -82,13 +82,12 @@ def get_config() -> ExperimentConfig:
     ##          Datasets with augmentations             ##
     ######################################################
     data_root = "data/nuscenes"
-    version = "v1.0-mini"
-    train_split = "mini_train"
-    test_split = "mini_val"
-
-    # version = "v1.0-trainval"
-    # train_split = "train"
-    # test_split = "val"
+    # version = "v1.0-mini"
+    # train_split = "mini_train"
+    # test_split = "mini_val"
+    version = "v1.0-trainval"
+    train_split = "train"
+    test_split = "val"
 
     data_backend = class_config(HDF5Backend)
 
@@ -154,7 +153,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir, refresh_rate=1)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Evaluator
     callbacks.append(

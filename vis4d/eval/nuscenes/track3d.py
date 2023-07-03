@@ -12,6 +12,7 @@ from nuscenes.utils.data_classes import Quaternion
 from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
+from vis4d.common.logging import rank_zero_warn
 from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.typing import DictStrAny, MetricLogs
 from vis4d.data.datasets.nuscenes import (
@@ -343,40 +344,52 @@ class NuScenesEvaluator(Evaluator):
         """Evaluate the results."""
         output_dir = os.path.join(self.output_dir, metric)
         if metric == "detect_3d":
-            nusc = NuScenesDevkit(
-                version=self.version, dataroot=self.data_root, verbose=False
-            )
+            try:
+                nusc = NuScenesDevkit(
+                    version=self.version,
+                    dataroot=self.data_root,
+                    verbose=False,
+                )
 
-            nusc_eval = NuScenesEval(
-                nusc,
-                config=config_factory("detection_cvpr_2019"),
-                result_path=f"{output_dir}/detect_3d_predictions.json",
-                eval_set=self.split,
-                output_dir=os.path.join(output_dir, "detection"),
-                verbose=False,
-            )
-            metrics, _ = nusc_eval.evaluate()
-            metrics_summary = metrics.serialize()
+                nusc_eval = NuScenesEval(
+                    nusc,
+                    config=config_factory("detection_cvpr_2019"),
+                    result_path=f"{output_dir}/detect_3d_predictions.json",
+                    eval_set=self.split,
+                    output_dir=os.path.join(output_dir, "detection"),
+                    verbose=False,
+                )
+                metrics, _ = nusc_eval.evaluate()
+                metrics_summary = metrics.serialize()
 
-            (
-                str_summary_list,
-                mean_ap,
-                nd_score,
-            ) = self._parse_detect_high_level_metrics(
-                metrics_summary["tp_errors"],
-                metrics_summary["mean_ap"],
-                metrics_summary["nd_score"],
-                metrics_summary["eval_time"],
-            )
+                (
+                    str_summary_list,
+                    mean_ap,
+                    nd_score,
+                ) = self._parse_detect_high_level_metrics(
+                    metrics_summary["tp_errors"],
+                    metrics_summary["mean_ap"],
+                    metrics_summary["nd_score"],
+                    metrics_summary["eval_time"],
+                )
 
-            class_aps = metrics_summary["mean_dist_aps"]
-            class_tps = metrics_summary["label_tp_errors"]
-            str_summary_list = self._parse_detect_per_class_metrics(
-                str_summary_list, class_aps, class_tps
-            )
+                class_aps = metrics_summary["mean_dist_aps"]
+                class_tps = metrics_summary["label_tp_errors"]
+                str_summary_list = self._parse_detect_per_class_metrics(
+                    str_summary_list, class_aps, class_tps
+                )
 
-            log_dict = {"mAP": mean_ap, "NDS": nd_score}
-            str_summary = "\n".join(str_summary_list)
+                log_dict = {"mAP": mean_ap, "NDS": nd_score}
+                str_summary = "\n".join(str_summary_list)
+            except (AssertionError, Exception) as e:
+                error_msg = "".join(e.args)
+                rank_zero_warn(f"Evaluation error: {error_msg}")
+                log_dict = {"mAP": 0.0, "NDS": 0.0}
+                str_summary = (
+                    "Evaluation failure might be raised due to sanity check"
+                    + "or all emtpy boxes."
+                )
+                rank_zero_warn(str_summary)
             return log_dict, str_summary
         else:
             return {}, "Currently only save the json files."

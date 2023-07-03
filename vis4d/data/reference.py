@@ -66,11 +66,14 @@ class ReferenceViewSampler:
         raise NotImplementedError
 
     def __call__(
-        self, key_dataset_index: int, indices_in_video: list[int]
+        self,
+        key_dataset_index: int,
+        indices_in_video: list[int],
+        frame_ids: list[int],
     ) -> list[int]:
         """Call function. Wraps _sample_ref_indices with sorting."""
         key_index = indices_in_video.index(key_dataset_index)
-        return self._sample_ref_indices(key_index, indices_in_video)
+        return self._sample_ref_indices(key_index, indices_in_video, frame_ids)
 
 
 class SequentialViewSampler(ReferenceViewSampler):
@@ -109,22 +112,33 @@ class UniformViewSampler(ReferenceViewSampler):
         self.scope = scope
 
     def _sample_ref_indices(
-        self, key_index: int, indices_in_video: list[int]
+        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
     ) -> list[int]:
         """Uniformly sample reference views."""
         if self.scope > 0:
             left = max(0, key_index - self.scope)
             right = min(key_index + self.scope, len(indices_in_video) - 1)
-            valid_inds = (
+            _valid_inds = (
                 indices_in_video[left:key_index]
                 + indices_in_video[key_index + 1 : right + 1]
             )
-            ref_dataset_indices: list[int] = np.random.choice(
-                valid_inds, self.num_ref_samples, replace=False
-            ).tolist()
-        else:
-            ref_dataset_indices = [key_index]
-        return ref_dataset_indices
+
+            min_fid = max(0, frame_ids[key_index] - self.scope)
+            max_fid = min(frame_ids[key_index] + self.scope, frame_ids[-1])
+
+            valid_inds = [
+                ind
+                for i, ind in enumerate(_valid_inds)
+                if min_fid <= frame_ids[i] <= max_fid
+            ]
+
+            if len(valid_inds) > 0:
+                assert len(valid_inds) >= self.num_ref_samples
+                return np.random.choice(
+                    valid_inds, self.num_ref_samples, replace=False
+                ).tolist()
+
+        return [key_index] * self.num_ref_samples
 
 
 class MultiViewDataset(Dataset[list[DictData]]):
@@ -170,13 +184,6 @@ class MultiViewDataset(Dataset[list[DictData]]):
         """Get length of dataset."""
         return len(self.dataset)
 
-    def get_video_indices(self, index: int) -> list[int]:
-        """Get indices of videos in dataset."""
-        for indices in self.dataset.video_to_indices.values():
-            if index in indices:
-                return indices
-        raise ValueError(f"Index {index} not found in video_to_indices!")
-
     # TODO: Implement sorting. Currently always key first.
     def __getitem__(self, index: int) -> list[DictData]:
         """Get item from dataset."""
@@ -192,8 +199,15 @@ class MultiViewDataset(Dataset[list[DictData]]):
             ):
                 ref_indices = [index] * self.sampler.num_ref_samples
             else:
-                video_indices = self.get_video_indices(index)
-                ref_indices = self.sampler(index, video_indices)
+                ref_indices = self.sampler(
+                    index,
+                    self.dataset.video_to_indices["indices"][
+                        cur_sample[K.sequence_names]
+                    ],
+                    self.dataset.video_to_indices["frame_ids"][
+                        cur_sample[K.sequence_names]
+                    ],
+                )
 
             for ref_index in ref_indices:
                 ref_sample = self.dataset[ref_index]

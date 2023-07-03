@@ -55,7 +55,7 @@ class VideoInferenceSampler(
         assert hasattr(
             dataset, "video_to_indices"
         ), f"{dataset} needs to have video_to_indices attribute!"
-        self.sequences = list(dataset.video_to_indices)
+        self.sequences = list(dataset.video_to_indices["indices"])
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (
             f"Number of sequences ({self.num_seqs}) must be greater or "
@@ -65,7 +65,7 @@ class VideoInferenceSampler(
         self._local_seqs = chunks[self.rank]
         self._local_idcs: list[int] = []
         for seq in self._local_seqs:
-            self._local_idcs.extend(dataset.video_to_indices[seq])
+            self._local_idcs.extend(dataset.video_to_indices["indices"][seq])
 
     def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""

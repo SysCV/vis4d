@@ -34,28 +34,76 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 
 
-def get_train_dataloader(
-    data_root: str,
-    version: str,
-    split: str,
-    data_backend: None | ConfigDict,
-    samples_per_gpu: int,
-    workers_per_gpu: int,
+def get_nusc_mono_train(
+    data_root: str, data_backend: None | ConfigDict = None
 ) -> ConfigDict:
-    """Get the default train dataloader for nuScenes tracking."""
-    train_dataset = class_config(
+    """Get the nuScenes monocular training dataset config."""
+    return class_config(
         NuScenesMono,
         data_root=data_root,
         keys_to_load=[K.images, K.boxes2d, K.boxes3d],
-        version=version,
-        split=split,
+        version="v1.0-trainval",
+        split="train",
         data_backend=data_backend,
         skip_empty_samples=True,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/mini_train_mono.pkl",
-        # cached_file_path="data/nuscenes/train_mono.pkl",
+        cached_file_path="data/nuscenes/mono_train.pkl",
     )
 
+
+def get_nusc_mono_mini_train(
+    data_root: str, data_backend: None | ConfigDict = None
+) -> ConfigDict:
+    """Get the nuScenes monocular mini training dataset config."""
+    return class_config(
+        NuScenesMono,
+        data_root=data_root,
+        keys_to_load=[K.images, K.boxes2d, K.boxes3d],
+        version="v1.0-mini",
+        split="mini_train",
+        skip_empty_samples=True,
+        data_backend=data_backend,
+        cache_as_binary=True,
+        cached_file_path="data/nuscenes/mono_mini_train.pkl",
+    )
+
+
+def get_nusc_val(
+    data_root: str, data_backend: None | ConfigDict = None
+) -> ConfigDict:
+    """Get the nuScenes validation dataset config."""
+    return class_config(
+        NuScenes,
+        data_root=data_root,
+        keys_to_load=[K.images, K.original_images, K.boxes3d],
+        version="v1.0-trainval",
+        split="val",
+        data_backend=data_backend,
+        cache_as_binary=True,
+        cached_file_path="data/nuscenes/val.pkl",
+    )
+
+
+def get_nusc_mini_val(
+    data_root: str, data_backend: None | ConfigDict = None
+) -> ConfigDict:
+    """Get the nuScenes mini validation dataset config."""
+    return class_config(
+        NuScenes,
+        data_root=data_root,
+        keys_to_load=[K.images, K.original_images, K.boxes3d],
+        version="v1.0-mini",
+        split="mini_val",
+        data_backend=data_backend,
+        cache_as_binary=True,
+        cached_file_path="data/nuscenes/mini_val.pkl",
+    )
+
+
+def get_train_dataloader(
+    train_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
+) -> ConfigDict:
+    """Get the default train dataloader for nuScenes tracking."""
     train_dataset_cfg = class_config(
         MultiViewDataset,
         dataset=train_dataset,
@@ -106,22 +154,8 @@ def get_train_dataloader(
     )
 
 
-def get_test_dataloader(
-    data_root: str, version: str, split: str, data_backend: None | ConfigDict
-) -> ConfigDict:
+def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
     """Get the default test dataloader for nuScenes tracking."""
-    test_dataset = class_config(
-        NuScenes,
-        data_root=data_root,
-        keys_to_load=[K.images, K.original_images, K.boxes3d],
-        version=version,
-        split=split,
-        data_backend=data_backend,
-        cache_as_binary=True,
-        cached_file_path="data/nuscenes/mini_val.pkl",
-        # cached_file_path="data/nuscenes/val.pkl",
-    )
-
     test_preprocess_cfg = class_config(
         compose,
         transforms=[
@@ -131,39 +165,23 @@ def get_test_dataloader(
                 keep_ratio=True,
                 sensors=NuScenes.CAMERAS,
             ),
-            class_config(
-                ResizeImages,
-                sensors=NuScenes.CAMERAS,
-            ),
-            class_config(
-                ResizeIntrinsics,
-                sensors=NuScenes.CAMERAS,
-            ),
+            class_config(ResizeImages, sensors=NuScenes.CAMERAS),
+            class_config(ResizeIntrinsics, sensors=NuScenes.CAMERAS),
+            # class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
         ],
     )
 
     test_batchprocess_cfg = class_config(
         compose,
         transforms=[
-            class_config(
-                PadImages,
-                sensors=NuScenes.CAMERAS,
-            ),
-            class_config(
-                NormalizeImages,
-                sensors=NuScenes.CAMERAS,
-            ),
-            class_config(
-                ToTensor,
-                sensors=NuScenes.CAMERAS,
-            ),
+            class_config(PadImages, sensors=NuScenes.CAMERAS),
+            class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
+            class_config(ToTensor, sensors=NuScenes.CAMERAS),
         ],
     )
 
     test_dataset_cfg = class_config(
-        DataPipe,
-        datasets=test_dataset,
-        preprocess_fn=test_preprocess_cfg,
+        DataPipe, datasets=test_dataset, preprocess_fn=test_preprocess_cfg
     )
 
     return get_inference_dataloaders_cfg(
@@ -176,9 +194,9 @@ def get_test_dataloader(
 
 def get_nusc_track_cfg(
     data_root: str = "data/nuscenes",
-    version: str = "v1.0-mini",
-    train_split: str = "mini_train",
-    test_split: str = "mini_val",
+    version: str = "v1.0-trainval",
+    train_split: str = "train",
+    test_split: str = "val",
     data_backend: None | ConfigDict = None,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
@@ -186,20 +204,34 @@ def get_nusc_track_cfg(
     """Get the default config for nuScenes tracking."""
     data = DataConfig()
 
+    if version == "v1.0-mini":
+        assert train_split == "mini_train"
+        assert test_split == "mini_val"
+        train_dataset = get_nusc_mono_mini_train(
+            data_root=data_root, data_backend=data_backend
+        )
+        test_dataset = get_nusc_mini_val(
+            data_root=data_root, data_backend=data_backend
+        )
+    elif version == "v1.0-trainval":
+        assert train_split == "train"
+        assert test_split == "val"
+        train_dataset = get_nusc_mono_train(
+            data_root=data_root, data_backend=data_backend
+        )
+        test_dataset = get_nusc_val(
+            data_root=data_root, data_backend=data_backend
+        )
+    else:
+        # TODO: Add support for v1.0-test
+        raise ValueError(f"Unknown version {version}")
+
     data.train_dataloader = get_train_dataloader(
-        data_root=data_root,
-        version=version,
-        split=train_split,
-        data_backend=data_backend,
+        train_dataset=train_dataset,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
     )
 
-    data.test_dataloader = get_test_dataloader(
-        data_root=data_root,
-        version=version,
-        split=test_split,
-        data_backend=data_backend,
-    )
+    data.test_dataloader = get_test_dataloader(test_dataset)
 
     return data

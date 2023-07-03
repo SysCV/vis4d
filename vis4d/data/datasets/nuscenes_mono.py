@@ -103,29 +103,32 @@ class NuScenesMono(NuScenes):
 
         for scene in tqdm(scenes):
             scene_name = scene["name"]
-            # Get the sample data for each camera
-            for cam in self.CAMERAS:
-                frame_ids = 0
-                sample_token = scene["first_sample_token"]
-                while sample_token:
-                    frame: DictStrAny = {}
-                    sample = data.get("sample", sample_token)
+            frame_ids = 0
+            sample_token = scene["first_sample_token"]
+            while sample_token:
+                sample = data.get("sample", sample_token)
 
+                # LIDAR data
+                lidar_token = sample["data"]["LIDAR_TOP"]
+
+                lidar_data = self._load_lidar_data(data, lidar_token)
+                lidar_data["annotations"] = self._load_annotations(
+                    data,
+                    lidar_data["extrinsics"],
+                    sample["anns"],
+                    instance_tokens,
+                )
+
+                # TODO add RADAR, Map data
+
+                # Get the sample data for each camera
+                for cam in self.CAMERAS:
+                    frame: DictStrAny = {}
                     frame["scene_name"] = f"{scene_name}_{cam}"
                     frame["token"] = sample["token"]
                     frame["frame_ids"] = frame_ids
 
-                    lidar_token = sample["data"]["LIDAR_TOP"]
-
-                    frame["LIDAR_TOP"] = self._load_lidar_data(
-                        data, lidar_token
-                    )
-                    frame["LIDAR_TOP"]["annotations"] = self._load_annotations(
-                        data,
-                        frame["LIDAR_TOP"]["extrinsics"],
-                        sample["anns"],
-                        instance_tokens,
-                    )
+                    frame["LIDAR_TOP"] = lidar_data
 
                     cam_token = sample["data"][cam]
 
@@ -141,12 +144,10 @@ class NuScenesMono(NuScenes):
                         image_hw=frame["CAM"]["image_hw"],
                     )
 
-                    # TODO add RADAR, Map data
-
                     frames.append(frame)
 
-                    sample_token = sample["next"]
-                    frame_ids += 1
+                sample_token = sample["next"]
+                frame_ids += 1
 
         return frames
 
@@ -175,6 +176,7 @@ class NuScenesMono(NuScenes):
         # load camera frame
         data_dict = {
             "token": sample["token"],
+            K.sequence_names: sample["scene_name"],
             K.frame_ids: sample["frame_ids"],
             K.timestamp: sample["CAM"]["timestamp"],
         }
