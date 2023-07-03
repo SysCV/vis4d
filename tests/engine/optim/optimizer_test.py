@@ -6,39 +6,41 @@ import unittest
 import torch
 from ml_collections import ConfigDict
 from torch import nn
+from torch.optim.lr_scheduler import LinearLR
+from torch.optim.optimizer import Optimizer
 
 from tests.util import MockModel
 from vis4d.config import class_config
-from vis4d.config.util import get_optimizer_cfg
-from vis4d.engine.optim import (
-    LinearLRWarmup,
-    Optimizer,
-    PolyLR,
-    set_up_optimizers,
-)
+from vis4d.config.typing import LrSchedulerConfig, ParamGroupCfg
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
+from vis4d.engine.optim import LRSchedulerWrapper, PolyLR, set_up_optimizers
 
 
 def get_optimizer(
-    model: nn.Module = MockModel(0),
-    optimizer: ConfigDict = class_config(torch.optim.SGD, lr=0.01),
-    lr_scheduler: None
-    | ConfigDict = class_config(PolyLR, max_steps=10, power=1.0),
-    lr_warmup: None
-    | ConfigDict = class_config(
-        LinearLRWarmup, warmup_steps=10, warmup_ratio=0.1
-    ),
-    epoch_based_lr: bool = True,
-    epoch_based_warmup: bool = True,
-) -> Optimizer:
+    model: nn.Module,
+    optimizer: ConfigDict,
+    lr_schedulers: list[LrSchedulerConfig] | None = None,
+    param_groups: list[ParamGroupCfg] | None = None,
+) -> tuple[list[Optimizer], list[LRSchedulerWrapper]]:
     """Get an optimizer for testing."""
+    if lr_schedulers is None:
+        lr_schedulers = [
+            get_lr_scheduler_cfg(
+                class_config(LinearLR, start_factor=0.1, total_iters=10),
+                begin=0,
+                end=10,
+            ),
+            get_lr_scheduler_cfg(
+                class_config(PolyLR, max_steps=10, power=1.0), begin=10
+            ),
+        ]
+
     optimizer_cfg = get_optimizer_cfg(
         optimizer=optimizer,
-        lr_scheduler=lr_scheduler,
-        lr_warmup=lr_warmup,
-        epoch_based_lr=epoch_based_lr,
-        epoch_based_warmup=epoch_based_warmup,
+        lr_schedulers=lr_schedulers,
+        param_groups=param_groups,
     )
-    return set_up_optimizers([optimizer_cfg], model)
+    return set_up_optimizers([optimizer_cfg], [model])
 
 
 class TestOptimizer(unittest.TestCase):
@@ -64,59 +66,123 @@ class TestOptimizer(unittest.TestCase):
 
     def test_optimizer_epoch_based(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
-        optimizer = get_optimizer()[0]
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0), class_config(torch.optim.SGD, lr=0.01)
+        )
+
+        optimizer = optimizers[0]
+        lr_scheulder = lr_scheulders[0]
 
         step = 0
         for epoch in range(20):
-            for _ in range(2):
-                if epoch in self.learning_rates:
+            if epoch in self.learning_rates:
+                for _ in range(2):
                     self.assertAlmostEqual(
-                        optimizer.optimizer.param_groups[0]["lr"],
+                        optimizer.param_groups[0]["lr"],
                         self.learning_rates[epoch],
                         places=5,
                     )
-                optimizer.step_on_batch(step)
-                step += 1
-
-            optimizer.step_on_epoch(epoch)
+                    optimizer.step()
+                    step += 1
+                    lr_scheulder.step_on_batch(step)
+            lr_scheulder.step(epoch)
 
     def test_optimizer_epoch_based_no_warmup(self) -> None:
         """Test the optimizer with epoch-based LR scheduling."""
-        optimizer = get_optimizer(
-            lr_scheduler=class_config(PolyLR, max_steps=20, power=1.0),
-            lr_warmup=None,
-        )[0]
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0),
+            class_config(torch.optim.SGD, lr=0.01),
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(PolyLR, max_steps=20, power=1.0),
+                    begin=0,
+                    end=20,
+                )
+            ],
+        )
+
+        optimizer = optimizers[0]
+        lr_scheulder = lr_scheulders[0]
 
         step = 0
         for epoch in range(20):
             for _ in range(2):
                 if epoch in self.learning_rates_no_warmup:
                     self.assertAlmostEqual(
-                        optimizer.optimizer.param_groups[0]["lr"],
+                        optimizer.param_groups[0]["lr"],
                         self.learning_rates_no_warmup[epoch],
                         places=5,
                     )
-                optimizer.step_on_batch(step)
+                optimizer.step()
                 step += 1
-
-            optimizer.step_on_epoch(epoch)
+                lr_scheulder.step_on_batch(step)
+            lr_scheulder.step(epoch)
 
     def test_optimizer_batch_based(self) -> None:
         """Test the optimizer with batch-based LR scheduling."""
-        optimizer = get_optimizer(
-            epoch_based_lr=False, epoch_based_warmup=False
-        )[0]
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0),
+            class_config(torch.optim.SGD, lr=0.01),
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(LinearLR, start_factor=0.1, total_iters=10),
+                    begin=0,
+                    end=10,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(PolyLR, max_steps=10, power=1.0),
+                    begin=10,
+                    epoch_based=False,
+                ),
+            ],
+        )
+
+        optimizer = optimizers[0]
+        lr_scheulder = lr_scheulders[0]
 
         step = 0
         for epoch in range(10):
             for _ in range(2):
                 if step in self.learning_rates:
                     self.assertAlmostEqual(
-                        optimizer.optimizer.param_groups[0]["lr"],
+                        optimizer.param_groups[0]["lr"],
                         self.learning_rates[step],
                         places=5,
                     )
-                optimizer.step_on_batch(step)
+                optimizer.step()
                 step += 1
+                lr_scheulder.step_on_batch(step)
+            lr_scheulder.step(epoch)
 
-            optimizer.step_on_epoch(epoch)
+    def test_optimizer_with_param_groups_cfg(self):
+        """Test the optimizer with param_groups_cfg."""
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0),
+            class_config(torch.optim.AdamW, lr=0.01),
+            param_groups=[
+                ParamGroupCfg(custom_keys=["linear.weight"], lr_mult=0.1)
+            ],
+        )
+
+        optimizer = optimizers[0]
+        lr_scheulder = lr_scheulders[0]
+
+        step = 0
+        for epoch in range(20):
+            if epoch in self.learning_rates:
+                for _ in range(2):
+                    self.assertAlmostEqual(
+                        optimizer.param_groups[0]["lr"],
+                        self.learning_rates[epoch] * 0.1,
+                        places=5,
+                    )
+                    self.assertAlmostEqual(
+                        optimizer.param_groups[1]["lr"],
+                        self.learning_rates[epoch],
+                        places=5,
+                    )
+                    optimizer.step()
+                    step += 1
+                    lr_scheulder.step_on_batch(step)
+            lr_scheulder.step(epoch)

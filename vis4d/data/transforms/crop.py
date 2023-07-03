@@ -1,6 +1,7 @@
 """Crop transformation."""
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from typing import List, Tuple, TypedDict, Union
 
@@ -167,6 +168,134 @@ class GenCropParameters:
         return crop_params
 
 
+@Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
+class GenCentralCropParameters:
+    """Generate the parameters for a central crop operation."""
+
+    def __init__(
+        self,
+        shape: CropShape,
+        crop_func: CropFunc = absolute_crop,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            shape (CropShape): Image shape to be cropped to.
+            crop_func (CropFunc, optional): Function used to generate the size
+                of the crop. Defaults to absolute_crop.
+        """
+        self.shape = shape
+        self.crop_func = crop_func
+
+    def __call__(
+        self,
+        input_hw_list: list[tuple[int, int]],
+        boxes_list: list[NDArrayF32 | None],
+        masks_list: list[NDArrayUI8 | None],
+    ) -> list[CropParam]:
+        """Compute the parameters and put them in the data dict."""
+        im_h, im_w = input_hw_list[0]
+        boxes = boxes_list[0]
+
+        crop_size = self.crop_func(im_h, im_w, self.shape)
+        crop_box = _get_central_crop(im_h, im_w, crop_size)
+        keep_mask = (
+            _get_keep_mask(boxes, crop_box)
+            if boxes is not None
+            else np.array([])
+        )
+        crop_params = [
+            CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        ] * len(input_hw_list)
+
+        return crop_params
+
+
+@Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
+class GenRandomSizeCropParameters:
+    """Generate the parameters for a random size crop operation.
+
+    A crop of the original image is made: the crop has a random area (H * W)
+    and a random aspect ratio. Code adapted from torchvision.
+    """
+
+    def __init__(
+        self,
+        scale: tuple[float, float] = (0.08, 1.0),
+        ratio: tuple[float, float] = (3.0 / 4.0, 4.0 / 3.0),
+    ):
+        """Creates an instance of the class.
+
+        Args:
+            scale (tuple[float, float], optional): Scale range of the cropped
+                area. Defaults to (0.08, 1.0).
+            ratio (tuple[float, float], optional): Aspect ratio range of the
+                cropped area. Defaults to (3.0 / 4.0, 4.0 / 3.0).
+        """
+        self.scale = scale
+        self.ratio = np.array(ratio)
+        self.log_ratio = np.log(self.ratio)
+
+    def get_params(self, height: int, width: int) -> NDArrayI32:
+        """Get parameters for the random size crop."""
+        area = height * width
+        for _ in range(10):
+            target_area = area * np.random.uniform(
+                self.scale[0], self.scale[1]
+            )
+            aspect_ratio = np.exp(
+                np.random.uniform(self.log_ratio[0], self.log_ratio[1])
+            )
+
+            w = int(round(math.sqrt(target_area * aspect_ratio)))
+            h = int(round(math.sqrt(target_area / aspect_ratio)))
+
+            if 0 < w <= width and 0 < h <= height:
+                i = np.random.randint(0, height - h + 1)
+                j = np.random.randint(0, width - w + 1)
+                crop_x1, crop_y1, crop_x2, crop_y2 = i, j, i + h, j + w
+                return np.array([crop_x1, crop_y1, crop_x2, crop_y2])
+
+        # Fallback to central crop
+        in_ratio = float(width) / float(height)
+        if in_ratio < min(self.ratio):
+            w = width
+            h = int(round(w / min(self.ratio)))
+        elif in_ratio > max(self.ratio):
+            h = height
+            w = int(round(h * max(self.ratio)))
+        else:  # whole image
+            w = width
+            h = height
+        i = (height - h) // 2
+        j = (width - w) // 2
+        crop_x1, crop_y1, crop_x2, crop_y2 = i, j, i + h, j + w
+        return np.array([crop_x1, crop_y1, crop_x2, crop_y2])
+
+    def __call__(
+        self,
+        input_hw_list: list[tuple[int, int]],
+        boxes_list: list[NDArrayF32 | None],
+        masks_list: list[NDArrayUI8 | None],
+    ) -> list[CropParam]:
+        """Compute the parameters and put them in the data dict."""
+        im_h, im_w = input_hw_list[0]
+        boxes = boxes_list[0]
+
+        crop_box = self.get_params(im_h, im_w)
+        keep_mask = (
+            _get_keep_mask(boxes, crop_box)
+            if boxes is not None
+            else np.array([])
+        )
+
+        crop_params = [
+            CropParam(crop_box=crop_box, keep_mask=keep_mask)
+        ] * len(input_hw_list)
+
+        return crop_params
+
+
 @Transform([K.images, "transforms.crop.crop_box"], [K.images, K.input_hw])
 class CropImages:
     """Crop Images."""
@@ -325,6 +454,19 @@ def _sample_crop(
     margin_w = max(im_w - crop_size[1], 0)
     offset_h = np.random.randint(0, margin_h + 1)
     offset_w = np.random.randint(0, margin_w + 1)
+    crop_y1, crop_y2 = offset_h, offset_h + crop_size[0]
+    crop_x1, crop_x2 = offset_w, offset_w + crop_size[1]
+    return np.array([crop_x1, crop_y1, crop_x2, crop_y2])
+
+
+def _get_central_crop(
+    im_h: int, im_w: int, crop_size: tuple[int, int]
+) -> NDArrayI32:
+    """Get central crop parameters."""
+    margin_h = max(im_h - crop_size[0], 0)
+    margin_w = max(im_w - crop_size[1], 0)
+    offset_h = margin_h // 2
+    offset_w = margin_w // 2
     crop_y1, crop_y2 = offset_h, offset_h + crop_size[0]
     crop_x1, crop_x2 = offset_w, offset_w + crop_size[1]
     return np.array([crop_x1, crop_y1, crop_x2, crop_y2])

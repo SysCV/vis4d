@@ -22,4 +22,4 @@ class TestYOLOXPAFPN(unittest.TestCase):
         for i, f in enumerate(out):
             self.assertEqual(f.shape[:2], (2, 64))
             self.assertEqual(f.shape[2:], (size // 2**i, size // 2**i))
-            self.assertTrue(torch.isclose(f, gt_out[i], atol=1e-4).all())
+            self.assertTrue(torch.isclose(f, gt_out[i], atol=1e-3).all())

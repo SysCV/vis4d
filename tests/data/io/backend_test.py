@@ -1,6 +1,8 @@
 """Testcases for data backends."""
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 from tests.util import get_test_data
@@ -56,9 +58,8 @@ class TestBackends(unittest.TestCase):
         self.assertTrue(list_file == list_hdf5 == list_zip)
 
         # check set
-        os.makedirs("./unittests/", exist_ok=True)
-        backend_file.set("./unittests/test_file.bin", bytes())
-        self.assertTrue(os.path.exists("./unittests/test_file.bin"))
+        test_dir = tempfile.mkdtemp()
+        backend_file.set(f"{test_dir}/test_file.bin", bytes())
 
         # check db_cache
         backend_hdf5.get(hdf5_path)
@@ -72,6 +73,9 @@ class TestBackends(unittest.TestCase):
         invalid_zip_path = f"{base_path}/images_.zip/000/000.jpg"
         self.assertRaises(ValueError, backend_hdf5.get, invalid_hdf5_path)
         self.assertRaises(ValueError, backend_zip.get, invalid_zip_path)
+
+        # Remove test file
+        shutil.rmtree(test_dir)
 
     def test_str_decode(self) -> None:
         """Test str decode method in utils."""

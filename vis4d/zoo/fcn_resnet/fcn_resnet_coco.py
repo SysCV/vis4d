@@ -2,32 +2,36 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch import optim
+from torch.optim import SGD
+from torch.optim.lr_scheduler import LinearLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.coco import get_coco_sem_seg_cfg
-from vis4d.config.default import get_default_cfg, get_default_pl_trainer_cfg
+from vis4d.config.default import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+)
 from vis4d.config.default.data_connectors.seg import (
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
     CONN_MULTI_SEG_LOSS,
 )
-from vis4d.config.util import get_optimizer_cfg
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
 from vis4d.engine.connectors import DataConnector, LossConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import PolyLR
-from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.model.seg.fcn_resnet import FCNResNet
 from vis4d.op.loss import MultiLevelSegLoss
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the config dict for the COCO semantic segmentation task.
 
     Returns:
-        FieldConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -38,7 +42,7 @@ def get_config() -> FieldConfigDict:
     config.check_val_every_n_epoch = None
 
     ## High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
@@ -97,15 +101,26 @@ def get_config() -> FieldConfigDict:
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
-                optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
+                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
             ),
-            lr_scheduler=class_config(
-                PolyLR, max_steps=params.num_steps, min_lr=0.0001, power=0.9
-            ),
-            lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
-            ),
-            epoch_based_lr=False,
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(
+                        LinearLR, start_factor=0.001, total_iters=500
+                    ),
+                    end=500,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(
+                        PolyLR,
+                        max_steps=params.num_steps,
+                        min_lr=0.0001,
+                        power=0.9,
+                    ),
+                    epoch_based=False,
+                ),
+            ],
         )
     ]
 
@@ -123,16 +138,10 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    callbacks = []
-
-    # Logger
-    callbacks.append(
-        class_config(LoggingCallback, epoch_based=False, refresh_rate=50)
-    )
-
-    # Checkpoint
-    callbacks.append(
-        class_config(CheckpointCallback, save_prefix=config.output_dir)
+    callbacks = get_default_callbacks_cfg(
+        config.output_dir,
+        epoch_based=False,
+        checkpoint_period=config.val_check_interval,
     )
 
     config.callbacks = callbacks

@@ -125,10 +125,10 @@ def delta_p(
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return (
+    return np.mean(
         np.maximum((target / prediction), (prediction / target))
         < 1.25**power
-    )
+    ).item()
 
 
 def log_10_error(prediction: ArrayLike, target: ArrayLike) -> float:
