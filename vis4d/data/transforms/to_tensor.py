@@ -39,7 +39,7 @@ class ToTensor:
 
 @Transform("data", "data")
 class SelectSensor:
-    """Keep data from one sensor only.
+    """Keep data from one sensor only but keep shared data.
 
     Note: The input data is assumed to be in the format of DictData[DictData],
     i.e. a list of data dictionaries, each of which contains a dictionary of
@@ -47,12 +47,11 @@ class SelectSensor:
     sensors.
 
     Example:
-        >>> data = [
-            {"sensor1": {"image": 1, "label": 2}, "meta": 3},
-        ]
+        >>> data = [{"sensor1": {"image": 1, "label": 2}, "meta": 3},]
         >>> tsfm = SelectSensor(
-            sensor="sensor1",
-            all_sensors=["sensor1", "sensor2"])
+                sensor="sensor1",
+                all_sensors=["sensor1", "sensor2"]
+            )
         >>> tsfm(data)
         [{"image": 1, "label": 2, "meta": 3},]
     """
