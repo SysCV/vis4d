@@ -14,7 +14,7 @@ from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.typing import NDArrayF32, NDArrayI64, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.base import Dataset
+from vis4d.data.datasets.base import VideoDataset
 from vis4d.data.datasets.util import im_decode, npy_decode
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
@@ -261,7 +261,7 @@ class _SHIFTScalabelLabels(Scalabel):
         return ScalabelData(frames=frames, config=config, groups=None)
 
 
-class SHIFT(Dataset):
+class SHIFT(VideoDataset):
     """SHIFT dataset class, supporting multiple tasks and views."""
 
     DESCRIPTION = """SHIFT Dataset, a synthetic driving dataset for continuous
@@ -536,9 +536,7 @@ class SHIFT(Dataset):
                 list(self.scalabel_datasets.keys())[0]
             ].frames
             return frames[idx].videoName, frames[idx].name
-        raise ValueError(
-            "No Scalabel file has been loaded."
-        )  # pragma: no coverS
+        raise ValueError("No Scalabel file has been loaded.")
 
     def __len__(self) -> int:
         """Get the number of samples in the dataset."""
@@ -550,8 +548,7 @@ class SHIFT(Dataset):
             "No Scalabel file has been loaded."
         )  # pragma: no cover
 
-    @property
-    def video_to_indices(self) -> dict[str, list[int]]:
+    def get_video_indices(self, idx: int) -> list[int]:
         """Group all dataset sample indices (int) by their video ID (str).
 
         Returns:
@@ -563,10 +560,16 @@ class SHIFT(Dataset):
         if len(self.scalabel_datasets) > 0:
             return self.scalabel_datasets[
                 list(self.scalabel_datasets.keys())[0]
+            ].get_video_indices(idx)
+        raise ValueError("No Scalabel file has been loaded.")
+
+    def _generate_video_to_indices(self) -> dict[str, list[int]]:
+        """Generate the video indices, use the one from Scalabel dataset."""
+        if len(self.scalabel_datasets) > 0:
+            return self.scalabel_datasets[
+                list(self.scalabel_datasets.keys())[0]
             ].video_to_indices
-        raise ValueError(
-            "No Scalabel file has been loaded."
-        )  # pragma: no cover
+        raise ValueError("No Scalabel file has been loaded.")
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.
