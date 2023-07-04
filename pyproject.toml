@@ -32,6 +32,10 @@ include = ["vis4d"]
             "vis4d/common/slurm.py",
             "vis4d/common/util.py",
             "vis4d/common/distributed.py",
+            "vis4d/engine/run.py",
+            "vis4d/engine/experiment.py",
+            "vis4d/engine/flag.py",
+            "vis4d/pl/run.py",
         ]
 
 [tool.flake8]
@@ -82,6 +86,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "detectron2.*",
         "absl.*",
         "terminaltables.*",
+        "timm.*"
     ]
     ignore_missing_imports = true
 
@@ -126,5 +131,5 @@ include = ["vis4d*"]
 "Tracker" = "https://github.com/syscv/"
 
 [project.scripts]
-vis4d = "vis4d.engine.cli:entrypoint"
-vis4d-pl = "vis4d.pl.cli:entrypoint"
+vis4d = "vis4d.engine.run:entrypoint"
+vis4d-pl = "vis4d.pl.run:entrypoint"

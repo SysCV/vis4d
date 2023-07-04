@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shutil
+import tempfile
 import unittest
 
 from ml_collections import ConfigDict
@@ -33,7 +34,7 @@ from vis4d.engine.connectors import (
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.loss import SegCrossEntropyLoss
-from vis4d.pl.callbacks import CallbackWrapper, OptimEpochCallback
+from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
 
@@ -63,30 +64,11 @@ def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )
 
 
-def get_trainer(exp_name: str) -> PLTrainer:
-    """Build mockup trainer.
-
-    Args:
-        exp_name (str): Experiment name.
-    """
-    callbacks = [OptimEpochCallback(), CallbackWrapper(LoggingCallback())]
-
-    return PLTrainer(
-        work_dir="./unittests/",
-        exp_name=exp_name,
-        version="test",
-        callbacks=callbacks,
-        max_steps=2,
-        devices=0,
-        num_sanity_val_steps=0,
-    )
-
-
-def get_training_module(model: ConfigDict):
+def get_training_module(model_cfg: ConfigDict):
     """Build mockup training module.
 
     Args:
-        model (nn.Module): Pytorch model
+        model_cfg (ConfigDict): Pytorch model
     """
     train_data_connector = DataConnector(key_mapping={K.images: K.images})
     test_data_connector = DataConnector(key_mapping={K.images: K.images})
@@ -104,8 +86,8 @@ def get_training_module(model: ConfigDict):
 
     optimizer_cfg = get_optimizer_cfg(class_config(optim.SGD, lr=0.01))
     return TrainingModule(
-        model=model,
-        optimizers=[optimizer_cfg],
+        model_cfg=model_cfg,
+        optimizers_cfg=[optimizer_cfg],
         loss_module=loss_module,
         train_data_connector=train_data_connector,
         test_data_connector=test_data_connector,
@@ -118,14 +100,30 @@ class PLTrainerTest(unittest.TestCase):
 
     def setUp(self) -> None:
         """Setup."""
-        self.trainer = get_trainer("test")
+        self.test_dir = tempfile.mkdtemp()
+
+        callbacks = [LRSchedulerCallback(), CallbackWrapper(LoggingCallback())]
+
+        self.trainer = PLTrainer(
+            work_dir=self.test_dir,
+            exp_name="test",
+            version="test",
+            callbacks=callbacks,
+            max_steps=2,
+            devices=0,
+            num_sanity_val_steps=0,
+        )
 
         model_cfg = class_config(
             SemanticFPN,
             num_classes=80,
         )
 
-        self.training_module = get_training_module(model=model_cfg)
+        self.training_module = get_training_module(model_cfg=model_cfg)
+
+    def tearDown(self) -> None:
+        """Tear down."""
+        shutil.rmtree(self.test_dir)
 
     def test_train(self) -> None:
         """Test training."""
@@ -133,4 +131,3 @@ class PLTrainerTest(unittest.TestCase):
         train_dataloader = get_train_dataloader(dataset, 2)
 
         self.trainer.fit(self.training_module, train_dataloader)
-        shutil.rmtree("./unittests/")

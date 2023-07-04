@@ -7,6 +7,7 @@ from .util import compare_configs
 class TestQDTrackConfig(unittest.TestCase):
     """Tests the content of the provided configs for QDTrack."""
 
+    config_prefix = "qdtrack"
     gt_config_path = "tests/vis4d-test-data/config_test/qdtrack"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
@@ -16,7 +17,7 @@ class TestQDTrackConfig(unittest.TestCase):
         This instantiates the config and compares it to a ground truth.
         """
         compare_configs(
-            "qdtrack.qdtrack_bdd100k",
+            f"{self.config_prefix}.qdtrack_bdd100k",
             f"{self.gt_config_path}/qdtrack_bdd100k.yaml",
             self.varying_keys,
         )
@@ -27,7 +28,7 @@ class TestQDTrackConfig(unittest.TestCase):
         This instantiates the config and compares it to a ground truth.
         """
         compare_configs(
-            "qdtrack.qdtrack_yolox_bdd100k",
+            f"{self.config_prefix}.qdtrack_yolox_bdd100k",
             f"{self.gt_config_path}/qdtrack_yolox_bdd100k.yaml",
             self.varying_keys,
         )

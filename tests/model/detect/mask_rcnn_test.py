@@ -92,7 +92,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         rpn_box_encoder, _ = get_default_rpn_box_codec()
         rpn_loss = RPNLoss(
-            mask_rcnn.faster_rcnn_heads.rpn2roi.anchor_generator,
+            mask_rcnn.faster_rcnn_head.rpn2roi.anchor_generator,
             rpn_box_encoder,
         )
 

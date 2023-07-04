@@ -1,12 +1,15 @@
 """Engine trainer tests."""
 from __future__ import annotations
 
+import shutil
+import tempfile
 import unittest
 
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from tests.util import get_test_data
+from tests.util import MockModel, get_test_data
+from vis4d.config import class_config
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -85,6 +88,8 @@ class EngineTrainerTest(unittest.TestCase):
 
     def setUp(self) -> None:
         """Set up test."""
+        self.test_dir = tempfile.mkdtemp()
+
         dataset = COCO(
             get_test_data("coco_test"),
             keys_to_load=[
@@ -106,6 +111,7 @@ class EngineTrainerTest(unittest.TestCase):
 
         self.trainer = Trainer(
             device=torch.device("cpu"),
+            output_dir=self.test_dir,
             num_epochs=2,
             train_data_connector=train_data_connector,
             test_data_connector=test_data_connector,
@@ -114,9 +120,15 @@ class EngineTrainerTest(unittest.TestCase):
             test_dataloader=test_dataloader,
         )
 
+    def tearDown(self) -> None:
+        """Tear down test."""
+        shutil.rmtree(self.test_dir)
+
     def test_fit(self) -> None:
         """Test trainer training."""
-        optimizers = get_optimizer()
+        optimizers, lr_scheulders = get_optimizer(
+            MockModel(0), class_config(torch.optim.SGD, lr=0.01)
+        )
         loss_module = LossModule(
             {
                 "loss": SegCrossEntropyLoss(),
@@ -129,7 +141,7 @@ class EngineTrainerTest(unittest.TestCase):
             }
         )
 
-        self.trainer.fit(self.model, optimizers, loss_module)
+        self.trainer.fit(self.model, optimizers, lr_scheulders, loss_module)
 
         # TODO: add callback to check loss
 

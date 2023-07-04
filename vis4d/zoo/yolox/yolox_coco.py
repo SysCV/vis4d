@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 from torch.optim import SGD
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
-from vis4d.config import FieldConfigDict, class_config
+from vis4d.config import class_config
 from vis4d.config.common.datasets.coco.yolox import (
     CONN_COCO_BBOX_EVAL,
     get_coco_yolox_cfg,
@@ -21,21 +21,21 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.util import get_optimizer_cfg
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
-from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.vis.image import BoundingBoxVisualizer
 
 
-def get_config() -> FieldConfigDict:
+def get_config() -> ExperimentConfig:
     """Returns the YOLOX config dict for the coco detection task.
 
     Returns:
-        FieldConfigDict: The configuration
+        ExperimentConfig: The configuration
     """
     ######################################################
     ##                    General Config                ##
@@ -43,7 +43,7 @@ def get_config() -> FieldConfigDict:
     config = get_default_cfg(exp_name="yolox_x_coco")
 
     # High level hyper parameters
-    params = FieldConfigDict()
+    params = ExperimentParameters()
     params.samples_per_gpu = 2
     params.workers_per_gpu = 2
     params.lr = 0.01
@@ -84,14 +84,18 @@ def get_config() -> FieldConfigDict:
             optimizer=class_config(
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
             ),
-            lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
-            ),
-            lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
-            ),
-            epoch_based_lr=True,
-            epoch_based_warmup=False,
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(
+                        LinearLR, start_factor=0.001, total_iters=500
+                    ),
+                    end=500,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
+                ),
+            ],
         )
     ]
 
@@ -110,7 +114,7 @@ def get_config() -> FieldConfigDict:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(

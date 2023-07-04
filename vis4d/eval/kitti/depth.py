@@ -71,6 +71,8 @@ class KITTIDepthEvaluator(DepthEvaluator):
             eval_mask = apply_garg_crop(eval_mask)
         elif self.eval_crop == "eigen_crop":
             eval_mask = apply_eigen_crop(eval_mask)
+        else:
+            eval_mask = np.ones_like(valid_mask)
         return np.logical_and(valid_mask, eval_mask)
 
     def _apply_mask(

@@ -12,7 +12,7 @@ python -m torch.distributed.run \
     --master_addr=$MASTER_ADDR \
     --master_port=$PORT \
     --nproc_per_node=$GPUS \
-    -m vis4d.engine.cli fit \
+    -m vis4d.engine.run fit \
     --config $CONFIG \
     --gpus $GPUS \
     ${@:3}

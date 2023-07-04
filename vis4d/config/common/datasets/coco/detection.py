@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
-from vis4d.config.common.types import DataConfig
+from vis4d.config.typing import DataConfig
 from vis4d.config.util import (
     get_inference_dataloaders_cfg,
     get_train_dataloader_cfg,

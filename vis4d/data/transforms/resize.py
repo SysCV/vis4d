@@ -34,6 +34,7 @@ class GenerateResizeParameters:
         multiscale_mode: str = "range",
         scale_range: tuple[float, float] = (1.0, 1.0),
         align_long_edge: bool = False,
+        allow_overflow: bool = False,
         interpolation: str = "bilinear",
     ) -> None:
         """Creates an instance of the class.
@@ -55,6 +56,10 @@ class GenerateResizeParameters:
                 long edge of the original image, e.g. original shape=(100, 80),
                 shape to be resized=(100, 200) will yield (125, 100) as new
                 shape. Defaults to False.
+            allow_overflow (bool, optional): If set to True, we scale the image
+                to the smallest size such that it is no smaller than shape.
+                Otherwise, we scale the image to the largest size such that it
+                is no larger than shape. Defaults to False.
             interpolation (str, optional): Interpolation method. One of
                 ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
         """
@@ -63,6 +68,7 @@ class GenerateResizeParameters:
         self.multiscale_mode = multiscale_mode
         self.scale_range = scale_range
         self.align_long_edge = align_long_edge
+        self.allow_overflow = allow_overflow
         self.interpolation = interpolation
 
     def __call__(
@@ -72,13 +78,14 @@ class GenerateResizeParameters:
         image = images[0]
 
         im_shape = (image.shape[1], image.shape[2])
-        target_shape = _get_target_shape(
+        target_shape = get_target_shape(
             im_shape,
             self.shape,
             self.keep_ratio,
             self.multiscale_mode,
             self.scale_range,
             self.align_long_edge,
+            self.allow_overflow,
         )
         scale_factor = (
             target_shape[1] / im_shape[1],
@@ -113,6 +120,7 @@ class ResizeImages:
         images: list[NDArrayF32],
         target_shapes: list[tuple[int, int]],
         interpolations: list[str],
+        antialias: bool = False,
     ) -> list[NDArrayF32]:
         """Resize an image of dimensions [N, H, W, C].
 
@@ -121,6 +129,7 @@ class ResizeImages:
             target_shape (tuple[int, int]): The target shape after resizing.
             interpolation (str): One of nearest, bilinear, bicubic. Defaults to
                 bilinear.
+            antialias (bool): Whether to use antialiasing. Defaults to False.
 
         Returns:
             list[NDArrayF32]: Resized images according to parameters in resize.
@@ -129,8 +138,11 @@ class ResizeImages:
             zip(images, target_shapes, interpolations)
         ):
             image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
-            image_ = _resize_tensor(
-                image_, target_shape, interpolation=interpolation
+            image_ = resize_tensor(
+                image_,
+                target_shape,
+                interpolation=interpolation,
+                antialias=antialias,
             )
             images[i] = image_.permute(0, 2, 3, 1).numpy()
         return images
@@ -185,7 +197,7 @@ class ResizeInstanceMasks:
                 continue
             masks_ = torch.from_numpy(masks)
             masks_ = (
-                _resize_tensor(
+                resize_tensor(
                     masks_.float().unsqueeze(1),
                     target_shape,
                     interpolation="nearest",
@@ -212,7 +224,7 @@ class ResizeSegMasks:
         ):
             masks_ = torch.from_numpy(masks)
             masks_ = (
-                _resize_tensor(
+                resize_tensor(
                     masks_.float().unsqueeze(0).unsqueeze(0),
                     target_shape,
                     interpolation="nearest",
@@ -241,47 +253,60 @@ class ResizeIntrinsics:
         return intrinsics
 
 
-def _resize_tensor(
+def resize_tensor(
     inputs: Tensor,
     shape: tuple[int, int],
     interpolation: str = "bilinear",
+    antialias: bool = False,
 ) -> Tensor:
     """Resize Tensor."""
     assert interpolation in {"nearest", "bilinear", "bicubic"}
     align_corners = None if interpolation == "nearest" else False
     output = F.interpolate(
-        inputs, shape, mode=interpolation, align_corners=align_corners
+        inputs,
+        shape,
+        mode=interpolation,
+        align_corners=align_corners,
+        antialias=antialias,
     )
     return output
 
 
-def _get_resize_shape(
+def get_resize_shape(
     original_shape: tuple[int, int],
     new_shape: tuple[int, int],
     keep_ratio: bool = True,
     align_long_edge: bool = False,
+    allow_overflow: bool = False,
 ) -> tuple[int, int]:
     """Get shape for resize, considering keep_ratio and align_long_edge."""
     h, w = original_shape
     new_h, new_w = new_shape
     if keep_ratio:
+        if allow_overflow:
+            comp_fn = max
+        else:
+            comp_fn = min
         if align_long_edge:
             long_edge, short_edge = max(new_shape), min(new_shape)
-            scale_factor = min(long_edge / max(h, w), short_edge / min(h, w))
+            scale_factor = comp_fn(
+                long_edge / max(h, w), short_edge / min(h, w)
+            )
         else:
-            scale_factor = min(new_w / w, new_h / h)
+            scale_factor = comp_fn(new_w / w, new_h / h)
         new_h = int(h * scale_factor + 0.5)
         new_w = int(w * scale_factor + 0.5)
     return new_h, new_w
 
 
-def _get_target_shape(
+def get_target_shape(
     input_shape: tuple[int, int],
     shape: tuple[int, int] | list[tuple[int, int]],
     keep_ratio: bool = False,
     multiscale_mode: str = "range",
     scale_range: tuple[float, float] = (1.0, 1.0),
     align_long_edge: bool = False,
+    allow_overflow: bool = False,
 ) -> tuple[int, int]:
     """Generate possibly random target shape."""
     assert multiscale_mode in {"list", "range"}
@@ -317,5 +342,7 @@ def _get_target_shape(
         assert isinstance(shape, list)
         shape = random.choice(shape)
 
-    shape = _get_resize_shape(input_shape, shape, keep_ratio, align_long_edge)
+    shape = get_resize_shape(
+        input_shape, shape, keep_ratio, align_long_edge, allow_overflow
+    )
     return shape
