@@ -18,14 +18,13 @@ from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
-from vis4d.op.detect.rcnn import (
+from vis4d.op.detect.mask_rcnn import (
     MaskRCNNHead,
     MaskRCNNHeadLoss,
-    RCNNHead,
-    RCNNLoss,
     SampledMaskLoss,
     positive_mask_sampler,
 )
+from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
 
 from .faster_rcnn import CONN_ROI_LOSS_2D as _CONN_ROI_LOSS_2D

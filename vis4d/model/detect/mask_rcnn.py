@@ -12,13 +12,13 @@ from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
-from vis4d.op.detect.rcnn import (
+from vis4d.op.detect.mask_rcnn import (
     Det2Mask,
     MaskOut,
     MaskRCNNHead,
     MaskRCNNHeadOut,
-    RoI2Det,
 )
+from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 
