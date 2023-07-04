@@ -190,15 +190,22 @@ class ResizeBoxes2D:
 class ResizeDepthMaps:
     """Resize depth maps."""
 
-    def __init__(self, rescale_depth_values: bool = False):
+    def __init__(
+        self,
+        interpolation: str = "nearest",
+        rescale_depth_values: bool = False,
+    ):
         """Initialize the transform.
 
         Args:
+            interpolation (str, optional): Interpolation method. One of
+                ["nearest", "bilinear", "bicubic"]. Defaults to "nearest".
             rescale_depth_values (bool, optional): If the depth values should
                 be rescaled according to the new scale factor. Defaults to
                 False. This is useful if we want to keep the intrinsic
                 parameters of the camera the same.
         """
+        self.interpolation = interpolation
         self.rescale_depth_values = rescale_depth_values
 
     def __call__(
@@ -216,7 +223,7 @@ class ResizeDepthMaps:
                 resize_tensor(
                     depth_map_.float().unsqueeze(0).unsqueeze(0),
                     target_shape,
-                    interpolation="bilinear",
+                    interpolation=self.interpolation,
                 )
                 .type(depth_map_.dtype)
                 .squeeze(0)

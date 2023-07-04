@@ -39,15 +39,34 @@ class ToTensor:
 
 @Transform("data", "data")
 class SelectSensor:
-    """Keep data from one sensor only."""
+    """Keep data from one sensor only.
 
-    def __init__(self, sensor: str):
+    Note: The input data is assumed to be in the format of DictData[DictData],
+    i.e. a list of data dictionaries, each of which contains a dictionary of
+    either the data from a sensor or the shared data (metadata) for all
+    sensors.
+
+    Example:
+        >>> data = [
+            {"sensor1": {"image": 1, "label": 2}, "meta": 3},
+        ]
+        >>> tsfm = SelectSensor(
+            sensor="sensor1",
+            all_sensors=["sensor1", "sensor2"])
+        >>> tsfm(data)
+        [{"image": 1, "label": 2, "meta": 3},]
+    """
+
+    def __init__(self, sensor: str, all_sensors: list[str]) -> None:
         """Creates an instance of SelectSensor.
 
         Args:
-            sensor (str): Sensor name.
+            sensor (str): The name of the sensor to keep.
+            all_sensors (list[str]): The names of all sensors, used to check
+                whether the key is for a sensor or shared data.
         """
         self.sensor = sensor
+        self.all_sensors = all_sensors
 
     def __call__(self, batch: list[DictData]) -> list[DictData]:
         """Select data from one sensor only."""
@@ -55,7 +74,7 @@ class SelectSensor:
         for data in batch:
             output_data = {}
             for key in data.keys():
-                if isinstance(data[key], dict):
+                if key in self.all_sensors:
                     if key == self.sensor:
                         output_data.update(data[key])
                 else:

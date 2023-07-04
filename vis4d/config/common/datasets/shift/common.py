@@ -187,7 +187,11 @@ def get_train_preprocessing(
     batchprocess_transforms = [class_config(ToTensor, **views_arg)]
     if len(views_to_load) == 1:
         batchprocess_transforms.append(
-            class_config(SelectSensor, sensor=views_to_load[0])
+            class_config(
+                SelectSensor,
+                sensor=views_to_load[0],
+                all_sensors=views_to_load,
+            )
         )
     train_batchprocess_cfg = class_config(
         compose, transforms=batchprocess_transforms
@@ -259,7 +263,11 @@ def get_test_preprocessing(
     batchprocess_transforms = [class_config(ToTensor, **views_arg)]
     if len(views_to_load) == 1:
         batchprocess_transforms.append(
-            class_config(SelectSensor, sensor=views_to_load[0])
+            class_config(
+                SelectSensor,
+                sensor=views_to_load[0],
+                all_sensors=views_to_load,
+            )
         )
     test_batchprocess_cfg = class_config(
         compose, transforms=batchprocess_transforms

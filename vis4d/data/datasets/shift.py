@@ -456,6 +456,7 @@ class SHIFT(VideoDataset):
                         num_workers=num_workers,
                         verbose=verbose,
                     )
+        self.video_to_indices = self._generate_video_to_indices()
 
     def validate_keys(self, keys_to_load: Sequence[str]) -> None:
         """Validate that all keys to load are supported."""
