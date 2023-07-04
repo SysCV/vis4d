@@ -1,12 +1,13 @@
 """RetinaNet configs tests."""
 import unittest
 
-from .util import content_equal, get_config_for_name
+from .util import compare_configs
 
 
 class TestRetinaNetConfig(unittest.TestCase):
     """Tests the content of the provided configs for RetinaNet."""
 
+    config_prefix = "retinanet"
     gt_config_path = "tests/vis4d-test-data/config_test/retinanet"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
@@ -15,13 +16,10 @@ class TestRetinaNetConfig(unittest.TestCase):
 
         This instantiates the config and compares it to a ground truth.
         """
-        config = get_config_for_name("retinanet.retinanet_coco").to_yaml()
-
-        with open(
-            f"{self.gt_config_path}/retinanet_coco.yaml",
-            "r",
-            encoding="UTF-8",
-        ) as f:
-            gt_config = f.read()
-
-        self.assertTrue(content_equal(config, gt_config, self.varying_keys))
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.retinanet_coco",
+                f"{self.gt_config_path}/retinanet_coco.yaml",
+                self.varying_keys,
+            )
+        )

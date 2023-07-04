@@ -1,4 +1,0 @@
-dash
-open3d
-opencv-python
-plotly

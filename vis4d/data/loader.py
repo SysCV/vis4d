@@ -23,6 +23,7 @@ DEFAULT_COLLATE_KEYS = (
     K.intrinsics,
     K.depth_maps,
     K.optical_flows,
+    K.categories,
 )
 
 

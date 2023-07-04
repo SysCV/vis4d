@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from typing_extensions import NotRequired
 
 from vis4d.data.typing import DictData
+from vis4d.engine.optim import LRSchedulerWrapper
 
 
 class TrainerState(TypedDict):
@@ -22,6 +24,7 @@ class TrainerState(TypedDict):
         test_dataloader (list[DataLoader[DictData]] | None): List of test
             dataloaders.
         num_test_batches (list[int] | None): List of number of test batches.
+        optimizers (NotRequired[list[Optimizer]]): List of optimizers.
         metrics (NotRequired[dict[str, float]]): Metrics for the logging.
     """
 
@@ -33,4 +36,6 @@ class TrainerState(TypedDict):
     num_train_batches: int | None
     test_dataloader: list[DataLoader[DictData]] | None
     num_test_batches: list[int] | None
+    optimizers: NotRequired[list[Optimizer]]
+    lr_schedulers: NotRequired[list[LRSchedulerWrapper]]
     metrics: NotRequired[dict[str, float]]

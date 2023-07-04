@@ -149,6 +149,20 @@ def get_used_data_groups(
     return used_groups
 
 
+def to_onehot(categories: NDArrayI64, num_classes: int) -> NDArrayFloat:
+    """Transform integer categorical labels to onehot vectors.
+
+    Args:
+        categories (NDArrayI64): Integer categorical labels of shape (N, ).
+        num_classes (int): Number of classes.
+
+    Returns:
+        NDArrayFloat: Onehot vector of shape (N, num_classes).
+    """
+    _eye = np.eye(num_classes, dtype=np.float32)
+    return _eye[categories]
+
+
 class CacheMappingMixin:
     """Caches a mapping for fast I/O and multi-processing.
 

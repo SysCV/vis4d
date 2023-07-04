@@ -3,19 +3,29 @@ appdirs
 cloudpickle
 cython
 devtools
+h5py
 jsonargparse[signatures]
 lightning
 ml_collections==0.1.1 # Config interface. Need exact version since we overwrite internal functions
 numpy>=1.21.0
+opencv-python
 pandas
 pillow
 plyfile
 pycocotools
 setuptools
+tensorboard
 termcolor
 terminaltables
+timm>=0.6.0
 torch>=1.10
 torchvision>=0.11
 tqdm
 utm
 wheel
+
+# packages for datasets
+bdd100k
+scalabel
+nuscenes-devkit
+

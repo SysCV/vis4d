@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
+import torch
 
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
@@ -10,11 +11,13 @@ from vis4d.common.typing import (
     ArrayLikeInt,
     ArrayLikeUInt,
     NDArrayBool,
+    NDArrayF32,
     NDArrayUI8,
 )
+from vis4d.data.const import AxisMode
+from vis4d.op.box.box3d import boxes3d_to_corners
+from vis4d.op.geometry.projection import project_points
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
-
-from .canvas import CanvasBackend
 
 
 def _get_box_label(
@@ -149,6 +152,72 @@ def preprocess_boxes(
     return boxes_proc, labels_proc, colors_proc
 
 
+def preprocess_boxes3d(
+    boxes3d: ArrayLikeFloat,
+    intrinsics: NDArrayF32,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
+    color_palette: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
+    class_id_mapping: dict[int, str] | None = None,
+    default_color: tuple[int, int, int] = (255, 0, 0),
+) -> tuple[
+    list[list[tuple[float, float, float]]],
+    list[str],
+    list[tuple[int, int, int]],
+]:
+    """Preprocesses bounding boxes.
+
+    Converts the given predicted bounding boxes and class/track information
+    into lists of corners, labels and colors.
+    """
+    if class_id_mapping is None:
+        class_id_mapping = {}
+
+    boxes3d = array_to_numpy(boxes3d, n_dims=2, dtype=np.float32)
+
+    corners = boxes3d_to_corners(
+        torch.from_numpy(boxes3d), axis_mode=AxisMode.OPENCV
+    )
+
+    corners = torch.cat(
+        [
+            project_points(corners, torch.from_numpy(intrinsics)),
+            corners[:, :, 2:3],
+        ],
+        dim=-1,
+    ).numpy()
+
+    scores_np = array_to_numpy(scores, n_dims=1, dtype=np.float32)
+    class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+    track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
+
+    boxes3d_proc: list[list[tuple[float, float, float]]] = []
+    colors_proc: list[tuple[int, int, int]] = []
+    labels_proc: list[str] = []
+
+    for idx in range(corners.shape[0]):
+        class_id = None if class_ids_np is None else class_ids_np[idx].item()
+        score = None if scores_np is None else scores_np[idx].item()
+        track_id = None if track_ids_np is None else track_ids_np[idx].item()
+
+        if track_id is not None:
+            color = color_palette[track_id % len(color_palette)]
+        elif class_id is not None:
+            color = color_palette[class_id % len(color_palette)]
+        else:
+            color = default_color
+
+        boxes3d_proc.append(
+            [tuple(pts) for pts in corners[idx].tolist()]  # type: ignore
+        )
+        colors_proc.append(color)
+        labels_proc.append(
+            _get_box_label(class_id, score, track_id, class_id_mapping)
+        )
+    return boxes3d_proc, labels_proc, colors_proc
+
+
 def preprocess_masks(
     masks: ArrayLikeUInt,
     class_ids: ArrayLikeInt | None,
@@ -254,36 +323,3 @@ def get_intersection_point(
     else:
         k = k_up / k_down
     return ((1 - k) * x1 + k * x1, (1 - k) * x2 + k * x2)
-
-
-def draw_box3d(
-    canvas: CanvasBackend,
-    corners: tuple[tuple[float, float], ...],
-    label: str,
-    color: tuple[int, int, int],
-) -> None:
-    """Draw 3D bounding box on a given 2D canvas.
-
-    Args:
-        canvas (CanvasBackend): Current canvas to draw on.
-        corners (tuple[tuple[float, float], ...]): Projected locations of the
-            3D bounding box corners.
-        label (str): Text label of the 3D box.
-        color (tuple[int, int, int]): The box color.
-    """
-    assert len(corners) == 8, "A 3D box needs 8 corners."
-    # Draw the sides
-    for i in range(4):
-        canvas.draw_line(corners[i], corners[i + 4], color)
-
-    # Draw bottom (first 4 corners) and top (last 4 corners)
-    canvas.draw_rotated_box(corners[:4], color)
-    canvas.draw_rotated_box(corners[4:], color)
-
-    # Draw line indicating the front
-    center_bottom_forward = np.mean(corners[:2], axis=0)
-    center_bottom = np.mean(corners[:4], axis=0)
-    canvas.draw_line(center_bottom, center_bottom_forward, color)
-
-    # Draw label
-    canvas.draw_text(corners[0], label, color)

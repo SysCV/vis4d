@@ -12,13 +12,13 @@ from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
-from vis4d.op.detect.rcnn import (
+from vis4d.op.detect.mask_rcnn import (
     Det2Mask,
     MaskOut,
     MaskRCNNHead,
     MaskRCNNHeadOut,
-    RoI2Det,
 )
+from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 
@@ -44,8 +44,8 @@ REV_KEYS = [
     (r"^convs\.", "mask_head.convs."),
     (r"^upsample\.", "mask_head.upsample."),
     (r"^conv_logits\.", "mask_head.conv_logits."),
-    (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
-    (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
+    (r"^roi_head\.", "faster_rcnn_head.roi_head."),
+    (r"^rpn_head\.", "faster_rcnn_head.rpn_head."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),
@@ -94,9 +94,9 @@ class MaskRCNN(nn.Module):
         self.fpn = FPN(self.basemodel.out_channels[2:], 256)
 
         if faster_rcnn_head is None:
-            self.faster_rcnn_heads = FasterRCNNHead(num_classes=num_classes)
+            self.faster_rcnn_head = FasterRCNNHead(num_classes=num_classes)
         else:
-            self.faster_rcnn_heads = faster_rcnn_head
+            self.faster_rcnn_head = faster_rcnn_head
 
         if mask_head is None:
             self.mask_head = MaskRCNNHead(num_classes=num_classes)
@@ -174,7 +174,7 @@ class MaskRCNN(nn.Module):
             MaskRCNNOut: Raw model outputs.
         """
         features = self.fpn(self.basemodel(images))
-        outputs = self.faster_rcnn_heads(
+        outputs = self.faster_rcnn_head(
             features, images_hw, target_boxes, target_classes
         )
         assert outputs.sampled_proposals is not None
@@ -204,7 +204,7 @@ class MaskRCNN(nn.Module):
             MaskDetectionOut: Predicted outputs.
         """
         features = self.fpn(self.basemodel(images))
-        outs = self.faster_rcnn_heads(features, images_hw)
+        outs = self.faster_rcnn_head(features, images_hw)
         boxes, scores, class_ids = self.transform_outs(
             *outs.roi, outs.proposals.boxes, images_hw
         )

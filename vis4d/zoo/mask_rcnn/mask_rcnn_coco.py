@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 from torch.optim import SGD
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
 from vis4d.config.common.datasets.coco import (
@@ -12,7 +12,6 @@ from vis4d.config.common.datasets.coco import (
     get_coco_detection_cfg,
 )
 from vis4d.config.common.models import get_mask_rcnn_cfg
-from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -23,7 +22,8 @@ from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
 )
-from vis4d.config.util import get_optimizer_cfg
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
@@ -32,7 +32,6 @@ from vis4d.engine.connectors import (
     DataConnector,
     remap_pred_keys,
 )
-from vis4d.engine.optim.warmup import LinearLRWarmup
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
@@ -47,7 +46,7 @@ def get_config() -> ExperimentConfig:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli fit --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
+    >>> python -m vis4d.engine.run fit --config configs/faster_rcnn/faster_rcnn_coco.py --config.params.lr 0.001
 
     Returns:
         ExperimentConfig: The configuration
@@ -116,14 +115,18 @@ def get_config() -> ExperimentConfig:
             optimizer=class_config(
                 SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
             ),
-            lr_scheduler=class_config(
-                MultiStepLR, milestones=[8, 11], gamma=0.1
-            ),
-            lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
-            ),
-            epoch_based_lr=True,
-            epoch_based_warmup=False,
+            lr_schedulers=[
+                get_lr_scheduler_cfg(
+                    class_config(
+                        LinearLR, start_factor=0.001, total_iters=500
+                    ),
+                    end=500,
+                    epoch_based=False,
+                ),
+                get_lr_scheduler_cfg(
+                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
+                ),
+            ],
         )
     ]
 
@@ -144,7 +147,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(

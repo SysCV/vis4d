@@ -1,4 +1,4 @@
-"""Vis4D is a batteries-included 4D Computer Vision package.
+"""Vis4D is a modular library for 4D scene understanding.
 
 It contains common operators and models, data pipelines and training recipes
 for a number of contemporary methods and provides a compositional framework

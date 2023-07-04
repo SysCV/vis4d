@@ -120,6 +120,25 @@ class CanvasBackend:
         """
         raise NotImplementedError
 
+    def draw_box_3d(
+        self,
+        corners: list[tuple[float, float, float]],
+        color: tuple[int, int, int],
+        width: int = 0,
+        camera_near_clip: float = 0.15,
+    ) -> None:
+        """Draws a line between two points.
+
+        Args:
+            corners (list[tuple[float, float, float]]): Containing the eight
+                corners of the box.
+            color (tuple[int, int, int]): Color of the line.
+            width (int, optional): The width of the line. Defaults to 0.
+            camera_near_clip (float, optional): The near clipping plane of the
+                camera. Defaults to 0.15.
+        """
+        raise NotImplementedError
+
     def as_numpy_image(self) -> NDArrayUI8:
         """Returns the current canvas as numpy image."""
         raise NotImplementedError

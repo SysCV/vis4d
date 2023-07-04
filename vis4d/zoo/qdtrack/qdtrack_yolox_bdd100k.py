@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import pytorch_lightning as pl
 
-from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.types import ExperimentConfig, ExperimentParameters
+from vis4d.config import class_config
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
 from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
+from vis4d.config.typing import (
+    DataConfig,
+    ExperimentConfig,
+    ExperimentParameters,
+)
 from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
@@ -76,7 +80,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data = FieldConfigDict()
+    data = DataConfig()
     dataset_root = "data/bdd100k/images/track/val/"
     annotation_path = "data/bdd100k/labels/box_track_20/val/"
     config_path = "box_track"
@@ -164,7 +168,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     # Visualizer
     callbacks.append(
