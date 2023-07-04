@@ -155,11 +155,13 @@ def bbox_intersection_aligned(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
 def bbox_iou_aligned(
     boxes1: torch.Tensor, boxes2: torch.Tensor
 ) -> torch.Tensor:
-    """Compute IoU between all pairs of boxes.
+    """Compute IoU between aligned pairs of boxes.
+
+    The number of boxes in both inputs must be the same.
 
     Args:
         boxes1: N 2D boxes in format (x1, y1, x2, y2)
-        boxes2: M 2D boxes in format (x1, y1, x2, y2)
+        boxes2: N 2D boxes in format (x1, y1, x2, y2)
 
     Returns:
         Tensor: IoU (N).

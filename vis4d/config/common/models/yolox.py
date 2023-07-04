@@ -99,7 +99,9 @@ def get_yolox_cfg(
 
     Args:
         num_classes (FieldReference | int): Number of classes.
-        basemodel (ConfigDict): Base model config.
+        model_type (str): Model type. Must be one of 'tiny', 'small', 'large',
+            'xlarge'.
+        use_ema (bool, optional): Whether to use EMA. Defaults to True.
         weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################

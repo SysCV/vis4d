@@ -270,28 +270,24 @@ class MixupBoxes2D:
         self,
         boxes_list: list[NDArrayF32],
         classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32 | None],
+        track_ids_list: list[NDArrayI32] | None,
         mixup_parameters: list[MixupParam],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
         """Execute the boxes2d mixup operation."""
         batch_size = len(boxes_list)
         assert batch_size % 2 == 0, "Batch size must be even for mixup!"
 
         mixup_boxes_list = []
         mixup_classes_list = []
-        mixup_track_ids_list: list[NDArrayI32 | None] = []
+        mixup_track_ids_list: list[NDArrayI32] | None = (
+            [] if track_ids_list is not None else None
+        )
         for i in range(batch_size):
             j = batch_size - i - 1
             ori_boxes, other_boxes = boxes_list[i].copy(), boxes_list[j].copy()
             ori_classes, other_classes = (
                 classes_list[i].copy(),
                 classes_list[j].copy(),
-            )
-            ori_track_ids_ = track_ids_list[i]
-            other_track_ids_ = track_ids_list[j]
-            ori_track_ids = ori_track_ids_.copy() if ori_track_ids_ else None
-            other_track_ids = (
-                other_track_ids_.copy() if other_track_ids_ else None
             )
 
             crop_coord = mixup_parameters[i]["crop_coord"]
@@ -317,7 +313,16 @@ class MixupBoxes2D:
                 other_classes = other_classes[is_overlap > 0]
 
                 # mixup track ids if available
-                if ori_track_ids is not None and other_track_ids is not None:
+                if track_ids_list is not None:
+                    assert mixup_track_ids_list is not None
+                    ori_track_ids_ = track_ids_list[i]
+                    other_track_ids_ = track_ids_list[j]
+                    ori_track_ids = (
+                        ori_track_ids_.copy() if ori_track_ids_ else None
+                    )
+                    other_track_ids = (
+                        other_track_ids_.copy() if other_track_ids_ else None
+                    )
                     if (
                         max(ori_track_ids) >= self.max_track_ids
                         or max(other_track_ids) >= self.max_track_ids
@@ -332,8 +337,6 @@ class MixupBoxes2D:
                         (ori_track_ids, other_track_ids), 0  # type: ignore
                     )
                     mixup_track_ids_list.append(mixup_track_ids)
-                else:
-                    mixup_track_ids_list.append(None)
 
                 if self.clip_inside_image:
                     new_w, new_h = mixup_parameters[i]["other_new_wh"]

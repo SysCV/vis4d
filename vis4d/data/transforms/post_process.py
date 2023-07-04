@@ -15,19 +15,19 @@ from .base import Transform
     out_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
 )
 class PostProcessBoxes2D:
-    """Post process after transformation."""
+    """Post process after transformation.
+
+    Args:
+        min_area (float): Minimum area of the bounding box. Defaults to
+            7.0 * 7.0.
+        clip_bboxes_to_image (bool): Whether to clip the bounding boxes to the
+            image size. Defaults to True.
+    """
 
     def __init__(
         self, min_area: float = 7.0 * 7.0, clip_bboxes_to_image: bool = True
     ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            min_area (float): Minimum area of the bounding box. Defaults to
-                7.0 * 7.0.
-            clip_bboxes_to_image (bool): Whether to clip the bounding boxes to
-                the image size. Defaults to True.
-        """
+        """Creates an instance of the class."""
         self.min_area = min_area
         self.clip_bboxes_to_image = clip_bboxes_to_image
 
@@ -35,21 +35,24 @@ class PostProcessBoxes2D:
         self,
         boxes_list: list[NDArrayF32],
         classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32 | None],
+        track_ids_list: list[NDArrayI32] | None,
         input_hw_list: list[tuple[int, int]],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
-        """Resize 2D bounding boxes.
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+        """Post process 2D bounding boxes.
 
         Args:
-            boxes (Tensor): The bounding boxes to be resized.
-            scale_factor (tuple[float, float]): scaling factor.
+            boxes (Tensor): The bounding boxes to be processed.
+            classes (Tensor): The classes of the bounding boxes.
+            track_ids (Tensor | None): The track IDs of the bounding boxes.
+            input_hw (tuple[int, int]): The input height and width.
 
         Returns:
-            Tensor: Resized bounding boxes according to parameters in resize.
+            Tensor: Processed bounding boxes.
         """
-        for i, (boxes, classes, track_ids) in enumerate(
-            zip(boxes_list, classes_list, track_ids_list)
-        ):
+        new_track_ids: list[NDArrayI32] | None = (
+            [] if track_ids_list is not None else None
+        )
+        for i, (boxes, classes) in enumerate(zip(boxes_list, classes_list)):
             boxes_ = torch.from_numpy(boxes)
             if self.clip_bboxes_to_image:
                 boxes_ = bbox_clip(boxes_, input_hw_list[i])
@@ -59,7 +62,8 @@ class PostProcessBoxes2D:
             boxes_list[i] = boxes[keep]
             classes_list[i] = classes[keep]
 
-            if track_ids is not None:
-                track_ids_list[i] = track_ids[keep]
+            if track_ids_list is not None:
+                assert new_track_ids is not None
+                new_track_ids.append(track_ids_list[i][keep])
 
-        return boxes_list, classes_list, track_ids_list
+        return boxes_list, classes_list, new_track_ids

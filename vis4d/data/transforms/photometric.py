@@ -321,6 +321,7 @@ class RandomHSV:
             f"got {image_channel_mode}."
         )
 
+    # pylint: disable=no-member
     def __call__(self, images: list[NDArrayF32]) -> list[NDArrayF32]:
         """Call function for Hue transformation."""
         for i, image in enumerate(images):
@@ -334,15 +335,13 @@ class RandomHSV:
                 self.value_delta,
             ]
             # random selection of h, s, v
-            hsv_gains *= np.random.randint(0, 2, 3)
-            h, s, v = cv2.split(image)
-            h = h + hsv_gains[0] % 180
-            s = np.clip(s + hsv_gains[1], 0, 255)
-            v = np.clip(v + hsv_gains[2], 0, 255)
-            image = cv2.merge((h, s, v)).astype(np.uint8)
+            hsv_gains = hsv_gains * np.random.randint(0, 2, 3)
+            image[..., 0] = (image[..., 0] + hsv_gains[0]) % 180
+            image[..., 1] = np.clip(image[..., 1] + hsv_gains[1], 0, 255)
+            image[..., 2] = np.clip(image[..., 2] + hsv_gains[2], 0, 255)
             if self.image_channel_mode == "BGR":
                 image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
             else:
                 image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
-            images[i] = image[None, ...].astype(np.float32)
+            images[i] = image[None, ...]
         return images

@@ -23,7 +23,9 @@ from vis4d.data.transforms.photometric import (
 class TestPhotometric(unittest.TestCase):
     """Test Photometric transforms."""
 
-    test_image = np.asarray(Image.open(get_test_file("image.jpg")))[None, ...]
+    test_image = np.asarray(Image.open(get_test_file("image.jpg")))[
+        None, ...
+    ].astype(np.float32)
 
     def test_random_gamma(self):
         """Testcase for RandomGamma."""

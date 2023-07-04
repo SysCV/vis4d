@@ -31,6 +31,7 @@ class YOLOX(nn.Module):
         fpn: FeaturePyramidProcessing | None = None,
         yolox_head: YOLOXHead | None = None,
         weights: None | str = None,
+        postprocessor: YOLOXPostprocess | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -42,6 +43,8 @@ class YOLOX(nn.Module):
                 Processing. Defaults to None. If None, will use YOLOXPAFPN.
             yolox_head (YOLOXHead, optional): YOLOX head. Defaults to None. If
                 None, will use YOLOXHead.
+            postprocessor (YOLOXPostprocess, optional): Post processor.
+                Defaults to None. If None, will use YOLOXPostprocess.
             weights (None | str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
@@ -64,11 +67,15 @@ class YOLOX(nn.Module):
             if yolox_head is None
             else yolox_head
         )
-        self.transform_outs = YOLOXPostprocess(
-            self.yolox_head.point_generator,
-            self.yolox_head.box_decoder,
-            nms_threshold=0.65,
-            score_thr=0.01,
+        self.postprocessor = (
+            YOLOXPostprocess(
+                self.yolox_head.point_generator,
+                self.yolox_head.box_decoder,
+                nms_threshold=0.65,
+                score_thr=0.01,
+            )
+            if postprocessor is None
+            else postprocessor
         )
 
         if weights == "mmdet":
@@ -115,12 +122,10 @@ class YOLOX(nn.Module):
             YOLOXOut: Raw model outputs.
         """
         features = self.fpn(self.basemodel(images.contiguous()))
-        # from vis4d.vis.functional.image import imshow_bboxes
-
+        # from vis4d.vis.functional.image import imsave
         # for i in range(len(images)):
-        #     imshow_bboxes(
-        #         images[i], None, image_mode="BGR", save_path=f"test{i}.png"
-        #     )
+        #     imsave(images[i], f"test{i}.png", image_mode="BGR")
+        # breakpoint()
         return self.yolox_head(features[-3:])
 
     def forward_test(
@@ -142,7 +147,7 @@ class YOLOX(nn.Module):
         """
         features = self.fpn(self.basemodel(images))
         outs = self.yolox_head(features[-3:])
-        boxes, scores, class_ids = self.transform_outs(
+        boxes, scores, class_ids = self.postprocessor(
             cls_outs=outs.cls_score,
             reg_outs=outs.bbox_pred,
             obj_outs=outs.objectness,

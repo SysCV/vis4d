@@ -289,7 +289,6 @@ def preprocess_image(image: ArrayLike, mode: str = "RGB") -> NDArrayUI8:
 
     if mode == "BGR":
         image_np = image_np[..., [2, 1, 0]]
-        mode = "RGB"
 
     return image_np.astype(np.uint8)
 
