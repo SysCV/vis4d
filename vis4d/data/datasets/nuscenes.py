@@ -24,7 +24,7 @@ from vis4d.data.typing import DictData
 from vis4d.op.geometry.projection import generate_depth_map
 from vis4d.op.geometry.transform import inverse_rigid_transform
 
-from .base import VideoDataset
+from .base import VideoDataset, VideoMapping
 from .util import CacheMappingMixin, im_decode
 
 if NUSCENES_AVAILABLE:
@@ -224,8 +224,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             cached_file_path=cached_file_path,
         )
 
-        # Generate video to indices mapping
-        self.video_to_indices = self._generate_video_to_indices()
+        # Generate video mapping
+        self.video_mapping = self._generate_video_mapping()
 
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
         """Remove empty samples."""
@@ -260,20 +260,27 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         """Concise representation of the dataset."""
         return f"NuScenesDataset {self.version} {self.split}"
 
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
+    def _generate_video_mapping(self) -> VideoMapping:
         """Group dataset sample indices by their associated video ID.
 
         The sample index is an integer while video IDs are string.
 
         Returns:
-            dict[str, list[int]]: Mapping video to index.
+            VideoMapping: Mapping of video IDs to sample indices and frame IDs.
         """
-        indices = defaultdict(list)
-        frame_ids = defaultdict(list)
+        video_to_indices: dict[str, list[int]] = defaultdict(list)
+        video_to_frame_ids: dict[str, list[int]] = defaultdict(list)
         for i, sample in enumerate(self.samples):  # type: ignore
-            indices[sample["scene_name"]].append(i)
-            frame_ids[sample["scene_name"]].append(sample["frame_ids"])
-        return {"indices": indices, "frame_ids": frame_ids}
+            seq = sample["scene_name"]
+            video_to_indices[seq].append(i)
+            video_to_frame_ids[seq].append(sample["frame_ids"])
+
+        return self._sort_video_mapping(
+            {
+                "video_to_indices": video_to_indices,
+                "video_to_frame_ids": video_to_frame_ids,
+            }
+        )
 
     def _generate_data_mapping(self) -> list[DictStrAny]:
         """Generate data mapping.

@@ -16,27 +16,19 @@ from .const import CommonKeys as K
 from .datasets import VideoDataset
 from .typing import DictData
 
-SortingFunc = Callable[[int, List[int], List[int]], List[int]]
+SortingFunc = Callable[[DictData, list[DictData]], List[DictData]]
 
 
 def sort_key_first(
-    key_dataset_index: int,
-    ref_indices: list[int],
-    indices_in_video: list[int],  # pylint: disable=unused-argument
-) -> list[int]:
-    """Sort views temporally."""
-    return [key_dataset_index, *ref_indices]
+    cur_sample: DictData, ref_data: list[DictData]
+) -> list[DictData]:
+    """Sort views as key first."""
+    return [cur_sample, *ref_data]
 
 
-def sort_temporal(
-    key_dataset_index: int, ref_indices: list[int], indices_in_video: list[int]
-) -> list[int]:
+def sort_temporal(cur_sample: DictData, ref_data: list[DictData]) -> list[int]:
     """Sort views temporally."""
-    sorted_indices = sorted(
-        [key_dataset_index, *ref_indices],
-        key=indices_in_video.index,
-    )
-    return sorted_indices
+    return sorted([cur_sample, *ref_data], key=lambda x: x[K.frame_ids])
 
 
 class ReferenceViewSampler:
@@ -148,6 +140,9 @@ class MultiViewDataset(Dataset[list[DictData]]):
         self,
         dataset: VideoDataset,
         sampler: ReferenceViewSampler,
+        sort_fn: SortingFunc = sort_key_first,
+        num_retry: int = 3,
+        match_key: str = K.boxes2d_track_ids,
         skip_nomatch_samples: bool = False,
     ) -> None:
         """Creates an instance of the class.
@@ -156,23 +151,29 @@ class MultiViewDataset(Dataset[list[DictData]]):
             dataset (Dataset): Video dataset to sample from.
             sampler (ReferenceViewSampler): Sampler that samples reference
                 views.
+            sort_fn (SortingFunc, optional): Function that sorts key and
+                reference views. Defaults to sort_key_first.
+            num_retry (int, optional): Number of retries if no match is found.
+                Defaults to 3.
+            match_key (str, optional): Key to match reference views with key
+                view. Defaults to K.boxes2d_track_ids.
             skip_nomatch_samples (bool, optional): Whether to skip samples
                 where no match is found. Defaults to False.
         """
         self.dataset = dataset
         self.sampler = sampler
+        self.sort_fn = sort_fn
+        self.num_retry = num_retry
+        self.match_key = match_key
         self.skip_nomatch_samples = skip_nomatch_samples
 
-    @staticmethod
     def has_matches(
-        key_data: DictData,
-        ref_data: list[DictData],
-        match_key: str = K.boxes2d_track_ids,
+        self, key_data: DictData, ref_data: list[DictData]
     ) -> bool:
         """Check if key / ref data have matches."""
-        key_target = key_data[match_key]
+        key_target = key_data[self.match_key]
         for ref_view in ref_data:
-            ref_target = ref_view[match_key]
+            ref_target = ref_view[self.match_key]
             match = np.equal(
                 np.expand_dims(key_target, axis=1), ref_target[None]
             )
@@ -184,42 +185,47 @@ class MultiViewDataset(Dataset[list[DictData]]):
         """Get length of dataset."""
         return len(self.dataset)
 
-    # TODO: Implement sorting. Currently always key first.
+    def get_ref_data(self, ref_indices: list[int]) -> list[DictData]:
+        """Get reference data from dataset."""
+        ref_data = []
+        for ref_index in ref_indices:
+            ref_sample = self.dataset[ref_index]
+            ref_sample["keyframes"] = False
+            ref_data.append(ref_sample)
+
+        assert self.sampler.num_ref_samples == len(ref_data)
+        return ref_data
+
     def __getitem__(self, index: int) -> list[DictData]:
         """Get item from dataset."""
         cur_sample = self.dataset[index]
         cur_sample["keyframes"] = True
 
+        indices_in_video = self.dataset.video_mapping["video_to_indices"][
+            cur_sample[K.sequence_names]
+        ]
+        frame_ids = self.dataset.video_mapping["video_to_frame_ids"][
+            cur_sample[K.sequence_names]
+        ]
+
         if self.sampler.num_ref_samples > 0:
-            ref_data = []
+            if self.sampler.scope > 0:
+                for _ in range(self.num_retry):
+                    ref_indices = self.sampler(
+                        index, indices_in_video, frame_ids
+                    )
 
-            if (
-                isinstance(self.sampler, UniformViewSampler)
-                and self.sampler.scope == 0
-            ):
-                ref_indices = [index] * self.sampler.num_ref_samples
-            else:
-                ref_indices = self.sampler(
-                    index,
-                    self.dataset.video_to_indices["indices"][
-                        cur_sample[K.sequence_names]
-                    ],
-                    self.dataset.video_to_indices["frame_ids"][
-                        cur_sample[K.sequence_names]
-                    ],
-                )
+                    ref_data = self.get_ref_data(ref_indices)
 
-            for ref_index in ref_indices:
-                ref_sample = self.dataset[ref_index]
-                ref_sample["keyframes"] = False
-                ref_data.append(ref_sample)
+                    if self.skip_nomatch_samples and not (
+                        self.has_matches(cur_sample, ref_data)
+                    ):
+                        continue
 
-            if self.skip_nomatch_samples and not (
-                self.has_matches(cur_sample, ref_data)
-            ):
-                # TODO: implement retry
-                raise NotImplementedError
+                    return self.sort_fn(cur_sample, ref_data)
 
-            assert self.sampler.num_ref_samples == len(ref_data)
+            ref_indices = [index] * self.sampler.num_ref_samples
+            ref_data = self.get_ref_data(ref_indices)
             return [cur_sample, *ref_data]
+
         return [cur_sample]

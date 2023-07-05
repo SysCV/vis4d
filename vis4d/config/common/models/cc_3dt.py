@@ -82,7 +82,7 @@ def get_cc_3dt_cfg(
 
     model = class_config(
         FasterRCNNCC3DT,
-        num_classes=10,
+        num_classes=num_classes,
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         class_range_map=detection_range,

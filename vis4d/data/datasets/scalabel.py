@@ -33,7 +33,7 @@ from vis4d.op.geometry.rotation import (
     matrix_to_quaternion,
 )
 
-from .base import VideoDataset
+from .base import VideoDataset, VideoMapping
 from .util import DatasetFromList, im_decode, ply_decode
 
 if SCALABEL_AVAILABLE:
@@ -369,29 +369,30 @@ class Scalabel(CacheMappingMixin, VideoDataset):
             )
             self.category_map = {c: i for i, c in enumerate(class_list)}
         self._setup_categories()
-        self.video_to_indices = self._generate_video_to_indices()
+        self.video_mapping = self._generate_video_mapping()
 
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
+    def _generate_video_mapping(self) -> VideoMapping:
         """Group all dataset sample indices (int) by their video ID (str).
 
         Returns:
-            dict[str, list[int]]: Mapping video to index.
+            VideoMapping: Mapping of video IDs to sample indices and frame IDs.
         """
         video_to_indices: dict[str, list[int]] = defaultdict(list)
-        video_to_frameidx: dict[str, list[int]] = defaultdict(list)
+        video_to_frame_ids: dict[str, list[int]] = defaultdict(list)
         for idx, frame in enumerate(self.frames):  # type: ignore
             if frame.videoName is not None:
                 assert (
                     frame.frameIndex is not None
                 ), "found videoName but no frameIndex!"
-                video_to_frameidx[frame.videoName].append(frame.frameIndex)
                 video_to_indices[frame.videoName].append(idx)
+                video_to_frame_ids[frame.videoName].append(frame.frameIndex)
 
-        # sort dataset indices by frame indices
-        for key, idcs in video_to_indices.items():
-            zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
-            video_to_indices[key] = [idx for _, idx in zip_frame_idx]
-        return video_to_indices
+        return self._sort_video_mapping(
+            {
+                "video_to_indices": video_to_indices,
+                "video_to_frame_ids": video_to_frame_ids,
+            }
+        )
 
     def _setup_categories(self) -> None:
         """Setup categories."""

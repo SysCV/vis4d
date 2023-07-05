@@ -6,6 +6,7 @@ additional functionality.
 """
 from __future__ import annotations
 
+from typing import TypedDict
 from collections.abc import Sequence
 
 from torch.utils.data import Dataset as TorchDataset
@@ -67,6 +68,13 @@ class Dataset(TorchDataset[DictData]):
                 raise ValueError(f"Key '{k}' is not supported!")
 
 
+class VideoMapping(TypedDict):
+    """Grouped dataset sample indices and frame indices."""
+
+    video_to_indices: dict[str, list[int]]
+    video_to_frame_ids: dict[str, list[int]]
+
+
 class VideoDataset(Dataset):
     """Video datasets.
 
@@ -76,14 +84,30 @@ class VideoDataset(Dataset):
     def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
         """Initialize dataset."""
         super().__init__(*args, **kwargs)
-        self.video_to_indices: dict[str, list[int]] = {}
+        self.video_mapping: VideoMapping = {}
 
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
-        """Group dataset sample indices by their associated video ID.
+    def _sort_video_mapping(self, video_mapping: VideoMapping) -> VideoMapping:
+        """Sort video mapping by frame ids."""
+        video_to_indices = video_mapping["video_to_indices"]
+        video_to_frame_ids = video_mapping["video_to_frame_ids"]
+
+        for seq in video_to_indices:
+            sorted_zipped = sorted(
+                list(zip(video_to_indices[seq], video_to_frame_ids[seq])),
+                key=lambda x: x[1],
+            )
+            sorted_indices, sorted_frame_ids = zip(*sorted_zipped)
+            video_mapping["video_to_indices"][seq] = list(sorted_indices)
+            video_mapping["video_to_frame_ids"][seq] = list(sorted_frame_ids)
+
+        return video_mapping
+
+    def _generate_video_mapping(self) -> VideoMapping:
+        """Group dataset sample by their associated video ID.
 
         The sample index is an integer while video IDs are string.
 
         Returns:
-            dict[str, list[int]]: Mapping video to index.
+            VideoMapping: Mapping of video IDs to sample indices and frame IDs.
         """
         raise NotImplementedError
