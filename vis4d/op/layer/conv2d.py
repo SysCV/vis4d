@@ -4,24 +4,54 @@ from __future__ import annotations
 from typing import NamedTuple
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torch.nn import functional as F
 
+from .weight_init import constant_init
 
-class Conv2d(torch.nn.Conv2d):
+
+class Conv2d(nn.Conv2d):
     """Wrapper around Conv2d to support empty inputs and norm/activation."""
 
     def __init__(self, *args, **kwargs) -> None:  # type: ignore
         """Creates an instance of the class."""
         norm = kwargs.pop("norm", None)
         activation = kwargs.pop("activation", None)
+        negative_slope = kwargs.pop("negative_slope", 0.01)
         super().__init__(*args, **kwargs)
         self.norm = norm
         self.activation = activation
+        self.negative_slope = negative_slope
+
+        self.init_weights()
+
+    def init_weights(self) -> None:
+        """Init weights.
+
+        By default, self.weight is initialized with kaiming_normal_, self.bias
+        is initialized with constant_init(0). For self.norm, weight is
+        initialized with constant_init(1) and bias is initialized with 0.
+        """
+        if self.activation is not None and isinstance(
+            self.activation, nn.LeakyReLU
+        ):
+            nonlinearity = "leaky_relu"
+            a = self.negative_slope
+        else:
+            nonlinearity = "relu"
+            a = 0
+
+        nn.init.kaiming_normal_(self.weight, a=a, nonlinearity=nonlinearity)
+
+        if self.bias is not None:
+            nn.init.constant_(self.bias, 0)
+
+        if self.norm is not None:
+            constant_init(self.norm, 1, bias=0)
 
     def forward(  # pylint: disable=arguments-renamed
-        self, x: torch.Tensor
-    ) -> torch.Tensor:
+        self, x: Tensor
+    ) -> Tensor:
         """Forward pass."""
         if not torch.jit.is_scripting():  # type: ignore
             # https://github.com/pytorch/pytorch/issues/12013
@@ -96,8 +126,8 @@ class UnetDownConvOut(NamedTuple):
     pooled_features: Features after applying the pooling operator
     """
 
-    features: torch.Tensor
-    pooled_features: torch.Tensor
+    features: Tensor
+    pooled_features: Tensor
 
 
 class UnetDownConv(nn.Module):
@@ -148,26 +178,26 @@ class UnetDownConv(nn.Module):
         if self.pooling:
             self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-    def __call__(self, data: torch.Tensor) -> UnetDownConvOut:
+    def __call__(self, data: Tensor) -> UnetDownConvOut:
         """Applies the operator.
 
         Args:
-            data (tensor): Input data
+            data (Tensor): Input data.
 
         Returns:
-            UnetDownConvOut containing the features before the pooling
+            UnetDownConvOut: Containing the features before the pooling
             operation (features) and after (pooled_features).
         """
         return self._call_impl(data)
 
-    def forward(self, data: torch.Tensor) -> UnetDownConvOut:
+    def forward(self, data: Tensor) -> UnetDownConvOut:
         """Applies the operator.
 
         Args:
-            data (tensor): Input data
+            data (Tensor): Input data.
 
         Returns:
-            UnetDownConvOut containing the features before the pooling
+            UnetDownConvOut: containing the features before the pooling
             operation (features) and after (pooled_features).
         """
         x = F.relu(self.conv1(data))
@@ -238,29 +268,25 @@ class UnetUpConv(nn.Module):
             self.out_channels, self.out_channels, 3, padding=1
         )
 
-    def __call__(
-        self, from_down: torch.Tensor, from_up: torch.Tensor
-    ) -> torch.Tensor:
+    def __call__(self, from_down: Tensor, from_up: Tensor) -> Tensor:
         """Forward pass.
 
         Arguments:
-            from_down: tensor from the encoder pathway.
-                        Assumed to have dimension 'out_channels'
-            from_up: upconv'd tensor from the decoder pathway
-                    Assumed to have dimension 'in_channels'
+            from_down (Tensor): Tensor from the encoder pathway. Assumed to
+                have dimension 'out_channels'
+            from_up (Tensor): Upconv'd tensor from the decoder pathway. Assumed
+                to have dimension 'in_channels'
         """
         return self._call_impl(from_down, from_up)
 
-    def forward(
-        self, from_down: torch.Tensor, from_up: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, from_down: Tensor, from_up: Tensor) -> Tensor:
         """Forward pass.
 
         Arguments:
-            from_down: tensor from the encoder pathway.
-                        Assumed to have dimension 'out_channels'
-            from_up: upconv'd tensor from the decoder pathway
-                    Assumed to have dimension 'in_channels'
+            from_down (Tensor): Tensor from the encoder pathway. Assumed to
+                have dimension 'out_channels'
+            from_up (Tensor): Upconv'd tensor from the decoder pathway. Assumed
+                to have dimension 'in_channels'
         """
         from_up = self.upconv(from_up)
         if self.merge_mode == "concat":

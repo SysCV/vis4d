@@ -33,7 +33,7 @@ class QD3DTBBox3DHeadOutput(NamedTuple):
 
 class QD3DTDet3DOut(NamedTuple):
     """Output of QD-3DT bounding box 3D head.
-    
+
     Attributes:
         boxes_3d (list[Tensor]): Predicted 3D bounding boxes. Each tensor has
             shape (N, 12) and contains x,y,z,h,w,l,rx,ry,rz,vx,vy,vz.
@@ -125,7 +125,6 @@ class QD3DTBBox3DHead(nn.Module):
         norm: None | str = None,
         num_groups: int = 32,
         num_rotation_bins: int = 2,
-        num_dims: int = 12,
     ):
         """Initialize the QD-3DT bounding box 3D head."""
         super().__init__()
@@ -150,7 +149,6 @@ class QD3DTBBox3DHead(nn.Module):
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
         self.num_rotation_bins = num_rotation_bins
-        self.num_dims = num_dims
         self.proposal_append_gt = proposal_append_gt
         self.cls_out_channels = num_classes
 
@@ -391,6 +389,18 @@ class QD3DTBBox3DHead(nn.Module):
         self, features: list[Tensor], boxes_2d: list[Tensor]
     ) -> list[Tensor]:
         """Get 3D bounding box prediction parameters."""
+        if sum(len(b) for b in boxes_2d) == 0:  # pragma: no cover
+            return [
+                torch.empty(
+                    (
+                        0,
+                        self.cls_out_channels,
+                        6 + 3 * self.num_rotation_bins + 1,
+                    ),
+                    device=boxes_2d[0].device,
+                )
+            ] * len(boxes_2d)
+
         roi_feats = self.proposal_pooler(features[2:6], boxes_2d)
         x_dep, x_dim, x_rot, x_cen_2d = self.get_embeds(roi_feats)
 
@@ -473,20 +483,6 @@ class QD3DTBBox3DHead(nn.Module):
                 predictions=predictions, targets=targets, labels=labels
             )
 
-        device = det_boxes[0].device
-        if sum(len(b) for b in det_boxes) == 0:
-            boxes_3d = [
-                torch.empty((0, self.num_dims), device=device)
-                for _ in range(len(det_boxes))
-            ]
-            depth_uncertainty = [
-                torch.empty((0), device=device) for _ in range(len(det_boxes))
-            ]
-            return QD3DTBBox3DHeadOutput(
-                boxes_3d=boxes_3d,
-                depth_uncertainty=depth_uncertainty,
-            )
-
         predictions = self.get_predictions(features, det_boxes)
 
         return QD3DTBBox3DHeadOutput(predictions, None, None)
@@ -538,14 +534,14 @@ class RoI2Det3D:
         Returns:
             QD3DTDet3DOut: QD3DT 3D detection output.
         """
-        device = boxes_2d[0].device
         boxes_3d = []
         depth_uncertainty = []
+        device = boxes_2d[0].device
         for _boxes_2d, _class_ids, _boxes_deltas, _intrinsics in zip(
             boxes_2d, class_ids, predictions, intrinsics
         ):
             if len(_boxes_2d) == 0:
-                boxes_3d.append(torch.empty(0, self.num_dims).to(device))
+                boxes_3d.append(torch.empty(0, 12).to(device))
                 depth_uncertainty.append(torch.empty(0).to(device))
                 continue
 
@@ -561,8 +557,7 @@ class RoI2Det3D:
             )
 
         return QD3DTDet3DOut(
-            boxes_3d=boxes_3d,
-            depth_uncertainty=depth_uncertainty,
+            boxes_3d=boxes_3d, depth_uncertainty=depth_uncertainty
         )
 
 
