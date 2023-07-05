@@ -9,7 +9,12 @@ from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.detect3d.filter import bev_3d_nms, filter_distance
-from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
+from vis4d.op.geometry.rotation import (
+    rotate_orientation,
+    rotate_velocities,
+    euler_angles_to_matrix,
+    matrix_to_quaternion,
+)
 from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter, greedy_assign
 from vis4d.op.track.matching import calc_bisoftmax_affinity
@@ -20,16 +25,47 @@ from vis4d.op.track3d.motion.kf3d import (
     kf3d_predict,
     kf3d_update,
 )
-from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
+from vis4d.state.track3d.cc_3dt import CC3DTrackMemory, CC3DTrackState
 
 
 class Track3DOut(NamedTuple):
     """Output of track 3D model."""
 
-    boxes_3d: Tensor  # (N, 12): x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
+    boxes_3d: Tensor
+    velocities: Tensor
     class_ids: Tensor
     scores_3d: Tensor
     track_ids: Tensor
+
+
+def get_track_3d_out(
+    boxes_3d: Tensor, class_ids: Tensor, scores_3d: Tensor, track_ids: Tensor
+) -> Track3DOut:
+    """Get track 3D output.
+
+    Args:
+        boxes_3d (Tensor): (N, 12): x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
+        class_ids (Tensor): (N,)
+        scores_3d (Tensor): (N,)
+        track_ids (Tensor): (N,)
+
+    Returns:
+        Track3DOut: output
+    """
+    center = boxes_3d[:, :3]
+    # HWL -> WLH
+    dims = boxes_3d[:, [4, 5, 3]]
+    oritentation = matrix_to_quaternion(
+        euler_angles_to_matrix(boxes_3d[:, 6:9])
+    )
+
+    return Track3DOut(
+        boxes_3d=torch.cat([center, dims, oritentation], dim=1),
+        velocities=boxes_3d[:, 9:12],
+        class_ids=class_ids,
+        scores_3d=scores_3d,
+        track_ids=track_ids,
+    )
 
 
 class CC3DTrackGraph:
@@ -271,7 +307,7 @@ class CC3DTrackGraph:
         )
 
         if self.pure_det:
-            return Track3DOut(
+            return get_track_3d_out(
                 boxes_3d,
                 class_ids,
                 scores_2d * scores_3d,
@@ -385,7 +421,7 @@ class CC3DTrackGraph:
         # update 3D score
         track_scores_3d = tracks.scores_3d * tracks.scores
 
-        return Track3DOut(
+        return get_track_3d_out(
             tracks.boxes_3d,
             tracks.class_ids,
             track_scores_3d,

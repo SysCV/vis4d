@@ -51,6 +51,7 @@ CONN_BBOX_3D_TEST = {
 CONN_NUSC_EVAL = {
     "tokens": data_key("token"),
     "boxes_3d": pred_key("boxes_3d"),
+    "velocities": pred_key("velocities"),
     "class_ids": pred_key("class_ids"),
     "scores_3d": pred_key("scores_3d"),
     "track_ids": pred_key("track_ids"),
@@ -68,8 +69,6 @@ def get_config() -> ExperimentConfig:
     ######################################################
     config = get_default_cfg(exp_name="cc_3dt_r50_kf3d")
 
-    ckpt_path = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
-
     # Hyper Parameters
     params = ExperimentParameters()
     params.samples_per_gpu = 4
@@ -82,9 +81,6 @@ def get_config() -> ExperimentConfig:
     ##          Datasets with augmentations             ##
     ######################################################
     data_root = "data/nuscenes"
-    # version = "v1.0-mini"
-    # train_split = "mini_train"
-    # test_split = "mini_val"
     version = "v1.0-trainval"
     train_split = "train"
     test_split = "val"
@@ -112,7 +108,7 @@ def get_config() -> ExperimentConfig:
         num_classes=10,
         basemodel=basemodel,
         detection_range=nuscenes_detection_range,
-        # weights=ckpt_path,
+        # weights="https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt",
     )
 
     ######################################################

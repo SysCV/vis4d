@@ -47,7 +47,7 @@ def get_nusc_mono_train(
         data_backend=data_backend,
         skip_empty_samples=True,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/mono_train.pkl",
+        cached_file_path=f"{data_root}/mono_train.pkl",
     )
 
 
@@ -64,7 +64,7 @@ def get_nusc_mono_mini_train(
         skip_empty_samples=True,
         data_backend=data_backend,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/mono_mini_train.pkl",
+        cached_file_path=f"{data_root}/mono_mini_train.pkl",
     )
 
 
@@ -80,7 +80,7 @@ def get_nusc_val(
         split="val",
         data_backend=data_backend,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/val.pkl",
+        cached_file_path=f"{data_root}/val.pkl",
     )
 
 
@@ -96,7 +96,7 @@ def get_nusc_mini_val(
         split="mini_val",
         data_backend=data_backend,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/mini_val.pkl",
+        cached_file_path=f"{data_root}/mini_val.pkl",
     )
 
 
@@ -167,7 +167,7 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
             ),
             class_config(ResizeImages, sensors=NuScenes.CAMERAS),
             class_config(ResizeIntrinsics, sensors=NuScenes.CAMERAS),
-            # class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
+            class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
         ],
     )
 
@@ -175,7 +175,7 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
         compose,
         transforms=[
             class_config(PadImages, sensors=NuScenes.CAMERAS),
-            class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
+            # class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
             class_config(ToTensor, sensors=NuScenes.CAMERAS),
         ],
     )

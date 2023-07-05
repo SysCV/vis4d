@@ -61,7 +61,7 @@ class QD3DTBox3DEncoder:
         )
 
         # WLH -> HWL
-        dims = dims[:, [2, 1, 0]]
+        dims = dims[:, [2, 0, 1]]
 
         # rotation
         yaw = matrix_to_euler_angles(quaternion_to_matrix(boxes3d[:, 6:]))[

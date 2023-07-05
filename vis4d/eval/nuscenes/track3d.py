@@ -9,12 +9,11 @@ from typing import Any
 
 import numpy as np
 from nuscenes.utils.data_classes import Quaternion
-from scipy.spatial.transform import Rotation as R
-from torch import Tensor
 
+from vis4d.common.array import array_to_numpy
 from vis4d.common.logging import rank_zero_warn
 from vis4d.common.imports import NUSCENES_AVAILABLE
-from vis4d.common.typing import DictStrAny, MetricLogs
+from vis4d.common.typing import ArrayLike, DictStrAny, MetricLogs
 from vis4d.data.datasets.nuscenes import (
     nuscenes_attribute_map,
     nuscenes_class_map,
@@ -28,7 +27,6 @@ if NUSCENES_AVAILABLE:
     from nuscenes.eval.detection.evaluate import NuScenesEval
 
 
-# TODO: Refactor it to work with our own boxes3d
 class NuScenesEvaluator(Evaluator):
     """NuScenes 3D detection and tracking evaluation class."""
 
@@ -67,6 +65,8 @@ class NuScenesEvaluator(Evaluator):
         split: str,
         output_dir: str,
         metadata: tuple[str, ...] = ("use_camera",),
+        use_default_attr: bool = False,
+        velocity_thres: float = 1.0,
     ) -> None:
         """Initialize NuScenes evaluator."""
         super().__init__()
@@ -74,6 +74,8 @@ class NuScenesEvaluator(Evaluator):
         self.version = version
         self.split = split
         self.output_dir = output_dir
+        self.use_default_attr = use_default_attr
+        self.velocity_thres = velocity_thres
 
         self.meta_data = {
             "use_camera": False,
@@ -122,11 +124,12 @@ class NuScenesEvaluator(Evaluator):
         self.tracks_3d.clear()
         self.detect_3d.clear()
 
-    def get_attributes(
-        self, name: str, velocity: list[float], velocity_thres: float = 1.0
-    ) -> str:
+    def get_attributes(self, name: str, velocity: list[float]) -> str:
         """Get nuScenes attributes."""
-        if np.sqrt(velocity[0] ** 2 + velocity[1] ** 2) > velocity_thres:
+        if self.use_default_attr:
+            return self.DefaultAttribute[name]
+
+        if np.sqrt(velocity[0] ** 2 + velocity[1] ** 2) > self.velocity_thres:
             if name in {
                 "car",
                 "construction_vehicle",
@@ -150,48 +153,49 @@ class NuScenesEvaluator(Evaluator):
     def _process_track_3d(
         self,
         token: str,
-        boxes_3d: Tensor,
-        scores_3d: Tensor,
-        class_ids: Tensor,
-        track_ids: Tensor,
+        boxes_3d: ArrayLike,
+        velocities: ArrayLike,
+        scores_3d: ArrayLike,
+        class_ids: ArrayLike,
+        track_ids: ArrayLike,
     ) -> None:
         """Process 3D tracking results."""
         annos = []
         if len(boxes_3d) != 0:
-            for track_id, box_3d, score_3d, class_id in zip(
-                track_ids,
+            for box_3d, velocity, score_3d, class_id, track_id in zip(
                 boxes_3d,
+                velocities,
                 scores_3d,
                 class_ids,
+                track_ids,
             ):
-                category = self.inv_nuscenes_class_map[
-                    int(class_id.cpu().numpy())
-                ]
+                box_3d = array_to_numpy(box_3d)
+                velocity = array_to_numpy(velocity)
+                score_3d = array_to_numpy(score_3d)
+                class_id = array_to_numpy(class_id)
+                track_id = array_to_numpy(track_id)
+
+                category = self.inv_nuscenes_class_map[int(class_id)]
                 if not category in self.tracking_cats:
                     continue
 
-                translation = box_3d[0:3].cpu().numpy()
+                translation = box_3d[0:3]
 
-                dim = box_3d[3:6].cpu().numpy().tolist()
-                dimension = [dim[1], dim[2], dim[0]]
+                dimension = box_3d[3:6]
 
-                # Using extrinsic rotation here to align with Pytorch3D
-                x, y, z, w = R.from_euler(
-                    "XYZ", box_3d[6:9].cpu().numpy()
-                ).as_quat()
-                rotation = Quaternion([w, x, y, z])
+                rotation = Quaternion(box_3d[6:].tolist())
 
-                score = float(score_3d.cpu().numpy())
+                score = float(score_3d)
 
-                velocity = box_3d[9:12].cpu().numpy().tolist()
+                velocity_list = velocity.tolist()
 
                 nusc_anno = {
                     "sample_token": token,
                     "translation": translation.tolist(),
-                    "size": dimension,
+                    "size": dimension.tolist(),
                     "rotation": rotation.elements.tolist(),
-                    "velocity": [velocity[0], velocity[1]],
-                    "tracking_id": int(track_id.cpu().numpy()),
+                    "velocity": [velocity_list[0], velocity_list[1]],
+                    "tracking_id": int(track_id),
                     "tracking_name": category,
                     "tracking_score": score,
                 }
@@ -201,46 +205,49 @@ class NuScenesEvaluator(Evaluator):
     def _process_detect_3d(
         self,
         token: str,
-        boxes_3d: Tensor,
-        scores_3d: Tensor,
-        class_ids: Tensor,
-        attributes: Tensor | None = None,
+        boxes_3d: ArrayLike,
+        velocities: ArrayLike,
+        scores_3d: ArrayLike,
+        class_ids: ArrayLike,
+        attributes: ArrayLike | None = None,
     ) -> None:
         """Process 3D detection results."""
         annos = []
         if len(boxes_3d) != 0:
-            for i, (box_3d, score_3d, class_id) in enumerate(
+            for i, (box_3d, velocity, score_3d, class_id) in enumerate(
                 zip(
                     boxes_3d,
+                    velocities,
                     scores_3d,
                     class_ids,
                 )
             ):
-                category = self.inv_nuscenes_class_map[
-                    int(class_id.cpu().numpy())
-                ]
+                box_3d = array_to_numpy(box_3d)
+                velocity = array_to_numpy(velocity)
+                score_3d = array_to_numpy(score_3d)
+                class_id = array_to_numpy(class_id)
 
-                translation = box_3d[0:3].cpu().numpy()
+                category = self.inv_nuscenes_class_map[int(class_id)]
 
-                dim = box_3d[3:6].cpu().numpy().tolist()
-                dimension = [dim[1], dim[2], dim[0]]
-                dimension = [d if d >= 0 else 0.1 for d in dimension]
+                translation = box_3d[0:3]
 
-                # Using extrinsic rotation here to align with Pytorch3D
-                x, y, z, w = R.from_euler(
-                    "XYZ", box_3d[6:9].cpu().numpy()
-                ).as_quat()
-                rotation = Quaternion([w, x, y, z])
+                dims = box_3d[3:6].tolist()
+                dimension = [d if d >= 0 else 0.1 for d in dims]
 
-                score = float(score_3d.cpu().numpy())
+                rotation = Quaternion(box_3d[6:].tolist())
 
-                velocity = box_3d[9:12].cpu().numpy().tolist()
+                score = float(score_3d)
+
+                velocity_list = velocity.tolist()
 
                 if attributes is None:
-                    attribute_name = self.get_attributes(category, velocity)
+                    attribute_name = self.get_attributes(
+                        category, velocity_list
+                    )
                 else:
+                    attribute = array_to_numpy(attributes[i])
                     attribute_name = self.inv_nuscenes_attribute_map[
-                        int(attributes[i].cpu().numpy())
+                        int(attribute)
                     ]
 
                 nusc_anno = {
@@ -248,7 +255,7 @@ class NuScenesEvaluator(Evaluator):
                     "translation": translation.tolist(),
                     "size": dimension,
                     "rotation": rotation.elements.tolist(),
-                    "velocity": [velocity[0], velocity[1]],
+                    "velocity": [velocity_list[0], velocity_list[1]],
                     "detection_name": category,
                     "detection_score": score,
                     "attribute_name": attribute_name,
@@ -259,11 +266,12 @@ class NuScenesEvaluator(Evaluator):
     def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
         tokens: list[str] | str,
-        boxes_3d: Tensor,
-        scores_3d: Tensor,
-        class_ids: Tensor,
-        track_ids: Tensor,
-        attributes: Tensor | None = None,
+        boxes_3d: ArrayLike,
+        velocities: ArrayLike,
+        class_ids: ArrayLike,
+        scores_3d: ArrayLike,
+        track_ids: ArrayLike,
+        attributes: ArrayLike | None = None,
     ) -> None:
         """Process the results."""
         # Currently only support batch size of 1.
@@ -277,14 +285,11 @@ class NuScenesEvaluator(Evaluator):
             token = tokens
 
         self._process_detect_3d(
-            token,
-            boxes_3d,
-            scores_3d,
-            class_ids,
-            attributes,
+            token, boxes_3d, velocities, scores_3d, class_ids, attributes
         )
+
         self._process_track_3d(
-            token, boxes_3d, scores_3d, class_ids, track_ids
+            token, boxes_3d, velocities, scores_3d, class_ids, track_ids
         )
 
     @staticmethod

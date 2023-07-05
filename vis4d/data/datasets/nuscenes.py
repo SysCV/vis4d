@@ -520,14 +520,14 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     ]
                 )
 
-            # Get 3D box orientation
+            # Get 3D box yaw. Use extrinsic rotation to align with PyTorch3D.
             if axis_mode == AxisMode.ROS:
                 yaw = box3d.orientation.yaw_pitch_roll[0]
-                x, y, z, w = R.from_euler("xyz", [0, 0, yaw]).as_quat()
+                x, y, z, w = R.from_euler("XYZ", [0, 0, yaw]).as_quat()
                 orientation = Quaternion([w, x, y, z])
             else:
                 yaw = -box3d.orientation.yaw_pitch_roll[0]
-                x, y, z, w = R.from_euler("xyz", [0, yaw, 0]).as_quat()
+                x, y, z, w = R.from_euler("XYZ", [0, yaw, 0]).as_quat()
                 orientation = Quaternion([w, x, y, z])
 
             boxes3d = np.concatenate(
