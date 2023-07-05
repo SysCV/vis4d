@@ -26,7 +26,10 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.eval.nuscenes import NuScenesEvaluator
+from vis4d.eval.nuscenes import (
+    NuScenesDet3DEvaluator,
+    NuScenesTrack3DEvaluator,
+)
 from vis4d.op.base import ResNet
 
 CONN_BBOX_3D_TRAIN = {
@@ -48,7 +51,15 @@ CONN_BBOX_3D_TEST = {
     "frame_ids": K.frame_ids,
 }
 
-CONN_NUSC_EVAL = {
+CONN_NUSC_DET3D_EVAL = {
+    "tokens": data_key("token"),
+    "boxes_3d": pred_key("boxes_3d"),
+    "velocities": pred_key("velocities"),
+    "class_ids": pred_key("class_ids"),
+    "scores_3d": pred_key("scores_3d"),
+}
+
+CONN_NUSC_TRACK3D_EVAL = {
     "tokens": data_key("token"),
     "boxes_3d": pred_key("boxes_3d"),
     "velocities": pred_key("velocities"),
@@ -108,7 +119,7 @@ def get_config() -> ExperimentConfig:
         num_classes=10,
         basemodel=basemodel,
         detection_range=nuscenes_detection_range,
-        # weights="https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt",
+        weights="https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt",
     )
 
     ######################################################
@@ -156,7 +167,7 @@ def get_config() -> ExperimentConfig:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                NuScenesEvaluator,
+                NuScenesDet3DEvaluator,
                 data_root=data_root,
                 version=version,
                 split=test_split,
@@ -166,7 +177,21 @@ def get_config() -> ExperimentConfig:
             save_prefix=config.output_dir,
             test_connector=class_config(
                 MultiSensorCallbackConnector,
-                key_mapping=CONN_NUSC_EVAL,
+                key_mapping=CONN_NUSC_DET3D_EVAL,
+                sensors=NuScenes.CAMERAS,
+            ),
+        )
+    )
+
+    callbacks.append(
+        class_config(
+            EvaluatorCallback,
+            evaluator=class_config(NuScenesTrack3DEvaluator),
+            save_predictions=True,
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                MultiSensorCallbackConnector,
+                key_mapping=CONN_NUSC_TRACK3D_EVAL,
                 sensors=NuScenes.CAMERAS,
             ),
         )
