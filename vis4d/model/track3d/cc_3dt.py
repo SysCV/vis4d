@@ -17,7 +17,7 @@ from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
-from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead
+from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
 from vis4d.op.fpp import FPN
 from vis4d.op.track.qdtrack import QDTrack
 from vis4d.op.track3d.common import Track3DOut
@@ -102,7 +102,10 @@ class FasterRCNNCC3DT(nn.Module):
             self.faster_rcnn_head = faster_rcnn_head
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
+
         self.bbox_3d_head = QD3DTBBox3DHead(num_classes=num_classes)
+
+        self.roi2det_3d = RoI2Det3D()
 
         self.qdtrack = QDTrack() if qdtrack is None else qdtrack
 
@@ -211,8 +214,8 @@ class FasterRCNNCC3DT(nn.Module):
 
         predictions, targets, labels = self.bbox_3d_head(
             features=key_features,
-            intrinsics=intrinsics[key_index],
             det_boxes=key_proposals,
+            intrinsics=intrinsics[key_index],
             target_boxes=key_target_boxes,
             target_boxes3d=target_boxes3d[key_index],
             target_class_ids=target_classes[key_index],
@@ -263,11 +266,10 @@ class FasterRCNNCC3DT(nn.Module):
             *roi, proposals.boxes, images_hw_list
         )
 
-        boxes_3d, scores_3d = self.bbox_3d_head(
-            features,
-            intrinsics=intrinsics,
-            det_boxes=boxes_2d,
-            det_class_ids=class_ids,
+        predictions, _, _ = self.bbox_3d_head(features, det_boxes=boxes_2d)
+
+        boxes_3d, scores_3d = self.roi2det_3d(
+            predictions, boxes_2d, class_ids, intrinsics
         )
 
         if self.class_range_map is not None:

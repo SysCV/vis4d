@@ -23,19 +23,26 @@ from vis4d.op.loss.common import rotation_loss, smooth_l1_loss
 from vis4d.op.loss.reducer import LossReducer, SumWeightedLoss, mean_loss
 
 
-class QD3DTBBox3DHeadTrainOut(NamedTuple):
+class QD3DTBBox3DHeadOutput(NamedTuple):
     """QD-3DT bounding box 3D head training output."""
 
     predictions: Tensor
-    targets: Tensor
-    labels: Tensor
+    targets: Tensor | None
+    labels: Tensor | None
 
 
-class QD3DTBBox3DHeadOutput(NamedTuple):
-    """Output of QD-3DT bounding box 3D head."""
+class QD3DTDet3DOut(NamedTuple):
+    """Output of QD-3DT bounding box 3D head.
+    
+    Attributes:
+        boxes_3d (list[Tensor]): Predicted 3D bounding boxes. Each tensor has
+            shape (N, 12) and contains x,y,z,h,w,l,rx,ry,rz,vx,vy,vz.
+        depth_uncertainty (list[Tensor]): Predicted depth uncertainty. Each
+            tensor has shape (N, 1).
+    """
 
-    boxes_3d: list[Tensor]  # (N, 12): x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
-    depth_uncertainty: list[Tensor]  # (N, 1)
+    boxes_3d: list[Tensor]
+    depth_uncertainty: list[Tensor]
 
 
 def get_default_proposal_pooler() -> RoIPooler:
@@ -99,7 +106,6 @@ class QD3DTBBox3DHead(nn.Module):
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
         box_encoder: None | QD3DTBox3DEncoder = None,
-        box_decoder: None | QD3DTBox3DDecoder = None,
         proposal_append_gt: bool = True,
         num_shared_convs: int = 2,
         num_shared_fcs: int = 0,
@@ -140,9 +146,6 @@ class QD3DTBBox3DHead(nn.Module):
         )
         self.box_encoder = (
             box_encoder if box_encoder is not None else QD3DTBox3DEncoder()
-        )
-        self.box_decoder = (
-            box_decoder if box_decoder is not None else QD3DTBox3DDecoder()
         )
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
@@ -419,100 +422,123 @@ class QD3DTBBox3DHead(nn.Module):
 
         return torch.cat(targets), torch.cat(labels)
 
-    def _forward_train(
+    def forward(
         self,
         features: list[Tensor],
         det_boxes: list[Tensor],
-        target_boxes: list[Tensor],
-        target_boxes3d: list[Tensor],
-        target_class_ids: list[Tensor],
-        intrinsics: Tensor,
-    ) -> QD3DTBBox3DHeadTrainOut:
-        """Forward pass during training stage.
-
-        Args:
-            features (list[Tensor]): Features from the upstream network.
-            det_boxes (list[Tensor]): 2D detection boxes.
-            target_boxes (list[Tensor]): 2D ground-truth boxes.
-            target_boxes3d (list[Tensor]): 3D ground-truth boxes.
-            target_class_ids (list[Tensor]): Class labels of ground-truth
-                boxes.
-            intrinsics (Tensor): Camera intrinsics.
-
-        Returns:
-            QD3DTBBox3DHeadTrainOut: Output of this head during training.
-        """
-        # match and sample
-        if self.proposal_append_gt:
-            det_boxes = [
-                torch.cat([d, t]) for d, t in zip(det_boxes, target_boxes)
-            ]
-
-        (
-            sampled_box_indices,
-            sampled_target_indices,
-            sampled_labels,
-        ) = match_and_sample_proposals(
-            self.box_matcher, self.box_sampler, det_boxes, target_boxes
-        )
-        positives = [l == 1 for l in sampled_labels]
-        pos_assigned_gt_inds = [
-            i[p] if len(p) != 0 else p
-            for i, p in zip(sampled_target_indices, positives)
-        ]
-        pos_boxes = [
-            b[s_i][p]
-            for b, s_i, p in zip(det_boxes, sampled_box_indices, positives)
-        ]
-        predictions = torch.cat(self.get_predictions(features, pos_boxes))
-
-        targets, labels = self.get_targets(
-            pos_assigned_gt_inds,
-            target_boxes,
-            target_boxes3d,
-            target_class_ids,
-            intrinsics,
-        )
-
-        return QD3DTBBox3DHeadTrainOut(
-            predictions=predictions, targets=targets, labels=labels
-        )
-
-    def _forward_test(
-        self,
-        features: list[Tensor],
-        boxes_2d: list[Tensor],
-        class_ids: list[Tensor],
-        intrinsics: Tensor,
+        intrinsics: Tensor | None = None,
+        target_boxes: list[Tensor] | None = None,
+        target_boxes3d: list[Tensor] | None = None,
+        target_class_ids: list[Tensor] | None = None,
     ) -> QD3DTBBox3DHeadOutput:
-        """Forward pass during testing stage.
+        """Forward."""
+        if (
+            intrinsics is not None
+            and target_boxes is not None
+            and target_boxes3d is not None
+            and target_class_ids is not None
+        ):
+            if self.proposal_append_gt:
+                det_boxes = [
+                    torch.cat([d, t]) for d, t in zip(det_boxes, target_boxes)
+                ]
 
-        Args:
-            features: Input feature maps.
-            boxes_2d: Input 2D boxes to apply RoIHead on.
-            class_ids: Input class ids for boxes_3d.
-            intrinsics: Input camera intrinsics.
+            (
+                sampled_box_indices,
+                sampled_target_indices,
+                sampled_labels,
+            ) = match_and_sample_proposals(
+                self.box_matcher, self.box_sampler, det_boxes, target_boxes
+            )
+            positives = [l == 1 for l in sampled_labels]
+            pos_assigned_gt_inds = [
+                i[p] if len(p) != 0 else p
+                for i, p in zip(sampled_target_indices, positives)
+            ]
+            pos_boxes = [
+                b[s_i][p]
+                for b, s_i, p in zip(det_boxes, sampled_box_indices, positives)
+            ]
+            predictions = torch.cat(self.get_predictions(features, pos_boxes))
 
-        Returns:
-            List[Boxes3D]: Prediction output.
-        """
-        assert features is not None, "QD-3DT box3D head requires features!"
-        device = boxes_2d[0].device
-        if sum(len(b) for b in boxes_2d) == 0:
+            targets, labels = self.get_targets(
+                pos_assigned_gt_inds,
+                target_boxes,
+                target_boxes3d,
+                target_class_ids,
+                intrinsics,
+            )
+
+            return QD3DTBBox3DHeadOutput(
+                predictions=predictions, targets=targets, labels=labels
+            )
+
+        device = det_boxes[0].device
+        if sum(len(b) for b in det_boxes) == 0:
             boxes_3d = [
                 torch.empty((0, self.num_dims), device=device)
-                for _ in range(len(boxes_2d))
+                for _ in range(len(det_boxes))
             ]
             depth_uncertainty = [
-                torch.empty((0), device=device) for _ in range(len(boxes_2d))
+                torch.empty((0), device=device) for _ in range(len(det_boxes))
             ]
             return QD3DTBBox3DHeadOutput(
                 boxes_3d=boxes_3d,
                 depth_uncertainty=depth_uncertainty,
             )
 
-        predictions = self.get_predictions(features, boxes_2d)
+        predictions = self.get_predictions(features, det_boxes)
 
+        return QD3DTBBox3DHeadOutput(predictions, None, None)
+
+    def __call__(
+        self,
+        features: list[Tensor],
+        det_boxes: list[Tensor],
+        intrinsics: Tensor | None = None,
+        target_boxes: list[Tensor] | None = None,
+        target_boxes3d: list[Tensor] | None = None,
+        target_class_ids: list[Tensor] | None = None,
+    ) -> QD3DTBBox3DHeadOutput:
+        """Type definition."""
+        return self._call_impl(
+            features,
+            det_boxes,
+            intrinsics,
+            target_boxes,
+            target_boxes3d,
+            target_class_ids,
+        )
+
+
+class RoI2Det3D:
+    """Post processing for QD3DTBBox3DHead."""
+
+    def __init__(self, box_decoder: None | QD3DTBox3DDecoder = None) -> None:
+        """Initialize."""
+        self.box_decoder = (
+            QD3DTBox3DDecoder() if box_decoder is None else box_decoder
+        )
+
+    def __call__(
+        self,
+        predictions: list[Tensor],
+        boxes_2d: list[Tensor],
+        class_ids: list[Tensor],
+        intrinsics: Tensor,
+    ) -> QD3DTDet3DOut:
+        """Forward pass during testing stage.
+
+        Args:
+            predictions(list[Tensor]): Predictions.
+            boxes_2d(list[Tensor]): 2D boxes.
+            class_ids(list[Tensor]): Class IDs.
+            intrinsics(Tensor): Camera intrinsics.
+
+        Returns:
+            QD3DTDet3DOut: QD3DT 3D detection output.
+        """
+        device = boxes_2d[0].device
         boxes_3d = []
         depth_uncertainty = []
         for _boxes_2d, _class_ids, _boxes_deltas, _intrinsics in zip(
@@ -534,61 +560,9 @@ class QD3DTBBox3DHead(nn.Module):
                 self.box_decoder(_boxes_2d, _boxes_deltas, _intrinsics)
             )
 
-        return QD3DTBBox3DHeadOutput(
+        return QD3DTDet3DOut(
             boxes_3d=boxes_3d,
             depth_uncertainty=depth_uncertainty,
-        )
-
-    def forward(
-        self,
-        features: list[Tensor],
-        intrinsics: Tensor,
-        det_boxes: list[Tensor],
-        det_class_ids: list[Tensor] | None = None,
-        target_boxes: list[Tensor] | None = None,
-        target_boxes3d: list[Tensor] | None = None,
-        target_class_ids: list[Tensor] | None = None,
-    ) -> QD3DTBBox3DHeadOutput | QD3DTBBox3DHeadTrainOut:
-        """Forward."""
-        if self.training:
-            assert (
-                target_boxes is not None
-                and target_boxes3d is not None
-                and target_class_ids is not None
-            )
-            return self._forward_train(
-                features,
-                det_boxes,
-                target_boxes,
-                target_boxes3d,
-                target_class_ids,
-                intrinsics,
-            )
-
-        assert det_class_ids is not None
-        return self._forward_test(
-            features, det_boxes, det_class_ids, intrinsics
-        )
-
-    def __call__(
-        self,
-        features: list[Tensor],
-        intrinsics: Tensor,
-        det_boxes: list[Tensor],
-        det_class_ids: list[Tensor] | None = None,
-        target_boxes: list[Tensor] | None = None,
-        target_boxes3d: list[Tensor] | None = None,
-        target_class_ids: list[Tensor] | None = None,
-    ) -> QD3DTBBox3DHeadOutput | QD3DTBBox3DHeadTrainOut:
-        """Type definition."""
-        return self._call_impl(
-            features,
-            intrinsics,
-            det_boxes,
-            det_class_ids,
-            target_boxes,
-            target_boxes3d,
-            target_class_ids,
         )
 
 

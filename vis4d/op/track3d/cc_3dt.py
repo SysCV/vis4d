@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
-from vis4d.op.detect3d.filter import filter_distance
 from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
 from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter, greedy_assign
@@ -387,3 +386,16 @@ def cam_to_global(
         class_ids,
         embeddings,
     )
+
+
+def filter_distance(
+    class_ids: Tensor,
+    boxes3d: Tensor,
+    class_range_map: Tensor,
+    tolerance: float = 2.0,
+) -> Tensor:
+    """Filter boxes3d on distance."""
+    detection_range = torch.tensor(
+        [class_range_map[class_id] + tolerance for class_id in class_ids]
+    ).to(class_ids.device)
+    return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= detection_range

@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
-from vis4d.op.detect3d.filter import bev_3d_nms
+from vis4d.op.detect3d.util import bev_3d_nms
 from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_quaternion,
