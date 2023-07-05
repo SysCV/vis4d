@@ -11,11 +11,7 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.model.track.qdtrack import (
-    QDTrack,
-    FasterRCNNQDTrackOut,
-    split_key_ref_indices,
-)
+from vis4d.model.track.qdtrack import FasterRCNNQDTrackOut
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
@@ -23,7 +19,11 @@ from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead
 from vis4d.op.fpp import FPN
-from vis4d.op.track3d.cc_3dt import CC3DTrackGraph, Track3DOut
+from vis4d.op.track.qdtrack import QDTrack
+from vis4d.op.track3d.common import Track3DOut
+from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
+
+from ..track.util import split_key_ref_indices
 
 REV_KEYS = [
     (r"^backbone.body\.", "basemodel."),
@@ -50,6 +50,7 @@ class FasterRCNNCC3DT(nn.Module):
         basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
+        qdtrack: QDTrack | None = None,
         motion_model: str = "KF3D",
         pure_det: bool = False,
         class_range_map: None | list[int] = None,
@@ -66,6 +67,8 @@ class FasterRCNNCC3DT(nn.Module):
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
                 bounding boxes. Defaults to None.
+            qdtrack (QDTrack, optional): QDTrack. Defaults to None. If None,
+                will use default QDTrack.
             motion_model (str): Motion model. Defaults to "KF3D".
             pure_det (bool): Whether to save pure detection results. Defaults
                 to False.
@@ -100,7 +103,9 @@ class FasterRCNNCC3DT(nn.Module):
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
         self.bbox_3d_head = QD3DTBBox3DHead(num_classes=num_classes)
-        self.qdtrack = QDTrack()
+
+        self.qdtrack = QDTrack() if qdtrack is None else qdtrack
+
         self.track_graph = CC3DTrackGraph(
             motion_model=motion_model, pure_det=pure_det
         )
@@ -272,7 +277,7 @@ class FasterRCNNCC3DT(nn.Module):
         else:
             class_range_map = None
 
-        embeddings = self.qdtrack(features, boxes_2d)
+        embeddings, _, _, _ = self.qdtrack(features, boxes_2d)
 
         outs = self.track_graph(
             embeddings,
