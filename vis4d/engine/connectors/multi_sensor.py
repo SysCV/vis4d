@@ -25,6 +25,10 @@ class MultiSensorDataConnector(DataConnector):
             *args: Arguments to pass to the parent class.
             sensors (list[str]): List of all sensors to use.
             **kwargs: Keyword arguments to pass to the parent class.
+
+        Note:
+            If the sensors list is length 1, we will not stack the tensors, so
+            that the output is the same as for a single sensor.
         """
         super().__init__(*args, **kwargs)
         self.sensors = sensors
@@ -37,9 +41,12 @@ class MultiSensorDataConnector(DataConnector):
 
         for k, v in input_dict.items():
             if isinstance(v[0], Tensor):
-                input_dict[k] = torch.stack(input_dict[k])
-            else:
-                input_dict[k] = input_dict[k]
+                if len(self.sensors) == 1:
+                    input_dict[k] = input_dict[k][0]
+                else:
+                    input_dict[k] = torch.stack(input_dict[k])
+            elif len(self.sensors) == 1:
+                input_dict[k] = input_dict[k][0]
 
         return input_dict
 
@@ -137,6 +144,10 @@ def get_multi_sensor_inputs(
     Returns:
         out (DictData): Dict containing new kwargs consisting of new key name
             and data extracted from the data dicts.
+
+    Note:
+        If the sensors list is length 1, we will not stack the tensors, so that
+        the output is the same as for a single sensor.
     """
     out: DictData = {}
     for new_key_name, old_key_name in connection_dict.items():
@@ -147,7 +158,12 @@ def get_multi_sensor_inputs(
             ]
 
             if isinstance(multi_sensor_data[0], Tensor):
-                out[new_key_name] = torch.stack(multi_sensor_data)
+                if len(sensors) == 1:
+                    out[new_key_name] = multi_sensor_data[0]
+                else:
+                    out[new_key_name] = torch.stack(multi_sensor_data)
+            elif len(sensors) == 1:
+                out[new_key_name] = multi_sensor_data[0]
             else:
                 out[new_key_name] = multi_sensor_data
 
