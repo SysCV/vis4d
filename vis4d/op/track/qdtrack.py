@@ -10,22 +10,12 @@ from torch import Tensor, nn
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
-from vis4d.op.box.samplers.combined import CombinedSampler
+from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
-from vis4d.state.track.qdtrack import QDTrackState, QDTrackMemory
 
 from .assignment import TrackIDCounter, greedy_assign
 from .matching import calc_bisoftmax_affinity, cosine_similarity
-
-
-class TrackOut(NamedTuple):
-    """Output of track model."""
-
-    boxes: list[Tensor]  # (N, 4)
-    class_ids: list[Tensor]
-    scores: list[Tensor]
-    track_ids: list[Tensor]
 
 
 def get_default_box_sampler() -> CombinedSampler:
@@ -49,78 +39,133 @@ def get_default_box_matcher() -> MaxIoUMatcher:
     return box_matcher
 
 
-class QDTrackGraph:
-    """Quasi-dense embedding similarity based graph."""
+class QDTrackOut(NamedTuple):
+    """Output of QDTrack during training."""
+
+    key_embeddings: list[Tensor]
+    ref_embeddings: list[list[Tensor]] | None
+    key_track_ids: list[Tensor] | None
+    ref_track_ids: list[list[Tensor]] | None
+
+
+class QDTrack(nn.Module):
+    """QDTrack - quasi-dense instance similarity learning."""
 
     def __init__(
         self,
-        track_graph: QDTrackAssociation | None = None,
-        memory_size: int = 10,
-        memory_momentum: float = 0.8,
+        similarity_head: QDSimilarityHead | None = None,
+        box_sampler: CombinedSampler | None = None,
+        box_matcher: MaxIoUMatcher | None = None,
+        proposal_append_gt: bool = True,
     ) -> None:
-        """Init."""
-        assert 0 <= memory_momentum <= 1.0
-        self.memory_size = memory_size
-        self.memory_momentum = memory_momentum
-        self.track = (
-            QDTrackAssociation() if track_graph is None else track_graph
+        """Creates an instance of the class."""
+        super().__init__()
+        self.similarity_head = (
+            QDSimilarityHead() if similarity_head is None else similarity_head
         )
-        self.track_memory = QDTrackMemory(memory_limit=memory_size)
+
+        self.box_sampler = (
+            box_sampler
+            if box_sampler is not None
+            else get_default_box_sampler()
+        )
+
+        self.box_matcher = (
+            box_matcher
+            if box_matcher is not None
+            else get_default_box_matcher()
+        )
+
+        self.proposal_append_gt = proposal_append_gt
+
+    @torch.no_grad()
+    def _sample_proposals(
+        self,
+        det_boxes: list[list[Tensor]],
+        target_boxes: list[list[Tensor]],
+        target_track_ids: list[list[Tensor]],
+    ) -> tuple[list[list[Tensor]], list[list[Tensor]]]:
+        """Sample proposals for instance similarity learning."""
+        sampled_boxes, sampled_track_ids = [], []
+        for i, (boxes, tgt_boxes) in enumerate(zip(det_boxes, target_boxes)):
+            if self.proposal_append_gt:
+                boxes = [torch.cat([d, t]) for d, t in zip(boxes, tgt_boxes)]
+
+            (
+                sampled_box_indices,
+                sampled_target_indices,
+                sampled_labels,
+            ) = match_and_sample_proposals(
+                self.box_matcher, self.box_sampler, boxes, tgt_boxes
+            )
+
+            positives = [l == 1 for l in sampled_labels]
+            if i == 0:  # key view: take only positives
+                sampled_box = [
+                    b[s_i][p]
+                    for b, s_i, p in zip(boxes, sampled_box_indices, positives)
+                ]
+                sampled_tr_id = [
+                    t[s_i][p]
+                    for t, s_i, p in zip(
+                        target_track_ids[i], sampled_target_indices, positives
+                    )
+                ]
+            else:  # set track_ids to -1 for all negatives
+                sampled_box = [
+                    b[s_i] for b, s_i in zip(boxes, sampled_box_indices)
+                ]
+                sampled_tr_id = [
+                    t[s_i]
+                    for t, s_i in zip(
+                        target_track_ids[i], sampled_target_indices
+                    )
+                ]
+                for pos, samp_tgt in zip(positives, sampled_tr_id):
+                    samp_tgt[~pos] = -1
+
+            sampled_boxes.append(sampled_box)
+            sampled_track_ids.append(sampled_tr_id)
+        return sampled_boxes, sampled_track_ids
+
+    def forward(
+        self,
+        features: list[Tensor] | list[list[Tensor]],
+        det_boxes: list[Tensor] | list[list[Tensor]],
+        target_boxes: None | list[list[Tensor]] = None,
+        target_track_ids: None | list[list[Tensor]] = None,
+    ) -> QDTrackOut:
+        """Forward function."""
+        if target_boxes is not None and target_track_ids is not None:
+            sampled_boxes, sampled_track_ids = self._sample_proposals(
+                det_boxes, target_boxes, target_track_ids
+            )
+
+            embeddings = []
+            for feats, boxes in zip(features, sampled_boxes):
+                embeddings.append(self.similarity_head(feats, boxes))
+
+            return QDTrackOut(
+                embeddings[0],
+                embeddings[1:],
+                sampled_track_ids[0],
+                sampled_track_ids[1:],
+            )
+
+        key_embeddings = self.similarity_head(features, det_boxes)
+
+        return QDTrackOut(key_embeddings, None, None, None)
 
     def __call__(
         self,
-        embeddings: list[Tensor],
-        det_boxes: list[Tensor],
-        det_scores: list[Tensor],
-        det_class_ids: list[Tensor],
-        frame_ids: list[int],
-    ) -> TrackOut:
-        """Forward during test."""
-        batched_tracks = []
-        for frame_id, box, score, cls_id, embeds in zip(
-            frame_ids, det_boxes, det_scores, det_class_ids, embeddings
-        ):
-            # reset graph at begin of sequence
-            if frame_id == 0:
-                self.track_memory.reset()
-                TrackIDCounter.reset()
-
-            cur_memory = self.track_memory.get_current_tracks(box.device)
-            track_ids, match_ids, filter_indices = self.track(
-                box,
-                score,
-                cls_id,
-                embeds,
-                cur_memory.track_ids,
-                cur_memory.class_ids,
-                cur_memory.embeddings,
-            )
-
-            valid_embeds = embeds[filter_indices]
-
-            for i, track_id in enumerate(track_ids):
-                if track_id in match_ids:
-                    track = self.track_memory.get_track(track_id)[-1]
-                    valid_embeds[i] = (
-                        (1 - self.memo_momentum) * track.embeddings
-                        + self.memo_momentum * valid_embeds[i]
-                    )
-
-            data = QDTrackState(
-                track_ids,
-                box[filter_indices],
-                score[filter_indices],
-                cls_id[filter_indices],
-                valid_embeds,
-            )
-            self.track_memory.update(data)
-            batched_tracks.append(self.track_memory.frames[-1])
-
-        return TrackOut(
-            [t.boxes for t in batched_tracks],
-            [t.class_ids for t in batched_tracks],
-            [t.scores for t in batched_tracks],
-            [t.track_ids for t in batched_tracks],
+        features: list[Tensor] | list[list[Tensor]],
+        det_boxes: list[Tensor] | list[list[Tensor]],
+        target_boxes: None | list[list[Tensor]] = None,
+        target_track_ids: None | list[list[Tensor]] = None,
+    ) -> QDTrackOut:
+        """Type definition for call implementation."""
+        return self._call_impl(
+            features, det_boxes, target_boxes, target_track_ids
         )
 
 

@@ -103,7 +103,9 @@ class SHIFTTest(unittest.TestCase):
 
     def test_video_indices(self) -> None:
         """Test if video indices are correct."""
-        self.assertEqual(self.dataset.video_to_indices, {"007b-4e72": [0]})
+        self.assertEqual(
+            self.dataset.video_mapping["video_to_indices"], {"007b-4e72": [0]}
+        )
 
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""

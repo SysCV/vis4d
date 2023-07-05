@@ -13,8 +13,8 @@ from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
-from vis4d.op.box.matchers import MaxIoUMatcher
-from vis4d.op.box.samplers import RandomSampler
+from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
+from vis4d.op.box.samplers import Sampler, RandomSampler
 from vis4d.op.loss.common import l1_loss
 
 from ..layer import Conv2d
@@ -339,6 +339,8 @@ class RPNLoss(DenseAnchorHeadLoss):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: DeltaXYWHBBoxEncoder,
+        matcher: Matcher | None = None,
+        sampler: Sampler | None = None,
         loss_cls: TorchLossFunc = F.binary_cross_entropy_with_logits,
         loss_bbox: TorchLossFunc = l1_loss,
     ):
@@ -353,13 +355,22 @@ class RPNLoss(DenseAnchorHeadLoss):
             loss_bbox (TorchLossFunc): Regression loss function. Defaults to
                 l1_loss.
         """
-        matcher = MaxIoUMatcher(
-            thresholds=[0.3, 0.7],
-            labels=[0, -1, 1],
-            allow_low_quality_matches=True,
-            min_positive_iou=0.3,
+        matcher = (
+            MaxIoUMatcher(
+                thresholds=[0.3, 0.7],
+                labels=[0, -1, 1],
+                allow_low_quality_matches=True,
+                min_positive_iou=0.3,
+            )
+            if matcher is None
+            else matcher
         )
-        sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
+
+        sampler = (
+            RandomSampler(batch_size=256, positive_fraction=0.5)
+            if sampler is None
+            else sampler
+        )
 
         super().__init__(
             anchor_generator,

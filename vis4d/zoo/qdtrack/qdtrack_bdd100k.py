@@ -11,16 +11,10 @@ from vis4d.config.common.datasets.bdd100k import (
     CONN_BDD100K_TRACK_EVAL,
     get_bdd100k_track_cfg,
 )
-from vis4d.config.common.models.faster_rcnn import (
-    get_default_rcnn_box_codec_cfg,
-    get_default_rpn_box_codec_cfg,
-)
 from vis4d.config.common.models.qdtrack import (
     CONN_BBOX_2D_TEST,
     CONN_BBOX_2D_TRAIN,
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
-    CONN_TRACK_LOSS_2D,
+    get_qdtrack_cfg,
 )
 from vis4d.config.default import (
     get_default_callbacks_cfg,
@@ -29,7 +23,6 @@ from vis4d.config.default import (
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import (
-    get_callable_cfg,
     get_lr_scheduler_cfg,
     get_optimizer_cfg,
 )
@@ -39,16 +32,9 @@ from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
-    LossConnector,
 )
-from vis4d.engine.loss_module import LossModule
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
-from vis4d.model.track.qdtrack import FasterRCNNQDTrack
-from vis4d.op.box.anchor.anchor_generator import AnchorGenerator
-from vis4d.op.detect.rcnn import RCNNLoss
-from vis4d.op.detect.rpn import RPNLoss
-from vis4d.op.loss.common import smooth_l1_loss
-from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
+from vis4d.op.base import ResNet
 
 
 def get_config() -> ExperimentConfig:
@@ -85,63 +71,14 @@ def get_config() -> ExperimentConfig:
     ##                        MODEL                     ##
     ######################################################
     num_classes = len(bdd100k_track_map)
+    basemodel = class_config(
+        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+    )
 
-    config.model = class_config(
-        FasterRCNNQDTrack,
+    config.model, config.loss = get_qdtrack_cfg(
         num_classes=num_classes,
+        basemodel=basemodel,
         # weights="https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt",  # pylint: disable=line-too-long
-    )
-
-    ######################################################
-    ##                        LOSS                      ##
-    ######################################################
-    anchor_generator = class_config(
-        AnchorGenerator,
-        scales=[8],
-        ratios=[0.5, 1.0, 2.0],
-        strides=[4, 8, 16, 32, 64],
-    )
-
-    rpn_box_encoder, _ = get_default_rpn_box_codec_cfg()
-    rcnn_box_encoder, _ = get_default_rcnn_box_codec_cfg()
-
-    rpn_loss = class_config(
-        RPNLoss,
-        anchor_generator=anchor_generator,
-        box_encoder=rpn_box_encoder,
-        loss_bbox=get_callable_cfg(smooth_l1_loss, beta=1.0 / 9.0),
-    )
-    rcnn_loss = class_config(
-        RCNNLoss,
-        box_encoder=rcnn_box_encoder,
-        num_classes=num_classes,
-        loss_bbox=get_callable_cfg(smooth_l1_loss),
-    )
-
-    track_loss = class_config(QDTrackInstanceSimilarityLoss)
-
-    config.loss = class_config(
-        LossModule,
-        losses=[
-            {
-                "loss": rpn_loss,
-                "connector": class_config(
-                    LossConnector, key_mapping=CONN_RPN_LOSS_2D
-                ),
-            },
-            {
-                "loss": rcnn_loss,
-                "connector": class_config(
-                    LossConnector, key_mapping=CONN_ROI_LOSS_2D
-                ),
-            },
-            {
-                "loss": track_loss,
-                "connector": class_config(
-                    LossConnector, key_mapping=CONN_TRACK_LOSS_2D
-                ),
-            },
-        ],
     )
 
     ######################################################

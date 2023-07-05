@@ -10,20 +10,21 @@ from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel, CSPDarknet, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
-from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign
-from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
+
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXPostprocess
 from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
+from vis4d.op.track.common import TrackOut
 from vis4d.op.track.qdtrack import (
+    QDTrack,
     QDSimilarityHead,
     QDTrackAssociation,
-    QDTrackGraph,
-    get_default_box_matcher,
-    get_default_box_sampler,
 )
+from vis4d.state.track.qdtrack import QDTrackGraph
+
+from .util import split_key_ref_indices
 
 REV_KEYS = [
     # (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
@@ -56,24 +57,6 @@ YOLOX_REV_KEYS = [
 ]
 
 
-class TrackOut(NamedTuple):
-    """Output of track model."""
-
-    boxes: list[Tensor]  # (N, 4)
-    class_ids: list[Tensor]
-    scores: list[Tensor]
-    track_ids: list[Tensor]
-
-
-class QDTrackOut(NamedTuple):
-    """Output of QDTrack during training."""
-
-    key_embeddings: list[Tensor]
-    ref_embeddings: list[list[Tensor]]
-    key_track_ids: list[Tensor]
-    ref_track_ids: list[list[Tensor]]
-
-
 class FasterRCNNQDTrackOut(NamedTuple):
     """Output of QDtrack model."""
 
@@ -86,166 +69,6 @@ class FasterRCNNQDTrackOut(NamedTuple):
     ref_track_ids: list[list[Tensor]]
 
 
-def split_key_ref_indices(
-    keyframes: list[list[bool]],
-) -> tuple[int, list[int]]:
-    """Get key frame from list of sample attributes."""
-    key_ind = None
-    ref_inds = []
-    for i, is_keys in enumerate(keyframes):
-        assert all(
-            is_keys[0] == is_key for is_key in is_keys
-        ), "Same batch should have the same view."
-        if is_keys[0]:
-            key_ind = i
-        else:
-            ref_inds.append(i)
-
-    assert key_ind is not None, "Key frame not found."
-    assert len(ref_inds) > 0, "No reference frames found."
-
-    return key_ind, ref_inds
-
-
-class QDTrack(nn.Module):
-    """QDTrack - quasi-dense instance similarity learning."""
-
-    def __init__(
-        self,
-        similarity_head: QDSimilarityHead | None = None,
-        box_sampler: CombinedSampler | None = None,
-        box_matcher: MaxIoUMatcher | None = None,
-        proposal_append_gt: bool = True,
-    ) -> None:
-        """Creates an instance of the class."""
-        super().__init__()
-        self.similarity_head = (
-            QDSimilarityHead() if similarity_head is None else similarity_head
-        )
-
-        self.box_sampler = (
-            box_sampler
-            if box_sampler is not None
-            else get_default_box_sampler()
-        )
-
-        self.box_matcher = (
-            box_matcher
-            if box_matcher is not None
-            else get_default_box_matcher()
-        )
-
-        self.proposal_append_gt = proposal_append_gt
-
-    @torch.no_grad()
-    def _sample_proposals(
-        self,
-        det_boxes: list[list[Tensor]],
-        target_boxes: list[list[Tensor]],
-        target_track_ids: list[list[Tensor]],
-    ) -> tuple[list[list[Tensor]], list[list[Tensor]]]:
-        """Sample proposals for instance similarity learning."""
-        sampled_boxes, sampled_track_ids = [], []
-        for i, (boxes, tgt_boxes) in enumerate(zip(det_boxes, target_boxes)):
-            if self.proposal_append_gt:
-                boxes = [torch.cat([d, t]) for d, t in zip(boxes, tgt_boxes)]
-
-            (
-                sampled_box_indices,
-                sampled_target_indices,
-                sampled_labels,
-            ) = match_and_sample_proposals(
-                self.box_matcher, self.box_sampler, boxes, tgt_boxes
-            )
-
-            positives = [l == 1 for l in sampled_labels]
-            if i == 0:  # key view: take only positives
-                sampled_box = [
-                    b[s_i][p]
-                    for b, s_i, p in zip(boxes, sampled_box_indices, positives)
-                ]
-                sampled_tr_id = [
-                    t[s_i][p]
-                    for t, s_i, p in zip(
-                        target_track_ids[i], sampled_target_indices, positives
-                    )
-                ]
-            else:  # set track_ids to -1 for all negatives
-                sampled_box = [
-                    b[s_i] for b, s_i in zip(boxes, sampled_box_indices)
-                ]
-                sampled_tr_id = [
-                    t[s_i]
-                    for t, s_i in zip(
-                        target_track_ids[i], sampled_target_indices
-                    )
-                ]
-                for pos, samp_tgt in zip(positives, sampled_tr_id):
-                    samp_tgt[~pos] = -1
-
-            sampled_boxes.append(sampled_box)
-            sampled_track_ids.append(sampled_tr_id)
-        return sampled_boxes, sampled_track_ids
-
-    def forward(
-        self,
-        features: list[Tensor] | list[list[Tensor]],
-        det_boxes: list[Tensor] | list[list[Tensor]],
-        target_boxes: None | list[list[Tensor]] = None,
-        target_track_ids: None | list[list[Tensor]] = None,
-    ) -> list[Tensor] | QDTrackOut:
-        """Forward function."""
-        if self.training:
-            assert (
-                target_boxes is not None and target_track_ids is not None
-            ), "Need targets during training!"
-            return self._forward_train(
-                features, det_boxes, target_boxes, target_track_ids  # type: ignore # pylint: disable=line-too-long
-            )
-        return self._forward_test(features, det_boxes)
-
-    def _forward_train(
-        self,
-        features: list[list[Tensor]],
-        det_boxes: list[list[Tensor]],
-        target_boxes: list[list[Tensor]],
-        target_track_ids: list[list[Tensor]],
-    ) -> QDTrackOut:
-        """Forward train."""
-        sampled_boxes, sampled_track_ids = self._sample_proposals(
-            det_boxes, target_boxes, target_track_ids
-        )
-
-        embeddings = []
-        for feats, boxes in zip(features, sampled_boxes):
-            embeddings.append(self.similarity_head(feats, boxes))
-
-        return QDTrackOut(
-            embeddings[0],
-            embeddings[1:],
-            sampled_track_ids[0],
-            sampled_track_ids[1:],
-        )
-
-    def _forward_test(
-        self, features: list[Tensor], det_boxes: list[Tensor]
-    ) -> list[Tensor]:
-        """Forward during test."""
-        return self.similarity_head(features, det_boxes)
-
-    def __call__(
-        self,
-        features: list[Tensor] | list[list[Tensor]],
-        det_boxes: list[Tensor] | list[list[Tensor]],
-        target_boxes: None | list[list[Tensor]] = None,
-        target_track_ids: None | list[list[Tensor]] = None,
-    ) -> list[Tensor] | QDTrackOut:
-        """Type definition for call implementation."""
-        return self._call_impl(
-            features, det_boxes, target_boxes, target_track_ids
-        )
-
-
 class FasterRCNNQDTrack(nn.Module):
     """Wrap QDTrack with Faster R-CNN detector."""
 
@@ -255,6 +78,8 @@ class FasterRCNNQDTrack(nn.Module):
         basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
+        qdtrack: QDTrack | None = None,
+        track_graph: QDTrackGraph | None = None,
         weights: None | str = None,
     ) -> None:
         """Creates an instance of the class.
@@ -267,6 +92,10 @@ class FasterRCNNQDTrack(nn.Module):
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
                 bounding boxes. Defaults to None.
+            qdtrack (QDTrack, optional): QDTrack model. Defaults to None. If
+                None, will use default QDTrack.
+            track_graph (QDTrackGraph, optional): Track graph. Defaults to
+                None. If None, will use default QDTrackGraph.
             weights (str, optional): Weights to load for model.
         """
         super().__init__()
@@ -285,9 +114,11 @@ class FasterRCNNQDTrack(nn.Module):
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
-        self.qdtrack = QDTrack()
+        self.qdtrack = QDTrack() if qdtrack is None else qdtrack
 
-        self.track_graph = QDTrackGraph()
+        self.track_graph = (
+            QDTrackGraph() if track_graph is None else track_graph
+        )
 
         if weights is not None:
             load_model_checkpoint(
@@ -419,7 +250,7 @@ class FasterRCNNQDTrack(nn.Module):
         boxes, scores, class_ids = self.roi2det(
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
-        embeddings = self.qdtrack(features, boxes)
+        embeddings, _, _, _ = self.qdtrack(features, boxes)
 
         outs = self.track_graph(
             embeddings, boxes, scores, class_ids, frame_ids
@@ -542,7 +373,7 @@ class YOLOXQDTrack(nn.Module):
             images_hw=images_hw,
         )
 
-        embeddings = self.qdtrack(features, boxes)
+        embeddings, _, _, _ = self.qdtrack(features, boxes)
 
         tracks = self.track_graph(
             embeddings, boxes, scores, class_ids, frame_ids
