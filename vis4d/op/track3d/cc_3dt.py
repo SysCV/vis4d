@@ -337,38 +337,35 @@ def cam_to_global(
 ) -> tuple[Tensor, ...]:
     """Convert camera coordinates to global coordinates."""
     camera_ids_list = []
-    if sum(len(b) for b in boxes_3d_list) != 0:
-        for i, boxes_3d in enumerate(boxes_3d_list):
-            if len(boxes_3d) != 0:
-                # filter out boxes that are too far away
-                if class_range_map is not None:
-                    valid_boxes = filter_distance(
-                        class_ids_list[i], boxes_3d, class_range_map
-                    )
-                    boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
-                    scores_2d_list[i] = scores_2d_list[i][valid_boxes]
-                    boxes_3d_list[i] = boxes_3d[valid_boxes]
-                    scores_3d_list[i] = scores_3d_list[i][valid_boxes]
-                    class_ids_list[i] = class_ids_list[i][valid_boxes]
-                    embeddings_list[i] = embeddings_list[i][valid_boxes]
+    for i, boxes_3d in enumerate(boxes_3d_list):
+        if len(boxes_3d) != 0:
+            # filter out boxes that are too far away
+            if class_range_map is not None:
+                valid_boxes = filter_distance(
+                    class_ids_list[i], boxes_3d, class_range_map
+                )
+                boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
+                scores_2d_list[i] = scores_2d_list[i][valid_boxes]
+                boxes_3d_list[i] = boxes_3d[valid_boxes]
+                scores_3d_list[i] = scores_3d_list[i][valid_boxes]
+                class_ids_list[i] = class_ids_list[i][valid_boxes]
+                embeddings_list[i] = embeddings_list[i][valid_boxes]
 
-                # move 3D boxes to world coordinates
-                boxes_3d_list[i][:, :3] = transform_points(
-                    boxes_3d_list[i][:, :3], extrinsics[i]
-                )
-                boxes_3d_list[i][:, 6:9] = rotate_orientation(
-                    boxes_3d_list[i][:, 6:9], extrinsics[i]
-                )
-                boxes_3d_list[i][:, 9:12] = rotate_velocities(
-                    boxes_3d_list[i][:, 9:12], extrinsics[i]
-                )
+            # move 3D boxes to world coordinates
+            boxes_3d_list[i][:, :3] = transform_points(
+                boxes_3d_list[i][:, :3], extrinsics[i]
+            )
+            boxes_3d_list[i][:, 6:9] = rotate_orientation(
+                boxes_3d_list[i][:, 6:9], extrinsics[i]
+            )
+            boxes_3d_list[i][:, 9:12] = rotate_velocities(
+                boxes_3d_list[i][:, 9:12], extrinsics[i]
+            )
 
-                # add camera id
-                camera_ids_list.append(
-                    (torch.ones(len(boxes_2d_list[i])) * i).to(
-                        boxes_2d_list[i].device
-                    )
-                )
+        # add camera id
+        camera_ids_list.append(
+            (torch.ones(len(boxes_2d_list[i])) * i).to(boxes_2d_list[i].device)
+        )
 
     boxes_2d = torch.cat(boxes_2d_list)
     camera_ids = torch.cat(camera_ids_list)
