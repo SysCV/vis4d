@@ -78,14 +78,13 @@ class YOLOX(nn.Module):
             else postprocessor
         )
 
-        if weights == "mmdet":
-            weights = (
-                "mmdet://yolox/yolox_s_8x8_300e_coco/"
-                "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights is not None:
-            load_model_checkpoint(self, weights)
+        if weights is not None:
+            if weights.startswith("mmdet://") or weights.startswith(
+                "bdd100k://"
+            ):
+                load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
+            else:
+                load_model_checkpoint(self, weights)
 
     def forward(
         self,

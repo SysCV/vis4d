@@ -159,12 +159,7 @@ def get_test_dataloader(
 
     # Test Preprocessing
     preprocess_transforms = [
-        class_config(
-            GenResizeParameters,
-            shape=image_size,
-            keep_ratio=True,
-            align_long_edge=True,
-        ),
+        class_config(GenResizeParameters, shape=image_size, keep_ratio=True),
         class_config(ResizeImages),
     ]
 

@@ -209,8 +209,8 @@ def bboxes_nms(
     cls_scores: torch.Tensor,
     bboxes: torch.Tensor,
     objectness: torch.Tensor,
-    nms_threshold: float = 0.7,
-    score_thr: float = 0.0,
+    nms_threshold: float = 0.65,
+    score_thr: float = 0.01,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Decode box energies into detections for a single image.
 
@@ -222,9 +222,9 @@ def bboxes_nms(
         bboxes (torch.Tensor): topk class labels per level.
         objectness (torch.Tensor): topk regression params per level.
         nms_threshold (float, optional): iou threshold for NMS.
-            Defaults to 0.7.
+            Defaults to 0.65.
         score_thr (float, optional): score threshold to filter detections.
-            Defaults to 0.0.
+            Defaults to 0.01.
 
     Returns:
         tuple[torch.Tensor, torch.Tensor, torch.Tensor]: decoded boxes, scores,
@@ -515,8 +515,9 @@ class YOLOXHeadLoss(nn.Module):
             [priors[:, :2] + priors[:, 2:] * 0.5, priors[:, 2:]], dim=-1
         )
 
+        scores = cls_preds.sigmoid() * objectness.unsqueeze(1).sigmoid()
         match_result = self.box_matcher(
-            cls_preds.sigmoid() * objectness.unsqueeze(1).sigmoid(),
+            scores.sqrt_(),
             offset_priors,
             decoded_bboxes,
             gt_bboxes,
@@ -623,26 +624,34 @@ class YOLOXHeadLoss(nn.Module):
         if self.loss_l1 is not None:
             l1_targets = torch.cat(l1_targets_list, 0)
 
-        loss_cls = self.loss_cls(
-            flatten_cls.view(-1, self.num_classes)[pos_masks],
-            cls_targets,
-            reduction="none",
-        )
-        loss_cls = SumWeightedLoss(1.0, num_total_samples)(loss_cls)
-        loss_bbox = self.loss_bbox(
-            flatten_boxes.view(-1, 4)[pos_masks], bbox_targets
-        )
-        loss_bbox = SumWeightedLoss(5.0, num_total_samples)(loss_bbox)
+        if num_pos > 0:
+            loss_cls = self.loss_cls(
+                flatten_cls.view(-1, self.num_classes)[pos_masks],
+                cls_targets,
+                reduction="none",
+            )
+            loss_cls = SumWeightedLoss(1.0, num_total_samples)(loss_cls)
+            loss_bbox = self.loss_bbox(
+                flatten_boxes.view(-1, 4)[pos_masks], bbox_targets
+            )
+            loss_bbox = SumWeightedLoss(5.0, num_total_samples)(loss_bbox)
+        else:
+            loss_cls = flatten_cls.sum() * 0
+            loss_bbox = flatten_boxes.sum() * 0
+
         loss_obj = self.loss_obj(
             flatten_obj.view(-1, 1), obj_targets, reduction="none"
         )
         loss_obj = SumWeightedLoss(1.0, num_total_samples)(loss_obj)
 
         if self.loss_l1 is not None:
-            loss_l1 = self.loss_l1(
-                flatten_reg.view(-1, 4)[pos_masks], l1_targets
-            )
-            loss_l1 = SumWeightedLoss(1.0, num_total_samples)(loss_l1)
+            if num_pos > 0:
+                loss_l1 = self.loss_l1(
+                    flatten_reg.view(-1, 4)[pos_masks], l1_targets
+                )
+                loss_l1 = SumWeightedLoss(1.0, num_total_samples)(loss_l1)
+            else:
+                loss_l1 = flatten_reg.sum() * 0
         else:
             loss_l1 = None
 

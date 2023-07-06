@@ -315,14 +315,8 @@ class MixupBoxes2D:
                 # mixup track ids if available
                 if track_ids_list is not None:
                     assert mixup_track_ids_list is not None
-                    ori_track_ids_ = track_ids_list[i]
-                    other_track_ids_ = track_ids_list[j]
-                    ori_track_ids = (
-                        ori_track_ids_.copy() if ori_track_ids_ else None
-                    )
-                    other_track_ids = (
-                        other_track_ids_.copy() if other_track_ids_ else None
-                    )
+                    ori_track_ids = track_ids_list[i].copy()
+                    other_track_ids = track_ids_list[j].copy()
                     if (
                         max(ori_track_ids) >= self.max_track_ids
                         or max(other_track_ids) >= self.max_track_ids
@@ -334,7 +328,7 @@ class MixupBoxes2D:
                     other_track_ids += max(ori_track_ids)
                     other_track_ids = other_track_ids[is_overlap > 0]
                     mixup_track_ids: NDArrayI32 = np.concatenate(
-                        (ori_track_ids, other_track_ids), 0  # type: ignore
+                        (ori_track_ids, other_track_ids), 0
                     )
                     mixup_track_ids_list.append(mixup_track_ids)
 

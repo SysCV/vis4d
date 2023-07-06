@@ -164,7 +164,6 @@ def get_config() -> ExperimentConfig:
     pl_trainer.checkpoint_period = config.check_val_every_n_epoch
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
     pl_trainer.save_top_k = 1
-    pl_trainer.find_unused_parameters = True
     pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 

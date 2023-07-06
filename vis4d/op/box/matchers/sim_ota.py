@@ -4,8 +4,6 @@ Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
 from __future__ import annotations
 
-import warnings
-
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -15,6 +13,7 @@ from vis4d.op.box.box2d import bbox_iou
 from .base import MatchResult
 
 INF = 100000000
+EPS = 1.0e-7
 
 
 class SimOTAMatcher(nn.Module):
@@ -52,74 +51,6 @@ class SimOTAMatcher(nn.Module):
         decoded_bboxes: Tensor,
         gt_bboxes: Tensor,
         gt_labels: Tensor,
-        eps: float = 1e-7,
-    ) -> MatchResult:
-        """Assign gt to priors using SimOTA.
-
-        Will switch to CPU mode when GPU is out of memory.
-
-        Args:
-            pred_scores (Tensor): Classification scores of one image,
-                a 2D-Tensor with shape [num_priors, num_classes]
-            priors (Tensor): All priors of one image, a 2D-Tensor with shape
-                [num_priors, 4] in [cx, xy, stride_w, stride_y] format.
-            decoded_bboxes (Tensor): Predicted bboxes, a 2D-Tensor with shape
-                [num_priors, 4] in [tl_x, tl_y, br_x, br_y] format.
-            gt_bboxes (Tensor): Ground truth bboxes of one image, a 2D-Tensor
-                with shape [num_gts, 4] in [tl_x, tl_y, br_x, br_y] format.
-            gt_labels (Tensor): Ground truth labels of one image, a Tensor
-                with shape [num_gts].
-            eps (float): A value added to the denominator for numerical
-                stability. Default 1e-7.
-
-        Returns:
-            MatchResult: The assigned result.
-        """
-        try:
-            return self._forward(
-                pred_scores, priors, decoded_bboxes, gt_bboxes, gt_labels, eps
-            )
-        except RuntimeError:
-            origin_device = pred_scores.device
-            warnings.warn(
-                "OOM RuntimeError is raised due to the huge memory "
-                "cost during label assignment. CPU mode is applied "
-                "in this batch. If you want to avoid this issue, "
-                "try to reduce the batch size or image size."
-            )
-            torch.cuda.empty_cache()
-
-            pred_scores = pred_scores.cpu()
-            priors = priors.cpu()
-            decoded_bboxes = decoded_bboxes.cpu()
-            gt_bboxes = gt_bboxes.cpu().float()
-            gt_labels = gt_labels.cpu()
-
-            match_result = self._forward(
-                pred_scores,
-                priors,
-                decoded_bboxes,
-                gt_bboxes,
-                gt_labels,
-                eps,
-            )
-
-            return MatchResult(
-                assigned_gt_indices=match_result.assigned_gt_indices.to(
-                    origin_device
-                ),
-                assigned_labels=match_result.assigned_labels.to(origin_device),
-                assigned_gt_iou=match_result.assigned_gt_iou.to(origin_device),
-            )
-
-    def _forward(
-        self,
-        pred_scores: Tensor,
-        priors: Tensor,
-        decoded_bboxes: Tensor,
-        gt_bboxes: Tensor,
-        gt_labels: Tensor,
-        eps: float = 1e-7,
     ) -> MatchResult:
         """Assign gt to priors using SimOTA.
 
@@ -134,8 +65,6 @@ class SimOTAMatcher(nn.Module):
                 with shape [num_gts, 4] in [tl_x, tl_y, br_x, br_y] format.
             gt_labels (Tensor): Ground truth labels of one image, a Tensor
                 with shape [num_gts].
-            eps (float): A value added to the denominator for numerical
-                stability. Default 1e-7.
 
         Returns:
             MatchResult: The assigned result.
@@ -173,7 +102,7 @@ class SimOTAMatcher(nn.Module):
             )
 
         pairwise_ious = bbox_iou(valid_decoded_bbox, gt_bboxes)
-        iou_cost = -torch.log(pairwise_ious + eps)
+        iou_cost = -torch.log(pairwise_ious + EPS)
 
         gt_onehot_label = (
             F.one_hot(gt_labels.to(torch.int64), pred_scores.shape[-1])
@@ -183,9 +112,17 @@ class SimOTAMatcher(nn.Module):
         )
 
         valid_pred_scores = valid_pred_scores.unsqueeze(1).repeat(1, num_gt, 1)
-        cls_cost = F.binary_cross_entropy(
-            valid_pred_scores.sqrt_(), gt_onehot_label, reduction="none"
-        ).sum(-1)
+        # disable AMP autocast and calculate BCE with FP32 to avoid overflow
+        with torch.cuda.amp.autocast(enabled=False):  # type: ignore[attr-defined] # pylint: disable=line-too-long
+            cls_cost = (
+                F.binary_cross_entropy(
+                    valid_pred_scores.to(dtype=torch.float32),
+                    gt_onehot_label,
+                    reduction="none",
+                )
+                .sum(-1)
+                .to(dtype=valid_pred_scores.dtype)
+            )
 
         cost_matrix = (
             cls_cost * self.cls_weight
@@ -305,9 +242,8 @@ class SimOTAMatcher(nn.Module):
         decoded_bboxes: Tensor,
         gt_bboxes: Tensor,
         gt_labels: Tensor,
-        eps: float = 1e-7,
     ) -> MatchResult:
         """Type declaration for forward."""
         return self._call_impl(
-            pred_scores, priors, decoded_bboxes, gt_bboxes, gt_labels, eps
+            pred_scores, priors, decoded_bboxes, gt_bboxes, gt_labels
         )
