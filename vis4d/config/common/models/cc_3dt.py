@@ -15,6 +15,7 @@ from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.detect3d.qd_3dt import Box3DUncertaintyLoss
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
+from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 
 from .faster_rcnn import (
     get_default_rcnn_box_codec_cfg,
@@ -47,6 +48,7 @@ def get_cc_3dt_cfg(
     num_classes: int | FieldReference,
     basemodel: ConfigDict,
     detection_range: list[float] | None = None,
+    fps: int | FieldReference = 2,
     weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Get CC-3DT model config.
@@ -80,12 +82,19 @@ def get_cc_3dt_cfg(
         roi_head=roi_head,
     )
 
+    track_graph = class_config(
+        CC3DTrackGraph,
+        motion_model="KF3D",
+        detection_range=detection_range,
+        fps=fps,
+    )
+
     model = class_config(
         FasterRCNNCC3DT,
         num_classes=num_classes,
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
-        class_range_map=detection_range,
+        track_graph=track_graph,
         weights=weights,
     )
 

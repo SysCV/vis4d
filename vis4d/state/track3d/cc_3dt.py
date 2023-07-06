@@ -106,6 +106,8 @@ class CC3DTrackGraph:
         motion_dims: int = 7,
         num_frames: int = 5,
         pure_det: bool = False,
+        detection_range: None | list[float] = None,
+        fps: int = 2,
     ) -> None:
         """Creates an instance of the class."""
         assert 0 <= memory_momentum <= 1.0
@@ -121,6 +123,8 @@ class CC3DTrackGraph:
         self.motion_dims = motion_dims
         self.num_frames = num_frames
         self.pure_det = pure_det
+        self.detection_range = detection_range
+        self.fps = fps
 
         if self.motion_model == "KF3D":
             (
@@ -310,8 +314,6 @@ class CC3DTrackGraph:
         class_ids_list: list[Tensor],
         frame_ids: list[int],
         extrinsics: Tensor,
-        class_range_map: None | Tensor = None,
-        fps: int = 2,
     ) -> Track3DOut:
         """Forward function during testing."""
         (
@@ -330,7 +332,7 @@ class CC3DTrackGraph:
             class_ids_list,
             embeddings_list,
             extrinsics,
-            class_range_map,
+            self.detection_range,
         )
 
         if self.pure_det:
@@ -421,7 +423,7 @@ class CC3DTrackGraph:
             class_ids[filter_indices],
             embeddings[filter_indices],
             obs_boxes_3d[filter_indices],
-            fps,
+            self.fps,
         )
 
         self.track_memory.update(data)

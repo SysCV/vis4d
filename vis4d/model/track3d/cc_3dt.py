@@ -51,10 +51,7 @@ class FasterRCNNCC3DT(nn.Module):
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         qdtrack: QDTrack | None = None,
-        motion_model: str = "KF3D",
-        pure_det: bool = False,
-        class_range_map: None | list[int] = None,
-        dataset_fps: int = 2,
+        track_graph: CC3DTrackGraph | None = None,
         weights: None | str = None,
     ) -> None:
         """Creates an instance of the class.
@@ -69,12 +66,8 @@ class FasterRCNNCC3DT(nn.Module):
                 bounding boxes. Defaults to None.
             qdtrack (QDTrack, optional): QDTrack. Defaults to None. If None,
                 will use default QDTrack.
-            motion_model (str): Motion model. Defaults to "KF3D".
-            pure_det (bool): Whether to save pure detection results. Defaults
-                to False.
-            class_range_map (None | list[int]): Class range map. Defaults to
-                None.
-            dataset_fps (int): Dataset fps. Defaults to 2.
+            track_graph (CC3DTrackGraph, optional): Track graph. Defaults to
+                None. If None, will use default CC3DTrackGraph.
             weights (None | str): Weights path. Defaults to None.
         """
         super().__init__()
@@ -109,12 +102,9 @@ class FasterRCNNCC3DT(nn.Module):
 
         self.qdtrack = QDTrack() if qdtrack is None else qdtrack
 
-        self.track_graph = CC3DTrackGraph(
-            motion_model=motion_model, pure_det=pure_det
+        self.track_graph = (
+            CC3DTrackGraph() if track_graph is None else track_graph
         )
-
-        self.class_range_map = class_range_map
-        self.dataset_fps = dataset_fps
 
         if weights is not None:
             load_model_checkpoint(
@@ -133,7 +123,7 @@ class FasterRCNNCC3DT(nn.Module):
         boxes3d_classes: list[list[Tensor]] = None,
         boxes3d_track_ids: list[list[Tensor]] = None,
         keyframes: list[list[bool]] = None,
-    ) -> list[Track3DOut]:
+    ) -> FasterRCNNCC3DTOut | Track3DOut:
         """Forward."""
         if self.training:
             return self._forward_train(
@@ -243,7 +233,7 @@ class FasterRCNNCC3DT(nn.Module):
         intrinsics: Tensor,
         extrinsics: Tensor,
         frame_ids: list[list[int]],
-    ) -> list[Track3DOut]:
+    ) -> Track3DOut:
         """Forward inference stage."""
         # Curretnly only work with single batch per gpu
         # (N, 1, 3, H, W) -> (N, 3, H, W)
@@ -272,13 +262,6 @@ class FasterRCNNCC3DT(nn.Module):
             predictions, boxes_2d, class_ids, intrinsics
         )
 
-        if self.class_range_map is not None:
-            class_range_map = torch.Tensor(self.class_range_map).to(
-                images.device
-            )
-        else:
-            class_range_map = None
-
         embeddings, _, _, _ = self.qdtrack(features, boxes_2d)
 
         outs = self.track_graph(
@@ -290,8 +273,6 @@ class FasterRCNNCC3DT(nn.Module):
             class_ids,
             frame_ids_list,
             extrinsics,
-            class_range_map=class_range_map,
-            fps=self.dataset_fps,
         )
         return outs
 
@@ -307,7 +288,7 @@ class FasterRCNNCC3DT(nn.Module):
         boxes3d_classes: list[list[Tensor]] = None,
         boxes3d_track_ids: list[list[Tensor]] = None,
         keyframes: None | list[list[bool]] = None,
-    ) -> list[Track3DOut]:
+    ) -> FasterRCNNCC3DTOut | Track3DOut:
         """Type definition for call implementation."""
         return self._call_impl(
             images,
