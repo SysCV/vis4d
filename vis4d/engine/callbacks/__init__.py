@@ -5,7 +5,7 @@ from .evaluator import EvaluatorCallback
 from .logging import LoggingCallback
 from .trainer_state import TrainerState
 from .visualizer import VisualizerCallback
-from .yolox_mode_switch import YOLOXModeSwitchCallback
+from .yolox_callbacks import YOLOXModeSwitchCallback, YOLOXSyncNormCallback
 
 __all__ = [
     "Callback",
@@ -15,4 +15,5 @@ __all__ = [
     "TrainerState",
     "VisualizerCallback",
     "YOLOXModeSwitchCallback",
+    "YOLOXSyncNormCallback",
 ]

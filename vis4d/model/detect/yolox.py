@@ -120,11 +120,11 @@ class YOLOX(nn.Module):
         Returns:
             YOLOXOut: Raw model outputs.
         """
-        features = self.fpn(self.basemodel(images.contiguous()))
         # from vis4d.vis.functional.image import imsave
         # for i in range(len(images)):
         #     imsave(images[i], f"test{i}.png", image_mode="BGR")
         # breakpoint()
+        features = self.fpn(self.basemodel(images.contiguous()))
         return self.yolox_head(features[-3:])
 
     def forward_test(
@@ -144,6 +144,10 @@ class YOLOX(nn.Module):
         Returns:
             DetOut: Predicted outputs.
         """
+        # from vis4d.vis.functional.image import imsave
+        # for i in range(len(images)):
+        #     imsave(images[i], f"test{i}.png", image_mode="BGR")
+        # breakpoint()
         features = self.fpn(self.basemodel(images))
         outs = self.yolox_head(features[-3:])
         boxes, scores, class_ids = self.postprocessor(

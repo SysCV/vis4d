@@ -325,23 +325,28 @@ class RandomHSV:
     def __call__(self, images: list[NDArrayF32]) -> list[NDArrayF32]:
         """Call function for Hue transformation."""
         for i, image in enumerate(images):
+            image = image[0].astype(np.uint8)
             if self.image_channel_mode == "BGR":
-                image = cv2.cvtColor(image[0], cv2.COLOR_BGR2HSV)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             else:
-                image = cv2.cvtColor(image[0], cv2.COLOR_RGB2HSV)
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+            image = image.astype(np.int16)
             hsv_gains = np.random.uniform(-1, 1, 3) * [
                 self.hue_delta,
                 self.saturation_delta,
                 self.value_delta,
             ]
             # random selection of h, s, v
-            hsv_gains = hsv_gains * np.random.randint(0, 2, 3)
+            hsv_gains = (hsv_gains * np.random.randint(0, 2, 3)).astype(
+                np.int16
+            )
             image[..., 0] = (image[..., 0] + hsv_gains[0]) % 180
             image[..., 1] = np.clip(image[..., 1] + hsv_gains[1], 0, 255)
             image[..., 2] = np.clip(image[..., 2] + hsv_gains[2], 0, 255)
+            image = image.astype(np.uint8)
             if self.image_channel_mode == "BGR":
-                image = cv2.cvtColor(image, cv2.COLOR_HSV2BGR)
+                cv2.cvtColor(image, cv2.COLOR_HSV2BGR, dst=image)
             else:
-                image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
-            images[i] = image[None, ...]
+                cv2.cvtColor(image, cv2.COLOR_HSV2RGB, dst=image)
+            images[i] = image[None, ...].astype(np.float32)
         return images

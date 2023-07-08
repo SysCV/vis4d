@@ -223,6 +223,16 @@ class Trainer:
 
                 # Input data
                 data = move_data_to_device(data, self.device)
+                # from vis4d.data.const import CommonKeys as K
+                # from vis4d.vis.functional.image import imshow_bboxes
+                # for i in range(len(data[K.images])):
+                #     imshow_bboxes(
+                #         data[K.images][i],
+                #         data[K.boxes2d][i],
+                #         image_mode="BGR",
+                #         save_path=f"test{i}.png",
+                #     )
+                # breakpoint()
                 train_input = self.train_data_connector(data)
 
                 for callback in self.callbacks:

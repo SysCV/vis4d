@@ -29,6 +29,7 @@ from vis4d.engine.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
     YOLOXModeSwitchCallback,
+    YOLOXSyncNormCallback,
 )
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.coco import COCODetectEvaluator
@@ -47,7 +48,6 @@ def get_config() -> ExperimentConfig:
     ##                    General Config                ##
     ######################################################
     config = get_default_cfg(exp_name="yolox_tiny_300e_coco")
-    config.sync_batchnorm = True
     config.check_val_every_n_epoch = 10
 
     # High level hyper parameters
@@ -116,13 +116,14 @@ def get_config() -> ExperimentConfig:
         config.output_dir, refresh_rate=config.log_every_n_steps
     )
 
-    # YOLOX mode switch
-    callbacks.append(
+    # YOLOX callbacks
+    callbacks += [
         class_config(
             YOLOXModeSwitchCallback,
             switch_epoch=params.num_epochs - num_last_epochs,
-        )
-    )
+        ),
+        class_config(YOLOXSyncNormCallback),
+    ]
 
     # Visualizer
     callbacks.append(
@@ -160,10 +161,10 @@ def get_config() -> ExperimentConfig:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
-    pl_trainer.sync_batchnorm = config.sync_batchnorm
     pl_trainer.checkpoint_period = config.check_val_every_n_epoch
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
     pl_trainer.save_top_k = 1
+    pl_trainer.find_unused_parameters = True
     pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 
