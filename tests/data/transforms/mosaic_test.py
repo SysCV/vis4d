@@ -25,7 +25,7 @@ class TestMosaic(unittest.TestCase):
         """Test MosaicImages transformation."""
         data = {
             K.images: copy.deepcopy(self.test_image),
-            K.input_hw: [self.test_image.shape[1], self.test_image.shape[2]],
+            K.input_hw: (self.test_image.shape[1], self.test_image.shape[2]),
         }
         out_shape = (400, 500)
         params = GenMosaicParameters(
@@ -56,7 +56,7 @@ class TestMosaic(unittest.TestCase):
         """Test MosaicBoxes2D transformation."""
         data = {
             K.images: copy.deepcopy(self.test_image),
-            K.input_hw: [self.test_image.shape[1], self.test_image.shape[2]],
+            K.input_hw: (self.test_image.shape[1], self.test_image.shape[2]),
             K.boxes2d: np.array(
                 [
                     [100.0, 100.0, 200.0, 200.0],

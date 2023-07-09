@@ -176,7 +176,7 @@ class GenMosaicParameters:
                 crop_coords.append(crop_coord)
                 im_shapes.append((h_i, w_i))
                 im_scales.append((h_i / ori_hw[0], w_i / ori_hw[1]))
-            mosaic_params.append(
+            mosaic_params += [
                 MosaicParam(
                     out_shape=self.out_shape,
                     paste_coords=paste_coords,
@@ -184,7 +184,8 @@ class GenMosaicParameters:
                     im_shapes=im_shapes,
                     im_scales=im_scales,
                 )
-            )
+                for _ in range(NUM_SAMPLES)
+            ]
 
         return mosaic_params
 

@@ -7,7 +7,6 @@ import os
 import pickle
 import shutil
 import tempfile
-import warnings
 from collections import OrderedDict
 from functools import wraps
 from typing import Any
@@ -17,7 +16,7 @@ import torch
 import torch.distributed as dist
 from torch.distributed import broadcast_object_list
 
-from vis4d.common import ArgsType, GenericFunc
+from vis4d.common import ArgsType, DictStrAny, GenericFunc
 
 
 class PicklableWrapper:  #  mypy: disable=line-too-long
@@ -338,45 +337,48 @@ def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
 
 
 def obj2tensor(pyobj: Any, device: torch.device = "cuda") -> torch.Tensor:
-    """Serialize picklable python object to tensor."""
+    """Serialize picklable python object to tensor.
+
+    Args:
+        pyobj (Any): Any picklable python object.
+        device (torch.device): Device to put on. Defaults to "cuda".
+    """
     storage = torch.ByteStorage.from_buffer(pickle.dumps(pyobj))
     return torch.ByteTensor(storage).to(device=device)
 
 
 def tensor2obj(tensor: torch.Tensor) -> Any:
-    """Deserialize tensor to picklable python object."""
+    """Deserialize tensor to picklable python object.
+
+    Args:
+        tensor (torch.Tensor): Tensor to be deserialized.
+    """
     return pickle.loads(tensor.cpu().numpy().tobytes())
 
 
 def all_reduce_dict(
-    py_dict: dict[Any, Any],
-    op: str = "sum",
-    group: dist.group | None = None,
+    py_dict: DictStrAny,
+    reduce_op: str = "sum",
     to_float: bool = True,
-) -> OrderedDict:
+) -> DictStrAny:  # pragma: no cover
     """Apply all reduce function for python dict object.
 
-    The code is modified from https://github.com/Megvii-
-    BaseDetection/YOLOX/blob/main/yolox/utils/allreduce_norm.py.
+    The code is modified from
+    https://github.com/Megvii-BaseDetection/YOLOX/blob/main/yolox/utils/allreduce_norm.py.
 
     NOTE: make sure that py_dict in different ranks has the same keys and
     the values should be in the same shape. Currently only supports
-    nccl backend.
+    NCCL backend.
 
     Args:
-        py_dict (dict): Dict to be applied all reduce op.
-        op (str): Operator, could be 'sum' or 'mean'. Default: 'sum'
-        group (:obj:`torch.distributed.group`, optional): Distributed group,
-            Default: None.
+        py_dict (DictStrAny): Dict to be applied all reduce op.
+        reduce_op (str): Operator, could be 'sum' or 'mean'. Default: 'sum'.
         to_float (bool): Whether to convert all values of dict to float.
             Default: True.
 
     Returns:
-        OrderedDict: reduced python dict object.
+        DictStrAny: reduced python dict object.
     """
-    warnings.warn(
-        "group` is deprecated. Currently only supports NCCL backend."
-    )
     world_size = get_world_size()
     if world_size == 1:
         return py_dict
@@ -392,10 +394,6 @@ def all_reduce_dict(
     tensor_numels = [py_dict[k].numel() for k in py_key]
 
     if to_float:
-        warnings.warn(
-            'Note: "to_float" is True, you need to '
-            "ensure that the behavior is reasonable."
-        )
         flatten_tensor = torch.cat(
             [py_dict[k].flatten().float() for k in py_key]
         )
@@ -403,7 +401,7 @@ def all_reduce_dict(
         flatten_tensor = torch.cat([py_dict[k].flatten() for k in py_key])
 
     dist.all_reduce(flatten_tensor, op=dist.ReduceOp.SUM)
-    if op == "mean":
+    if reduce_op == "mean":
         flatten_tensor /= world_size
 
     split_tensors = [
@@ -412,7 +410,7 @@ def all_reduce_dict(
             torch.split(flatten_tensor, tensor_numels), tensor_shapes
         )
     ]
-    out_dict = {k: v for k, v in zip(py_key, split_tensors)}
+    out_dict: DictStrAny = dict(zip(py_key, split_tensors))
     if isinstance(py_dict, OrderedDict):
         out_dict = OrderedDict(out_dict)
     return out_dict

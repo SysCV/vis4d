@@ -61,11 +61,10 @@ class DataPipe(ConcatDataset[DictDataOrList]):
 
 
 class MosaicDataPipe(DataPipe):
-    """DataPipe class.
+    """MosaicDataPipe class.
 
-    This class wraps one or multiple instances of a PyTorch Dataset so that the
-    preprocessing steps can be shared across those datasets. Composes dataset
-    and the preprocessing pipeline.
+    This class wraps DataPipe to support mosaic augmentation by sampling three
+    additional indices for each image.
     """
 
     def _sample_mosaic_indices(self, idx: int, data_len: int) -> list[int]:

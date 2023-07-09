@@ -106,7 +106,6 @@ class Transform:
                 in_batch = []
                 for key in self_.in_keys:
                     key_data = []
-                    is_in_batch = False
                     for data in batch:
                         # Optionally allow the function to get the full data
                         # dict as aux input and set default value to None if
@@ -118,12 +117,13 @@ class Transform:
                             if key != "data"
                             else data
                         ]
-                        if key_data[-1] is not None:
-                            is_in_batch = True
-                    if is_in_batch:
-                        in_batch.append(key_data)
-                    else:
+                    if any(d is None for d in key_data):
+                        # If any of the data in the batch is None, replace
+                        # the input of the key with None.
+                        # TODO: discuss this, remove TODO after discussion.
                         in_batch.append(None)
+                    else:
+                        in_batch.append(key_data)
 
                 result = self_(*in_batch)
 

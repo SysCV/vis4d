@@ -13,6 +13,7 @@ from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable
 
 from vis4d.common import DictStrAny, GenericFunc, MetricLogs, NDArrayNumber
+from vis4d.common.logging import rank_zero_warn
 from vis4d.data.datasets.coco import coco_det_map
 
 from ..base import Evaluator
@@ -199,9 +200,17 @@ class COCODetectEvaluator(Evaluator):
             raise NotImplementedError(f"Metric {metric} not known!")
 
         if len(self._predictions) == 0:
-            raise RuntimeError(
+            rank_zero_warn(
                 "No predictions to evaluate. Make sure to process batch first!"
             )
+            return {
+                "AP": 0.0,
+                "AP50": 0.0,
+                "AP75": 0.0,
+                "APs": 0.0,
+                "APm": 0.0,
+                "APl": 0.0,
+            }, "No predictions to evaluate."
 
         if metric == self.METRIC_DET:
             iou_type = "bbox"

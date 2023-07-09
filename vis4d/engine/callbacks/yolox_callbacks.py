@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import OrderedDict
 
 from torch import nn
+from torch.nn.modules.batchnorm import _NormBase
 from torch.utils.data import DataLoader
 
 from vis4d.common import ArgsType
@@ -100,7 +101,7 @@ def get_norm_states(module: nn.Module) -> OrderedDict:
     """Get the state_dict of batch norms in the module."""
     async_norm_states = OrderedDict()
     for name, child in module.named_modules():
-        if isinstance(child, nn.modules.batchnorm._NormBase):
+        if isinstance(child, _NormBase):
             for k, v in child.state_dict().items():
                 async_norm_states[".".join([name, k])] = v
     return async_norm_states
@@ -125,5 +126,5 @@ class YOLOXSyncNormCallback(Callback):
         norm_states = get_norm_states(model)
         if len(norm_states) == 0:
             return
-        norm_states = all_reduce_dict(norm_states, op="mean")
+        norm_states = all_reduce_dict(norm_states, reduce_op="mean")
         model.load_state_dict(norm_states, strict=False)

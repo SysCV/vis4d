@@ -245,6 +245,8 @@ class ModelEMAAdapter(nn.Module):
         self.model = model
         self.ema_model = deepcopy(self.model)
         self.ema_model.eval()
+        for p in self.ema_model.parameters():
+            p.requires_grad_(False)
         self.decay = decay
         self.use_ema_during_test = use_ema_during_test
         self.device = device
@@ -294,8 +296,9 @@ class ModelExpEMAAdapter(ModelEMAAdapter):
     Args:
         model (nn.Module): model to apply EMA.
         decay (float): Decay factor for EMA. Defaults to 0.9998.
-        gamma (int): Use a larger momentum early in training and gradually
-            annealing to a smaller value to update the ema model smoothly.
+        warmup_steps (int): Number of warmup steps for decay. Use a smaller
+            decay early in training and gradually anneal to the set decay value
+            to update the EMA model smoothly.
         use_ema_during_test (bool): Use EMA model during testing. Defaults to
             True.
         device (torch.device | None): Device to use. Defaults to None.
@@ -305,19 +308,21 @@ class ModelExpEMAAdapter(ModelEMAAdapter):
         self,
         model: nn.Module,
         decay: float = 0.9998,
-        gamma: int = 2000,
+        warmup_steps: int = 2000,
         use_ema_during_test: bool = True,
         device: torch.device | None = None,
     ):
         """Init ModelEMAAdapter class."""
         super().__init__(model, decay, use_ema_during_test, device)
-        assert gamma > 0, f"gamma must be greater than 0, got {gamma}"
-        self.gamma = gamma
+        assert (
+            warmup_steps > 0
+        ), f"warmup_steps must be greater than 0, got {warmup_steps}"
+        self.warmup_steps = warmup_steps
 
     def update(self) -> None:
         """Update the internal EMA model."""
-        decay = self.decay * math.exp(-float(1 + self.steps) / self.gamma) + (
-            1 - self.decay
+        decay = self.decay * (
+            1 - math.exp(-float(1 + self.steps) / self.warmup_steps)
         )
         self._update(
             self.model,
