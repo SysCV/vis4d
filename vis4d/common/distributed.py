@@ -336,7 +336,9 @@ def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
-def obj2tensor(pyobj: Any, device: torch.device = "cuda") -> torch.Tensor:
+def obj2tensor(
+    pyobj: Any, device: torch.device = torch.device("cuda")
+) -> torch.Tensor:
     """Serialize picklable python object to tensor.
 
     Args:
@@ -357,9 +359,7 @@ def tensor2obj(tensor: torch.Tensor) -> Any:
 
 
 def all_reduce_dict(
-    py_dict: DictStrAny,
-    reduce_op: str = "sum",
-    to_float: bool = True,
+    py_dict: DictStrAny, reduce_op: str = "sum", to_float: bool = True
 ) -> DictStrAny:  # pragma: no cover
     """Apply all reduce function for python dict object.
 

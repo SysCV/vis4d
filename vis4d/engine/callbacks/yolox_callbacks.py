@@ -7,7 +7,7 @@ from torch import nn
 from torch.nn.modules.batchnorm import _NormBase
 from torch.utils.data import DataLoader
 
-from vis4d.common import ArgsType
+from vis4d.common import ArgsType, DictStrAny
 from vis4d.common.distributed import all_reduce_dict, get_world_size
 from vis4d.common.logging import rank_zero_info
 from vis4d.data.data_pipe import DataPipe
@@ -97,8 +97,12 @@ class YOLOXModeSwitchCallback(Callback):
         self.switched = True
 
 
-def get_norm_states(module: nn.Module) -> OrderedDict:
-    """Get the state_dict of batch norms in the module."""
+def get_norm_states(module: nn.Module) -> DictStrAny:
+    """Get the state_dict of batch norms in the module.
+
+    Args:
+        module (nn.Module): Module to get batch norm states from.
+    """
     async_norm_states = OrderedDict()
     for name, child in module.named_modules():
         if isinstance(child, _NormBase):
@@ -120,8 +124,7 @@ class YOLOXSyncNormCallback(Callback):
             model (nn.Module): Model that is being trained.
         """
         rank_zero_info("Synced norm states across all processes.")
-        world_size = get_world_size()
-        if world_size == 1:
+        if get_world_size() == 1:
             return
         norm_states = get_norm_states(model)
         if len(norm_states) == 0:
