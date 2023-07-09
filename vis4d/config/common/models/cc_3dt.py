@@ -114,7 +114,7 @@ def get_cc_3dt_cfg(
         RCNNLoss,
         box_encoder=rcnn_box_encoder,
         num_classes=num_classes,
-        loss_bbox=get_callable_cfg(smooth_l1_loss),
+        loss_bbox=get_callable_cfg(smooth_l1_loss, beta=1.0 / 9.0),
     )
 
     track_loss = class_config(QDTrackInstanceSimilarityLoss)
@@ -127,12 +127,14 @@ def get_cc_3dt_cfg(
                 "connector": class_config(
                     LossConnector, key_mapping=CONN_RPN_LOSS_2D
                 ),
+                "weight": {"RPNLoss.loss_bbox": 5.0},
             },
             {
                 "loss": rcnn_loss,
                 "connector": class_config(
                     LossConnector, key_mapping=CONN_ROI_LOSS_2D
                 ),
+                "weight": {"RCNNLoss.rcnn_loss_bbox": 5.0},
             },
             {
                 "loss": track_loss,

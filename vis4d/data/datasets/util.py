@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import os
 import pickle
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from io import BytesIO
+from tabulate import tabulate
+from termcolor import colored
 from typing import Any
 
 import numpy as np
@@ -305,3 +308,47 @@ class DatasetFromList(Dataset):  # type: ignore
             return copy.deepcopy(self._lst[idx])
 
         return self._lst[idx]  # pragma: no cover
+
+
+def print_class_histogram(class_frequencies: dict[str, int]) -> None:
+    """Prints out given class frequencies."""
+    if len(class_frequencies) == 0:  # pragma: no cover
+        return
+
+    class_names = list(class_frequencies.keys())
+    frequencies = list(class_frequencies.values())
+    num_classes = len(class_names)
+
+    n_cols = min(6, len(class_names) * 2)
+
+    def short_name(name: str) -> str:
+        """Make long class names shorter."""
+        if len(name) > 13:
+            return name[:11] + ".."  # pragma: no cover
+        return name
+
+    data = list(
+        itertools.chain(
+            *[
+                [short_name(class_names[i]), int(v)]
+                for i, v in enumerate(frequencies)
+            ]
+        )
+    )
+    total_num_instances = sum(data[1::2])  # type: ignore
+    data.extend([None] * (n_cols - (len(data) % n_cols)))
+    if num_classes > 1:
+        data.extend(["total", total_num_instances])
+
+    table = tabulate(
+        itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)]),
+        headers=["category", "#instances"] * (n_cols // 2),
+        tablefmt="pipe",
+        numalign="left",
+        stralign="center",
+    )
+
+    rank_zero_info(
+        f"Distribution of instances among all {num_classes} categories:\n"
+        + colored(table, "cyan")
+    )

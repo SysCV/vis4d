@@ -12,8 +12,8 @@ from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
-from .nuscenes import NuScenes
-from .util import im_decode
+from .nuscenes import NuScenes, nuscenes_class_map
+from .util import im_decode, print_class_histogram
 
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
@@ -27,10 +27,18 @@ class NuScenesMono(NuScenes):
         """Initialize the dataset."""
         super().__init__(*args, **kwargs)
 
+    def get_cat_ids(self) -> list[int]:
+        """Return the samples."""
+        return [
+            sample["CAM"]["annotations"]["boxes3d_classes"]
+            for sample in self.samples
+        ]
+
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
         """Remove empty samples."""
-        if self.skip_empty_samples:
-            samples = []
+        samples = []
+        frequencies = {cat: 0 for cat in nuscenes_class_map.keys()}
+        inv_nuscenes_class_map = {v: k for k, v in nuscenes_class_map.items()}
 
         t = Timer()
         for sample in data:
@@ -58,22 +66,28 @@ class NuScenesMono(NuScenes):
                 "annotations"
             ]["boxes2d"][mask]
 
+            for box3d_class in boxes3d_classes:
+                frequencies[inv_nuscenes_class_map[box3d_class]] += 1
+
             if self.skip_empty_samples:
                 if len(sample["CAM"]["annotations"]["boxes3d"]) > 0:
                     samples.append(sample)
+            else:
+                samples.append(sample)
 
         rank_zero_info(
             f"Preprocessing {len(data)} frames takes {t.time():.2f}"
             " seconds."
         )
 
+        print_class_histogram(frequencies)
+
         if self.skip_empty_samples:
             rank_zero_info(
                 f"Filtered {len(data) - len(samples)} empty frames."
             )
-            return samples
 
-        return data
+        return samples
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""

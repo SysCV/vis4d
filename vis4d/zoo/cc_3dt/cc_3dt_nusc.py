@@ -141,6 +141,38 @@ def get_config() -> ExperimentConfig:
                     class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
                 ),
             ],
+            # param_groups=[
+            #     {
+            #         "custom_keys": [
+            #             "faster_rcnn_head.rpn_head.rpn_cls.weight",
+            #             "faster_rcnn_head.rpn_head.rpn_box.weight",
+            #             "faster_rcnn_head.roi_head.fc_cls.weight",
+            #             "faster_rcnn_head.roi_head.fc_reg.weight",
+            #             "bbox_3d_head.dep_convs.0.weight",
+            #             "bbox_3d_head.dep_convs.1.weight",
+            #             "bbox_3d_head.dep_convs.2.weight",
+            #             "bbox_3d_head.dep_convs.3.weight",
+            #             "bbox_3d_head.dim_convs.0.weight",
+            #             "bbox_3d_head.dim_convs.1.weight",
+            #             "bbox_3d_head.dim_convs.2.weight",
+            #             "bbox_3d_head.dim_convs.3.weight",
+            #             "bbox_3d_head.rot_convs.0.weight"
+            #             "bbox_3d_head.rot_convs.1.weight",
+            #             "bbox_3d_head.rot_convs.2.weight",
+            #             "bbox_3d_head.rot_convs.3.weight",
+            #             "bbox_3d_head.cen_2d_convs.0.weight",
+            #             "bbox_3d_head.cen_2d_convs.1.weight",
+            #             "bbox_3d_head.cen_2d_convs.2.weight",
+            #             "bbox_3d_head.cen_2d_convs.3.weight",
+            #             "bbox_3d_head.fc_dep.weight",
+            #             "bbox_3d_head.fc_dep_uncer.weight",
+            #             "bbox_3d_head.fc_dim.weight",
+            #             "bbox_3d_head.fc_rot.weight",
+            #             "bbox_3d_head.fc_cen_2d.weight",
+            #         ],
+            #         "lr_mult": 10.0,
+            #     }
+            # ],
         )
     ]
 

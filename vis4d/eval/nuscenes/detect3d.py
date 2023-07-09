@@ -28,32 +28,29 @@ if NUSCENES_AVAILABLE:
 
 
 def _parse_detect_high_level_metrics(
-    tp_errors: dict[str, float],
     mean_ap: float,
+    tp_errors: dict[str, float],
     nd_score: float,
     eval_time: float,
-) -> tuple[list[str], int | float, int | float]:
+) -> tuple[dict[str, float], list[str]]:
     """Collect high-level metrics."""
-    str_summary_list = ["\nHigh-level metrics:"]
-    str_summary_list.append(f"mAP: {mean_ap:.4f}")
-    err_name_mapping = {
-        "trans_err": "mATE",
-        "scale_err": "mASE",
-        "orient_err": "mAOE",
-        "vel_err": "mAVE",
-        "attr_err": "mAAE",
+    log_dict = {
+        "mAP": mean_ap,
+        "mATE": tp_errors["trans_err"],
+        "mASE": tp_errors["scale_err"],
+        "mAOE": tp_errors["orient_err"],
+        "mAVE": tp_errors["vel_err"],
+        "mAAE": tp_errors["attr_err"],
+        "NDS": nd_score,
     }
-    for tp_name, tp_val in tp_errors.items():
-        str_summary_list.append(f"{err_name_mapping[tp_name]}: {tp_val:.4f}")
-    str_summary_list.append(f"NDS: {nd_score:.4f}")
+
+    str_summary_list = ["\nHigh-level metrics:"]
+    for k, v in log_dict.items():
+        str_summary_list.append(f"{k}: {v:.4f}")
+
     str_summary_list.append(f"Eval time: {eval_time:.1f}s")
 
-    if mean_ap == 0:
-        mean_ap = int(mean_ap)
-    if nd_score == 0:
-        nd_score = int(nd_score)
-
-    return str_summary_list, mean_ap, nd_score
+    return log_dict, str_summary_list
 
 
 def _parse_detect_per_class_metrics(
@@ -290,13 +287,9 @@ class NuScenesDet3DEvaluator(Evaluator):
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()
 
-            (
-                str_summary_list,
-                mean_ap,
-                nd_score,
-            ) = _parse_detect_high_level_metrics(
-                metrics_summary["tp_errors"],
+            log_dict, str_summary_list = _parse_detect_high_level_metrics(
                 metrics_summary["mean_ap"],
+                metrics_summary["tp_errors"],
                 metrics_summary["nd_score"],
                 metrics_summary["eval_time"],
             )
@@ -307,12 +300,11 @@ class NuScenesDet3DEvaluator(Evaluator):
                 str_summary_list, class_aps, class_tps
             )
 
-            log_dict = {"mAP": mean_ap, "NDS": nd_score}
             str_summary = "\n".join(str_summary_list)
         except (AssertionError, Exception) as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
-            log_dict = {"mAP": 0.0, "NDS": 0.0}
+            log_dict = {}
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
                 + "or all emtpy boxes."
