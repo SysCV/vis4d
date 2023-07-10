@@ -7,8 +7,6 @@ import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 
-from .weight_init import constant_init
-
 
 class Conv2d(nn.Conv2d):
     """Wrapper around Conv2d to support empty inputs and norm/activation."""
@@ -17,37 +15,9 @@ class Conv2d(nn.Conv2d):
         """Creates an instance of the class."""
         norm = kwargs.pop("norm", None)
         activation = kwargs.pop("activation", None)
-        negative_slope = kwargs.pop("negative_slope", 0.01)
         super().__init__(*args, **kwargs)
         self.norm = norm
         self.activation = activation
-        self.negative_slope = negative_slope
-
-        self.init_weights()
-
-    def init_weights(self) -> None:
-        """Init weights.
-
-        By default, self.weight is initialized with kaiming_normal_, self.bias
-        is initialized with constant_init(0). For self.norm, weight is
-        initialized with constant_init(1) and bias is initialized with 0.
-        """
-        if self.activation is not None and isinstance(
-            self.activation, nn.LeakyReLU
-        ):
-            nonlinearity = "leaky_relu"
-            a = self.negative_slope
-        else:
-            nonlinearity = "relu"
-            a = 0
-
-        nn.init.kaiming_normal_(self.weight, a=a, nonlinearity=nonlinearity)
-
-        if self.bias is not None:
-            nn.init.constant_(self.bias, 0)
-
-        if self.norm is not None:
-            constant_init(self.norm, 1, bias=0)
 
     def forward(  # pylint: disable=arguments-renamed
         self, x: Tensor

@@ -16,6 +16,7 @@ from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.detect.common import DetOut
 from vis4d.op.layer import add_conv_branch
+from vis4d.op.layer.weight_init import xavier_init, kaiming_init, normal_init
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image, remove_overlap
@@ -109,8 +110,7 @@ class RCNNHead(nn.Module):
         )
         self.relu = nn.ReLU(inplace=True)
 
-        self._init_weights(self.fc_cls)
-        self._init_weights(self.fc_reg, std=0.001)
+        self._init_weights()
 
     def _add_conv_fc_branch(
         self,
@@ -140,13 +140,16 @@ class RCNNHead(nn.Module):
                 fcs.append(nn.Linear(fc_in_dim, self.fc_out_channels))
         return convs, fcs, last_layer_dim
 
-    @staticmethod
-    def _init_weights(module: nn.Module, std: float = 0.01) -> None:
+    def _init_weights(self,) -> None:
         """Init weights."""
-        if isinstance(module, nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=std)
-            if module.bias is not None:
-                module.bias.data.zero_()
+        for m in self.shared_convs.modules():
+            kaiming_init(m)
+
+        for m in self.shared_fcs.modules():
+            xavier_init(m, distribution="uniform")
+
+        normal_init(self.fc_cls, std=0.01)
+        normal_init(self.fc_reg, std=0.001)
 
     def forward(
         self, features: list[torch.Tensor], boxes: list[torch.Tensor]

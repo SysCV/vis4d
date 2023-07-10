@@ -17,7 +17,8 @@ from vis4d.op.box.samplers import (
     match_and_sample_proposals,
 )
 from vis4d.op.geometry.rotation import generate_rotation_output
-from vis4d.op.layer import add_conv_branch
+from vis4d.op.layer import add_conv_branch, Conv2d
+from vis4d.op.layer.weight_init import kaiming_init, xavier_init
 from vis4d.op.loss.base import Loss
 from vis4d.op.loss.common import rotation_loss, smooth_l1_loss
 from vis4d.op.loss.reducer import LossReducer, SumWeightedLoss, mean_loss
@@ -263,19 +264,25 @@ class QD3DTBBox3DHead(nn.Module):
 
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
-        module_lists: list[nn.ModuleList | nn.Linear] = []
+        module_lists: list[nn.ModuleList | nn.Linear | Conv2d] = []
+        module_lists += [self.shared_convs]
         module_lists += [self.shared_fcs]
+        module_lists += [self.dep_convs]
         module_lists += [self.fc_dep_uncer]
         module_lists += [self.fc_dep, self.dep_fcs]
+        module_lists += [self.dim_convs]
         module_lists += [self.fc_dim, self.dim_fcs]
+        module_lists += [self.rot_convs]
         module_lists += [self.fc_rot, self.rot_fcs]
+        module_lists += [self.cen_2d_convs]
         module_lists += [self.fc_cen_2d, self.cen_2d_fcs]
 
         for module_list in module_lists:
             for m in module_list.modules():
                 if isinstance(m, nn.Linear):
-                    nn.init.xavier_uniform_(m.weight)
-                    nn.init.constant_(m.bias, 0)
+                    xavier_init(m, distribution="uniform")
+                elif isinstance(m, Conv2d):
+                    kaiming_init(m)
 
     def _add_conv_fc_branch(
         self,
