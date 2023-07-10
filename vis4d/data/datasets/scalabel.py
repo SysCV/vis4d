@@ -257,6 +257,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
         skip_empty_samples: bool = False,
+        attributes_to_load: Sequence[dict[str, str | float]] | None = None,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
         **kwargs: ArgsType,
@@ -282,6 +283,11 @@ class Scalabel(CacheMappingMixin, VideoDataset):
                 additional class for masks.
             skip_empty_samples (bool): Whether to skip samples without
                 annotations.
+            attributes_to_load (Sequence[dict[str, str]]): List of attributes
+                dictionaries to load. Each dictionary is a mapping from the
+                attribute name to its desired value. If any of the attributes
+                dictionaries is matched, the corresponding frame will be
+                loaded. Defaults to None.
             cache_as_binary (bool): Whether to cache the dataset as binary.
                 Default: False.
             cached_file_path (str | None): Path to a cached file. If cached
@@ -301,8 +307,7 @@ class Scalabel(CacheMappingMixin, VideoDataset):
         self.cats_name2id: dict[str, dict[str, int]] = {}
         self.category_map = category_map
 
-        # TODO: Add support for attributes
-        self.attributes_to_load: Sequence[dict[str, str | float]] | None = None
+        self.attributes_to_load = attributes_to_load
 
         self.frames, self.cfg = self._load_mapping(
             self._generate_mapping,
