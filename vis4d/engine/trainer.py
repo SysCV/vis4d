@@ -14,9 +14,10 @@ from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
+from vis4d.op.layer import ModelEMAAdapter
 
 from .optim import LRSchedulerWrapper
-from .util import ModelEMAAdapter, move_data_to_device
+from .util import move_data_to_device
 
 
 class Trainer:

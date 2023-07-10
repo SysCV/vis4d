@@ -31,9 +31,9 @@ from vis4d.engine.connectors import (
     LossConnector,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.engine.util import ModelEMAAdapter
 from vis4d.eval.common.cls import ClassificationEvaluator
 from vis4d.model.cls.vit import ViTClassifer
+from vis4d.op.layer import ModelEMAAdapter
 
 
 def get_config() -> ExperimentConfig:

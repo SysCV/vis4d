@@ -12,11 +12,11 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
-from vis4d.engine.util import ModelExpEMAAdapter
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.base import CSPDarknet
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
 from vis4d.op.fpp import YOLOXPAFPN
+from vis4d.op.layer import ModelExpEMAAdapter
 
 # Data connectors
 CONN_YOLOX_LOSS_2D = {
