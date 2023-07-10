@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 from nuscenes.utils.data_classes import Quaternion
 
 from vis4d.common.array import array_to_numpy
@@ -84,20 +85,22 @@ class NuScenesTrack3DEvaluator(Evaluator):
     ) -> None:
         """Process 3D tracking results."""
         annos = []
-        if len(boxes_3d) != 0:
-            for box_3d, velocity, score_3d, class_id, track_id in zip(
-                boxes_3d,
-                velocities,
-                scores_3d,
-                class_ids,
-                track_ids,
-            ):
-                box_3d = array_to_numpy(box_3d)
-                velocity = array_to_numpy(velocity)
-                score_3d = array_to_numpy(score_3d)
-                class_id = array_to_numpy(class_id)
-                track_id = array_to_numpy(track_id)
+        boxes_3d_np = array_to_numpy(boxes_3d, n_dims=None, dtype=np.float32)
+        velocities_np = array_to_numpy(
+            velocities, n_dims=None, dtype=np.float32
+        )
+        scores_3d_np = array_to_numpy(scores_3d, n_dims=None, dtype=np.float32)
+        class_ids_np = array_to_numpy(class_ids, n_dims=None, dtype=np.int64)
+        track_ids_np = array_to_numpy(track_ids, n_dims=None, dtype=np.int64)
 
+        if len(boxes_3d_np) != 0:
+            for box_3d, velocity, score_3d, class_id, track_id in zip(
+                boxes_3d_np,
+                velocities_np,
+                scores_3d_np,
+                class_ids_np,
+                track_ids_np,
+            ):
                 category = self.inv_nuscenes_class_map[int(class_id)]
                 if not category in self.tracking_cats:
                     continue

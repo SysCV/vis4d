@@ -66,8 +66,6 @@ nuscenes_attribute_map = {
     "": 8,
 }
 
-nuscenes_detection_range = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
-
 nuscenes_detection_range_map = {
     "bicycle": 40,
     "motorcycle": 40,

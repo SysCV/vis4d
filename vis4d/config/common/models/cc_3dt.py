@@ -47,7 +47,7 @@ CONN_DET_3D_LOSS = {
 def get_cc_3dt_cfg(
     num_classes: int | FieldReference,
     basemodel: ConfigDict,
-    detection_range: list[float] | None = None,
+    detection_range: list[float] | FieldReference,
     fps: int | FieldReference = 2,
     weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:

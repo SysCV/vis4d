@@ -32,9 +32,9 @@ def _parse_high_level_metrics(
     tp_errors: dict[str, float],
     nd_score: float,
     eval_time: float,
-) -> tuple[dict[str, float], list[str]]:
+) -> tuple[MetricLogs, list[str]]:
     """Collect high-level metrics."""
-    log_dict = {
+    log_dict: MetricLogs = {
         "mAP": mean_ap,
         "mATE": tp_errors["trans_err"],
         "mASE": tp_errors["scale_err"],
@@ -192,20 +192,22 @@ class NuScenesDet3DEvaluator(Evaluator):
     ) -> None:
         """Process 3D detection results."""
         annos = []
-        if len(boxes_3d) != 0:
+        boxes_3d_np = array_to_numpy(boxes_3d, n_dims=None, dtype=np.float32)
+        velocities_np = array_to_numpy(
+            velocities, n_dims=None, dtype=np.float32
+        )
+        scores_3d_np = array_to_numpy(scores_3d, n_dims=None, dtype=np.float32)
+        class_ids_np = array_to_numpy(class_ids, n_dims=None, dtype=np.int64)
+
+        if len(boxes_3d_np) != 0:
             for i, (box_3d, velocity, score_3d, class_id) in enumerate(
                 zip(
-                    boxes_3d,
-                    velocities,
-                    scores_3d,
-                    class_ids,
+                    boxes_3d_np,
+                    velocities_np,
+                    scores_3d_np,
+                    class_ids_np,
                 )
             ):
-                box_3d = array_to_numpy(box_3d)
-                velocity = array_to_numpy(velocity)
-                score_3d = array_to_numpy(score_3d)
-                class_id = array_to_numpy(class_id)
-
                 category = self.inv_nuscenes_class_map[int(class_id)]
 
                 translation = box_3d[0:3]
@@ -224,7 +226,9 @@ class NuScenesDet3DEvaluator(Evaluator):
                         category, velocity_list
                     )
                 else:
-                    attribute = array_to_numpy(attributes[i])
+                    attribute = array_to_numpy(
+                        attributes[i], n_dims=None, dtype=np.int64  # type: ignore # pylint: disable=line-too-long
+                    )
                     attribute_name = self.inv_nuscenes_attribute_map[
                         int(attribute)
                     ]

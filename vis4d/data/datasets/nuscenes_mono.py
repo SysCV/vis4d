@@ -27,12 +27,10 @@ class NuScenesMono(NuScenes):
         """Initialize the dataset."""
         super().__init__(*args, **kwargs)
 
-    def get_cat_ids(self) -> list[int]:
+    # Needed for CBGS
+    def get_cat_ids(self, idx: int) -> list[int]:
         """Return the samples."""
-        return [
-            sample["CAM"]["annotations"]["boxes3d_classes"]
-            for sample in self.samples
-        ]
+        return self.samples[idx]["CAM"]["annotations"]["boxes3d_classes"]
 
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
         """Remove empty samples."""

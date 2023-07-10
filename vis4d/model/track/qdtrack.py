@@ -224,15 +224,20 @@ class FasterRCNNQDTrack(nn.Module):
             target_boxes=[key_target_boxes, *ref_target_boxes],
             target_track_ids=[key_target_track_ids, *ref_target_track_ids],
         )
+        assert (
+            ref_embeddings is not None
+            and key_track_ids is not None
+            and ref_track_ids is not None
+        )
 
         return FasterRCNNQDTrackOut(
             detector_out=key_detector_out,
             key_images_hw=images_hw[key_index],
             key_target_boxes=key_target_boxes,
             key_embeddings=key_embeddings,
-            ref_embeddings=ref_embeddings,  # type: ignore
+            ref_embeddings=ref_embeddings,
             key_track_ids=key_track_ids,
-            ref_track_ids=ref_track_ids,  # type: ignore
+            ref_track_ids=ref_track_ids,
         )
 
     def _forward_test(

@@ -8,6 +8,7 @@ from __future__ import annotations
 import numpy as np
 from torch.utils.data import Dataset
 
+from vis4d.common.distributed import broadcast, rank_zero_only
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 
@@ -23,7 +24,7 @@ class CBGSDataset(Dataset[DictDataOrList]):
 
     def __init__(
         self,
-        dataset,
+        dataset: Dataset[DictDataOrList],
         class_map: dict[str, int],
         class_key: str = K.boxes3d_classes,
         ignore: int = -1,
@@ -36,34 +37,32 @@ class CBGSDataset(Dataset[DictDataOrList]):
         self.class_key = class_key
         self.ignore = ignore
 
-        t = Timer()
-        (
-            class_sample_indices,
-            sample_frequencies,
-        ) = self._get_class_sample_indices()
+        rank_zero_info("Wrapping dataset with CBGS...")
+        sample_indices = self._get_sample_indices()
+        self.sample_indices = broadcast(sample_indices)
 
-        self.sample_indices = self._get_sample_indices(class_sample_indices)
-        rank_zero_info(
-            f"Generating {len(self.sample_indices)} CBGS samples takes "
-            + f"{t.time():.2f} seconds."
-        )
-
-        self._show_histogram(sample_frequencies)
-
-    def _show_histogram(self, sample_frequencies) -> None:
+    def _show_histogram(
+        self,
+        sample_indices: list[int],
+        sample_frequencies: list[dict[str, int]],
+    ) -> None:
         """Show class histogram."""
         frequencies = {cat: 0 for cat in self.cat2id.keys()}
 
-        for idx in self.sample_indices:
+        for idx in sample_indices:
             freq = sample_frequencies[idx]
             for box3d_class in freq:
                 frequencies[box3d_class] += freq[box3d_class]
 
         print_class_histogram(frequencies)
 
-    def _get_class_sample_indices(self) -> dict[int, list[int]]:
+    def _get_class_sample_indices(
+        self,
+    ) -> tuple[dict[int, list[int]], list[dict[str, int]]]:
         """Get sample indices."""
-        class_sample_indices = {cat_id: [] for cat_id in self.cat2id.values()}
+        class_sample_indices: dict[int, list[int]] = {
+            cat_id: [] for cat_id in self.cat2id.values()
+        }
         sample_frequencies = []
         inv_class_map = {v: k for k, v in self.cat2id.items()}
 
@@ -73,9 +72,12 @@ class CBGSDataset(Dataset[DictDataOrList]):
         else:
             dataset = self.dataset
 
-        samples_cat_ids = dataset.get_cat_ids()
-        for idx, cat_ids in enumerate(samples_cat_ids):
-            cur_cats = {cat_id: [] for cat_id in self.cat2id.values()}
+        for idx in range(len(dataset)):
+            assert hasattr(
+                dataset, "get_cat_ids"
+            ), "The dataset must have a method `get_cat_ids` to get cat ids."
+            cat_ids = dataset.get_cat_ids(idx)
+            cur_cats = {}
             frequencies = {cat: 0 for cat in self.cat2id.keys()}
 
             for cat_id in cat_ids:
@@ -83,19 +85,24 @@ class CBGSDataset(Dataset[DictDataOrList]):
                 frequencies[inv_class_map[cat_id]] += 1
 
             sample_frequencies.append(frequencies)
-            for cat_id in cur_cats:
-                class_sample_indices[cat_id] += cur_cats[cat_id]
+            for cat_id, index in cur_cats.items():
+                class_sample_indices[cat_id] += index
 
         return class_sample_indices, sample_frequencies
 
-    def _get_sample_indices(
-        self, class_sample_indices: dict[int, list[int]]
-    ) -> list[int]:
+    @rank_zero_only
+    def _get_sample_indices(self) -> list[int]:
         """Load sample indices.
 
         Returns:
             dict[int, list[int]]: List of indices after class sampling.
         """
+        t = Timer()
+        (
+            class_sample_indices,
+            sample_frequencies,
+        ) = self._get_class_sample_indices()
+
         duplicated_samples = sum(
             len(v) for _, v in class_sample_indices.items()
         )
@@ -114,6 +121,13 @@ class CBGSDataset(Dataset[DictDataOrList]):
             sample_indices += np.random.choice(
                 cls_inds, int(len(cls_inds) * ratio)
             ).tolist()
+
+        self._show_histogram(sample_indices, sample_frequencies)
+
+        rank_zero_info(
+            f"Generating {len(sample_indices)} CBGS samples takes "
+            + f"{t.time():.2f} seconds."
+        )
 
         return sample_indices
 

@@ -10,7 +10,7 @@ from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
     nuscenes_class_map,
-    nuscenes_detection_range,
+    nuscenes_detection_range_map,
 )
 from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.data.transforms.base import compose
@@ -24,6 +24,7 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import MultiSensorDataConnector
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT, Track3DOut
+from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 
 
 class CC3DTTest(unittest.TestCase):  # TODO: add training test
@@ -50,9 +51,15 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
 
     def test_inference(self):
         """Inference test."""
+        nuscenes_detection_range = [
+            nuscenes_detection_range_map[k] for k in nuscenes_class_map
+        ]
+
+        track_graph = CC3DTrackGraph(detection_range=nuscenes_detection_range)
+
         cc_3dt = FasterRCNNCC3DT(
             num_classes=len(nuscenes_class_map),
-            class_range_map=nuscenes_detection_range,
+            track_graph=track_graph,
             weights=self.model_weights,
         )
 

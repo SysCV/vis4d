@@ -138,11 +138,14 @@ class QDTrack(nn.Module):
         """Forward function."""
         if target_boxes is not None and target_track_ids is not None:
             sampled_boxes, sampled_track_ids = self._sample_proposals(
-                det_boxes, target_boxes, target_track_ids
+                det_boxes,  # type: ignore
+                target_boxes,
+                target_track_ids,
             )
 
             embeddings = []
             for feats, boxes in zip(features, sampled_boxes):
+                assert isinstance(feats, list) and isinstance(boxes, list)
                 embeddings.append(self.similarity_head(feats, boxes))
 
             return QDTrackOut(
@@ -152,7 +155,7 @@ class QDTrack(nn.Module):
                 sampled_track_ids[1:],
             )
 
-        key_embeddings = self.similarity_head(features, det_boxes)
+        key_embeddings = self.similarity_head(features, det_boxes)  # type: ignore # pylint: disable=line-too-long
 
         return QDTrackOut(key_embeddings, None, None, None)
 

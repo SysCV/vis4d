@@ -38,6 +38,7 @@ class TestNuScenesTrack3DEvaluator(unittest.TestCase):
     CONN_NUSC_EVAL = {
         "tokens": data_key("token"),
         "boxes_3d": pred_key("boxes_3d"),
+        "velocities": pred_key("velocities"),
         "class_ids": pred_key("class_ids"),
         "scores_3d": pred_key("scores_3d"),
         "track_ids": pred_key("track_ids"),
@@ -66,7 +67,8 @@ class TestNuScenesTrack3DEvaluator(unittest.TestCase):
         test_loader = get_dataloader(dataset, batch_size)
 
         output = {
-            "boxes_3d": torch.zeros(batch_size, 12),
+            "boxes_3d": torch.zeros(batch_size, 10),
+            "velocities": torch.zeros(batch_size, 3),
             "class_ids": torch.zeros(batch_size),
             "scores_3d": torch.zeros(batch_size),
             "track_ids": torch.zeros(batch_size),
@@ -80,5 +82,4 @@ class TestNuScenesTrack3DEvaluator(unittest.TestCase):
             )
         )
 
-        _, _ = nusc_eval.evaluate("detect_3d")
         _, _ = nusc_eval.evaluate("track_3d")

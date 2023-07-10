@@ -113,19 +113,28 @@ class FasterRCNNCC3DT(nn.Module):
 
     def forward(
         self,
-        images: Tensor,
+        images: list[Tensor] | Tensor,
         images_hw: list[list[tuple[int, int]]],
-        intrinsics: Tensor,
+        intrinsics: list[Tensor] | Tensor,
         extrinsics: Tensor | None = None,
-        frame_ids: list[list[int]] = None,
-        boxes2d: list[list[Tensor]] = None,
-        boxes3d: list[list[Tensor]] = None,
-        boxes3d_classes: list[list[Tensor]] = None,
-        boxes3d_track_ids: list[list[Tensor]] = None,
-        keyframes: list[list[bool]] = None,
+        frame_ids: list[list[int]] | None = None,
+        boxes2d: list[list[Tensor]] | None = None,
+        boxes3d: list[list[Tensor]] | None = None,
+        boxes3d_classes: list[list[Tensor]] | None = None,
+        boxes3d_track_ids: list[list[Tensor]] | None = None,
+        keyframes: None | list[list[bool]] | None = None,
     ) -> FasterRCNNCC3DTOut | Track3DOut:
         """Forward."""
         if self.training:
+            assert (
+                isinstance(images, list)
+                and isinstance(intrinsics, list)
+                and boxes2d is not None
+                and boxes3d is not None
+                and boxes3d_classes is not None
+                and boxes3d_track_ids is not None
+                and keyframes is not None
+            )
             return self._forward_train(
                 images,
                 images_hw,
@@ -136,6 +145,13 @@ class FasterRCNNCC3DT(nn.Module):
                 boxes3d_track_ids,
                 keyframes,
             )
+
+        assert (
+            not isinstance(images, list)
+            and not isinstance(intrinsics, list)
+            and extrinsics is not None
+            and frame_ids is not None
+        )
         return self._forward_test(
             images, images_hw, intrinsics, extrinsics, frame_ids
         )
@@ -201,6 +217,11 @@ class FasterRCNNCC3DT(nn.Module):
             target_boxes=[key_target_boxes, *ref_target_boxes],
             target_track_ids=[key_target_track_ids, *ref_target_track_ids],
         )
+        assert (
+            ref_embeddings is not None
+            and key_track_ids is not None
+            and ref_track_ids is not None
+        )
 
         predictions, targets, labels = self.bbox_3d_head(
             features=key_features,
@@ -210,9 +231,11 @@ class FasterRCNNCC3DT(nn.Module):
             target_boxes3d=target_boxes3d[key_index],
             target_class_ids=target_classes[key_index],
         )
+        detector_3d_out = torch.cat(predictions)
+        assert targets is not None and labels is not None
 
         return FasterRCNNCC3DTOut(
-            detector_3d_out=predictions,
+            detector_3d_out=detector_3d_out,
             detector_3d_target=targets,
             detector_3d_labels=labels,
             qdtrack_out=FasterRCNNQDTrackOut(
@@ -278,16 +301,16 @@ class FasterRCNNCC3DT(nn.Module):
 
     def __call__(
         self,
-        images: Tensor,
+        images: list[Tensor] | Tensor,
         images_hw: list[list[tuple[int, int]]],
-        intrinsics: Tensor,
+        intrinsics: list[Tensor] | Tensor,
         extrinsics: Tensor | None = None,
-        frame_ids: list[list[int]] = None,
-        boxes2d: list[list[Tensor]] = None,
-        boxes3d: list[list[Tensor]] = None,
-        boxes3d_classes: list[list[Tensor]] = None,
-        boxes3d_track_ids: list[list[Tensor]] = None,
-        keyframes: None | list[list[bool]] = None,
+        frame_ids: list[list[int]] | None = None,
+        boxes2d: list[list[Tensor]] | None = None,
+        boxes3d: list[list[Tensor]] | None = None,
+        boxes3d_classes: list[list[Tensor]] | None = None,
+        boxes3d_track_ids: list[list[Tensor]] | None = None,
+        keyframes: None | list[list[bool]] | None = None,
     ) -> FasterRCNNCC3DTOut | Track3DOut:
         """Type definition for call implementation."""
         return self._call_impl(

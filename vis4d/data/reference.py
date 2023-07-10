@@ -26,7 +26,9 @@ def sort_key_first(
     return [cur_sample, *ref_data]
 
 
-def sort_temporal(cur_sample: DictData, ref_data: list[DictData]) -> list[int]:
+def sort_temporal(
+    cur_sample: DictData, ref_data: list[DictData]
+) -> list[DictData]:
     """Sort views temporally."""
     return sorted([cur_sample, *ref_data], key=lambda x: x[K.frame_ids])
 
@@ -43,8 +45,11 @@ class ReferenceViewSampler:
         self.num_ref_samples = num_ref_samples
 
     @abstractmethod
-    def _sample_ref_indices(
-        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
+    def __call__(
+        self,
+        key_dataset_index: int,
+        indices_in_video: list[int],
+        frame_ids: list[int],
     ) -> list[int]:
         """Sample num_ref_samples reference view indices.
 
@@ -58,25 +63,21 @@ class ReferenceViewSampler:
         """
         raise NotImplementedError
 
+
+class SequentialViewSampler(ReferenceViewSampler):
+    """Sequential View Sampler."""
+
     def __call__(
         self,
         key_dataset_index: int,
         indices_in_video: list[int],
         frame_ids: list[int],
     ) -> list[int]:
-        """Call function. Wraps _sample_ref_indices with sorting."""
-        key_index = indices_in_video.index(key_dataset_index)
-        return self._sample_ref_indices(key_index, indices_in_video, frame_ids)
-
-
-class SequentialViewSampler(ReferenceViewSampler):
-    """Sequential View Sampler."""
-
-    def _sample_ref_indices(
-        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
-    ) -> list[int]:
         """Sample sequential reference views."""
         assert len(frame_ids) >= self.num_ref_samples + 1
+
+        key_index = indices_in_video.index(key_dataset_index)
+
         right = key_index + 1 + self.num_ref_samples
         if right <= len(indices_in_video):
             ref_dataset_indices = indices_in_video[key_index + 1 : right]
@@ -119,11 +120,16 @@ class UniformViewSampler(ReferenceViewSampler):
             if min_fid <= frame_ids[i] <= max_fid and i != key_index
         ]
 
-    def _sample_ref_indices(
-        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
+    def __call__(
+        self,
+        key_dataset_index: int,
+        indices_in_video: list[int],
+        frame_ids: list[int],
     ) -> list[int]:
         """Uniformly sample reference views."""
         if self.scope > 0:
+            key_index = indices_in_video.index(key_dataset_index)
+
             valid_indices = self._get_valid_indices(
                 key_index, indices_in_video, frame_ids
             )
@@ -134,7 +140,7 @@ class UniformViewSampler(ReferenceViewSampler):
                     valid_indices, self.num_ref_samples, replace=False
                 ).tolist()
 
-        return [indices_in_video[key_index]] * self.num_ref_samples
+        return [key_dataset_index] * self.num_ref_samples
 
 
 class MultiViewDataset(Dataset[list[DictData]]):
@@ -213,20 +219,17 @@ class MultiViewDataset(Dataset[list[DictData]]):
         ]
 
         if self.sampler.num_ref_samples > 0:
-            if self.sampler.scope > 0:
-                for _ in range(self.num_retry):
-                    ref_indices = self.sampler(
-                        index, indices_in_video, frame_ids
-                    )
+            for _ in range(self.num_retry):
+                ref_indices = self.sampler(index, indices_in_video, frame_ids)
 
-                    ref_data = self.get_ref_data(ref_indices)
+                ref_data = self.get_ref_data(ref_indices)
 
-                    if self.skip_nomatch_samples and not (
-                        self.has_matches(cur_sample, ref_data)
-                    ):
-                        continue
+                if self.skip_nomatch_samples and not (
+                    self.has_matches(cur_sample, ref_data)
+                ):
+                    continue
 
-                    return self.sort_fn(cur_sample, ref_data)
+                return self.sort_fn(cur_sample, ref_data)
 
             ref_indices = [index] * self.sampler.num_ref_samples
             ref_data = self.get_ref_data(ref_indices)

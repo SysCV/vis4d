@@ -27,7 +27,7 @@ from vis4d.op.loss.reducer import LossReducer, SumWeightedLoss, mean_loss
 class QD3DTBBox3DHeadOutput(NamedTuple):
     """QD-3DT bounding box 3D head training output."""
 
-    predictions: Tensor
+    predictions: list[Tensor]
     targets: Tensor | None
     labels: Tensor | None
 
@@ -476,7 +476,7 @@ class QD3DTBBox3DHead(nn.Module):
                 b[s_i][p]
                 for b, s_i, p in zip(det_boxes, sampled_box_indices, positives)
             ]
-            predictions = torch.cat(self.get_predictions(features, pos_boxes))
+            predictions = self.get_predictions(features, pos_boxes)
 
             targets, labels = self.get_targets(
                 pos_assigned_gt_inds,

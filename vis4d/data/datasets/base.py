@@ -78,13 +78,17 @@ class VideoMapping(TypedDict):
 class VideoDataset(Dataset):
     """Video datasets.
 
-    Provides interface for video based data and reference view samplers.
+    Provides video_mapping attribute for video based interface and reference
+    view samplers.
     """
 
     def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
         """Initialize dataset."""
         super().__init__(*args, **kwargs)
-        self.video_mapping: VideoMapping = {}
+        self.video_mapping: VideoMapping = {
+            "video_to_indices": {},
+            "video_to_frame_ids": {},
+        }
 
     def _sort_video_mapping(self, video_mapping: VideoMapping) -> VideoMapping:
         """Sort video mapping by frame ids."""

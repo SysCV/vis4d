@@ -7,6 +7,8 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
+from .weight_init import constant_init
+
 
 class Conv2d(nn.Conv2d):
     """Wrapper around Conv2d to support empty inputs and norm/activation."""
@@ -18,6 +20,10 @@ class Conv2d(nn.Conv2d):
         super().__init__(*args, **kwargs)
         self.norm = norm
         self.activation = activation
+
+        # TODO: Remove this once we have a better way to initialize
+        if self.norm is not None:
+            constant_init(self.norm, 1.0, bias=0.0)
 
     def forward(  # pylint: disable=arguments-renamed
         self, x: Tensor

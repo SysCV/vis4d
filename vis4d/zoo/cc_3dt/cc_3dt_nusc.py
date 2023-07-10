@@ -16,7 +16,11 @@ from vis4d.config.default import (
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_detection_range
+from vis4d.data.datasets.nuscenes import (
+    NuScenes,
+    nuscenes_class_map,
+    nuscenes_detection_range_map,
+)
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -115,8 +119,12 @@ def get_config() -> ExperimentConfig:
         ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
     )
 
+    nuscenes_detection_range = [
+        nuscenes_detection_range_map[k] for k in nuscenes_class_map
+    ]
+
     config.model, config.loss = get_cc_3dt_cfg(
-        num_classes=10,
+        num_classes=len(nuscenes_class_map),
         basemodel=basemodel,
         detection_range=nuscenes_detection_range,
         fps=2,

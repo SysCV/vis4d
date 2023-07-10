@@ -4,9 +4,9 @@ from torch import nn
 
 def constant_init(module: nn.Module, val: float, bias: float = 0.0) -> None:
     """Initialize module with constant value."""
-    if hasattr(module, "weight") and module.weight is not None:
+    if hasattr(module, "weight") and isinstance(module.weight, nn.Parameter):
         nn.init.constant_(module.weight, val)
-    if hasattr(module, "bias") and module.bias is not None:
+    if hasattr(module, "bias") and isinstance(module.bias, nn.Parameter):
         nn.init.constant_(module.bias, bias)
 
 
@@ -18,12 +18,12 @@ def xavier_init(
 ) -> None:
     """Initialize module with Xavier initialization."""
     assert distribution in {"uniform", "normal"}
-    if hasattr(module, "weight") and module.weight is not None:
+    if hasattr(module, "weight") and isinstance(module.weight, nn.Parameter):
         if distribution == "uniform":
             nn.init.xavier_uniform_(module.weight, gain=gain)
         else:
             nn.init.xavier_normal_(module.weight, gain=gain)
-    if hasattr(module, "bias") and module.bias is not None:
+    if hasattr(module, "bias") and isinstance(module.bias, nn.Parameter):
         nn.init.constant_(module.bias, bias)
 
 
@@ -37,7 +37,7 @@ def kaiming_init(
 ) -> None:
     """Initialize module with Kaiming initialization."""
     assert distribution in {"uniform", "normal"}
-    if hasattr(module, "weight") and module.weight is not None:
+    if hasattr(module, "weight") and isinstance(module.weight, nn.Parameter):
         if distribution == "uniform":
             nn.init.kaiming_uniform_(
                 module.weight,
@@ -52,19 +52,15 @@ def kaiming_init(
                 mode=mode,
                 nonlinearity=nonlinearity,
             )
-    if hasattr(module, "bias") and module.bias is not None:
+    if hasattr(module, "bias") and isinstance(module.bias, nn.Parameter):
         nn.init.constant_(module.bias, bias)
-
-    # For vis4d.op.layer.conv2d.Conv2d
-    if hasattr(module, "norm"):
-        constant_init(module.norm, 1.0, bias=0.0)
 
 
 def normal_init(
     module: nn.Module, mean: float = 0.0, std: float = 1.0, bias: float = 0
 ) -> None:
     """Initialize module with normal distribution."""
-    if hasattr(module, "weight") and module.weight is not None:
+    if hasattr(module, "weight") and isinstance(module.weight, nn.Parameter):
         nn.init.normal_(module.weight, mean, std)
-    if hasattr(module, "bias") and module.bias is not None:
+    if hasattr(module, "bias") and isinstance(module.bias, nn.Parameter):
         nn.init.constant_(module.bias, bias)
