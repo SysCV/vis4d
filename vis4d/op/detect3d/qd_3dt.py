@@ -17,7 +17,7 @@ from vis4d.op.box.samplers import (
     match_and_sample_proposals,
 )
 from vis4d.op.geometry.rotation import generate_rotation_output
-from vis4d.op.layer import add_conv_branch, Conv2d
+from vis4d.op.layer import Conv2d, add_conv_branch
 from vis4d.op.layer.weight_init import kaiming_init, xavier_init
 from vis4d.op.loss.base import Loss
 from vis4d.op.loss.common import rotation_loss, smooth_l1_loss

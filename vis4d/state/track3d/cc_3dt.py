@@ -12,8 +12,7 @@ from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_quaternion,
 )
-from vis4d.op.track.motion.kalman_filter import predict
-from vis4d.op.track.assignment import TrackIDCounter
+from vis4d.op.track3d.cc_3dt import CC3DTrackAssociation, cam_to_global
 from vis4d.op.track3d.common import Track3DOut
 from vis4d.op.track3d.motion.kf3d import (
     kf3d_init,
@@ -21,7 +20,8 @@ from vis4d.op.track3d.motion.kf3d import (
     kf3d_predict,
     kf3d_update,
 )
-from vis4d.op.track3d.cc_3dt import CC3DTrackAssociation, cam_to_global
+from vis4d.op.track.assignment import TrackIDCounter
+from vis4d.op.track.motion.kalman_filter import predict
 
 from ..track.util import (
     concat_states,

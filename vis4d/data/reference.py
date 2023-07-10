@@ -44,13 +44,14 @@ class ReferenceViewSampler:
 
     @abstractmethod
     def _sample_ref_indices(
-        self, key_index: int, indices_in_video: list[int]
+        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
     ) -> list[int]:
         """Sample num_ref_samples reference view indices.
 
         Args:
-            key_index (int): Index of key view in the video
-            indices_in_video (list[int]): all dataset indices in the video
+            key_index (int): Index of key view in the video.
+            indices_in_video (list[int]): All dataset indices in the video.
+            frame_ids (list[int]): Frame ids of all views in the video.
 
         Returns:
             list[int]: dataset indices of reference views.
@@ -72,9 +73,10 @@ class SequentialViewSampler(ReferenceViewSampler):
     """Sequential View Sampler."""
 
     def _sample_ref_indices(
-        self, key_index: int, indices_in_video: list[int]
+        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
     ) -> list[int]:
         """Sample sequential reference views."""
+        assert len(frame_ids) >= self.num_ref_samples + 1
         right = key_index + 1 + self.num_ref_samples
         if right <= len(indices_in_video):
             ref_dataset_indices = indices_in_video[key_index + 1 : right]
@@ -103,34 +105,36 @@ class UniformViewSampler(ReferenceViewSampler):
             raise ValueError("Scope must be higher than num_ref_imgs / 2.")
         self.scope = scope
 
+    def _get_valid_indices(
+        self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
+    ) -> list[int]:
+        """Get valid indices in video."""
+        key_fid = frame_ids[key_index]
+        min_fid = max(0, key_fid - self.scope)
+        max_fid = min(key_fid + self.scope, frame_ids[-1])
+
+        return [
+            ind
+            for i, ind in enumerate(indices_in_video)
+            if min_fid <= frame_ids[i] <= max_fid and i != key_index
+        ]
+
     def _sample_ref_indices(
         self, key_index: int, indices_in_video: list[int], frame_ids: list[int]
     ) -> list[int]:
         """Uniformly sample reference views."""
         if self.scope > 0:
-            left = max(0, key_index - self.scope)
-            right = min(key_index + self.scope, len(indices_in_video) - 1)
-            _valid_inds = (
-                indices_in_video[left:key_index]
-                + indices_in_video[key_index + 1 : right + 1]
+            valid_indices = self._get_valid_indices(
+                key_index, indices_in_video, frame_ids
             )
 
-            min_fid = max(0, frame_ids[key_index] - self.scope)
-            max_fid = min(frame_ids[key_index] + self.scope, frame_ids[-1])
-
-            valid_inds = [
-                ind
-                for i, ind in enumerate(_valid_inds)
-                if min_fid <= frame_ids[i] <= max_fid
-            ]
-
-            if len(valid_inds) > 0:
-                assert len(valid_inds) >= self.num_ref_samples
+            if len(valid_indices) > 0:
+                assert len(valid_indices) >= self.num_ref_samples
                 return np.random.choice(
-                    valid_inds, self.num_ref_samples, replace=False
+                    valid_indices, self.num_ref_samples, replace=False
                 ).tolist()
 
-        return [key_index] * self.num_ref_samples
+        return [indices_in_video[key_index]] * self.num_ref_samples
 
 
 class MultiViewDataset(Dataset[list[DictData]]):

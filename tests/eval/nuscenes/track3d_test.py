@@ -11,7 +11,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
-from vis4d.eval.nuscenes import NuScenesEvaluator
+from vis4d.eval.nuscenes import NuScenesTrack3DEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -24,7 +24,7 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )[0]
 
 
-class TestNuScenesEvaluator(unittest.TestCase):
+class TestNuScenesTrack3DEvaluator(unittest.TestCase):
     """NuScenes evaluator testcase class."""
 
     CONN_BBOX_3D_TEST = {
@@ -55,7 +55,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
         batch_size = 1
-        nusc_eval = NuScenesEvaluator()
+        nusc_eval = NuScenesTrack3DEvaluator()
 
         # test gt
         dataset = NuScenes(

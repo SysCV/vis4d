@@ -9,7 +9,7 @@ from vis4d.config.common.models.faster_rcnn import (
 )
 from vis4d.config.util import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
-from vis4d.engine.connectors import pred_key, remap_pred_keys, LossConnector
+from vis4d.engine.connectors import LossConnector, pred_key, remap_pred_keys
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 from vis4d.op.box.anchor import AnchorGenerator

@@ -75,8 +75,8 @@ class QDTrackGraph:
                 if track_id in match_ids:
                     track = self.track_memory.get_track(track_id)[-1]
                     valid_embeds[i] = (
-                        (1 - self.memo_momentum) * track.embeddings
-                        + self.memo_momentum * valid_embeds[i]
+                        (1 - self.memory_momentum) * track.embeddings
+                        + self.memory_momentum * valid_embeds[i]
                     )
 
             data = QDTrackState(

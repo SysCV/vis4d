@@ -16,7 +16,7 @@ from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.detect.common import DetOut
 from vis4d.op.layer import add_conv_branch
-from vis4d.op.layer.weight_init import xavier_init, kaiming_init, normal_init
+from vis4d.op.layer.weight_init import kaiming_init, normal_init, xavier_init
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image, remove_overlap
@@ -140,7 +140,7 @@ class RCNNHead(nn.Module):
                 fcs.append(nn.Linear(fc_in_dim, self.fc_out_channels))
         return convs, fcs, last_layer_dim
 
-    def _init_weights(self,) -> None:
+    def _init_weights(self) -> None:
         """Init weights."""
         for m in self.shared_convs.modules():
             kaiming_init(m)

@@ -37,7 +37,7 @@ class NuScenesMono(NuScenes):
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
         """Remove empty samples."""
         samples = []
-        frequencies = {cat: 0 for cat in nuscenes_class_map.keys()}
+        frequencies = {cat: 0 for cat in nuscenes_class_map}
         inv_nuscenes_class_map = {v: k for k, v in nuscenes_class_map.items()}
 
         t = Timer()

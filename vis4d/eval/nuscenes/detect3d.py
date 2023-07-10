@@ -1,18 +1,17 @@
 """NuScenes 3D detection evaluation code."""
 from __future__ import annotations
 
-import os
 import itertools
 import json
+import os
 from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-from nuscenes.utils.data_classes import Quaternion
 
 from vis4d.common.array import array_to_numpy
-from vis4d.common.logging import rank_zero_warn
 from vis4d.common.imports import NUSCENES_AVAILABLE
+from vis4d.common.logging import rank_zero_warn
 from vis4d.common.typing import ArrayLike, DictStrAny, MetricLogs
 from vis4d.data.datasets.nuscenes import (
     nuscenes_attribute_map,
@@ -25,9 +24,10 @@ if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
     from nuscenes.eval.detection.config import config_factory
     from nuscenes.eval.detection.evaluate import NuScenesEval
+    from nuscenes.utils.data_classes import Quaternion
 
 
-def _parse_detect_high_level_metrics(
+def _parse_high_level_metrics(
     mean_ap: float,
     tp_errors: dict[str, float],
     nd_score: float,
@@ -53,7 +53,7 @@ def _parse_detect_high_level_metrics(
     return log_dict, str_summary_list
 
 
-def _parse_detect_per_class_metrics(
+def _parse_per_class_metrics(
     str_summary_list: list[str],
     class_aps: dict[str, float],
     class_tps: dict[str, dict[str, float]],
@@ -286,7 +286,7 @@ class NuScenesDet3DEvaluator(Evaluator):
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()
 
-            log_dict, str_summary_list = _parse_detect_high_level_metrics(
+            log_dict, str_summary_list = _parse_high_level_metrics(
                 metrics_summary["mean_ap"],
                 metrics_summary["tp_errors"],
                 metrics_summary["nd_score"],
@@ -295,12 +295,12 @@ class NuScenesDet3DEvaluator(Evaluator):
 
             class_aps = metrics_summary["mean_dist_aps"]
             class_tps = metrics_summary["label_tp_errors"]
-            str_summary_list = _parse_detect_per_class_metrics(
+            str_summary_list = _parse_per_class_metrics(
                 str_summary_list, class_aps, class_tps
             )
 
             str_summary = "\n".join(str_summary_list)
-        except (AssertionError, Exception) as e:
+        except Exception as e:  # pylint: disable=broad-except
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {}

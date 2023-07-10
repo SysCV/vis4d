@@ -14,7 +14,7 @@ from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
-from vis4d.op.box.samplers import Sampler, RandomSampler
+from vis4d.op.box.samplers import RandomSampler, Sampler
 from vis4d.op.loss.common import l1_loss
 
 from ..layer import Conv2d
@@ -350,6 +350,10 @@ class RPNLoss(DenseAnchorHeadLoss):
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
             box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to the
                 desired network output.
+            matcher (Matcher): Matches ground truth boxes to anchor grid
+                priors. Defaults to None. If None, uses MaxIoUMatcher.
+            sampler (Sampler): Samples anchors for training. Defaults to None.
+                If None, uses RandomSampler.
             loss_cls (TorchLossFunc): Classification loss function. Defaults to
                 F.binary_cross_entropy_with_logits.
             loss_bbox (TorchLossFunc): Regression loss function. Defaults to

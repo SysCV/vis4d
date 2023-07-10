@@ -54,7 +54,7 @@ class VideoInferenceSampler(
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         assert hasattr(
             dataset, "video_mapping"
-        ), f"Need video_mapping attribute to split dataset by sequences!"
+        ), "Need video_mapping attribute to split dataset by sequences!"
         self.sequences = list(dataset.video_mapping["video_to_indices"])
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (

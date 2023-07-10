@@ -66,7 +66,8 @@ class PostProcessBoxes2D:
         """Post process according to boxes2D after transformation.
 
         Args:
-            boxes_list (list[NDArrayF32]): The bounding boxes to be post processed.
+            boxes_list (list[NDArrayF32]): The bounding boxes to be post
+                processed.
             classes_list (list[NDArrayF32]): The classes of the bounding boxes.
             track_ids_list (list[NDArrayI32 | None]): The track ids of the
                 bounding boxes.

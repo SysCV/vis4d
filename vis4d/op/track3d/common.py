@@ -1,4 +1,4 @@
-"""Common classes and functions for 3D tracking"""
+"""Common classes and functions for 3D tracking."""
 from typing import NamedTuple
 
 from torch import Tensor

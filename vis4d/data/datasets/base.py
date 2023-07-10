@@ -6,8 +6,8 @@ additional functionality.
 """
 from __future__ import annotations
 
-from typing import TypedDict
 from collections.abc import Sequence
+from typing import TypedDict
 
 from torch.utils.data import Dataset as TorchDataset
 

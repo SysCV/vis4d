@@ -22,17 +22,11 @@ from vis4d.config.default import (
     get_default_pl_trainer_cfg,
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import (
-    get_lr_scheduler_cfg,
-    get_optimizer_cfg,
-)
+from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
-from vis4d.engine.connectors import (
-    CallbackConnector,
-    DataConnector,
-)
+from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.op.base import ResNet
 

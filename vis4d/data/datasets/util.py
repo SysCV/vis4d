@@ -8,13 +8,13 @@ import pickle
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from io import BytesIO
-from tabulate import tabulate
-from termcolor import colored
 from typing import Any
 
 import numpy as np
 import plyfile
 from PIL import Image, ImageOps
+from tabulate import tabulate
+from termcolor import colored
 from torch.utils.data import Dataset
 
 from vis4d.common.distributed import broadcast, rank_zero_only

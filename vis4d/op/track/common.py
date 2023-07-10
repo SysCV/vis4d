@@ -1,7 +1,8 @@
-"""Common classes and functions for tracking"""
+"""Common classes and functions for tracking."""
 from typing import NamedTuple
 
 from torch import Tensor
+
 
 class TrackOut(NamedTuple):
     """Output of track model."""

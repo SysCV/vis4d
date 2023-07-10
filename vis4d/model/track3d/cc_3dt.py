@@ -15,12 +15,12 @@ from vis4d.model.track.qdtrack import FasterRCNNQDTrackOut
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
-from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
 from vis4d.op.fpp import FPN
-from vis4d.op.track.qdtrack import QDTrack
 from vis4d.op.track3d.common import Track3DOut
+from vis4d.op.track.qdtrack import QDTrack
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 
 from ..track.util import split_key_ref_indices

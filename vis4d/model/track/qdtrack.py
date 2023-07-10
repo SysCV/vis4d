@@ -11,15 +11,14 @@ from vis4d.op.base import BaseModel, CSPDarknet, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
-
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXPostprocess
 from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
 from vis4d.op.track.common import TrackOut
 from vis4d.op.track.qdtrack import (
-    QDTrack,
     QDSimilarityHead,
+    QDTrack,
     QDTrackAssociation,
 )
 from vis4d.state.track.qdtrack import QDTrackGraph

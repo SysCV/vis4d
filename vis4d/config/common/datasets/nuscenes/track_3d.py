@@ -9,10 +9,9 @@ from vis4d.config.util import (
     get_inference_dataloaders_cfg,
     get_train_dataloader_cfg,
 )
-from vis4d.data.cbgs import CBGSDataset
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
+from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.nuscenes_mono import NuScenesMono
 from vis4d.data.loader import multi_sensor_collate
 from vis4d.data.reference import MultiViewDataset, UniformViewSampler
@@ -24,8 +23,8 @@ from vis4d.data.transforms.flip import (
     FlipIntrinsics,
 )
 from vis4d.data.transforms.normalize import NormalizeImages
-from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.pad import PadImages
+from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
     GenerateResizeParameters,
     ResizeBoxes2D,
@@ -110,10 +109,6 @@ def get_train_dataloader(
         dataset=train_dataset,
         sampler=class_config(UniformViewSampler, scope=2, num_ref_samples=1),
     )
-
-    # train_dataset_cfg = class_config(
-    #     CBGSDataset, dataset=train_dataset_cfg, class_map=nuscenes_class_map
-    # )
 
     preprocess_transforms = [
         class_config(

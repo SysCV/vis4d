@@ -9,10 +9,10 @@ from vis4d.engine.connectors import LossConnector, pred_key, remap_pred_keys
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 from vis4d.op.box.anchor import AnchorGenerator
+from vis4d.op.detect3d.qd_3dt import Box3DUncertaintyLoss
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RCNNLoss
 from vis4d.op.detect.rpn import RPNLoss
-from vis4d.op.detect3d.qd_3dt import Box3DUncertaintyLoss
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
@@ -57,6 +57,8 @@ def get_cc_3dt_cfg(
         num_classes (FieldReference | int): Number of classes.
         basemodel (ConfigDict): Base model config.
         detection_range (list[float] | None, optional): Detection range.
+            Defaults to None.
+        fps (FieldReference | int, optional): FPS. Defaults to 2.
         weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################

@@ -7,19 +7,18 @@ from __future__ import annotations
 
 import numpy as np
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
-from vis4d.common.time import Timer
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.time import Timer
 
 from .const import CommonKeys as K
-from .datasets.util import print_class_histogram, CacheMappingMixin
+from .datasets.util import print_class_histogram
 from .reference import MultiViewDataset
 from .typing import DictDataOrList
 
 
 # TODO: Support sensor selection.
-class CBGSDataset(CacheMappingMixin, Dataset[DictDataOrList]):
+class CBGSDataset(Dataset[DictDataOrList]):
     """Balance the number of scenes under different classes."""
 
     def __init__(
@@ -95,10 +94,10 @@ class CBGSDataset(CacheMappingMixin, Dataset[DictDataOrList]):
         """Load sample indices.
 
         Returns:
-            list[dict]: List of indices after class sampling.
+            dict[int, list[int]]: List of indices after class sampling.
         """
         duplicated_samples = sum(
-            [len(v) for _, v in class_sample_indices.items()]
+            len(v) for _, v in class_sample_indices.items()
         )
         class_distribution = {
             k: len(v) / duplicated_samples
