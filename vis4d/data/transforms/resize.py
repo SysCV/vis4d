@@ -4,6 +4,7 @@ from __future__ import annotations
 import random
 from typing import TypedDict
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -176,6 +177,115 @@ class ResizeBoxes2D:
             scale_matrix[1, 1] = scale_factor[1]
             boxes_list[i] = transform_bbox(scale_matrix, boxes_).numpy()
         return boxes_list
+
+
+@Transform(
+    [
+        K.depth_maps,
+        "transforms.resize.target_shape",
+        "transforms.resize.scale_factors",
+    ],
+    K.depth_maps,
+)
+class ResizeDepthMaps:
+    """Resize depth maps."""
+
+    def __init__(
+        self,
+        interpolation: str = "nearest",
+        rescale_depth_values: bool = False,
+    ):
+        """Initialize the transform.
+
+        Args:
+            interpolation (str, optional): Interpolation method. One of
+                ["nearest", "bilinear", "bicubic"]. Defaults to "nearest".
+            rescale_depth_values (bool, optional): If the depth values should
+                be rescaled according to the new scale factor. Defaults to
+                False. This is useful if we want to keep the intrinsic
+                parameters of the camera the same.
+        """
+        self.interpolation = interpolation
+        self.rescale_depth_values = rescale_depth_values
+
+    def __call__(
+        self,
+        depth_maps: list[NDArrayF32],
+        target_shapes: list[tuple[int, int]],
+        scale_factors: list[tuple[float, float]],
+    ) -> list[NDArrayF32]:
+        """Resize depth maps."""
+        for i, (depth_map, target_shape, scale_factor) in enumerate(
+            zip(depth_maps, target_shapes, scale_factors)
+        ):
+            depth_map_ = torch.from_numpy(depth_map)
+            depth_map_ = (
+                resize_tensor(
+                    depth_map_.float().unsqueeze(0).unsqueeze(0),
+                    target_shape,
+                    interpolation=self.interpolation,
+                )
+                .type(depth_map_.dtype)
+                .squeeze(0)
+                .squeeze(0)
+            )
+            if self.rescale_depth_values:
+                assert np.isclose(
+                    scale_factor[0], scale_factor[1], atol=1e-4
+                ), "Depth map scale factors must be the same"
+                depth_map_ /= scale_factor[0]
+            depth_maps[i] = depth_map_.numpy()
+        return depth_maps
+
+
+@Transform(
+    [
+        K.optical_flows,
+        "transforms.resize.target_shape",
+        "transforms.resize.scale_factor",
+    ],
+    K.optical_flows,
+)
+class ResizeOpticalFlows:
+    """Resize optical flows."""
+
+    def __init__(self, normalized_flow: bool = True):
+        """Create a ResizeOpticalFlows instance.
+
+        Args:
+            normalized_flow (bool): Whether the optical flow is normalized.
+                Defaults to True. If false, the optical flow will be scaled
+                according to the scale factor.
+        """
+        self.normalized_flow = normalized_flow
+
+    def __call__(
+        self,
+        optical_flows: list[NDArrayF32],
+        target_shapes: list[tuple[int, int]],
+        scale_factors: list[tuple[float, float]],
+    ) -> list[NDArrayF32]:
+        """Resize optical flows."""
+        for i, (optical_flow, target_shape, scale_factor) in enumerate(
+            zip(optical_flows, target_shapes, scale_factors)
+        ):
+            optical_flow_ = torch.from_numpy(optical_flow).permute(2, 0, 1)
+            optical_flow_ = (
+                resize_tensor(
+                    optical_flow_.float().unsqueeze(0),
+                    target_shape,
+                    interpolation="bilinear",
+                )
+                .type(optical_flow_.dtype)
+                .squeeze(0)
+                .permute(1, 2, 0)
+            )
+            # scale optical flows
+            if not self.normalized_flow:
+                optical_flow_[:, :, 0] *= scale_factor[0]
+                optical_flow_[:, :, 1] *= scale_factor[1]
+            optical_flows[i] = optical_flow_.numpy()
+        return optical_flow_.numpy()
 
 
 @Transform(

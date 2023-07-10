@@ -397,6 +397,38 @@ class CropSegMasks:
         return masks_list
 
 
+@Transform([K.depth_maps, "transforms.crop.crop_box"], K.depth_maps)
+class CropDepthMaps:
+    """Crop depth maps."""
+
+    def __call__(
+        self, depth_maps: list[NDArrayF32], crop_box_list: list[NDArrayI32]
+    ) -> list[NDArrayF32]:
+        """Crop depth maps."""
+        for i, (depth_map, crop_box) in enumerate(
+            zip(depth_maps, crop_box_list)
+        ):
+            x1, y1, x2, y2 = crop_box
+            depth_maps[i] = depth_map[y1:y2, x1:x2]
+        return depth_maps
+
+
+@Transform([K.optical_flows, "transforms.crop.crop_box"], K.optical_flows)
+class CropOpticalFlows:
+    """Crop optical flows."""
+
+    def __call__(
+        self, optical_flows: list[NDArrayF32], crop_box_list: NDArrayI32
+    ) -> list[NDArrayF32]:
+        """Crop optical flows."""
+        for i, (optical_flow, crop_box) in enumerate(
+            zip(optical_flows, crop_box_list)
+        ):
+            x1, y1, x2, y2 = crop_box
+            optical_flows[i] = optical_flow[y1:y2, x1:x2]
+        return optical_flows
+
+
 @Transform([K.intrinsics, "transforms.crop.crop_box"], K.intrinsics)
 class CropIntrinsics:
     """Crop Intrinsics."""
