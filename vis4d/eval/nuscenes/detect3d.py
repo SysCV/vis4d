@@ -282,7 +282,6 @@ class NuScenesDet3DEvaluator(Evaluator):
                 result_path=f"{output_dir}/detect_3d_predictions.json",
                 eval_set=self.split,
                 output_dir=os.path.join(output_dir, "detection"),
-                verbose=False,
             )
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()

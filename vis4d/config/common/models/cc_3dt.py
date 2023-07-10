@@ -127,14 +127,13 @@ def get_cc_3dt_cfg(
                 "connector": class_config(
                     LossConnector, key_mapping=CONN_RPN_LOSS_2D
                 ),
-                "weight": {"RPNLoss.loss_bbox": 5.0},
             },
             {
                 "loss": rcnn_loss,
                 "connector": class_config(
                     LossConnector, key_mapping=CONN_ROI_LOSS_2D
                 ),
-                "weight": {"RCNNLoss.rcnn_loss_bbox": 5.0},
+                "weight": 5.0,
             },
             {
                 "loss": track_loss,
