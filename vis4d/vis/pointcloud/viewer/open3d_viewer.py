@@ -70,7 +70,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
                 )
                 print("written", f"{name}.ply")
 
-    def show(self, blocking: bool = False) -> None:
+    def show(self, blocking: bool = True) -> None:
         """Shows the visualization.
 
         Args:

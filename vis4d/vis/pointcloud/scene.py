@@ -104,16 +104,21 @@ class PointcloudData:
 
         if self.classes is not None:
             self.num_classes = len(np.unique(self.classes))
+        else:
+            self.num_classes = 0
 
         if self.instances is not None:
             if self.classes is None:
-                self.num_instances = len(np.unique(self.instances))
+                if self.instances is not None:
+                    self.num_instances = len(np.unique(self.instances))
             else:
                 self.num_instances = len(
                     np.unique(
                         self.classes * np.max(self.instances) + self.instances
                     )
                 )
+        else:
+            self.num_instances = 0
 
     def transform(self, transform: NDArrayFloat) -> PointcloudData:
         """Transforms the pointcloud.
