@@ -21,13 +21,14 @@ class LossDefinition(TypedDict):
     Attributes:
         loss (Loss | nn.Module): Loss function to use.
         connector (LossConnector): Connector to use for the loss.
-        weight (float, optional): Weight to use for the loss.
+        weight (float | dict[str, float], optional): Weight to use for the
+            loss.
         name (str, optional): Name to use for the loss.
     """
 
     loss: Loss | nn.Module
     connector: LossConnector
-    weight: NotRequired[float]
+    weight: NotRequired[float | dict[str, float]]
     name: NotRequired[str]
 
 

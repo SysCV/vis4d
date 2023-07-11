@@ -1,4 +1,4 @@
-"""CC-3DT nuScenes inference example."""
+"""CC-3DT with Faster-RCNN detector."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -82,7 +82,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="cc_3dt_r50_kf3d")
+    config = get_default_cfg(exp_name="cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc")
 
     # Hyper Parameters
     params = ExperimentParameters()

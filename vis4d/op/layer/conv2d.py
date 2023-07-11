@@ -34,7 +34,7 @@ class Conv2d(nn.Conv2d):
             if (
                 x.numel() == 0
                 and self.training
-                and isinstance(self.norm, torch.nn.SyncBatchNorm)
+                and isinstance(self.norm, nn.SyncBatchNorm)
             ):
                 raise ValueError(
                     "SyncBatchNorm does not support empty inputs!"
@@ -118,8 +118,8 @@ class UnetDownConv(nn.Module):
     ):
         """Creates a new downsampling convolution operator.
 
-        This operator consists of two convolutions followed
-        by a maxpool operator.
+        This operator consists of two convolutions followed by a maxpool
+        operator.
 
         Args:
             in_channels (int): input channesl
@@ -162,7 +162,7 @@ class UnetDownConv(nn.Module):
 
         Returns:
             UnetDownConvOut: Containing the features before the pooling
-            operation (features) and after (pooled_features).
+                operation (features) and after (pooled_features).
         """
         return self._call_impl(data)
 
@@ -174,7 +174,7 @@ class UnetDownConv(nn.Module):
 
         Returns:
             UnetDownConvOut: containing the features before the pooling
-            operation (features) and after (pooled_features).
+                operation (features) and after (pooled_features).
         """
         x = F.relu(self.conv1(data))
         x = F.relu(self.conv2(x))
@@ -199,8 +199,8 @@ class UnetUpConv(nn.Module):
     ):
         """Creates a new UpConv operator.
 
-            This operator merges two inputs by upsampling one
-            and combining it with the other
+        This operator merges two inputs by upsampling one and combining it with
+        the other.
 
         Args:
             in_channels: Number of input channels (low res)
