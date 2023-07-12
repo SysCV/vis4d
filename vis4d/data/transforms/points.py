@@ -5,10 +5,295 @@ from typing import TypedDict
 
 import numpy as np
 
-from vis4d.common.typing import NDArrayFloat
+from vis4d.common.typing import NDArrayFloat, NDArrayInt, NDArrayNumber
 from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
+
+
+# Parameter Definitions
+class ScaleParams(TypedDict):
+    """Parameters for scaling the pointcloud.
+
+    Attributes:
+        scales (NDArrayFloat): Scaling factors for axis. Can be
+            negative to invert axis. Shape (3,).
+    """
+
+    scales: NDArrayFloat
+
+
+class ContrastParams(TypedDict):
+    """Contrast parameters for the colors of a pointcloud.
+
+    Attributes:
+        blend_factor (float): Blend factor for the contrast operation.
+            Shape (1,).
+        lower_bound (NDArrayFloat): Lower bound for the color values in the pc.
+            Shape (3,).
+        upper_bound (NDArrayFloat): Upper bound for the color values in the pc.
+            Shape (3,).
+    """
+
+    blend_factor: float
+    lower_bound: NDArrayFloat
+    upper_bound: NDArrayFloat
+
+
+@Transform(in_keys=K.colors3d, out_keys="transforms.contrast_params")
+class GenContrastParams:
+    """Generates contast parameters for the pointcloud.
+
+    Args:
+        p (float): Probability of applying the operation.
+        blend_factor (float): Blend factor for the contrast operation.
+            If None, a random value from [0,1] is used.
+    """
+
+    def __init__(
+        self,
+        proba: float = 0.2,
+        blend_factor: float | None = None,
+    ):
+        """Initializes the operation.
+
+        Args:
+            proba (float): Probability of applying the operation.
+            blend_factor (float): Blend factor for the contrast operation.
+        """
+        self.proba = proba
+        self.blend_factor = blend_factor
+
+    def __call__(self, data: list[NDArrayFloat]) -> list[ContrastParams]:
+        """Applies the operation."""
+        ret_data = []
+        for d in data:
+            if np.random.rand() < self.proba:
+                lo = np.min(d, 0, keepdims=True)
+                hi = np.max(d, 0, keepdims=True)
+                blend_factor = (
+                    np.random.rand()
+                    if self.blend_factor is None
+                    else self.blend_factor
+                )
+                ret_data.append(
+                    ContrastParams(
+                        blend_factor=blend_factor,
+                        lower_bound=lo,
+                        upper_bound=hi,
+                    )
+                )
+            else:
+                ret_data.append(
+                    ContrastParams(
+                        blend_factor=0.0,
+                        lower_bound=np.zeros((3,)),
+                        upper_bound=np.ones((3,)),
+                    )
+                )
+        return ret_data
+
+
+@Transform(in_keys=K.points3d, out_keys="transforms.scale_params")
+class GenScaleParams:
+    """Generates scale parameters for the pointcloud."""
+
+    def __init__(
+        self,
+        scale: tuple[float, float] = (0.8, 1.2),
+        scale_anisotropic: bool = False,
+        scale_xyz: tuple[bool, bool, bool] = (True, True, True),
+        mirror: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    ):
+        """Initializes the operation.
+
+        Args:
+            p (float): Probability of applying the operation.
+            scale (tuple[float, float]): Scaling factor range.
+            scale_anisotropic (bool): Whether to use anisotropic scaling.
+                If true, the scaling factor is sampled for each axis
+                independently.
+            scale_xyz (tuple[bool, bool, bool]): Which axis to appy the scaling
+                to.
+            mirror (tuple[bool, bool, bool]): Probability to mirror the given
+                axis of the pointcloud.
+        """
+        self.scale = scale
+        self.scale_anisotropic = scale_anisotropic
+        self.scale_xyz = scale_xyz
+        self.mirror = np.array(mirror)
+        self.use_mirroring = np.sum(self.mirror > 0) != 0
+
+    def __call__(self, data: list[NDArrayFloat]) -> list[ScaleParams]:
+        """Applies the operation."""
+        ret_data = []
+        for _ in data:
+            scale = np.random.uniform(
+                self.scale[0],
+                self.scale[1],
+                3 if self.scale_anisotropic else 1,
+            )
+            if len(scale) == 1:
+                scale = scale.repeat(3)
+            if self.use_mirroring:
+                mirror = (np.random.rand(3) > self.mirror).astype(
+                    np.float32
+                ) * 2 - 1
+                scale *= mirror
+            for i, s in enumerate(self.scale_xyz):
+                if not s:
+                    scale[i] = 1
+            ret_data.append(ScaleParams(scales=scale))
+        return ret_data
+
+
+@Transform(in_keys=K.colors3d, out_keys=K.colors3d)
+class ColorDrop:
+    """Drops the color of the pointcloud with a given probability."""
+
+    def __init__(self, proba: float = 0.2):
+        """Initializes the operation.
+
+        Args:
+            proba (float): Probability of dropping the color.
+        """
+        self.proba = proba
+
+    def __call__(self, data: list[NDArrayNumber]) -> list[NDArrayNumber]:
+        """Applies the operation."""
+        ret_data = []
+        for d in data:
+            if np.random.rand() > self.proba:
+                ret_data.append(d)
+            else:
+                ret_data.append(0 * d)
+        return ret_data
+
+
+@Transform(
+    in_keys=(K.colors3d, "transforms.contrast_params"), out_keys=K.colors3d
+)
+class ColorContrast:
+    """Applies the contrast operation to the colors of the pointcloud.
+
+    This applies a linear contrast operation to the colors of the pointcloud.
+    """
+
+    def __call__(
+        self, data: list[NDArrayFloat], contrast_params: list[ContrastParams]
+    ) -> list[NDArrayFloat]:
+        """Applies the operation."""
+        ret_data = []
+        for d, contrast in zip(data, contrast_params):
+            scale = 1 / (contrast["upper_bound"] - contrast["lower_bound"])
+            blend_factor = contrast["blend_factor"]
+            contrast_feat = (d - contrast["lower_bound"]) * scale
+            ret_data.append(
+                (1 - blend_factor) * d + blend_factor * contrast_feat
+            )
+        return ret_data
+
+
+@Transform(
+    in_keys=(K.points3d, "transforms.scale_params"), out_keys=K.points3d
+)
+class PointScale:
+    """Applies the scaling (And potentially mirroring) op."""
+
+    def __call__(
+        self, data: list[NDArrayFloat], scale_params: list[ScaleParams]
+    ) -> list[NDArrayFloat]:
+        """Applies the operation."""
+        ret_data = []
+        for d, scale in zip(data, scale_params):
+            ret_data.append(d * scale["scales"])
+        return ret_data
+
+
+@Transform(in_keys=K.points3d, out_keys=K.points3d)
+class XYCenterZAlign:
+    """Centers the pointcloud in the XY plane and aligns it with the Z axis."""
+
+    def __call__(self, data: list[NDArrayFloat]) -> list[NDArrayFloat]:
+        """Applies the operation."""
+        ret_data = []
+        for d in data:
+            d = d - np.mean(d, axis=0)
+            d[:, -1] -= np.min(d[:, -1])
+            ret_data.append(d)
+        return ret_data
+
+
+@Transform(in_keys=K.points3d, out_keys=K.points3d)
+class PointJitter:
+    """Jitters the pointcloud by adding gaussian noise to the points."""
+
+    def __init__(self, jitter_sigma: float = 0.01, jitter_clip: float = 0.05):
+        """Initializes the operation.
+
+        Args:
+            jitter_sigma (float): Standard deviation of the gaussian noise.
+            jitter_clip (float): Maximum absolute value of the noise.
+        """
+        self.std = jitter_sigma
+        self.clip = jitter_clip
+
+    def __call__(self, data: list[NDArrayNumber]) -> list[NDArrayNumber]:
+        """Applies the operation."""
+        ret_data = []
+        for d in data:
+            jittered_data = np.clip(
+                self.std * np.random.randn(*d.shape), -1 * self.clip, self.clip
+            )
+            ret_data.append(d + jittered_data)
+
+        return ret_data
+
+
+@Transform(in_keys=K.colors3d, out_keys=K.colors3d)
+class ColorNormalize:
+    """Normalizes the color of the pointcloud."""
+
+    def __init__(
+        self,
+        color_mean: NDArrayFloat | None = None,
+        color_std: NDArrayFloat | None = None,
+    ):
+        """Initializes the operation.
+
+        The given color mean and standard deviation are expected to refer
+        to the float color values in the range [0, 1].
+
+        Args:
+            color_mean (np.ndarray): Mean of the color channels.
+            color_std (np.ndarray): Standard deviation of the color channels.
+        """
+        self.color_mean = (
+            np.array(color_mean).astype(np.float32)
+            if color_mean is not None
+            else None
+        )
+        self.color_std = (
+            np.array(color_std).astype(np.float32)
+            if color_std is not None
+            else None
+        )
+
+    def __call__(
+        self, data: list[NDArrayFloat | NDArrayInt]
+    ) -> list[NDArrayFloat]:
+        """Applies the operation."""
+        ret_data = []
+        for d in data:
+            if d.max() > 1:  # convert color to [0, 1]
+                d_norm = d / 255.0
+            else:
+                d_norm = d.astype(np.float32)
+
+            if self.color_mean is not None and self.color_std is not None:
+                d_norm = (d_norm - self.color_mean) / self.color_std
+            ret_data.append(d_norm)
+        return ret_data
 
 
 @Transform(in_keys=K.points3d, out_keys="transforms.pc_bounds")
