@@ -37,6 +37,9 @@ DASH_AVAILABLE = package_available("dash")
 OPEN3D_AVAILABLE = package_available("open3d")
 PLOTLY_AVAILABLE = package_available("plotly")
 
+TORCH_SCATTER_AVAILABLE = package_available("torch_scatter")
+TORCH_CLUSTER_AVAILABLE = package_available("torch_cluster")
+
 # logging
 TENSORBOARD_AVAILABLE = package_available("tensorboardX") or package_available(
     "tensorboard"
