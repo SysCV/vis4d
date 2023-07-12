@@ -11,16 +11,16 @@ import numpy as np
 
 from vis4d.common.typing import (
     NDArrayFloat,
-    NDArrayI64,
     NDArrayInt,
     NDArrayNumber,
+    NDArrayUI64,
 )
 from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
 
 
-def fnv_hash_vec(arr: NDArrayInt) -> NDArrayI64:
+def fnv_hash_vec(arr: NDArrayInt) -> NDArrayUI64:
     """FNV64-1A has function for 2d array shape (N, 3)."""
     assert arr.ndim == 2
     # Floor first for negative coordinates
