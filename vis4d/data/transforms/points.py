@@ -101,7 +101,7 @@ class GenScaleParams:
     def __init__(
         self,
         scale: tuple[float, float] = (0.8, 1.2),
-        scale_anisotropic: bool = False,
+        scale_anisotropic: bool = True,
         scale_xyz: tuple[bool, bool, bool] = (True, True, True),
         mirror: tuple[float, float, float] = (0.0, 0.0, 0.0),
     ):
@@ -228,15 +228,15 @@ class XYCenterZAlign:
 class PointJitter:
     """Jitters the pointcloud by adding gaussian noise to the points."""
 
-    def __init__(self, jitter_sigma: float = 0.01, jitter_clip: float = 0.05):
+    def __init__(self, sigma: float = 0.01, clip: float = 0.05):
         """Initializes the operation.
 
         Args:
-            jitter_sigma (float): Standard deviation of the gaussian noise.
-            jitter_clip (float): Maximum absolute value of the noise.
+            sigma (float): Standard deviation of the gaussian noise.
+            clip (float): Maximum absolute value of the noise.
         """
-        self.std = jitter_sigma
-        self.clip = jitter_clip
+        self.std = sigma
+        self.clip = clip
 
     def __call__(self, data: list[NDArrayNumber]) -> list[NDArrayNumber]:
         """Applies the operation."""

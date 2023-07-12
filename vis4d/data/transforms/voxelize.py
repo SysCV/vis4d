@@ -170,7 +170,7 @@ class VoxelizePoints:
 
     def __call__(
         self, points3d: list[NDArrayFloat], voxel_mapping: list[VoxelMapping]
-    ) -> list[NDArrayNumber]:
+    ) -> list[NDArrayFloat]:
         """Samples num_pts from the first dim of the provided data tensor."""
         ret_data = []
         for points, voxel_params in zip(points3d, voxel_mapping):

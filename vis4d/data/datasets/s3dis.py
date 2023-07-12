@@ -110,6 +110,7 @@ class S3DIS(CacheMappingMixin, Dataset):
         cache_points: bool = True,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
+        reps_per_epoch: int = 1,
         **kwargs: ArgsType,
     ) -> None:
         """Creates a new S3DIS dataset.
@@ -128,6 +129,8 @@ class S3DIS(CacheMappingMixin, Dataset):
             cached_file_path (str | None): Path to a cached file. If cached
                 file exist then it will load it instead of generating the data
                 mapping. Default: None.
+            reps_per_epoch (int): How many times to repeat the dataset in one
+                epoch. Default: 1.
 
         Raises:
             ValueError: If requested split is malformed.
@@ -163,6 +166,8 @@ class S3DIS(CacheMappingMixin, Dataset):
         # Cache
         self.cache_points = cache_points
         self._cache: dict[int, DictData] = {}
+
+        self.reps_per_epoch = reps_per_epoch
 
     @property
     def num_classes(self) -> int:
@@ -201,19 +206,21 @@ class S3DIS(CacheMappingMixin, Dataset):
 
     def __len__(self) -> int:
         """Length of the datset."""
-        return len(self.data)
+        return len(self.data) * self.reps_per_epoch
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform s3dis sample to vis4d input format.
 
         Returns:
-            coordinates: 3D Poitns coordinate Shape(n x 3)
+            coordinates: 3D Points coordinate Shape(n x 3)
             colors: 3D Point colors Shape(n x 3)
             Semantic Classes: 3D Point classes Shape(n x 1)
 
         Raises:
             ValueError: If a requested key does not exist in this dataset.
         """
+        idx = idx % len(self.data)  # for multi reps per epoch
+
         data = self.data[idx]
 
         # Cache data
