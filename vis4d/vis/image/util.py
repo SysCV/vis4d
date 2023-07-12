@@ -51,7 +51,9 @@ def _get_box_label(
     return ", ".join(labels)
 
 
-def _to_binary_mask(mask: NDArrayUI8, ignore_class: int = 255) -> NDArrayUI8:
+def _to_binary_mask(
+    mask: NDArrayUI8, ignore_class: int = 255
+) -> tuple[NDArrayUI8, NDArrayUI8]:
     """Converts a mask to binary masks.
 
     Args:
@@ -60,13 +62,16 @@ def _to_binary_mask(mask: NDArrayUI8, ignore_class: int = 255) -> NDArrayUI8:
 
     Returns:
         NDArrayUI8: The binary masks with shape [N, H, W].
+        NDArrayUI8: The class ids for each binary mask.
     """
     binary_masks = []
+    class_ids = []
     for class_id in np.unique(mask):
         if class_id == ignore_class:
             continue
         binary_masks.append(mask == class_id)
-    return np.stack(binary_masks, axis=0)
+        class_ids.append(class_id)
+    return np.stack(binary_masks, axis=0), np.array(class_ids, dtype=np.uint8)
 
 
 def preprocess_boxes(
@@ -220,30 +225,44 @@ def preprocess_boxes3d(
 
 def preprocess_masks(
     masks: ArrayLikeUInt,
-    class_ids: ArrayLikeInt | None,
+    class_ids: ArrayLikeInt | None = None,
     color_mapping: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
 ) -> tuple[list[NDArrayBool], list[tuple[int, int, int]]]:
-    """Preprocesses predicted masks.
+    """Preprocesses predicted semantic or instance segmentation masks.
 
     Args:
-        masks (ArrayLikeUInt): Masks of shape [H, W].
+        masks (ArrayLikeUInt): Masks of shape [H, W] or [N, H, W]. If the
+            masks are of shape [H, W], they are assumed to be semantic
+            segmentation masks, i.e. each pixel contains the class id.
+            If the masks are of shape [N, H, W], they are assumed to be
+            the binary masks of N instances.
         class_ids (ArrayLikeInt, None):  An array with class ids for each mask
-            shape [N].
+            shape [N]. If None, then the masks must be semantic segmentation
+            masks and the class ids are extracted from the masks.
         color_mapping (list[tuple[int, int, int]]): Color mapping for
             each class.
 
     Returns:
         tuple[list[masks], list[colors]]: Returns a list with all masks of
             shape [H, W] as well as a list with the corresponding colors.
+
+    Raises:
+        ValueError: If the masks have an invalid shape.
     """
     masks_np = array_to_numpy(masks, n_dims=None, dtype=np.uint8)
-    class_ids = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
 
     if len(masks_np.shape) == 2:
-        masks_np = _to_binary_mask(masks_np)
+        masks_np, class_ids = _to_binary_mask(masks_np)
+    elif len(masks_np.shape) == 3:
+        if class_ids is not None:
+            class_ids = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+    else:
+        raise ValueError(
+            f"Expected masks to have 2 or 3 dimensions, but got "
+            f"{len(masks_np.shape)}"
+        )
 
     masks_binary = masks_np.astype(bool)
-
     mask_list: list[NDArrayBool] = []
     color_list: list[tuple[int, int, int]] = []
 
