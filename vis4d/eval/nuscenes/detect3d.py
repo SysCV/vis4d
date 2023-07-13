@@ -101,7 +101,6 @@ class NuScenesDet3DEvaluator(Evaluator):
         data_root: str,
         version: str,
         split: str,
-        output_dir: str,
         metadata: tuple[str, ...] = ("use_camera",),
         use_default_attr: bool = False,
         velocity_thres: float = 1.0,
@@ -111,7 +110,6 @@ class NuScenesDet3DEvaluator(Evaluator):
         self.data_root = data_root
         self.version = version
         self.split = split
-        self.output_dir = output_dir
         self.use_default_attr = use_default_attr
         self.velocity_thres = velocity_thres
 
@@ -126,6 +124,7 @@ class NuScenesDet3DEvaluator(Evaluator):
         for m in metadata:
             self.meta_data[m] = True
 
+        self.output_dir = ""
         self.detect_3d: DictStrAny = {}
         self.reset()
 
@@ -272,7 +271,7 @@ class NuScenesDet3DEvaluator(Evaluator):
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""
-        output_dir = os.path.join(self.output_dir, metric)
+        assert metric == "detect_3d"
         try:
             nusc = NuScenesDevkit(
                 version=self.version,
@@ -283,9 +282,10 @@ class NuScenesDet3DEvaluator(Evaluator):
             nusc_eval = NuScenesEval(
                 nusc,
                 config=config_factory("detection_cvpr_2019"),
-                result_path=f"{output_dir}/detect_3d_predictions.json",
+                result_path=f"{self.output_dir}/detect_3d_predictions.json",
                 eval_set=self.split,
-                output_dir=os.path.join(output_dir, "detection"),
+                output_dir=os.path.join(self.output_dir, "detection"),
+                verbose=False,
             )
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()
@@ -317,11 +317,11 @@ class NuScenesDet3DEvaluator(Evaluator):
 
     def save(self, metric: str, output_dir: str) -> None:
         """Save the results to json files."""
-        nusc_annos = {
-            "results": self.detect_3d,
-            "meta": self.meta_data,
-        }
+        assert metric == "detect_3d"
+        nusc_annos = {"results": self.detect_3d, "meta": self.meta_data}
         result_file = f"{output_dir}/detect_3d_predictions.json"
 
         with open(result_file, mode="w", encoding="utf-8") as f:
             json.dump(nusc_annos, f)
+
+        self.output_dir = output_dir

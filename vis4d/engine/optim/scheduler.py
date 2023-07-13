@@ -41,7 +41,7 @@ class LRSchedulerWrapper(LRScheduler):
         """Instantiate LR schedulers."""
         # OneCycleLR needs max_lr to be set
         if "max_lr" in lr_scheduler_cfg["scheduler"]["init_args"]:
-            lr_scheduler_cfg["init_args"]["max_lrs"] = [
+            lr_scheduler_cfg["scheduler"]["init_args"]["max_lr"] = [
                 pg["lr"] for pg in self.optimizer.param_groups
             ]
 

@@ -15,6 +15,7 @@ from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.nuscenes_mono import NuScenesMono
 from vis4d.data.loader import multi_sensor_collate
 from vis4d.data.reference import MultiViewDataset, UniformViewSampler
+from vis4d.data.resample import ResampleDataset
 from vis4d.data.transforms import RandomApply, compose
 from vis4d.data.transforms.flip import (
     FlipBoxes2D,
@@ -110,11 +111,13 @@ def get_train_dataloader(
         sampler=class_config(UniformViewSampler, scope=2, num_ref_samples=1),
     )
 
+    train_dataset_cfg = class_config(
+        ResampleDataset, dataset=train_dataset_cfg
+    )
+
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
-            shape=(900, 1600),
-            keep_ratio=True,
+            GenerateResizeParameters, shape=(900, 1600), keep_ratio=True
         ),
         class_config(ResizeImages),
         class_config(ResizeBoxes2D),
@@ -175,7 +178,6 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
         compose,
         transforms=[
             class_config(PadImages, sensors=NuScenes.CAMERAS),
-            # class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
             class_config(ToTensor, sensors=NuScenes.CAMERAS),
         ],
     )

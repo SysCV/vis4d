@@ -12,7 +12,6 @@ from vis4d.common.distributed import broadcast, rank_zero_only
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 
-from .const import CommonKeys as K
 from .datasets.util import print_class_histogram
 from .reference import MultiViewDataset
 from .typing import DictDataOrList
@@ -26,7 +25,6 @@ class CBGSDataset(Dataset[DictDataOrList]):
         self,
         dataset: Dataset[DictDataOrList],
         class_map: dict[str, int],
-        class_key: str = K.boxes3d_classes,
         ignore: int = -1,
     ) -> None:
         """Creates an instance of the class."""
@@ -34,7 +32,6 @@ class CBGSDataset(Dataset[DictDataOrList]):
         self.dataset = dataset
         self.has_reference = isinstance(dataset, MultiViewDataset)
         self.cat2id = dict(sorted(class_map.items(), key=lambda x: x[1]))
-        self.class_key = class_key
         self.ignore = ignore
 
         rank_zero_info("Wrapping dataset with CBGS...")
@@ -81,8 +78,9 @@ class CBGSDataset(Dataset[DictDataOrList]):
             frequencies = {cat: 0 for cat in self.cat2id.keys()}
 
             for cat_id in cat_ids:
-                cur_cats[cat_id] = [idx]
-                frequencies[inv_class_map[cat_id]] += 1
+                if cat_id != self.ignore:
+                    cur_cats[cat_id] = [idx]
+                    frequencies[inv_class_map[cat_id]] += 1
 
             sample_frequencies.append(frequencies)
             for cat_id, index in cur_cats.items():
@@ -95,7 +93,7 @@ class CBGSDataset(Dataset[DictDataOrList]):
         """Load sample indices.
 
         Returns:
-            dict[int, list[int]]: List of indices after class sampling.
+            list[int]: List of indices after class sampling.
         """
         t = Timer()
         (
@@ -132,10 +130,10 @@ class CBGSDataset(Dataset[DictDataOrList]):
         return sample_indices
 
     def __len__(self) -> int:
-        """Return the length of data infos.
+        """Return the length of sample indices.
 
         Returns:
-            int: Length of data infos.
+            int: Length of sample indices.
         """
         return len(self.sample_indices)
 

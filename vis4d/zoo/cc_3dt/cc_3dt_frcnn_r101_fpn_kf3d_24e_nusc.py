@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""CC-3DT with Faster-RCNN detector using ResNet-50."""
+"""CC-3DT with Faster-RCNN detector using ResNet-101."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -50,14 +50,14 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc")
+    config = get_default_cfg(exp_name="cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc")
 
     # Hyper Parameters
     params = ExperimentParameters()
     params.samples_per_gpu = 1
-    params.workers_per_gpu = 1
+    params.workers_per_gpu = 4
     params.lr = 0.01
-    params.num_epochs = 12
+    params.num_epochs = 24
     config.params = params
 
     ######################################################
@@ -84,7 +84,7 @@ def get_config() -> ExperimentConfig:
     ##                  MODEL & LOSS                    ##
     ######################################################
     basemodel = class_config(
-        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+        ResNet, resnet_name="resnet101", pretrained=True, trainable_layers=3
     )
 
     nuscenes_detection_range = [
@@ -96,7 +96,6 @@ def get_config() -> ExperimentConfig:
         basemodel=basemodel,
         detection_range=nuscenes_detection_range,
         fps=2,
-        # weights="https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt",
     )
 
     ######################################################
@@ -114,7 +113,7 @@ def get_config() -> ExperimentConfig:
                     epoch_based=False,
                 ),
                 get_lr_scheduler_cfg(
-                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
+                    class_config(MultiStepLR, milestones=[16, 22], gamma=0.1),
                 ),
             ],
             param_groups=[

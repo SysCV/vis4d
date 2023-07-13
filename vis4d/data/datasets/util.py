@@ -224,7 +224,7 @@ class CacheMappingMixin:
         filter_func: Callable[[ListAny], ListAny] = lambda x: x,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
-    ) -> DatasetFromList:
+    ) -> tuple[DatasetFromList, int]:
         """Load cached mapping or generate if not exists.
 
         Args:
@@ -241,12 +241,15 @@ class CacheMappingMixin:
         dataset = self._load_mapping_data(
             generate_map_func, cache_as_binary, cached_file_path
         )
+        original_len = 0
         if dataset is not None:
+            original_len = len(dataset)
             dataset = filter_func(dataset)
             dataset = DatasetFromList(dataset)
         dataset = broadcast(dataset)
+        original_len = broadcast(original_len)
         rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
-        return dataset
+        return dataset, original_len
 
 
 # reference:

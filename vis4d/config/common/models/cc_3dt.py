@@ -5,7 +5,13 @@ from ml_collections import ConfigDict, FieldReference
 
 from vis4d.config import class_config
 from vis4d.config.util import get_callable_cfg
-from vis4d.engine.connectors import LossConnector, pred_key, remap_pred_keys
+from vis4d.data.const import CommonKeys as K
+from vis4d.engine.connectors import (
+    LossConnector,
+    data_key,
+    pred_key,
+    remap_pred_keys,
+)
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 from vis4d.op.box.anchor import AnchorGenerator
@@ -43,11 +49,47 @@ CONN_DET_3D_LOSS = {
     "labels": pred_key("detector_3d_labels"),
 }
 
+CONN_BBOX_3D_TRAIN = {
+    "images": K.images,
+    "images_hw": K.input_hw,
+    "intrinsics": K.intrinsics,
+    "boxes2d": K.boxes2d,
+    "boxes3d": K.boxes3d,
+    "boxes3d_classes": K.boxes3d_classes,
+    "boxes3d_track_ids": K.boxes3d_track_ids,
+    "keyframes": "keyframes",
+}
+
+CONN_BBOX_3D_TEST = {
+    "images": K.images,
+    "images_hw": K.original_hw,
+    "intrinsics": K.intrinsics,
+    "extrinsics": K.extrinsics,
+    "frame_ids": K.frame_ids,
+}
+
+CONN_NUSC_DET3D_EVAL = {
+    "tokens": data_key("token"),
+    "boxes_3d": pred_key("boxes_3d"),
+    "velocities": pred_key("velocities"),
+    "class_ids": pred_key("class_ids"),
+    "scores_3d": pred_key("scores_3d"),
+}
+
+CONN_NUSC_TRACK3D_EVAL = {
+    "tokens": data_key("token"),
+    "boxes_3d": pred_key("boxes_3d"),
+    "velocities": pred_key("velocities"),
+    "class_ids": pred_key("class_ids"),
+    "scores_3d": pred_key("scores_3d"),
+    "track_ids": pred_key("track_ids"),
+}
+
 
 def get_cc_3dt_cfg(
     num_classes: int | FieldReference,
     basemodel: ConfigDict,
-    detection_range: list[float] | FieldReference,
+    detection_range: list[float] | FieldReference | None = None,
     fps: int | FieldReference = 2,
     weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
@@ -56,9 +98,9 @@ def get_cc_3dt_cfg(
     Args:
         num_classes (FieldReference | int): Number of classes.
         basemodel (ConfigDict): Base model config.
-        detection_range (list[float] | None, optional): Detection range.
-            Defaults to None.
-        fps (FieldReference | int, optional): FPS. Defaults to 2.
+        detection_range (list[float]| FieldReference | None, optional):
+            Detection range. Defaults to None.
+        fps (int | FieldReference, optional): FPS. Defaults to 2.
         weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################

@@ -215,7 +215,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         self.distance_based_filter = distance_based_filter
 
         # Load annotations
-        self.samples = self._load_mapping(
+        self.samples, self.original_len = self._load_mapping(
             self._generate_data_mapping,
             self._filter_data,
             cache_as_binary=cache_as_binary,
@@ -314,7 +314,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 frame["token"] = sample["token"]
                 frame["frame_ids"] = frame_ids
 
-                # TODO: Check the lidar data
                 lidar_token = sample["data"]["LIDAR_TOP"]
 
                 frame["LIDAR_TOP"] = self._load_lidar_data(data, lidar_token)
