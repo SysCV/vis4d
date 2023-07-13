@@ -54,7 +54,7 @@ def get_config() -> ExperimentConfig:
 
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 1
+    params.samples_per_gpu = 4
     params.workers_per_gpu = 4
     params.lr = 0.01
     params.num_epochs = 24
