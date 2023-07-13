@@ -96,11 +96,11 @@ def get_cc_3dt_cfg(
     """Get CC-3DT model config.
 
     Args:
-        num_classes (FieldReference | int): Number of classes.
+        num_classes (int): Number of classes.
         basemodel (ConfigDict): Base model config.
-        detection_range (list[float]| FieldReference | None, optional):
-            Detection range. Defaults to None.
-        fps (int | FieldReference, optional): FPS. Defaults to 2.
+        detection_range (list[float] | None, optional): Detection range.
+            Defaults to None.
+        fps (int, optional): FPS. Defaults to 2.
         weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################
