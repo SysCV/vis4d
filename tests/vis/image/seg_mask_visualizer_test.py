@@ -43,11 +43,12 @@ class TestSegMaskVis(unittest.TestCase):
             pred_path (str): Path to predicted image
             gt_path (str): Path to groundtruth image
         """
+        # copy the pred as gt
         pred_np = np.asarray(Image.open(pred_path))
         gt_np = np.asarray(Image.open(gt_path))
         self.assertTrue(np.allclose(pred_np, gt_np))
 
-    def test_single_mask_vis(self) -> None:
+    def test_seg_mask_vis(self) -> None:
         """Tests visualization of seg masks."""
         self.vis.process(
             0,
