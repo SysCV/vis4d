@@ -18,8 +18,8 @@ from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
 from vis4d.op.track.common import TrackOut
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
-    QDTrack,
     QDTrackAssociation,
+    QDTrackHead,
 )
 from vis4d.state.track.qdtrack import QDTrackGraph
 
@@ -77,7 +77,7 @@ class FasterRCNNQDTrack(nn.Module):
         basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
-        qdtrack: QDTrack | None = None,
+        qdtrack_head: QDTrackHead | None = None,
         track_graph: QDTrackGraph | None = None,
         weights: None | str = None,
     ) -> None:
@@ -91,8 +91,8 @@ class FasterRCNNQDTrack(nn.Module):
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
                 bounding boxes. Defaults to None.
-            qdtrack (QDTrack, optional): QDTrack model. Defaults to None. If
-                None, will use default QDTrack.
+            qdtrack_head (QDTrack, optional): QDTrack head. Defaults to None.
+                If None, will use default QDTrackHead.
             track_graph (QDTrackGraph, optional): Track graph. Defaults to
                 None. If None, will use default QDTrackGraph.
             weights (str, optional): Weights to load for model.
@@ -113,7 +113,9 @@ class FasterRCNNQDTrack(nn.Module):
 
         self.roi2det = RoI2Det(rcnn_box_decoder)
 
-        self.qdtrack = QDTrack() if qdtrack is None else qdtrack
+        self.qdtrack_head = (
+            QDTrackHead() if qdtrack_head is None else qdtrack_head
+        )
 
         self.track_graph = (
             QDTrackGraph() if track_graph is None else track_graph
@@ -218,7 +220,7 @@ class FasterRCNNQDTrack(nn.Module):
             ref_embeddings,
             key_track_ids,
             ref_track_ids,
-        ) = self.qdtrack(
+        ) = self.qdtrack_head(
             features=[key_features, *ref_features],
             det_boxes=[key_proposals, *ref_proposals],
             target_boxes=[key_target_boxes, *ref_target_boxes],
@@ -254,7 +256,7 @@ class FasterRCNNQDTrack(nn.Module):
         boxes, scores, class_ids = self.roi2det(
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
-        embeddings, _, _, _ = self.qdtrack(features, boxes)
+        embeddings, _, _, _ = self.qdtrack_head(features, boxes)
 
         outs = self.track_graph(
             embeddings, boxes, scores, class_ids, frame_ids
@@ -331,7 +333,7 @@ class YOLOXQDTrack(nn.Module):
             score_thr=0.1,
         )
 
-        self.qdtrack = QDTrack(
+        self.qdtrack_head = QDTrackHead(
             similarity_head=QDSimilarityHead(
                 MultiScaleRoIAlign(
                     resolution=[7, 7], strides=[8, 16, 32], sampling_ratio=0
@@ -377,7 +379,7 @@ class YOLOXQDTrack(nn.Module):
             images_hw=images_hw,
         )
 
-        embeddings, _, _, _ = self.qdtrack(features, boxes)
+        embeddings, _, _, _ = self.qdtrack_head(features, boxes)
 
         tracks = self.track_graph(
             embeddings, boxes, scores, class_ids, frame_ids

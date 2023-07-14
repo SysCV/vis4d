@@ -96,7 +96,6 @@ def get_config() -> ExperimentConfig:
         basemodel=basemodel,
         detection_range=nuscenes_detection_range,
         fps=2,
-        # weights="https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt",
     )
 
     ######################################################

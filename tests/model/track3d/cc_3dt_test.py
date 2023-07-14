@@ -5,6 +5,7 @@ import unittest
 import torch
 
 from tests.util import get_test_data, get_test_file
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes import (
@@ -27,10 +28,10 @@ from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT, Track3DOut
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 
 
-class CC3DTTest(unittest.TestCase):  # TODO: add training test
+class CC3DTTest(unittest.TestCase):
     """CC-3DT class tests."""
 
-    model_weights = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
+    model_weights = "https://dl.cv.ethz.ch/vis4d/cc_3dt/cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.pt"  # pylint: disable=line-too-long
 
     CONN_BBOX_3D_TEST = {
         "images": K.images,
@@ -58,9 +59,14 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         track_graph = CC3DTrackGraph(detection_range=nuscenes_detection_range)
 
         cc_3dt = FasterRCNNCC3DT(
-            num_classes=len(nuscenes_class_map),
-            track_graph=track_graph,
-            weights=self.model_weights,
+            num_classes=len(nuscenes_class_map), track_graph=track_graph
+        )
+
+        load_model_checkpoint(
+            cc_3dt,
+            self.model_weights,
+            map_location=torch.device("cpu"),
+            strict=True,
         )
 
         preprocess_fn = compose(

@@ -11,7 +11,20 @@ from .typing import DictDataOrList
 
 
 class ResampleDataset(Dataset[DictDataOrList]):
-    """Dataset wrapper to recover the filtered samples through resampling."""
+    """Dataset wrapper to recover the filtered samples through resampling.
+
+    In MMEngine and Detectron2, the dataset might return None when the sample
+    has no valid annotations. They will resample the index and try to get the
+    valid training data. The length of dataset will be different depends on
+    whether filtering the empty samples first.
+
+    This dataset wrapper resamples the index to recover the original dataset
+    length (before filter empty frames) to align with the other codebases'
+    implementation.
+
+    https://github.com/open-mmlab/mmengine/blob/main/mmengine/dataset/base_dataset.py#L411
+    https://github.com/facebookresearch/detectron2/blob/main/detectron2/data/common.py#L96
+    """
 
     def __init__(self, dataset: Dataset[DictDataOrList]) -> None:
         """Creates an instance of the class."""

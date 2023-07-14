@@ -10,7 +10,6 @@ from typing import NamedTuple
 import torch
 from torch import Tensor, nn
 
-from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.model.track.qdtrack import FasterRCNNQDTrackOut
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
@@ -20,16 +19,10 @@ from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.fpp import FPN
 from vis4d.op.track3d.common import Track3DOut
-from vis4d.op.track.qdtrack import QDTrack
+from vis4d.op.track.qdtrack import QDTrackHead
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 
 from ..track.util import split_key_ref_indices
-
-REV_KEYS = [
-    (r"^backbone.body\.", "basemodel."),
-    (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
-    (r"^track\.", "qdtrack."),
-]
 
 
 class FasterRCNNCC3DTOut(NamedTuple):
@@ -50,9 +43,8 @@ class FasterRCNNCC3DT(nn.Module):
         basemodel: BaseModel | None = None,
         faster_rcnn_head: FasterRCNNHead | None = None,
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
-        qdtrack: QDTrack | None = None,
+        qdtrack_head: QDTrackHead | None = None,
         track_graph: CC3DTrackGraph | None = None,
-        weights: None | str = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -64,11 +56,10 @@ class FasterRCNNCC3DT(nn.Module):
                 Defaults to None. if None, will use default FasterRCNNHead.
             rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
                 bounding boxes. Defaults to None.
-            qdtrack (QDTrack, optional): QDTrack. Defaults to None. If None,
-                will use default QDTrack.
+            qdtrack_head (QDTrack, optional): QDTrack head. Defaults to None.
+                If None, will use default QDTrackHead.
             track_graph (CC3DTrackGraph, optional): Track graph. Defaults to
                 None. If None, will use default CC3DTrackGraph.
-            weights (None | str): Weights path. Defaults to None.
         """
         super().__init__()
         self.basemodel = (
@@ -100,16 +91,13 @@ class FasterRCNNCC3DT(nn.Module):
 
         self.roi2det_3d = RoI2Det3D()
 
-        self.qdtrack = QDTrack() if qdtrack is None else qdtrack
+        self.qdtrack_head = (
+            QDTrackHead() if qdtrack_head is None else qdtrack_head
+        )
 
         self.track_graph = (
             CC3DTrackGraph() if track_graph is None else track_graph
         )
-
-        if weights is not None:
-            load_model_checkpoint(
-                self, weights, map_location="cpu", rev_keys=REV_KEYS
-            )
 
     def forward(
         self,
@@ -211,7 +199,7 @@ class FasterRCNNCC3DT(nn.Module):
             ref_embeddings,
             key_track_ids,
             ref_track_ids,
-        ) = self.qdtrack(
+        ) = self.qdtrack_head(
             features=[key_features, *ref_features],
             det_boxes=[key_proposals, *ref_proposals],
             target_boxes=[key_target_boxes, *ref_target_boxes],
@@ -285,7 +273,7 @@ class FasterRCNNCC3DT(nn.Module):
             predictions, boxes_2d, class_ids, intrinsics
         )
 
-        embeddings, _, _, _ = self.qdtrack(features, boxes_2d)
+        embeddings, _, _, _ = self.qdtrack_head(features, boxes_2d)
 
         outs = self.track_graph(
             embeddings,

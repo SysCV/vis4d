@@ -48,7 +48,7 @@ class QDTrackOut(NamedTuple):
     ref_track_ids: list[list[Tensor]] | None
 
 
-class QDTrack(nn.Module):
+class QDTrackHead(nn.Module):
     """QDTrack - quasi-dense instance similarity learning."""
 
     def __init__(

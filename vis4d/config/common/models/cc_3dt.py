@@ -91,7 +91,6 @@ def get_cc_3dt_cfg(
     basemodel: ConfigDict,
     detection_range: list[float] | FieldReference | None = None,
     fps: int | FieldReference = 2,
-    weights: str | None = None,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Get CC-3DT model config.
 
@@ -101,7 +100,6 @@ def get_cc_3dt_cfg(
         detection_range (list[float] | None, optional): Detection range.
             Defaults to None.
         fps (int, optional): FPS. Defaults to 2.
-        weights (str | None, optional): Weights to load. Defaults to None.
     """
     ######################################################
     ##                        MODEL                     ##
@@ -139,7 +137,6 @@ def get_cc_3dt_cfg(
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         track_graph=track_graph,
-        weights=weights,
     )
 
     ######################################################
