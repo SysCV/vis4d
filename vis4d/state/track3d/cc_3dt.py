@@ -411,20 +411,25 @@ class CC3DTrackGraph:
             cur_memory.velocities,
         )
 
-        data = self._update_track(
-            frame_id,
-            track_ids,
-            match_ids,
-            boxes_2d[filter_indices],
-            camera_ids[filter_indices],
-            scores_2d[filter_indices],
-            boxes_3d[filter_indices],
-            scores_3d[filter_indices],
-            class_ids[filter_indices],
-            embeddings[filter_indices],
-            obs_boxes_3d[filter_indices],
-            self.fps,
-        )
+        if len(track_ids) > 0:
+            data = self._update_track(
+                frame_id,
+                track_ids,
+                match_ids,
+                boxes_2d[filter_indices],
+                camera_ids[filter_indices],
+                scores_2d[filter_indices],
+                boxes_3d[filter_indices],
+                scores_3d[filter_indices],
+                class_ids[filter_indices],
+                embeddings[filter_indices],
+                obs_boxes_3d[filter_indices],
+                self.fps,
+            )
+        else:
+            data = self.track_memory.get_empty_frame(
+                n_tracks=0, device=boxes_2d.device
+            )
 
         self.track_memory.update(data)
 
