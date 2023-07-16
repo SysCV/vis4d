@@ -35,7 +35,6 @@ class QDTrackGraph:
     ) -> None:
         """Init."""
         assert 0 <= memory_momentum <= 1.0
-        self.memory_size = memory_size
         self.memory_momentum = memory_momentum
         self.track = QDTrackAssociation() if track is None else track
         self.track_memory = QDTrackMemory(memory_limit=memory_size)

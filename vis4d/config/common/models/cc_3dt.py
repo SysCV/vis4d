@@ -125,10 +125,7 @@ def get_cc_3dt_cfg(
     )
 
     track_graph = class_config(
-        CC3DTrackGraph,
-        motion_model="KF3D",
-        detection_range=detection_range,
-        fps=fps,
+        CC3DTrackGraph, motion_model="VeloLSTM", fps=fps
     )
 
     model = class_config(
@@ -137,6 +134,7 @@ def get_cc_3dt_cfg(
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         track_graph=track_graph,
+        detection_range=detection_range,
     )
 
     ######################################################

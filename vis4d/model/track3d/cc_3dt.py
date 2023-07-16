@@ -15,10 +15,16 @@ from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
+from vis4d.op.detect3d.util import bev_3d_nms
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.fpp import FPN
 from vis4d.op.track3d.common import Track3DOut
+from vis4d.op.track3d.cc_3dt import (
+    filter_distance,
+    cam_to_global,
+    get_track_3d_out,
+)
 from vis4d.op.track.qdtrack import QDTrackHead
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 
@@ -45,6 +51,8 @@ class FasterRCNNCC3DT(nn.Module):
         rcnn_box_decoder: DeltaXYWHBBoxDecoder | None = None,
         qdtrack_head: QDTrackHead | None = None,
         track_graph: CC3DTrackGraph | None = None,
+        pure_det: bool = False,
+        detection_range: list[float] | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -60,6 +68,10 @@ class FasterRCNNCC3DT(nn.Module):
                 If None, will use default QDTrackHead.
             track_graph (CC3DTrackGraph, optional): Track graph. Defaults to
                 None. If None, will use default CC3DTrackGraph.
+            pure_det (bool, optional): Whether to use pure detection. Defaults
+                to False.
+            detection_range (list[float], optional): Detection range. Defaults
+                to None.
         """
         super().__init__()
         self.basemodel = (
@@ -98,6 +110,9 @@ class FasterRCNNCC3DT(nn.Module):
         self.track_graph = (
             CC3DTrackGraph() if track_graph is None else track_graph
         )
+
+        self.pure_det = pure_det
+        self.detection_range = detection_range
 
     def forward(
         self,
@@ -257,34 +272,95 @@ class FasterRCNNCC3DT(nn.Module):
         images_hw_list: list[tuple[int, int]] = sum(images_hw, [])
         frame_ids_list: list[int] = sum(frame_ids, [])
 
+        assert all(
+            fid == frame_ids_list[0] for fid in frame_ids_list
+        ), "All cameras should have same frame_id."
+        frame_id = frame_ids_list[0]
+
         features = self.basemodel(images)
         features = self.fpn(features)
         _, roi, proposals, _, _, _ = self.faster_rcnn_head(
             features, images_hw_list
         )
 
-        boxes_2d, scores_2d, class_ids = self.roi2det(
+        boxes_2d_list, scores_2d_list, class_ids_list = self.roi2det(
             *roi, proposals.boxes, images_hw_list
         )
 
-        predictions, _, _ = self.bbox_3d_head(features, det_boxes=boxes_2d)
-
-        boxes_3d, scores_3d = self.roi2det_3d(
-            predictions, boxes_2d, class_ids, intrinsics
+        predictions, _, _ = self.bbox_3d_head(
+            features, det_boxes=boxes_2d_list
         )
 
-        embeddings, _, _, _ = self.qdtrack_head(features, boxes_2d)
+        boxes_3d_list, scores_3d_list = self.roi2det_3d(
+            predictions, boxes_2d_list, class_ids_list, intrinsics
+        )
+
+        embeddings_list, _, _, _ = self.qdtrack_head(features, boxes_2d_list)
+
+        # Filter out boxes that are too far away and assign camera id
+        camera_ids_list = []
+        for i, boxes_3d in enumerate(boxes_3d_list):
+            if len(boxes_3d) != 0:
+                if self.detection_range is not None:
+                    valid_boxes = filter_distance(
+                        boxes_3d, class_ids_list[i], self.detection_range
+                    )
+                    boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
+                    scores_2d_list[i] = scores_2d_list[i][valid_boxes]
+                    boxes_3d_list[i] = boxes_3d_list[i][valid_boxes]
+                    scores_3d_list[i] = scores_3d_list[i][valid_boxes]
+                    class_ids_list[i] = class_ids_list[i][valid_boxes]
+                    embeddings_list[i] = embeddings_list[i][valid_boxes]
+
+                # add camera id
+                camera_ids_list.append(
+                    (torch.ones(len(boxes_2d_list[i])) * i).to(
+                        boxes_2d_list[i].device
+                    )
+                )
+
+        # Move 3D boxes to world coordinate
+        boxes_3d_list = cam_to_global(boxes_3d_list, extrinsics)
+
+        # Merge boxes from all cameras
+        boxes_2d = torch.cat(boxes_2d_list)
+        scores_2d = torch.cat(scores_2d_list)
+        camera_ids = torch.cat(camera_ids_list)
+        boxes_3d = torch.cat(boxes_3d_list)
+        scores_3d = torch.cat(scores_3d_list)
+        class_ids = torch.cat(class_ids_list)
+        embeddings = torch.cat(embeddings_list)
+
+        if self.pure_det:
+            return get_track_3d_out(
+                boxes_3d,
+                class_ids,
+                scores_2d * scores_3d,
+                torch.zeros_like(class_ids),
+            )
+
+        # 3D NMS
+        keep_indices = bev_3d_nms(boxes_3d, scores_2d * scores_3d, class_ids)
+
+        boxes_2d = boxes_2d[keep_indices]
+        scores_2d = scores_2d[keep_indices]
+        camera_ids = camera_ids[keep_indices]
+        boxes_3d = boxes_3d[keep_indices]
+        scores_3d = scores_3d[keep_indices]
+        class_ids = class_ids[keep_indices]
+        embeddings = embeddings[keep_indices]
 
         outs = self.track_graph(
-            embeddings,
             boxes_2d,
             scores_2d,
+            camera_ids,
             boxes_3d,
             scores_3d,
             class_ids,
-            frame_ids_list,
-            extrinsics,
+            embeddings,
+            frame_id,
         )
+
         return outs
 
     def __call__(
