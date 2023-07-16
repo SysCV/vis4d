@@ -11,7 +11,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
-from vis4d.eval.nuscenes import NuScenesEvaluator
+from vis4d.eval.nuscenes import NuScenesTrack3DEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -24,7 +24,7 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )[0]
 
 
-class TestNuScenesEvaluator(unittest.TestCase):
+class TestNuScenesTrack3DEvaluator(unittest.TestCase):
     """NuScenes evaluator testcase class."""
 
     CONN_BBOX_3D_TEST = {
@@ -38,6 +38,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
     CONN_NUSC_EVAL = {
         "tokens": data_key("token"),
         "boxes_3d": pred_key("boxes_3d"),
+        "velocities": pred_key("velocities"),
         "class_ids": pred_key("class_ids"),
         "scores_3d": pred_key("scores_3d"),
         "track_ids": pred_key("track_ids"),
@@ -55,7 +56,7 @@ class TestNuScenesEvaluator(unittest.TestCase):
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
         batch_size = 1
-        nusc_eval = NuScenesEvaluator()
+        nusc_eval = NuScenesTrack3DEvaluator()
 
         # test gt
         dataset = NuScenes(
@@ -66,7 +67,8 @@ class TestNuScenesEvaluator(unittest.TestCase):
         test_loader = get_dataloader(dataset, batch_size)
 
         output = {
-            "boxes_3d": torch.zeros(batch_size, 12),
+            "boxes_3d": torch.zeros(batch_size, 10),
+            "velocities": torch.zeros(batch_size, 3),
             "class_ids": torch.zeros(batch_size),
             "scores_3d": torch.zeros(batch_size),
             "track_ids": torch.zeros(batch_size),
@@ -80,5 +82,4 @@ class TestNuScenesEvaluator(unittest.TestCase):
             )
         )
 
-        _, _ = nusc_eval.evaluate("detect_3d")
         _, _ = nusc_eval.evaluate("track_3d")

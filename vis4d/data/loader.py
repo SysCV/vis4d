@@ -186,10 +186,9 @@ def build_inference_dataloaders(
         sampler: DistributedSampler[list[int]] | None
         if get_world_size() > 1:
             if video_based_inference:
-                assert isinstance(current_dataset, VideoDataset), (
-                    "Need video_to_indices attribute for VideoInferenceSampler"
-                    " to split dataset by sequences!"
-                )
+                assert isinstance(
+                    current_dataset, VideoDataset
+                ), "Video based inference needs a VideoDataset."
                 sampler = VideoInferenceSampler(current_dataset)
             else:
                 sampler = DistributedSampler(dataset)

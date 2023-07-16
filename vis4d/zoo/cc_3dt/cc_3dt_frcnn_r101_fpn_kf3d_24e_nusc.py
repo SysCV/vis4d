@@ -1,4 +1,5 @@
-"""CC-3DT nuScenes inference example."""
+# pylint: disable=duplicate-code
+"""CC-3DT with Faster-RCNN detector using ResNet-101."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -7,6 +8,13 @@ from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
 from vis4d.config.common.datasets.nuscenes import get_nusc_track_cfg
+from vis4d.config.common.models.cc_3dt import (
+    CONN_BBOX_3D_TEST,
+    CONN_BBOX_3D_TRAIN,
+    CONN_NUSC_DET3D_EVAL,
+    CONN_NUSC_TRACK3D_EVAL,
+    get_cc_3dt_cfg,
+)
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -14,43 +22,23 @@ from vis4d.config.default import (
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_detection_range
+from vis4d.data.datasets.nuscenes import (
+    NuScenes,
+    nuscenes_class_map,
+    nuscenes_detection_range_map,
+)
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
     DataConnector,
     MultiSensorCallbackConnector,
     MultiSensorDataConnector,
-    data_key,
-    pred_key,
 )
-from vis4d.eval.nuscenes import NuScenesEvaluator
-from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
-
-CONN_BBOX_3D_TRAIN = {
-    "images": K.images,
-    "images_hw": K.original_hw,
-    "intrinsics": K.intrinsics,
-    "extrinsics": K.extrinsics,
-    "frame_ids": K.frame_ids,
-}
-
-CONN_BBOX_3D_TEST = {
-    "images": K.images,
-    "images_hw": K.original_hw,
-    "intrinsics": K.intrinsics,
-    "extrinsics": K.extrinsics,
-    "frame_ids": K.frame_ids,
-}
-
-CONN_NUSC_EVAL = {
-    "tokens": data_key("token"),
-    "boxes_3d": pred_key("boxes_3d"),
-    "class_ids": pred_key("class_ids"),
-    "scores_3d": pred_key("scores_3d"),
-    "track_ids": pred_key("track_ids"),
-}
+from vis4d.eval.nuscenes import (
+    NuScenesDet3DEvaluator,
+    NuScenesTrack3DEvaluator,
+)
+from vis4d.op.base import ResNet
 
 
 def get_config() -> ExperimentConfig:
@@ -62,48 +50,53 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="cc_3dt_r50_kf3d")
-
-    ckpt_path = "https://dl.cv.ethz.ch/vis4d/cc_3dt_R_50_FPN_nuscenes.pt"
+    config = get_default_cfg(exp_name="cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc")
 
     # Hyper Parameters
     params = ExperimentParameters()
     params.samples_per_gpu = 4
-    params.workers_per_gpu = 2
+    params.workers_per_gpu = 4
     params.lr = 0.01
-    params.num_epochs = 12
+    params.num_epochs = 24
     config.params = params
 
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
     data_root = "data/nuscenes"
-    version = "v1.0-mini"
-    test_split = "mini_val"
+    version = "v1.0-trainval"
+    train_split = "train"
+    test_split = "val"
 
     data_backend = class_config(HDF5Backend)
 
     config.data = get_nusc_track_cfg(
         data_root=data_root,
         version=version,
+        train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
+        samples_per_gpu=params.samples_per_gpu,
+        workers_per_gpu=params.workers_per_gpu,
     )
 
     ######################################################
-    ##                        MODEL                     ##
+    ##                  MODEL & LOSS                    ##
     ######################################################
-    config.model = class_config(
-        FasterRCNNCC3DT,
-        num_classes=10,
-        class_range_map=nuscenes_detection_range,
-        weights=ckpt_path,
+    basemodel = class_config(
+        ResNet, resnet_name="resnet101", pretrained=True, trainable_layers=3
     )
 
-    ######################################################
-    ##                        LOSS                      ##
-    ######################################################
-    config.loss = None  # TODO: implement loss
+    nuscenes_detection_range = [
+        nuscenes_detection_range_map[k] for k in nuscenes_class_map
+    ]
+
+    config.model, config.loss = get_cc_3dt_cfg(
+        num_classes=len(nuscenes_class_map),
+        basemodel=basemodel,
+        detection_range=nuscenes_detection_range,
+        fps=2,
+    )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -120,8 +113,40 @@ def get_config() -> ExperimentConfig:
                     epoch_based=False,
                 ),
                 get_lr_scheduler_cfg(
-                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
+                    class_config(MultiStepLR, milestones=[16, 22], gamma=0.1),
                 ),
+            ],
+            param_groups=[
+                {
+                    "custom_keys": [
+                        "faster_rcnn_head.rpn_head.rpn_cls.weight",
+                        "faster_rcnn_head.rpn_head.rpn_box.weight",
+                        "faster_rcnn_head.roi_head.fc_cls.weight",
+                        "faster_rcnn_head.roi_head.fc_reg.weight",
+                        "bbox_3d_head.dep_convs.0.weight",
+                        "bbox_3d_head.dep_convs.1.weight",
+                        "bbox_3d_head.dep_convs.2.weight",
+                        "bbox_3d_head.dep_convs.3.weight",
+                        "bbox_3d_head.dim_convs.0.weight",
+                        "bbox_3d_head.dim_convs.1.weight",
+                        "bbox_3d_head.dim_convs.2.weight",
+                        "bbox_3d_head.dim_convs.3.weight",
+                        "bbox_3d_head.rot_convs.0.weight"
+                        "bbox_3d_head.rot_convs.1.weight",
+                        "bbox_3d_head.rot_convs.2.weight",
+                        "bbox_3d_head.rot_convs.3.weight",
+                        "bbox_3d_head.cen_2d_convs.0.weight",
+                        "bbox_3d_head.cen_2d_convs.1.weight",
+                        "bbox_3d_head.cen_2d_convs.2.weight",
+                        "bbox_3d_head.cen_2d_convs.3.weight",
+                        "bbox_3d_head.fc_dep.weight",
+                        "bbox_3d_head.fc_dep_uncer.weight",
+                        "bbox_3d_head.fc_dim.weight",
+                        "bbox_3d_head.fc_rot.weight",
+                        "bbox_3d_head.fc_cen_2d.weight",
+                    ],
+                    "lr_mult": 10.0,
+                }
             ],
         )
     ]
@@ -149,12 +174,31 @@ def get_config() -> ExperimentConfig:
     callbacks.append(
         class_config(
             EvaluatorCallback,
-            evaluator=class_config(NuScenesEvaluator),
+            evaluator=class_config(
+                NuScenesDet3DEvaluator,
+                data_root=data_root,
+                version=version,
+                split=test_split,
+            ),
             save_predictions=True,
             save_prefix=config.output_dir,
             test_connector=class_config(
                 MultiSensorCallbackConnector,
-                key_mapping=CONN_NUSC_EVAL,
+                key_mapping=CONN_NUSC_DET3D_EVAL,
+                sensors=NuScenes.CAMERAS,
+            ),
+        )
+    )
+
+    callbacks.append(
+        class_config(
+            EvaluatorCallback,
+            evaluator=class_config(NuScenesTrack3DEvaluator),
+            save_predictions=True,
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                MultiSensorCallbackConnector,
+                key_mapping=CONN_NUSC_TRACK3D_EVAL,
                 sensors=NuScenes.CAMERAS,
             ),
         )

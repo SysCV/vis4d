@@ -19,6 +19,7 @@ from vis4d.data.datasets.util import im_decode, npy_decode
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
+from .base import VideoDataset, VideoMapping
 from .scalabel import Scalabel
 
 shift_det_map = {
@@ -456,7 +457,8 @@ class SHIFT(VideoDataset):
                         num_workers=num_workers,
                         verbose=verbose,
                     )
-        self.video_to_indices = self._generate_video_to_indices()
+
+        self.video_mapping = self._generate_video_mapping()
 
     def validate_keys(self, keys_to_load: Sequence[str]) -> None:
         """Validate that all keys to load are supported."""
@@ -549,11 +551,11 @@ class SHIFT(VideoDataset):
             "No Scalabel file has been loaded."
         )  # pragma: no cover
 
-    def get_video_indices(self, idx: int) -> list[int]:
+    def _generate_video_mapping(self) -> VideoMapping:
         """Group all dataset sample indices (int) by their video ID (str).
 
         Returns:
-            dict[str, list[int]]: Mapping video to index.
+            VideoMapping: Mapping of video IDs to sample indices and frame IDs.
 
         Raises:
             ValueError: If no Scalabel file has been loaded.
@@ -561,15 +563,7 @@ class SHIFT(VideoDataset):
         if len(self.scalabel_datasets) > 0:
             return self.scalabel_datasets[
                 list(self.scalabel_datasets.keys())[0]
-            ].get_video_indices(idx)
-        raise ValueError("No Scalabel file has been loaded.")
-
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
-        """Generate the video indices, use the one from Scalabel dataset."""
-        if len(self.scalabel_datasets) > 0:
-            return self.scalabel_datasets[
-                list(self.scalabel_datasets.keys())[0]
-            ].video_to_indices
+            ].video_mapping
         raise ValueError("No Scalabel file has been loaded.")
 
     def __getitem__(self, idx: int) -> DictData:

@@ -11,8 +11,23 @@ from .base import Transform
 
 
 @Transform(
-    in_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids, K.input_hw],
-    out_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
+    in_keys=[
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.input_hw,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
+    ],
+    out_keys=[
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
+    ],
 )
 class PostProcessBoxes2D:
     """Post process after transformation."""
@@ -37,18 +52,55 @@ class PostProcessBoxes2D:
         classes_list: list[NDArrayI32],
         track_ids_list: list[NDArrayI32 | None],
         input_hw_list: list[tuple[int, int]],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
-        """Resize 2D bounding boxes.
+        boxes3d_list: list[NDArrayF32 | None],
+        boxes3d_classes_list: list[NDArrayI32 | None],
+        boxes3d_track_ids_list: list[NDArrayI32 | None],
+    ) -> tuple[
+        list[NDArrayF32],
+        list[NDArrayI32],
+        list[NDArrayI32 | None],
+        list[NDArrayF32 | None],
+        list[NDArrayI32 | None],
+        list[NDArrayI32 | None],
+    ]:
+        """Post process according to boxes2D after transformation.
 
         Args:
-            boxes (Tensor): The bounding boxes to be resized.
-            scale_factor (tuple[float, float]): scaling factor.
+            boxes_list (list[NDArrayF32]): The bounding boxes to be post
+                processed.
+            classes_list (list[NDArrayF32]): The classes of the bounding boxes.
+            track_ids_list (list[NDArrayI32 | None]): The track ids of the
+                bounding boxes.
+            input_hw_list (list[tuple[int, int]]): The height and width of the
+                input image.
+            boxes3d_list (list[NDArrayF32 | None]): The 3D bounding boxes to be
+                post processed.
+            boxes3d_classes_list (list[NDArrayI32 | None]): The classes of the
+                3D bounding boxes.
+            boxes3d_track_ids_list (list[NDArrayI32 | None]): The track ids of
+                the 3D bounding boxes.
 
         Returns:
-            Tensor: Resized bounding boxes according to parameters in resize.
+            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None],
+                list[NDArrayF32 | None], list[NDArrayI32 | None],
+                list[NDArrayI32 | None]]: The post processed results.
         """
-        for i, (boxes, classes, track_ids) in enumerate(
-            zip(boxes_list, classes_list, track_ids_list)
+        for i, (
+            boxes,
+            classes,
+            track_ids,
+            boxes3d,
+            boxes3d_classes,
+            boxes3d_trakc_ids,
+        ) in enumerate(
+            zip(
+                boxes_list,
+                classes_list,
+                track_ids_list,
+                boxes3d_list,
+                boxes3d_classes_list,
+                boxes3d_track_ids_list,
+            )
         ):
             boxes_ = torch.from_numpy(boxes)
             if self.clip_bboxes_to_image:
@@ -62,4 +114,20 @@ class PostProcessBoxes2D:
             if track_ids is not None:
                 track_ids_list[i] = track_ids[keep]
 
-        return boxes_list, classes_list, track_ids_list
+            if boxes3d is not None:
+                boxes3d_list[i] = boxes3d[keep]
+
+            if boxes3d_classes is not None:
+                boxes3d_classes_list[i] = boxes3d_classes[keep]
+
+            if boxes3d_trakc_ids is not None:
+                boxes3d_track_ids_list[i] = boxes3d_trakc_ids[keep]
+
+        return (
+            boxes_list,
+            classes_list,
+            track_ids_list,
+            boxes3d_list,
+            boxes3d_classes_list,
+            boxes3d_track_ids_list,
+        )

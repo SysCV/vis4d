@@ -24,7 +24,7 @@ from vis4d.data.typing import DictData
 from vis4d.op.geometry.projection import generate_depth_map
 from vis4d.op.geometry.transform import inverse_rigid_transform
 
-from .base import VideoDataset
+from .base import VideoDataset, VideoMapping
 from .util import CacheMappingMixin, im_decode
 
 if NUSCENES_AVAILABLE:
@@ -65,8 +65,6 @@ nuscenes_attribute_map = {
     "vehicle.stopped": 7,
     "": 8,
 }
-
-nuscenes_detection_range = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
 
 nuscenes_detection_range_map = {
     "bicycle": 40,
@@ -217,14 +215,23 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         self.distance_based_filter = distance_based_filter
 
         # Load annotations
-        self.samples = self._load_mapping(
+        self.samples, self.original_len = self._load_mapping(
             self._generate_data_mapping,
+            self._filter_data,
             cache_as_binary=cache_as_binary,
             cached_file_path=cached_file_path,
         )
 
-        # Generate video to indices mapping
-        self.video_to_indices = self._generate_video_to_indices()
+        # Generate video mapping
+        self.video_mapping = self._generate_video_mapping()
+
+    def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
+        """Remove empty samples."""
+        if self.skip_empty_samples:
+            raise NotImplementedError(
+                "skip_empty_samples is not implemented for NuScenes"
+            )
+        return data
 
     def _check_version_and_split(self, version: str, split: str) -> None:
         """Check that the version and split are valid."""
@@ -251,18 +258,27 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         """Concise representation of the dataset."""
         return f"NuScenesDataset {self.version} {self.split}"
 
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
+    def _generate_video_mapping(self) -> VideoMapping:
         """Group dataset sample indices by their associated video ID.
 
         The sample index is an integer while video IDs are string.
 
         Returns:
-            dict[str, list[int]]: Mapping video to index.
+            VideoMapping: Mapping of video IDs to sample indices and frame IDs.
         """
-        video_mapping = defaultdict(list)
+        video_to_indices: dict[str, list[int]] = defaultdict(list)
+        video_to_frame_ids: dict[str, list[int]] = defaultdict(list)
         for i, sample in enumerate(self.samples):  # type: ignore
-            video_mapping[sample["scene_name"]].append(i)
-        return video_mapping
+            seq = sample["scene_name"]
+            video_to_indices[seq].append(i)
+            video_to_frame_ids[seq].append(sample["frame_ids"])
+
+        return self._sort_video_mapping(
+            {
+                "video_to_indices": video_to_indices,
+                "video_to_frame_ids": video_to_frame_ids,
+            }
+        )
 
     def _generate_data_mapping(self) -> list[DictStrAny]:
         """Generate data mapping.
@@ -298,7 +314,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 frame["token"] = sample["token"]
                 frame["frame_ids"] = frame_ids
 
-                # TODO: Check the lidar data
                 lidar_token = sample["data"]["LIDAR_TOP"]
 
                 frame["LIDAR_TOP"] = self._load_lidar_data(data, lidar_token)
@@ -509,14 +524,14 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     ]
                 )
 
-            # Get 3D box orientation
+            # Get 3D box yaw. Use extrinsic rotation to align with PyTorch3D.
             if axis_mode == AxisMode.ROS:
                 yaw = box3d.orientation.yaw_pitch_roll[0]
-                x, y, z, w = R.from_euler("xyz", [0, 0, yaw]).as_quat()
+                x, y, z, w = R.from_euler("XYZ", [0, 0, yaw]).as_quat()
                 orientation = Quaternion([w, x, y, z])
             else:
                 yaw = -box3d.orientation.yaw_pitch_roll[0]
-                x, y, z, w = R.from_euler("xyz", [0, yaw, 0]).as_quat()
+                x, y, z, w = R.from_euler("XYZ", [0, yaw, 0]).as_quat()
                 orientation = Quaternion([w, x, y, z])
 
             boxes3d = np.concatenate(
