@@ -1,11 +1,24 @@
 """VeloLSTM 3D motion model."""
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import torch
+import torch.nn.functional as F
 from torch import nn, Tensor
 
 from vis4d.common.ckpt import load_model_checkpoint
+from vis4d.common.typing import LossesType
+from vis4d.op.geometry.rotation import normalize_angle, acute_angle
 from vis4d.op.layer.weight_init import xavier_init
+from vis4d.op.loss.base import Loss
+
+
+class VeloLSTMOut(NamedTuple):
+    """VeloLSTM output."""
+
+    loc_preds: Tensor
+    loc_refines: Tensor
 
 
 class VeloLSTM(nn.Module):
@@ -21,6 +34,7 @@ class VeloLSTM(nn.Module):
 
     def __init__(
         self,
+        num_frames: int = 5,
         feature_dim: int = 64,
         hidden_size: int = 128,
         num_layers: int = 2,
@@ -30,6 +44,7 @@ class VeloLSTM(nn.Module):
     ) -> None:
         """Init."""
         super().__init__()
+        self.num_frames = num_frames
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -209,6 +224,76 @@ class VeloLSTM(nn.Module):
 
         return output_pred, (h_n, c_n)
 
+    def forward(self, pred_traj: Tensor) -> VeloLSTMOut:
+        """Forward of QD3DTrackGraph in training stage."""
+        loc_preds_list = []
+        loc_refines_list = []
+
+        hidden_predict = self.init_hidden(
+            pred_traj.device, batch_size=pred_traj.shape[0]
+        )
+        hidden_refine = self.init_hidden(
+            pred_traj.device, batch_size=pred_traj.shape[0]
+        )
+
+        vel_history = pred_traj.new_zeros(
+            self.num_frames, pred_traj.shape[0], self.loc_dim
+        )
+
+        # Starting condition
+        pred_traj[:, :, 6] = normalize_angle(pred_traj[:, :, 6])
+        prev_refine = pred_traj[:, 0, : self.loc_dim]
+        loc_pred = pred_traj[:, 1, : self.loc_dim]
+
+        # LSTM
+        for i in range(1, pred_traj.shape[1]):
+            # Update
+            loc_pred[:, 6] = normalize_angle(loc_pred[:, 6])
+
+            for batch_id in range(pred_traj.shape[0]):
+                # acute angle
+                loc_pred[batch_id, 6] = acute_angle(
+                    loc_pred[batch_id, 6], pred_traj[batch_id, i, 6]
+                )
+
+            loc_refine, hidden_refine = self.refine(
+                loc_pred.detach().clone(),
+                pred_traj[:, i, : self.loc_dim],
+                prev_refine.detach().clone(),
+                pred_traj[:, i, -1].unsqueeze(-1),
+                hidden_refine,
+            )
+            loc_refine[:, 6] = normalize_angle(loc_refine[:, 6])
+
+            if i == 1:
+                vel_history = torch.cat(
+                    [(loc_refine - prev_refine).unsqueeze(0)] * self.num_frames
+                )
+            else:
+                vel_history = torch.cat(
+                    [vel_history[1:], (loc_refine - prev_refine).unsqueeze(0)],
+                    dim=0,
+                )
+            prev_refine = loc_refine
+
+            # Predict
+            loc_pred, hidden_predict = self.predict(
+                vel_history, loc_refine.detach().clone(), hidden_predict
+            )
+            loc_pred[:, 6] = normalize_angle(loc_pred[:, 6])
+
+            loc_refines_list.append(loc_refine)
+            loc_preds_list.append(loc_pred)
+
+        loc_refines = torch.cat(loc_refines_list, dim=1).view(
+            pred_traj.shape[0], -1, self.loc_dim
+        )
+        loc_preds = torch.cat(loc_preds_list, dim=1).view(
+            pred_traj.shape[0], -1, self.loc_dim
+        )
+
+        return VeloLSTMOut(loc_preds=loc_preds, loc_refines=loc_refines)
+
 
 def init_lstm_module(layer: nn.Module) -> None:
     """Initialize LSTM weights and biases."""
@@ -219,3 +304,60 @@ def init_lstm_module(layer: nn.Module) -> None:
             torch.nn.init.orthogonal_(param.data)
         elif "bias" in name:
             param.data.fill_(0)
+
+
+class VeloLSTMLoss(Loss):
+    """Loss term for VeloLSTM."""
+
+    def __init__(
+        self,
+        loc_dim: int = 7,
+        loss_weight: float = 1.0,
+        smooth_weight: float = 0.001,
+    ) -> None:
+        """Initialize the loss term."""
+        super().__init__()
+        self.loc_dim = loc_dim
+        self.loss_weight = loss_weight
+        self.smooth_weight = smooth_weight
+
+    @staticmethod
+    def linear_motion_loss(outputs: Tensor) -> Tensor:
+        """Linear motion loss.
+
+        Loss: |(loc_t - loc_t-1), (loc_t-1, loc_t-2)|_1 for t = [2, s_len]
+        """
+        s_len = outputs.shape[1]
+
+        loss = outputs.new_zeros(1)
+        past_motion = outputs[:, 1, :] - outputs[:, 0, :]
+        for idx in range(2, s_len, 1):
+            curr_motion = outputs[:, idx, :] - outputs[:, idx - 1, :]
+            loss += F.l1_loss(past_motion, curr_motion, reduction="mean")
+            past_motion = curr_motion
+        return loss / (s_len - 2)
+
+    def forward(
+        self,
+        loc_preds: Tensor,
+        loc_refines: Tensor,
+        gt_traj: Tensor,
+    ) -> LossesType:
+        """Loss term for VeloLSTM."""
+        refine_loss = F.smooth_l1_loss(
+            loc_refines,
+            gt_traj[:, 1:, : self.loc_dim],
+            reduction="mean",
+        )
+        pred_loss = F.smooth_l1_loss(
+            loc_preds[:, :-1, :],
+            gt_traj[:, 2:, : self.loc_dim],
+            reduction="mean",
+        )
+        linear_loss = self.linear_motion_loss(loc_preds[:, :-1, :])
+
+        return {
+            "refine_loss": self.loss_weight * refine_loss,
+            "pred_loss": self.loss_weight * pred_loss,
+            "linear_loss": self.smooth_weight * self.loss_weight * linear_loss,
+        }

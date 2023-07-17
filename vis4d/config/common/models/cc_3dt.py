@@ -90,6 +90,8 @@ def get_cc_3dt_cfg(
     num_classes: int | FieldReference,
     basemodel: ConfigDict,
     detection_range: list[float] | FieldReference | None = None,
+    pure_det: bool | FieldReference = False,
+    motion_model: str | FieldReference = "KF3D",
     fps: int | FieldReference = 2,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Get CC-3DT model config.
@@ -99,6 +101,9 @@ def get_cc_3dt_cfg(
         basemodel (ConfigDict): Base model config.
         detection_range (list[float] | None, optional): Detection range.
             Defaults to None.
+        pure_det (bool, optional): Whether to use pure detection mode.
+            Defaults to False.
+        motion_model (str, optional): Motion model. Defaults to "KF3D".
         fps (int, optional): FPS. Defaults to 2.
     """
     ######################################################
@@ -125,7 +130,7 @@ def get_cc_3dt_cfg(
     )
 
     track_graph = class_config(
-        CC3DTrackGraph, motion_model="VeloLSTM", fps=fps
+        CC3DTrackGraph, motion_model=motion_model, fps=fps
     )
 
     model = class_config(
@@ -135,6 +140,7 @@ def get_cc_3dt_cfg(
         faster_rcnn_head=faster_rcnn_head,
         track_graph=track_graph,
         detection_range=detection_range,
+        pure_det=pure_det,
     )
 
     ######################################################

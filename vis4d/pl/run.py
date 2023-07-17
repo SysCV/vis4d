@@ -68,7 +68,10 @@ def main(argv: ArgsType) -> None:
         train_data_connector = None
         loss = None
 
-    test_data_connector = instantiate_classes(config.test_data_connector)
+    if config.test_data_connector is not None:
+        test_data_connector = instantiate_classes(config.test_data_connector)
+    else:
+        test_data_connector = None
 
     # Callbacks
     callbacks: list[Callback] = []

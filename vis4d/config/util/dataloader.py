@@ -1,6 +1,8 @@
 """Dataloader configuration."""
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ml_collections import ConfigDict, FieldReference
 
 from vis4d.common.typing import GenericFunc
@@ -11,19 +13,22 @@ from vis4d.data.loader import (
     build_train_dataloader,
     default_collate,
     default_pipeline,
+    DEFAULT_COLLATE_KEYS,
 )
+from vis4d.data.transforms.to_tensor import ToTensor
 
 from .callable import get_callable_cfg
 
 
 def get_train_dataloader_cfg(
-    preprocess_cfg: ConfigDict,
     dataset_cfg: ConfigDict,
+    preprocess_cfg: ConfigDict | None = None,
     data_pipe: type = DataPipe,
     samples_per_gpu: int | FieldReference = 1,
     workers_per_gpu: int | FieldReference = 1,
-    batchprocess_cfg: ConfigDict = class_config(default_pipeline),
+    batchprocess_cfg: ConfigDict | None = None,
     collate_fn: GenericFunc = default_collate,
+    collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
     pin_memory: bool | FieldReference = True,
     shuffle: bool | FieldReference = True,
 ) -> ConfigDict:
@@ -51,17 +56,24 @@ def get_train_dataloader_cfg(
     Returns:
         ConfigDict: Configuration that can be instantiate as a dataloader.
     """
+    if batchprocess_cfg is None:
+        batchprocess_cfg = class_config(ToTensor)
+
+    if preprocess_cfg is None:
+        dataset = class_config(data_pipe, datasets=dataset_cfg)
+    else:
+        dataset = class_config(
+            data_pipe, datasets=dataset_cfg, preprocess_fn=preprocess_cfg
+        )
+
     return class_config(
         build_train_dataloader,
-        dataset=class_config(
-            data_pipe,
-            datasets=dataset_cfg,
-            preprocess_fn=preprocess_cfg,
-        ),
+        dataset=dataset,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         batchprocess_fn=batchprocess_cfg,
         collate_fn=get_callable_cfg(collate_fn),
+        collate_keys=collate_keys,
         pin_memory=pin_memory,
         shuffle=shuffle,
     )

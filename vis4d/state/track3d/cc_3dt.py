@@ -194,7 +194,9 @@ class CC3DTrackMemory:
         # Build motion model
         if motion_model == "VeloLSTM":
             lstm_model = VeloLSTM(
+                num_frames=num_frames,
                 loc_dim=motion_dims,
+                dropout=0.0,
                 weights="./vis4d-workspace/checkpoints_old/velo_lstm_cc_3dt_frcnn_r101_fpn_100e_nusc.pt",
             )
             self.lstm_model = lstm_model
