@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 
-from vis4d.op.layer import ModelEMAAdapter, ModelExpEMAAdapter
+from vis4d.model.adapter import ModelEMAAdapter, ModelExpEMAAdapter
 
 
 class MockModel(nn.Module):

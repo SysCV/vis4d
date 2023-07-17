@@ -57,49 +57,42 @@ def configure_optimizer(
     """Configure optimizer with parameter groups."""
     param_groups_cfg = optim_cfg.get("param_groups", None)
 
-    if param_groups_cfg is not None:
-        params = []
-        base_lr = optim_cfg.optimizer["init_args"].lr
-        weight_decay = optim_cfg.optimizer["init_args"].get(
-            "weight_decay", None
+    if param_groups_cfg is None:
+        return instantiate_classes(
+            optim_cfg.optimizer, params=model.parameters()
         )
-        for group in param_groups_cfg:
-            lr_mult = group.get("lr_mult", 1.0)
-            decay_mult = group.get("decay_mult", 1.0)
-            norm_decay_mult = group.get("norm_decay_mult", None)
-            bias_decay_mult = group.get("bias_decay_mult", None)
 
-            param_group: ParamGroup = {
-                "params": [],
-                "lr": base_lr * lr_mult,
-            }
+    params = []
+    base_lr = optim_cfg.optimizer["init_args"].lr
+    weight_decay = optim_cfg.optimizer["init_args"].get("weight_decay", None)
+    for group in param_groups_cfg:
+        lr_mult = group.get("lr_mult", 1.0)
+        decay_mult = group.get("decay_mult", 1.0)
+        norm_decay_mult = group.get("norm_decay_mult", None)
+        bias_decay_mult = group.get("bias_decay_mult", None)
 
-            if weight_decay is not None:
-                if norm_decay_mult is not None:
-                    param_group["weight_decay"] = (
-                        weight_decay * norm_decay_mult
-                    )
-                elif bias_decay_mult is not None:
-                    param_group["weight_decay"] = (
-                        weight_decay * bias_decay_mult
-                    )
-                else:
-                    param_group["weight_decay"] = weight_decay * decay_mult
+        param_group: ParamGroup = {"params": [], "lr": base_lr * lr_mult}
 
-            params.append(param_group)
-
-        # Create a param group for the rest of the parameters
-        param_group = {"params": [], "lr": base_lr}
         if weight_decay is not None:
-            param_group["weight_decay"] = weight_decay
+            if norm_decay_mult is not None:
+                param_group["weight_decay"] = weight_decay * norm_decay_mult
+            elif bias_decay_mult is not None:
+                param_group["weight_decay"] = weight_decay * bias_decay_mult
+            else:
+                param_group["weight_decay"] = weight_decay * decay_mult
+
         params.append(param_group)
 
-        # Add the parameters to the param groups
-        add_params(params, model, param_groups_cfg)
+    # Create a param group for the rest of the parameters
+    param_group = {"params": [], "lr": base_lr}
+    if weight_decay is not None:
+        param_group["weight_decay"] = weight_decay
+    params.append(param_group)
 
-        return instantiate_classes(optim_cfg.optimizer, params=params)
+    # Add the parameters to the param groups
+    add_params(params, model, param_groups_cfg)
 
-    return instantiate_classes(optim_cfg.optimizer, params=model.parameters())
+    return instantiate_classes(optim_cfg.optimizer, params=params)
 
 
 def add_params(

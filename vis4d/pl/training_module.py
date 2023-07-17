@@ -22,7 +22,6 @@ from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import LRSchedulerWrapper, set_up_optimizers
-from vis4d.op.layer import ModelEMAAdapter
 
 
 class TrainingModule(pl.LightningModule):
@@ -167,7 +166,3 @@ class TrainingModule(pl.LightningModule):
     ) -> None:
         """Perform a single optimization step."""
         optimizer.step(closure=optimizer_closure)
-
-        # Update EMA model if available
-        if isinstance(self.model, ModelEMAAdapter):
-            self.model.update()

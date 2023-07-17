@@ -13,10 +13,14 @@ import torch
 import torchvision
 from torch import nn
 from torch.hub import load_state_dict_from_url as load_url
-from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from vis4d.common import TorchCheckpoint
-from vis4d.common.distributed import get_rank, get_world_size, synchronize
+from vis4d.common.distributed import (
+    get_rank,
+    get_world_size,
+    is_module_wrapper,
+    synchronize,
+)
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 
 CheckpointLoadFunc = Callable[
@@ -284,24 +288,6 @@ def load_from_torchvision(
     # resnet50.imagenet1k_v1.
     model_name = model_name.lower().replace("_weights", "")
     return load_from_http(model_urls[model_name], map_location)
-
-
-def is_module_wrapper(module: nn.Module) -> bool:
-    """Checks recursively if a module is wrapped.
-
-    Two modules are regarded as wrapper: DataParallel, DistributedDataParallel.
-
-    Args:
-        module (nn.Module): The module to be checked.
-
-    Returns:
-        bool: True if the input module is a module wrapper.
-    """
-    if isinstance(module, (DataParallel, DistributedDataParallel)):
-        return True
-    if any(is_module_wrapper(child) for child in module.children()):
-        return True
-    return False
 
 
 def load_state_dict(

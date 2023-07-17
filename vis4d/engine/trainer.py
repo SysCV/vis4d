@@ -14,7 +14,6 @@ from vis4d.data.typing import DictData
 from vis4d.engine.callbacks import Callback, TrainerState
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
-from vis4d.op.layer import ModelEMAAdapter
 
 from .optim import LRSchedulerWrapper
 from .util import move_data_to_device
@@ -226,6 +225,7 @@ class Trainer:
                 data = move_data_to_device(data, self.device)
                 # from vis4d.data.const import CommonKeys as K
                 # from vis4d.vis.functional.image import imshow_bboxes
+                # # if any(len(b) == 0 for b in data[K.boxes2d]):
                 # for i in range(len(data[K.images])):
                 #     imshow_bboxes(
                 #         data[K.images][i],
@@ -278,10 +278,6 @@ class Trainer:
                 # Step learning rate schedulers
                 for lr_scheduler in lr_schedulers:
                     lr_scheduler.step_on_batch(self.global_step)
-
-                # update EMA model if available
-                if isinstance(model, ModelEMAAdapter):
-                    model.update()
 
                 for callback in self.callbacks:
                     log_dict = callback.on_train_batch_end(

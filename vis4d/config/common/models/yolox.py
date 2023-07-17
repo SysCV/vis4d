@@ -12,11 +12,11 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
+from vis4d.model.adapter import ModelExpEMAAdapter
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.base import CSPDarknet
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
 from vis4d.op.fpp import YOLOXPAFPN
-from vis4d.op.layer import ModelExpEMAAdapter
 
 # Data connectors
 CONN_YOLOX_LOSS_2D = {
@@ -43,7 +43,7 @@ def get_yolox_optimizers_cfg(
                 SGD,
                 lr=lr,
                 momentum=0.9,
-                weight_decay=0.0005,
+                weight_decay=5e-4,
                 nesterov=True,
             ),
             lr_schedulers=[

@@ -26,6 +26,7 @@ from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import (
+    EMACallback,
     EvaluatorCallback,
     VisualizerCallback,
     YOLOXModeSwitchCallback,
@@ -75,6 +76,7 @@ def get_config() -> ExperimentConfig:
         data_backend=data_backend,
         scaling_ratio_range=(0.5, 1.5),
         resize_size=(320, 320),
+        use_mixup=False,
         test_image_size=(416, 416),
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
@@ -84,6 +86,7 @@ def get_config() -> ExperimentConfig:
     ##                  MODEL & LOSS                    ##
     ######################################################
     config.model, config.loss = get_yolox_cfg(params.num_classes, "tiny")
+    # config.model, config.loss = get_yolox_cfg(params.num_classes, "tiny", weights="mmdet://yolox/yolox_tiny_8x8_300e_coco/yolox_tiny_8x8_300e_coco_20211124_171234-b4047906.pth")
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -124,6 +127,9 @@ def get_config() -> ExperimentConfig:
         ),
         class_config(YOLOXSyncNormCallback),
     ]
+
+    # EMA callback
+    callbacks.append(class_config(EMACallback))
 
     # Visualizer
     callbacks.append(

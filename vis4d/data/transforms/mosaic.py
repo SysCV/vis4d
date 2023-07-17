@@ -17,8 +17,6 @@ from .base import Transform
 from .crop import _get_keep_mask
 from .resize import get_resize_shape, resize_tensor
 
-NUM_SAMPLES = 4
-
 
 class MosaicParam(TypedDict):
     """Parameters for Mosaic."""
@@ -150,7 +148,7 @@ class GenMosaicParameters:
     def __call__(self, input_hw: list[tuple[int, int]]) -> list[MosaicParam]:
         """Compute the parameters and put them in the data dict."""
         assert (
-            len(input_hw) % NUM_SAMPLES == 0
+            len(input_hw) % self.NUM_SAMPLES == 0
         ), "Input number of images must be a multiple of 4 for Mosaic."
         h, w = self.out_shape
         # mosaic center x, y
@@ -159,9 +157,9 @@ class GenMosaicParameters:
         center = (center_y, center_x)
 
         mosaic_params = []
-        for i in range(0, len(input_hw), NUM_SAMPLES):
+        for i in range(0, len(input_hw), self.NUM_SAMPLES):
             paste_coords, crop_coords, im_scales, im_shapes = [], [], [], []
-            imgs = input_hw[i : i + NUM_SAMPLES]
+            imgs = input_hw[i : i + self.NUM_SAMPLES]
             for idx, ori_hw in enumerate(imgs):
                 # compute the resize shape
                 h_i, w_i = get_resize_shape(
@@ -184,7 +182,7 @@ class GenMosaicParameters:
                     im_shapes=im_shapes,
                     im_scales=im_scales,
                 )
-                for _ in range(NUM_SAMPLES)
+                for _ in range(self.NUM_SAMPLES)
             ]
 
         return mosaic_params
@@ -209,6 +207,8 @@ class MosaicImages:
             bilinear.
     """
 
+    NUM_SAMPLES = 4
+
     def __init__(
         self, pad_value: float = 114.0, interpolation: str = "bilinear"
     ) -> None:
@@ -229,11 +229,11 @@ class MosaicImages:
         c = images[0].shape[-1]
 
         mosaic_imgs = []
-        for i in range(0, len(images), NUM_SAMPLES):
+        for i in range(0, len(images), self.NUM_SAMPLES):
             mosaic_img = np.full(
                 (1, c, h * 2, w * 2), self.pad_value, dtype=np.float32
             )
-            imgs = images[i : i + NUM_SAMPLES]
+            imgs = images[i : i + self.NUM_SAMPLES]
             for idx, img in enumerate(imgs):
                 # resize current image
                 h_i, w_i = im_shapes[i][idx]
@@ -272,6 +272,8 @@ class MosaicBoxes2D:
             image. Defaults to True.
     """
 
+    NUM_SAMPLES = 4
+
     def __init__(self, clip_inside_image: bool = True) -> None:
         """Creates an instance of the class."""
         self.clip_inside_image = clip_inside_image
@@ -290,9 +292,9 @@ class MosaicBoxes2D:
         new_track_ids: list[NDArrayI32] | None = (
             [] if track_ids is not None else None
         )
-        for i in range(0, len(boxes), NUM_SAMPLES):
-            for idx in range(NUM_SAMPLES):
-                j = i * NUM_SAMPLES + idx
+        for i in range(0, len(boxes), self.NUM_SAMPLES):
+            for idx in range(self.NUM_SAMPLES):
+                j = i * self.NUM_SAMPLES + idx
 
                 x1_p, y1_p, x2_p, y2_p = paste_coords[i][idx]
                 x1_c, y1_c, _, _ = crop_coords[i][idx]
@@ -318,11 +320,13 @@ class MosaicBoxes2D:
                 if self.clip_inside_image:
                     boxes[j][:, [0, 2]] = boxes[j][:, [0, 2]].clip(x1_p, x2_p)
                     boxes[j][:, [1, 3]] = boxes[j][:, [1, 3]].clip(y1_p, y2_p)
-            new_boxes.append(np.concatenate(boxes[i : i + NUM_SAMPLES]))
-            new_classes.append(np.concatenate(classes[i : i + NUM_SAMPLES]))
+            new_boxes.append(np.concatenate(boxes[i : i + self.NUM_SAMPLES]))
+            new_classes.append(
+                np.concatenate(classes[i : i + self.NUM_SAMPLES])
+            )
             if track_ids is not None:
                 assert new_track_ids is not None
                 new_track_ids.append(
-                    np.concatenate(track_ids[i : i + NUM_SAMPLES])
+                    np.concatenate(track_ids[i : i + self.NUM_SAMPLES])
                 )
         return new_boxes, new_classes, new_track_ids

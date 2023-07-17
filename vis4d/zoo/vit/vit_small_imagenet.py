@@ -24,7 +24,7 @@ from vis4d.config.default.data_connectors.cls import (
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.callbacks import EMACallback, EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
     DataConnector,
@@ -32,8 +32,8 @@ from vis4d.engine.connectors import (
 )
 from vis4d.engine.loss_module import LossModule
 from vis4d.eval.common.cls import ClassificationEvaluator
+from vis4d.model.adapter import ModelEMAAdapter
 from vis4d.model.cls.vit import ViTClassifer
-from vis4d.op.layer import ModelEMAAdapter
 
 
 def get_config() -> ExperimentConfig:
@@ -150,6 +150,9 @@ def get_config() -> ExperimentConfig:
     ##                GENERIC CALLBACKS                 ##
     ######################################################
     callbacks = get_default_callbacks_cfg(config.output_dir)
+
+    # EMA callback
+    callbacks.append(class_config(EMACallback))
 
     # Evaluator
     callbacks.append(

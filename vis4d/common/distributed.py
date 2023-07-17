@@ -14,7 +14,9 @@ from typing import Any
 import cloudpickle
 import torch
 import torch.distributed as dist
+from torch import nn
 from torch.distributed import broadcast_object_list
+from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from vis4d.common import ArgsType, DictStrAny, GenericFunc
 
@@ -414,3 +416,21 @@ def all_reduce_dict(
     if isinstance(py_dict, OrderedDict):
         out_dict = OrderedDict(out_dict)
     return out_dict
+
+
+def is_module_wrapper(module: nn.Module) -> bool:
+    """Checks recursively if a module is wrapped.
+
+    Two modules are regarded as wrapper: DataParallel, DistributedDataParallel.
+
+    Args:
+        module (nn.Module): The module to be checked.
+
+    Returns:
+        bool: True if the input module is a module wrapper.
+    """
+    if isinstance(module, (DataParallel, DistributedDataParallel)):
+        return True
+    if any(is_module_wrapper(child) for child in module.children()):
+        return True
+    return False

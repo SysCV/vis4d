@@ -16,7 +16,7 @@ class ModelEMAAdapter(nn.Module):
     """Torch module with Exponential Moving Average (EMA).
 
     Args:
-        model (nn.Module): model to apply EMA.
+        model (nn.Module): Model to apply EMA.
         decay (float): Decay factor for EMA. Defaults to 0.9998.
         use_ema_during_test (bool): Use EMA model during testing. Defaults to
             True.
@@ -42,8 +42,6 @@ class ModelEMAAdapter(nn.Module):
         self.device = device
         if self.device is not None:
             self.ema_model.to(device=device)
-        self.steps: Tensor
-        self.register_buffer("steps", torch.LongTensor([0.0], device=device))
         rank_zero_info("Using model EMA with decay rate %f", self.decay)
 
     def _update(
@@ -59,13 +57,12 @@ class ModelEMAAdapter(nn.Module):
                     model_v = model_v.to(device=self.device)
                 ema_v.copy_(update_fn(ema_v, model_v))
 
-    def update(self) -> None:
+    def update(self, steps: int) -> None:  # pylint: disable=unused-argument
         """Update the internal EMA model."""
         self._update(
             self.model,
             update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,
         )
-        self.steps += 1
 
     def set(self, model: nn.Module) -> None:
         """Copy model params into the internal EMA."""
@@ -84,7 +81,7 @@ class ModelExpEMAAdapter(ModelEMAAdapter):
     Used by YOLOX.
 
     Args:
-        model (nn.Module): model to apply EMA.
+        model (nn.Module): Model to apply EMA.
         decay (float): Decay factor for EMA. Defaults to 0.9998.
         warmup_steps (int): Number of warmup steps for decay. Use a smaller
             decay early in training and gradually anneal to the set decay value
@@ -109,13 +106,12 @@ class ModelExpEMAAdapter(ModelEMAAdapter):
         ), f"warmup_steps must be greater than 0, got {warmup_steps}"
         self.warmup_steps = warmup_steps
 
-    def update(self) -> None:
+    def update(self, steps: int) -> None:
         """Update the internal EMA model."""
         decay = self.decay * (
-            1 - math.exp(-float(1 + self.steps) / self.warmup_steps)
+            1 - math.exp(-float(1 + steps) / self.warmup_steps)
         )
         self._update(
             self.model,
             update_fn=lambda e, m: decay * e + (1.0 - decay) * m,
         )
-        self.steps += 1

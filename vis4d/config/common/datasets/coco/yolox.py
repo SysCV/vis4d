@@ -8,14 +8,13 @@ from ml_collections import ConfigDict
 
 from vis4d.config import class_config
 from vis4d.config.typing import DataConfig
-from vis4d.config.util import (
-    get_inference_dataloaders_cfg,
-    get_train_dataloader_cfg,
-)
+from vis4d.config.util import get_inference_dataloaders_cfg
+from vis4d.config.util.callable import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.data_pipe import DataPipe, MosaicDataPipe
+from vis4d.data.data_pipe import DataPipe, MultiSampleDataPipe
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import DataBackend
+from vis4d.data.loader import build_train_dataloader, default_collate
 from vis4d.data.transforms.affine import (
     AffineBoxes2D,
     AffineImages,
@@ -23,6 +22,11 @@ from vis4d.data.transforms.affine import (
 )
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
+from vis4d.data.transforms.mixup import (
+    GenMixupParameters,
+    MixupBoxes2D,
+    MixupImages,
+)
 from vis4d.data.transforms.mosaic import (
     GenMosaicParameters,
     MosaicBoxes2D,
@@ -30,6 +34,7 @@ from vis4d.data.transforms.mosaic import (
 )
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.photometric import RandomHSV
+from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
     GenResizeParameters,
     ResizeBoxes2D,
@@ -62,6 +67,7 @@ def get_train_dataloader(
     image_size: tuple[int, int],
     scaling_ratio_range: tuple[float, float],
     resize_size: tuple[int, int],
+    use_mixup: bool,
     samples_per_gpu: int,
     workers_per_gpu: int,
 ) -> ConfigDict:
@@ -79,24 +85,41 @@ def get_train_dataloader(
 
     # Train Preprocessing
     preprocess_transforms = [
-        class_config(GenMosaicParameters, out_shape=image_size),
-        class_config(MosaicImages),
-        class_config(MosaicBoxes2D),
+        [
+            class_config(GenMosaicParameters, out_shape=image_size),
+            class_config(MosaicImages),
+            class_config(MosaicBoxes2D, clip_inside_image=False),
+        ]
     ]
 
     preprocess_transforms += [
-        class_config(
-            GenAffineParameters,
-            scaling_ratio_range=scaling_ratio_range,
-            border=(-image_size[0] // 2, -image_size[1] // 2),
-        ),
-        class_config(AffineImages),
-        class_config(AffineBoxes2D),
+        [
+            class_config(
+                GenAffineParameters,
+                scaling_ratio_range=scaling_ratio_range,
+                border=(-image_size[0] // 2, -image_size[1] // 2),
+            ),
+            class_config(AffineImages),
+            class_config(AffineBoxes2D),
+        ]
     ]
 
-    train_preprocess_cfg = class_config(
-        compose, transforms=preprocess_transforms
-    )
+    if use_mixup:
+        preprocess_transforms += [
+            [
+                class_config(
+                    GenMixupParameters,
+                    out_shape=image_size,
+                    mixup_ratio_dist="const",
+                    scale_range=(0.8, 1.6),
+                    pad_value=114.0,
+                ),
+                class_config(MixupImages),
+                class_config(MixupBoxes2D),
+            ]
+        ]
+
+    preprocess_transforms.append([PostProcessBoxes2D(min_area=1.0)])
 
     train_batchprocess_cfg = class_config(
         compose,
@@ -127,13 +150,19 @@ def get_train_dataloader(
         ],
     )
 
-    return get_train_dataloader_cfg(
-        preprocess_cfg=train_preprocess_cfg,
-        dataset_cfg=train_dataset_cfg,
-        data_pipe=MosaicDataPipe,
-        batchprocess_cfg=train_batchprocess_cfg,
+    return class_config(
+        build_train_dataloader,
+        dataset=class_config(
+            MultiSampleDataPipe,
+            datasets=train_dataset_cfg,
+            preprocess_fn=preprocess_transforms,
+        ),
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
+        batchprocess_fn=train_batchprocess_cfg,
+        collate_fn=get_callable_cfg(default_collate),
+        pin_memory=True,
+        shuffle=True,
     )
 
 
@@ -202,6 +231,7 @@ def get_coco_yolox_cfg(
     train_image_size: tuple[int, int] = (640, 640),
     scaling_ratio_range: tuple[float, float] = (0.1, 2.0),
     resize_size: tuple[int, int] = (480, 480),
+    use_mixup: bool = True,
     test_image_size: tuple[int, int] = (640, 640),
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
@@ -217,6 +247,7 @@ def get_coco_yolox_cfg(
         image_size=train_image_size,
         scaling_ratio_range=scaling_ratio_range,
         resize_size=resize_size,
+        use_mixup=use_mixup,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
     )

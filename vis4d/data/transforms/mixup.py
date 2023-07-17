@@ -38,6 +38,8 @@ class MixupParam(TypedDict):
 class GenMixupParameters:
     """Generate the parameters for a mixup operation."""
 
+    NUM_SAMPLES = 2
+
     def __init__(
         self,
         out_shape: tuple[int, int],
@@ -45,7 +47,6 @@ class GenMixupParameters:
         alpha: float = 1.0,
         const_ratio: float = 0.5,
         scale_range: tuple[float, float] = (1.0, 1.0),
-        clip_inside_image: bool = True,
         pad_value: float = 0.0,
     ) -> None:
         """Init function.
@@ -63,8 +64,6 @@ class GenMixupParameters:
                 0.5.
             scale_range (tuple[float, float], optional): Range for
                 random scale jitter. Defaults to (1.0, 1.0).
-            clip_inside_image (bool, optional): Whether to clip the mixed up
-                image inside the original image. Defaults to True.
             pad_value (float, optional): Value for padding the mixed up image.
                 Defaults to 0.0.
         """
@@ -72,13 +71,12 @@ class GenMixupParameters:
             "beta",
             "const",
         }, "Mixup ratio distribution must be either 'beta' or 'const'."
+        self.out_shape = out_shape
         self.mixup_ratio_dist = mixup_ratio_dist
         self.alpha = alpha
         self.const_ratio = const_ratio
-        self.out_shape = out_shape
         self.scale_range = scale_range
         self.pad_value = pad_value
-        self.clip_inside_image = clip_inside_image
 
     def __call__(self, images: list[NDArrayF32]) -> list[MixupParam]:
         """Generate parameters for MixUp."""
@@ -134,6 +132,8 @@ class GenMixupParameters:
 class MixupImages:
     """Mixup a batch of images."""
 
+    NUM_SAMPLES = 2
+
     def __init__(self, interpolation: str = "bilinear") -> None:
         """Init function.
 
@@ -150,7 +150,9 @@ class MixupImages:
     ) -> list[NDArrayF32]:
         """Execute image mixup operation."""
         batch_size = len(images)
-        assert batch_size % 2 == 0, "Batch size must be even for mixup!"
+        assert (
+            batch_size % self.NUM_SAMPLES == 0
+        ), "Batch size must be even for mixup!"
 
         mixup_images = []
         for i in range(batch_size):
@@ -192,6 +194,8 @@ class MixupImages:
 )
 class MixupCategories:
     """Mixup a batch of categories."""
+
+    NUM_SAMPLES = 2
 
     def __init__(self, num_classes: int, label_smoothing: float = 0.1) -> None:
         """Creates an instance of MixupCategories.
@@ -236,7 +240,9 @@ class MixupCategories:
     ) -> list[NDArrayF32]:
         """Execute the categories mixup operation."""
         batch_size = len(categories)
-        assert batch_size % 2 == 0, "Batch size must be even for mixup!"
+        assert (
+            batch_size % self.NUM_SAMPLES == 0
+        ), "Batch size must be even for mixup!"
 
         smooth_categories = [np.empty(0, dtype=np.float32)] * batch_size
         for i in range(batch_size):
@@ -259,6 +265,8 @@ class MixupCategories:
 class MixupBoxes2D:
     """Mixup a batch of boxes."""
 
+    NUM_SAMPLES = 2
+
     def __init__(
         self, clip_inside_image: bool = True, max_track_ids: int = 1000
     ) -> None:
@@ -275,7 +283,9 @@ class MixupBoxes2D:
     ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
         """Execute the boxes2d mixup operation."""
         batch_size = len(boxes_list)
-        assert batch_size % 2 == 0, "Batch size must be even for mixup!"
+        assert (
+            batch_size % self.NUM_SAMPLES == 0
+        ), "Batch size must be even for mixup!"
 
         mixup_boxes_list = []
         mixup_classes_list = []
