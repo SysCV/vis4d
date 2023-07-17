@@ -7,6 +7,7 @@ additional functionality.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TypedDict
 
 from torch.utils.data import Dataset as TorchDataset
 
@@ -67,30 +68,50 @@ class Dataset(TorchDataset[DictData]):
                 raise ValueError(f"Key '{k}' is not supported!")
 
 
+class VideoMapping(TypedDict):
+    """Grouped dataset sample indices and frame indices."""
+
+    video_to_indices: dict[str, list[int]]
+    video_to_frame_ids: dict[str, list[int]]
+
+
 class VideoDataset(Dataset):
     """Video datasets.
 
-    Provides interface for video based data and reference view samplers.
+    Provides video_mapping attribute for video based interface and reference
+    view samplers.
     """
 
     def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
         """Initialize dataset."""
         super().__init__(*args, **kwargs)
-        self.video_to_indices: dict[str, list[int]] = {}
+        self.video_mapping: VideoMapping = {
+            "video_to_indices": {},
+            "video_to_frame_ids": {},
+        }
 
-    def _generate_video_to_indices(self) -> dict[str, list[int]]:
-        """Group dataset sample indices by their associated video ID.
+    def _sort_video_mapping(self, video_mapping: VideoMapping) -> VideoMapping:
+        """Sort video mapping by frame ids."""
+        video_to_indices = video_mapping["video_to_indices"]
+        video_to_frame_ids = video_mapping["video_to_frame_ids"]
+
+        for seq in video_to_indices:
+            sorted_zipped = sorted(
+                list(zip(video_to_indices[seq], video_to_frame_ids[seq])),
+                key=lambda x: x[1],
+            )
+            sorted_indices, sorted_frame_ids = zip(*sorted_zipped)
+            video_mapping["video_to_indices"][seq] = list(sorted_indices)
+            video_mapping["video_to_frame_ids"][seq] = list(sorted_frame_ids)
+
+        return video_mapping
+
+    def _generate_video_mapping(self) -> VideoMapping:
+        """Group dataset sample by their associated video ID.
 
         The sample index is an integer while video IDs are string.
 
         Returns:
-            dict[str, list[int]]: Mapping video to index.
+            VideoMapping: Mapping of video IDs to sample indices and frame IDs.
         """
         raise NotImplementedError
-
-    def get_video_indices(self, idx: int) -> list[int]:
-        """Get all dataset indices in a video given a single dataset index."""
-        for indices in self.video_to_indices.values():
-            if idx in indices:
-                return indices
-        raise ValueError(f"Dataset index {idx} not found in video_to_indices!")

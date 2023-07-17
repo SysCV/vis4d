@@ -34,16 +34,3 @@ def bev_3d_nms(  # pragma: no cover
     )
 
     return keep_indices
-
-
-def filter_distance(
-    class_ids: Tensor,
-    boxes3d: Tensor,
-    class_range_map: Tensor,
-    tolerance: float = 2.0,
-) -> Tensor:
-    """Filter boxes3d on distance."""
-    detection_range = torch.tensor(
-        [class_range_map[class_id] + tolerance for class_id in class_ids]
-    ).to(class_ids.device)
-    return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= detection_range

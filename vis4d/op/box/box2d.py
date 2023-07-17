@@ -124,6 +124,14 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     area2 = bbox_area(boxes2)
     inter = bbox_intersection(boxes1, boxes2)
 
+    union = area1[:, None] + area2 - inter
+
+    inter = torch.where(
+        union > 0,
+        inter,
+        torch.zeros(1, dtype=inter.dtype, device=inter.device),
+    )
+
     iou = torch.where(
         inter > 0,
         inter / (area1[:, None] + area2 - inter),

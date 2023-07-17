@@ -198,7 +198,7 @@ class COCO(CacheMappingMixin, Dataset):
             or K.seg_masks in keys_to_load
         )
 
-        self.data = self._load_mapping(
+        self.data, _ = self._load_mapping(
             self._generate_data_mapping,
             self._filter_data,
             cache_as_binary=cache_as_binary,

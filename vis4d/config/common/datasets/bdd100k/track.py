@@ -24,6 +24,17 @@ from vis4d.data.transforms.resize import (
     ResizeImages,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.engine.connectors import data_key, pred_key
+
+CONN_BDD100K_TRACK_EVAL = {
+    "frame_ids": data_key("frame_ids"),
+    "sample_names": data_key(K.sample_names),
+    "sequence_names": data_key(K.sequence_names),
+    "pred_boxes": pred_key("boxes"),
+    "pred_classes": pred_key("class_ids"),
+    "pred_scores": pred_key("scores"),
+    "pred_track_ids": pred_key("track_ids"),
+}
 
 
 def get_train_dataloader(

@@ -93,11 +93,14 @@ class LoggingCallback(Callback):
                 k: sum(v) / len(v) if len(v) > 0 else float("NaN")
                 for k, v in self._metrics.items()
             }
+
             rank_zero_info(
                 compose_log_str(
                     prefix, cur_iter, total_iters, self.train_timer, log_dict
                 )
             )
+
+            self._metrics.clear()
 
         return log_dict
 

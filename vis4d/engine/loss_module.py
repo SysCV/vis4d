@@ -21,13 +21,14 @@ class LossDefinition(TypedDict):
     Attributes:
         loss (Loss | nn.Module): Loss function to use.
         connector (LossConnector): Connector to use for the loss.
-        weight (float, optional): Weight to use for the loss.
+        weight (float | dict[str, float], optional): Weight to use for the
+            loss.
         name (str, optional): Name to use for the loss.
     """
 
     loss: Loss | nn.Module
     connector: LossConnector
-    weight: NotRequired[float]
+    weight: NotRequired[float | dict[str, float]]
     name: NotRequired[str]
 
 
@@ -173,8 +174,14 @@ class LossModule(nn.Module):
                 if value is None:
                     continue
 
+                if isinstance(loss["weight"], dict):
+                    loss_weight = loss["weight"].get(key, 1.0)
+                else:
+                    loss_weight = loss["weight"]
+
                 while key in loss_dict:
                     key = "__" + key
-                loss_dict[key] = loss["weight"] * value
+
+                loss_dict[key] = loss_weight * value
 
         return loss_dict

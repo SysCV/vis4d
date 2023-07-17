@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.op.loss.box3d_uncertainty_loss import Box3DUncertaintyLoss
+from vis4d.op.detect3d.qd_3dt import Box3DUncertaintyLoss
 
 
 class TestQD3DTBox3DLoss(unittest.TestCase):

@@ -92,7 +92,8 @@ def get_rank() -> int:  # pragma: no cover
     if os.environ.get("SLURM_PROCID", None):
         return int(os.environ["SLURM_PROCID"])
 
-    return 0
+    # Return local rank
+    return get_local_rank()
 
 
 def get_local_rank() -> int:  # pragma: no cover

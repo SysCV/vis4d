@@ -3,7 +3,6 @@ import unittest
 
 import torch
 
-from vis4d.op.loss.box3d_uncertainty_loss import Box3DUncertaintyLoss
 from vis4d.op.loss.embedding_distance import EmbeddingDistanceLoss
 from vis4d.op.loss.multi_pos_cross_entropy import MultiPosCrossEntropyLoss
 
@@ -181,16 +180,3 @@ class TestQDLosses(unittest.TestCase):
             avg_factor=1.0,
         )
         self.assertTrue(abs(x - 34.0866) < 1e-4)
-
-
-class TestLossBox3D(unittest.TestCase):
-    """Testclass for Box3d loss."""
-
-    def test_box3d_loss(self) -> None:
-        """Testcase for box3d loss."""
-        box3d_loss = Box3DUncertaintyLoss()
-        loss_dict = box3d_loss(
-            torch.empty(0, 5), torch.empty(0, 5), torch.empty(0)
-        )
-        for v in loss_dict.values():
-            self.assertEqual(v.item(), 0.0)

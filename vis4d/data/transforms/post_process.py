@@ -11,8 +11,23 @@ from .base import Transform
 
 
 @Transform(
-    in_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids, K.input_hw],
-    out_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
+    in_keys=[
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.input_hw,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
+    ],
+    out_keys=[
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
+    ],
 )
 class PostProcessBoxes2D:
     """Post process after transformation.
@@ -37,22 +52,59 @@ class PostProcessBoxes2D:
         classes_list: list[NDArrayI32],
         track_ids_list: list[NDArrayI32] | None,
         input_hw_list: list[tuple[int, int]],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
-        """Post process 2D bounding boxes.
+        boxes3d_list: list[NDArrayF32 | None],
+        boxes3d_classes_list: list[NDArrayI32 | None],
+        boxes3d_track_ids_list: list[NDArrayI32 | None],
+    ) -> tuple[
+        list[NDArrayF32],
+        list[NDArrayI32],
+        list[NDArrayI32] | None,
+        list[NDArrayF32 | None],
+        list[NDArrayI32 | None],
+        list[NDArrayI32 | None],
+    ]:
+        """Post process according to boxes2D after transformation.
 
         Args:
-            boxes (Tensor): The bounding boxes to be processed.
-            classes (Tensor): The classes of the bounding boxes.
-            track_ids (Tensor | None): The track IDs of the bounding boxes.
-            input_hw (tuple[int, int]): The input height and width.
+            boxes_list (list[NDArrayF32]): The bounding boxes to be post
+                processed.
+            classes_list (list[NDArrayF32]): The classes of the bounding boxes.
+            track_ids_list (list[NDArrayI32 | None]): The track ids of the
+                bounding boxes.
+            input_hw_list (list[tuple[int, int]]): The height and width of the
+                input image.
+            boxes3d_list (list[NDArrayF32 | None]): The 3D bounding boxes to be
+                post processed.
+            boxes3d_classes_list (list[NDArrayI32 | None]): The classes of the
+                3D bounding boxes.
+            boxes3d_track_ids_list (list[NDArrayI32 | None]): The track ids of
+                the 3D bounding boxes.
 
         Returns:
-            Tensor: Processed bounding boxes.
+            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None],
+                list[NDArrayF32 | None], list[NDArrayI32 | None],
+                list[NDArrayI32 | None]]: The post processed results.
         """
         new_track_ids: list[NDArrayI32] | None = (
             [] if track_ids_list is not None else None
         )
-        for i, (boxes, classes) in enumerate(zip(boxes_list, classes_list)):
+        for i, (
+            boxes,
+            classes,
+            track_ids,
+            boxes3d,
+            boxes3d_classes,
+            boxes3d_trakc_ids,
+        ) in enumerate(
+            zip(
+                boxes_list,
+                classes_list,
+                track_ids_list,
+                boxes3d_list,
+                boxes3d_classes_list,
+                boxes3d_track_ids_list,
+            )
+        ):
             boxes_ = torch.from_numpy(boxes)
             if self.clip_bboxes_to_image:
                 boxes_ = bbox_clip(boxes_, input_hw_list[i])
@@ -64,6 +116,22 @@ class PostProcessBoxes2D:
 
             if track_ids_list is not None:
                 assert new_track_ids is not None
-                new_track_ids.append(track_ids_list[i][keep])
+                new_track_ids.append(track_ids[keep])
 
-        return boxes_list, classes_list, new_track_ids
+            if boxes3d is not None:
+                boxes3d_list[i] = boxes3d[keep]
+
+            if boxes3d_classes is not None:
+                boxes3d_classes_list[i] = boxes3d_classes[keep]
+
+            if boxes3d_trakc_ids is not None:
+                boxes3d_track_ids_list[i] = boxes3d_trakc_ids[keep]
+
+        return (
+            boxes_list,
+            classes_list,
+            new_track_ids,
+            boxes3d_list,
+            boxes3d_classes_list,
+            boxes3d_track_ids_list,
+        )

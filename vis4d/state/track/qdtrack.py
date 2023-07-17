@@ -4,8 +4,12 @@ from __future__ import annotations
 from typing import NamedTuple
 
 import torch
+from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
+from vis4d.op.track.assignment import TrackIDCounter
+from vis4d.op.track.common import TrackOut
+from vis4d.op.track.qdtrack import QDTrackAssociation
 
 from .util import concat_states, get_last_tracks, merge_tracks, update_frames
 
@@ -13,11 +17,84 @@ from .util import concat_states, get_last_tracks, merge_tracks, update_frames
 class QDTrackState(NamedTuple):
     """QDTrack Track state."""
 
-    track_ids: torch.Tensor
-    boxes: torch.Tensor
-    scores: torch.Tensor
-    class_ids: torch.Tensor
-    embeddings: torch.Tensor
+    track_ids: Tensor
+    boxes: Tensor
+    scores: Tensor
+    class_ids: Tensor
+    embeddings: Tensor
+
+
+class QDTrackGraph:
+    """Quasi-dense embedding similarity based graph."""
+
+    def __init__(
+        self,
+        track: QDTrackAssociation | None = None,
+        memory_size: int = 10,
+        memory_momentum: float = 0.8,
+    ) -> None:
+        """Init."""
+        assert 0 <= memory_momentum <= 1.0
+        self.memory_size = memory_size
+        self.memory_momentum = memory_momentum
+        self.track = QDTrackAssociation() if track is None else track
+        self.track_memory = QDTrackMemory(memory_limit=memory_size)
+
+    def __call__(
+        self,
+        embeddings: list[Tensor],
+        det_boxes: list[Tensor],
+        det_scores: list[Tensor],
+        det_class_ids: list[Tensor],
+        frame_ids: list[int],
+    ) -> TrackOut:
+        """Forward during test."""
+        batched_tracks = []
+        for frame_id, box, score, cls_id, embeds in zip(
+            frame_ids, det_boxes, det_scores, det_class_ids, embeddings
+        ):
+            # reset graph at begin of sequence
+            if frame_id == 0:
+                self.track_memory.reset()
+                TrackIDCounter.reset()
+
+            cur_memory = self.track_memory.get_current_tracks(box.device)
+            track_ids, match_ids, filter_indices = self.track(
+                box,
+                score,
+                cls_id,
+                embeds,
+                cur_memory.track_ids,
+                cur_memory.class_ids,
+                cur_memory.embeddings,
+            )
+
+            valid_embeds = embeds[filter_indices]
+
+            for i, track_id in enumerate(track_ids):
+                if track_id in match_ids:
+                    track = self.track_memory.get_track(track_id)[-1]
+                    valid_embeds[i] = (
+                        (1 - self.memory_momentum) * track.embeddings
+                        + self.memory_momentum * valid_embeds[i]
+                    )
+
+            data = QDTrackState(
+                track_ids,
+                box[filter_indices],
+                score[filter_indices],
+                cls_id[filter_indices],
+                valid_embeds,
+            )
+            self.track_memory.update(data)
+            batched_tracks.append(self.track_memory.frames[-1])
+
+        return TrackOut(
+            [t.boxes for t in batched_tracks],
+            [t.class_ids for t in batched_tracks],
+            [t.scores for t in batched_tracks],
+            [t.track_ids for t in batched_tracks],
+        )
 
 
 class QDTrackMemory:
