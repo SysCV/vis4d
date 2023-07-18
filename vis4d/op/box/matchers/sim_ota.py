@@ -12,7 +12,7 @@ from vis4d.op.box.box2d import bbox_iou
 
 from .base import MatchResult
 
-INF = 100000000
+INF = 100000.0
 EPS = 1.0e-7
 
 
@@ -93,7 +93,7 @@ class SimOTAMatcher(nn.Module):
                 assigned_labels = None
             else:
                 assigned_labels = decoded_bboxes.new_full(
-                    (num_bboxes,), 0, dtype=torch.long
+                    (num_bboxes,), -1, dtype=torch.long
                 )
             return MatchResult(
                 assigned_gt_indices=assigned_gt_inds,
@@ -136,7 +136,7 @@ class SimOTAMatcher(nn.Module):
 
         # convert to MatchResult format
         assigned_gt_inds[valid_mask] = matched_gt_inds
-        assigned_labels = assigned_gt_inds.new_full((num_bboxes,), 0)
+        assigned_labels = assigned_gt_inds.new_full((num_bboxes,), -1)
         assigned_labels[valid_mask] = 1
         assigned_gt_iou = assigned_gt_inds.new_full(
             (num_bboxes,), -INF, dtype=torch.float32
@@ -204,7 +204,7 @@ class SimOTAMatcher(nn.Module):
         valid_mask: Tensor,
     ) -> tuple[Tensor, Tensor]:
         """Dynamic K matching strategy."""
-        matching_matrix = torch.zeros_like(cost)
+        matching_matrix = torch.zeros_like(cost, dtype=torch.uint8)
         # select candidate topk ious for dynamic-k calculation
         candidate_topk = min(self.candidate_topk, pairwise_ious.size(0))
         topk_ious, _ = torch.topk(pairwise_ious, candidate_topk, dim=0)
@@ -216,17 +216,17 @@ class SimOTAMatcher(nn.Module):
                 k=dynamic_ks[gt_idx].item(),  # type: ignore
                 largest=False,
             )
-            matching_matrix[:, gt_idx][pos_idx] = 1.0
+            matching_matrix[:, gt_idx][pos_idx] = 1
 
         del topk_ious, dynamic_ks, pos_idx
 
         prior_match_gt_mask = matching_matrix.sum(1) > 1
         if prior_match_gt_mask.sum() > 0:
             _, cost_argmin = torch.min(cost[prior_match_gt_mask, :], dim=1)
-            matching_matrix[prior_match_gt_mask, :] *= 0.0
-            matching_matrix[prior_match_gt_mask, cost_argmin] = 1.0
+            matching_matrix[prior_match_gt_mask, :] *= 0
+            matching_matrix[prior_match_gt_mask, cost_argmin] = 1
         # get foreground mask inside box and center prior
-        fg_mask_inboxes = matching_matrix.sum(1) > 0.0
+        fg_mask_inboxes = matching_matrix.sum(1) > 0
         valid_mask[valid_mask.clone()] = fg_mask_inboxes
 
         matched_gt_inds = matching_matrix[fg_mask_inboxes, :].argmax(1)

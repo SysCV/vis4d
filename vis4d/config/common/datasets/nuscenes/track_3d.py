@@ -116,9 +116,7 @@ def get_train_dataloader(
     )
 
     preprocess_transforms = [
-        class_config(
-            GenResizeParameters, shape=(900, 1600), keep_ratio=True
-        ),
+        class_config(GenResizeParameters, shape=(900, 1600), keep_ratio=True),
         class_config(ResizeImages),
         class_config(ResizeBoxes2D),
     ]

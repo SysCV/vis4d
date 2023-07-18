@@ -1,16 +1,28 @@
 """YOLOX-specific callbacks."""
 from __future__ import annotations
 
+import random
 from collections import OrderedDict
 
+import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.batchnorm import _NormBase
 from torch.utils.data import DataLoader
 
 from vis4d.common import ArgsType, DictStrAny
-from vis4d.common.distributed import all_reduce_dict, get_world_size
+from vis4d.common.distributed import (
+    all_reduce_dict,
+    broadcast,
+    get_rank,
+    get_world_size,
+    synchronize,
+)
 from vis4d.common.logging import rank_zero_info
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
+from vis4d.data.transforms.resize import get_target_shape
+from vis4d.data.typing import DictData
 from vis4d.engine.loss_module import LossModule
 from vis4d.op.detect.yolox import YOLOXHeadLoss
 from vis4d.op.loss.common import l1_loss
@@ -131,3 +143,70 @@ class YOLOXSyncNormCallback(Callback):
             return
         norm_states = all_reduce_dict(norm_states, reduce_op="mean")
         model.load_state_dict(norm_states, strict=False)
+
+
+class YOLOXSyncRandomResizeCallback(Callback):
+    """Callback for syncing random resize during YOLOX training."""
+
+    def __init__(
+        self,
+        *args: ArgsType,
+        size_list: list[tuple[int, int]],
+        interval: int,
+        **kwargs: ArgsType,
+    ) -> None:
+        """Init callback."""
+        super().__init__(*args, **kwargs)
+        self.size_list = size_list
+        self.interval = interval
+        self.random_shape = None
+
+    def _get_random_shape(
+        self, input_shape: tuple[int, int], device: torch.device
+    ) -> tuple[int, int]:
+        """Randomly generate shape from size_list and sync across ranks."""
+        shape_tensor = torch.LongTensor(2).to(device)
+        if get_rank() == 0:
+            random_size = random.choice(self.size_list)
+            random_shape = get_target_shape(
+                input_shape, random_size, keep_ratio=True
+            )
+            shape_tensor[0], shape_tensor[1] = random_shape[0], random_shape[1]
+        synchronize()
+        shape_tensor = broadcast(shape_tensor, 0)
+        return (shape_tensor[0].item(), shape_tensor[1].item())
+
+    def on_train_batch_start(
+        self,
+        trainer_state: TrainerState,
+        model: nn.Module,
+        loss_module: LossModule,
+        batch: DictData,
+        batch_idx: int,
+    ) -> None:
+        """Hook to run at the start of a training batch."""
+        if (
+            self.random_shape is None
+            or (trainer_state["global_step"] + 1) % self.interval == 0
+        ):
+            self.random_shape = self._get_random_shape(
+                batch[K.input_hw][0], batch[K.images].device
+            )
+        scale_y = self.random_shape[0] / batch[K.input_hw][0][0]
+        scale_x = self.random_shape[1] / batch[K.input_hw][0][1]
+
+        # resize images
+        batch[K.images] = F.interpolate(
+            batch[K.images],
+            size=self.random_shape,
+            mode="bilinear",
+            align_corners=False,
+        )
+        batch[K.input_hw] = [
+            self.random_shape for _ in range(batch[K.images].size(0))
+        ]
+
+        # resize boxes
+        for boxes in batch[K.boxes2d]:
+            boxes[..., ::2] = boxes[..., ::2] * scale_x
+            boxes[..., 1::2] = boxes[..., 1::2] * scale_y

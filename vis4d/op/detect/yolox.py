@@ -624,6 +624,11 @@ class YOLOXHeadLoss(nn.Module):
         if self.loss_l1 is not None:
             l1_targets = torch.cat(l1_targets_list, 0)
 
+        loss_obj = self.loss_obj(
+            flatten_obj.view(-1, 1), obj_targets, reduction="none"
+        )
+        loss_obj = SumWeightedLoss(1.0, num_total_samples)(loss_obj)
+
         if num_pos > 0:
             loss_cls = self.loss_cls(
                 flatten_cls.view(-1, self.num_classes)[pos_masks],
@@ -638,11 +643,6 @@ class YOLOXHeadLoss(nn.Module):
         else:
             loss_cls = flatten_cls.sum() * 0
             loss_bbox = flatten_boxes.sum() * 0
-
-        loss_obj = self.loss_obj(
-            flatten_obj.view(-1, 1), obj_targets, reduction="none"
-        )
-        loss_obj = SumWeightedLoss(1.0, num_total_samples)(loss_obj)
 
         if self.loss_l1 is not None:
             if num_pos > 0:

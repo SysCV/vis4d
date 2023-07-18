@@ -32,6 +32,9 @@ from vis4d.engine.callbacks import (
     YOLOXModeSwitchCallback,
     YOLOXSyncNormCallback,
 )
+from vis4d.engine.callbacks.yolox_callbacks import (
+    YOLOXSyncRandomResizeCallback,
+)
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.vis.image import BoundingBoxVisualizer
@@ -75,7 +78,6 @@ def get_config() -> ExperimentConfig:
         test_split=test_split,
         data_backend=data_backend,
         scaling_ratio_range=(0.5, 1.5),
-        resize_size=(320, 320),
         use_mixup=False,
         test_image_size=(416, 416),
         samples_per_gpu=params.samples_per_gpu,
@@ -121,6 +123,11 @@ def get_config() -> ExperimentConfig:
 
     # YOLOX callbacks
     callbacks += [
+        class_config(
+            YOLOXSyncRandomResizeCallback,
+            size_list=[(320 + i, 320 + i) for i in range(0, 321, 32)],
+            interval=10,
+        ),
         class_config(
             YOLOXModeSwitchCallback,
             switch_epoch=params.num_epochs - num_last_epochs,

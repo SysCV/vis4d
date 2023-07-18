@@ -66,7 +66,6 @@ def get_train_dataloader(
     data_backend: None | DataBackend,
     image_size: tuple[int, int],
     scaling_ratio_range: tuple[float, float],
-    resize_size: tuple[int, int],
     use_mixup: bool,
     samples_per_gpu: int,
     workers_per_gpu: int,
@@ -134,14 +133,8 @@ def get_train_dataloader(
                 probability=0.5,
                 same_on_batch=False,
             ),
-            class_config(  # ensure same size for all images in batch
-                GenResizeParameters,
-                shape=[
-                    (resize_size[0] + i, resize_size[1] + i)
-                    for i in range(0, 321, 32)
-                ],
-                multiscale_mode="list",
-                keep_ratio=True,
+            class_config(
+                GenResizeParameters, shape=image_size, keep_ratio=True
             ),
             class_config(ResizeImages),
             class_config(ResizeBoxes2D),
@@ -230,7 +223,6 @@ def get_coco_yolox_cfg(
     data_backend: None | ConfigDict = None,
     train_image_size: tuple[int, int] = (640, 640),
     scaling_ratio_range: tuple[float, float] = (0.1, 2.0),
-    resize_size: tuple[int, int] = (480, 480),
     use_mixup: bool = True,
     test_image_size: tuple[int, int] = (640, 640),
     samples_per_gpu: int = 2,
@@ -246,7 +238,6 @@ def get_coco_yolox_cfg(
         data_backend=data_backend,
         image_size=train_image_size,
         scaling_ratio_range=scaling_ratio_range,
-        resize_size=resize_size,
         use_mixup=use_mixup,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
