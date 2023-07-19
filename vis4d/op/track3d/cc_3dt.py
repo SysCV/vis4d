@@ -244,22 +244,29 @@ class CC3DTrackAssociation:
         memory_embeddings: Tensor | None = None,
         memory_boxes_3d_predict: Tensor | None = None,
         memory_velocities: Tensor | None = None,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         """Process inputs, match detections with existing tracks.
 
         Args:
             detections (Tensor): [N, 4] detected boxes.
+            camera_ids (Tensor): [N,] camera ids.
             detection_scores (Tensor): [N,] confidence scores.
+            detections_3d (Tensor): [N, 7] detected boxes in 3D.
+            detection_scores_3d (Tensor): [N,] confidence scores in 3D.
             detection_class_ids (Tensor): [N,] class indices.
             detection_embeddings (Tensor): [N, C] appearance embeddings.
+            memory_boxes_3d (Tensor): [M, 7] boxes in memory.
             memory_track_ids (Tensor): [M,] track ids in memory.
             memory_class_ids (Tensor): [M,] class indices in memory.
             memory_embeddings (Tensor): [M, C] appearance embeddings in
                 memory.
+            memory_boxes_3d_predict (Tensor): [M, 7] predicted boxes in
+                memory.
+            memory_velocities (Tensor): [M, 7] velocities in memory.
 
         Returns:
-            tuple[Tensor, Tensor]: track ids of active tracks,
-                selected detection indices corresponding to tracks.
+            tuple[Tensor, Tensor]: track ids of active tracks and selected
+                detection indices corresponding to tracks.
         """
         (
             detections,
@@ -355,12 +362,11 @@ class CC3DTrackAssociation:
                 dtype=torch.long,
                 device=detections.device,
             )
-        match_ids = ids[ids > -1]
         new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
         ids[new_inds] = TrackIDCounter.get_ids(
             new_inds.sum(), device=ids.device  # type: ignore
         )
-        return ids, match_ids, permute_inds
+        return ids, permute_inds
 
 
 def cam_to_global(

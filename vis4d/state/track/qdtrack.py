@@ -1,7 +1,7 @@
 """Memory for QDTrack inference."""
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TypedDict
 
 import torch
 from torch import Tensor
@@ -11,17 +11,23 @@ from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.common import TrackOut
 from vis4d.op.track.qdtrack import QDTrackAssociation
 
-from .util import concat_states, get_last_tracks, merge_tracks, update_frames
 
+class Track(TypedDict):
+    """CC-3DT Track state.
 
-class QDTrackState(NamedTuple):
-    """QDTrack Track state."""
+    Attributes:
+        box (Tensor): In shape (4,) and contains x1, y1, x2, y2.
+        score (Tensor): In shape (1,).
+        class_id (Tensor): In shape (1,).
+        embedding (Tensor): In shape (E,). E is the embedding dimension.
+        last_frame (int): Last frame id.
+    """
 
-    track_ids: Tensor
-    boxes: Tensor
-    scores: Tensor
-    class_ids: Tensor
-    embeddings: Tensor
+    box: Tensor
+    score: Tensor
+    class_id: Tensor
+    embed: Tensor
+    last_frame: int
 
 
 class QDTrackGraph:
@@ -32,208 +38,289 @@ class QDTrackGraph:
         track: QDTrackAssociation | None = None,
         memory_size: int = 10,
         memory_momentum: float = 0.8,
+        nms_backdrop_iou_thr: float = 0.3,
+        backdrop_memory_size: int = 1,
     ) -> None:
         """Init."""
+        assert memory_size >= 0
+        self.memory_size = memory_size
         assert 0 <= memory_momentum <= 1.0
         self.memory_momentum = memory_momentum
-        self.track = QDTrackAssociation() if track is None else track
-        self.track_memory = QDTrackMemory(memory_limit=memory_size)
-
-    def __call__(
-        self,
-        embeddings: list[Tensor],
-        det_boxes: list[Tensor],
-        det_scores: list[Tensor],
-        det_class_ids: list[Tensor],
-        frame_ids: list[int],
-    ) -> TrackOut:
-        """Forward during test."""
-        batched_tracks = []
-        for frame_id, box, score, cls_id, embeds in zip(
-            frame_ids, det_boxes, det_scores, det_class_ids, embeddings
-        ):
-            # reset graph at begin of sequence
-            if frame_id == 0:
-                self.track_memory.reset()
-                TrackIDCounter.reset()
-
-            cur_memory = self.track_memory.get_current_tracks(box.device)
-            track_ids, match_ids, filter_indices = self.track(
-                box,
-                score,
-                cls_id,
-                embeds,
-                cur_memory.track_ids,
-                cur_memory.class_ids,
-                cur_memory.embeddings,
-            )
-
-            valid_embeds = embeds[filter_indices]
-
-            for i, track_id in enumerate(track_ids):
-                if track_id in match_ids:
-                    track = self.track_memory.get_track(track_id)[-1]
-                    valid_embeds[i] = (
-                        (1 - self.memory_momentum) * track.embeddings
-                        + self.memory_momentum * valid_embeds[i]
-                    )
-
-            data = QDTrackState(
-                track_ids,
-                box[filter_indices],
-                score[filter_indices],
-                cls_id[filter_indices],
-                valid_embeds,
-            )
-            self.track_memory.update(data)
-            batched_tracks.append(self.track_memory.frames[-1])
-
-        return TrackOut(
-            [t.boxes for t in batched_tracks],
-            [t.class_ids for t in batched_tracks],
-            [t.scores for t in batched_tracks],
-            [t.track_ids for t in batched_tracks],
-        )
-
-
-class QDTrackMemory:
-    """QDTrack track memory.
-
-    We store both tracks and backdrops here. The current active tracks are all
-    tracks within the memory limit.
-    """
-
-    def __init__(
-        self,
-        memory_limit: int = -1,
-        nms_backdrop_iou_thr: float = 0.3,
-        backdrop_memory_limit: int = 1,
-    ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            memory_limit (int, optional): Maximum number of frames to be stored
-                inside the memory. Defaults to -1.
-            nms_backdrop_iou_thr (float, optional): IoU threshold for NMS
-                between backdrops. Defaults to 0.3.
-            backdrop_memory_limit (int, optional): Maximum number of frames
-                backdrops are stored. Defaults to 1.
-            memory_momentum (float, optional): Momentum value for accumulating
-                embedding vectors across a track's memory buffer. Defaults
-                to 0.8.
-        """
-        assert memory_limit >= -1
-        self.memory_limit = memory_limit
-        self.frames: list[QDTrackState] = []
-        self.backdrop_frames: list[QDTrackState] = []
-        assert backdrop_memory_limit >= 0
-        self.backdrop_memory_limit = backdrop_memory_limit
+        assert backdrop_memory_size >= 0
+        self.backdrop_memory_size = backdrop_memory_size
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
+
+        self.tracker = QDTrackAssociation() if track is None else track
+
+        self.tracklets: dict[int, Track] = {}
+        self.backdrops: list[dict[str, Tensor]] = []
 
     def reset(self) -> None:
         """Empty the memory."""
-        self.frames.clear()
-        self.backdrop_frames.clear()
+        self.tracklets.clear()
+        self.backdrops.clear()
 
-    def update(self, data: QDTrackState) -> None:
-        """Update the track memory with a new state.
+    def is_empty(self) -> bool:
+        """Check if the memory is empty."""
+        return len(self.tracklets) == 0
+
+    def get_tracks(
+        self,
+        device: torch.device,
+        frame_id: int | None = None,
+        add_backdrops: bool = False,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+        """Get tracklests.
+
+        If the frame_id is not provided, will return the latest state of all
+        tracklets. Otherwise, will return the state of all tracklets at the
+        given frame_id. If add_backdrops is True, will also return the
+        backdrops.
 
         Args:
-            data (QDTrackState): The new state.
-        """
-        valid_tracks = torch.nonzero(
-            data.track_ids > -1, as_tuple=False
-        ).squeeze(1)
+            device (torch.device): Device to put the tensors on.
+            frame_id (int, optional): Frame id to query. Defaults to None.
+            add_backdrops (bool, optional): Whether to add backdrops to the
+                output. Defaults to False.
 
-        new_tracks = QDTrackState(*(entry[valid_tracks] for entry in data))
-        self.frames = update_frames(
-            self.frames, new_tracks, self.memory_limit  # type: ignore
+        Returns:
+            boxes (Tensor): 2D boxes in shape (N, 4).
+            scores (Tensor): 2D scores in shape (N,).
+            class_ids (Tensor): Class ids in shape (N,).
+            track_ids (Tensor): Track ids in shape (N,).
+            embeddings (Tensor): Embeddings in shape (N, E).
+        """
+        (
+            boxes_list,
+            scores_list,
+            class_ids_list,
+            embeddings_list,
+            track_ids_list,
+        ) = ([], [], [], [], [])
+
+        for track_id, track in self.tracklets.items():
+            if frame_id is None or track["last_frame"] == frame_id:
+                boxes_list.append(track["box"].unsqueeze(0))
+                scores_list.append(track["score"].unsqueeze(0))
+                class_ids_list.append(track["class_id"].unsqueeze(0))
+                embeddings_list.append(track["embed"].unsqueeze(0))
+                track_ids_list.append(track_id)
+
+        boxes = (
+            torch.cat(boxes_list)
+            if len(boxes_list) > 0
+            else torch.empty((0, 4), device=device)
         )
+        scores = (
+            torch.cat(scores_list)
+            if len(scores_list) > 0
+            else torch.empty((0,), device=device)
+        )
+        class_ids = (
+            torch.cat(class_ids_list)
+            if len(class_ids_list) > 0
+            else torch.empty((0,), device=device)
+        )
+        embeddings = (
+            torch.cat(embeddings_list)
+            if len(embeddings_list) > 0
+            else torch.empty((0,), device=device)
+        )
+        track_ids = torch.tensor(track_ids_list, device=device)
+
+        if add_backdrops:
+            for backdrop in self.backdrops:
+                backdrop_ids = torch.full(
+                    (len(backdrop["embeddings"]),),
+                    -1,
+                    dtype=torch.long,
+                    device=device,
+                )
+                track_ids = torch.cat([track_ids, backdrop_ids])
+                boxes = torch.cat([boxes, backdrop["boxes"]])
+                scores = torch.cat([scores, backdrop["scores"]])
+                class_ids = torch.cat([class_ids, backdrop["class_ids"]])
+                embeddings = torch.cat([embeddings, backdrop["embeddings"]])
+
+        return boxes, scores, class_ids, track_ids, embeddings
+
+    def __call__(
+        self,
+        embeddings_list: list[Tensor],
+        det_boxes_list: list[Tensor],
+        det_scores_list: list[Tensor],
+        class_ids_list: list[Tensor],
+        frame_id_list: list[int],
+    ) -> TrackOut:
+        """Forward during test."""
+        (
+            batched_boxes,
+            batched_scores,
+            batched_class_ids,
+            batched_track_ids,
+        ) = ([], [], [], [])
+
+        for frame_id, det_boxes, det_scores, class_ids, embeddings in zip(
+            frame_id_list,
+            det_boxes_list,
+            det_scores_list,
+            class_ids_list,
+            embeddings_list,
+        ):
+            # reset graph at begin of sequence
+            if frame_id == 0:
+                self.reset()
+                TrackIDCounter.reset()
+
+            if not self.is_empty():
+                (
+                    _,
+                    _,
+                    memo_class_ids,
+                    memo_track_ids,
+                    memo_embeds,
+                ) = self.get_tracks(det_boxes.device, add_backdrops=True)
+            else:
+                memo_class_ids = None
+                memo_track_ids = None
+                memo_embeds = None
+
+            track_ids, filter_indices = self.tracker(
+                det_boxes,
+                det_scores,
+                class_ids,
+                embeddings,
+                memo_track_ids,
+                memo_class_ids,
+                memo_embeds,
+            )
+
+            self.update(
+                frame_id,
+                track_ids,
+                det_boxes[filter_indices],
+                det_scores[filter_indices],
+                class_ids[filter_indices],
+                embeddings[filter_indices],
+            )
+
+            (
+                boxes,
+                scores,
+                class_ids,
+                track_ids,
+                _,
+            ) = self.get_tracks(det_boxes.device, frame_id=frame_id)
+
+            batched_boxes.append(boxes)
+            batched_scores.append(scores)
+            batched_class_ids.append(class_ids)
+            batched_track_ids.append(track_ids)
+
+        return TrackOut(
+            boxes=batched_boxes,
+            class_ids=batched_class_ids,
+            scores=batched_scores,
+            track_ids=batched_track_ids,
+        )
+
+    def update(
+        self,
+        frame_id: int,
+        track_ids: Tensor,
+        boxes: Tensor,
+        scores: Tensor,
+        class_ids: Tensor,
+        embeddings: Tensor,
+    ) -> None:
+        """Update the track memory with a new state."""
+        valid_tracks = track_ids > -1
+
+        # update memo
+        for track_id, box, score, class_id, embed in zip(
+            track_ids[valid_tracks],
+            boxes[valid_tracks],
+            scores[valid_tracks],
+            class_ids[valid_tracks],
+            embeddings[valid_tracks],
+        ):
+            track_id = int(track_id)
+            if track_id in self.tracklets:
+                self.update_track(
+                    track_id, box, score, class_id, embed, frame_id
+                )
+            else:
+                self.create_track(
+                    track_id, box, score, class_id, embed, frame_id
+                )
 
         # backdrops
-        backdrop_tracks = torch.nonzero(
-            data.track_ids == -1, as_tuple=False
-        ).squeeze(1)
+        backdrop_inds = torch.nonzero(track_ids == -1, as_tuple=False).squeeze(
+            1
+        )
 
-        ious = bbox_iou(data.boxes[backdrop_tracks], data.boxes)
+        ious = bbox_iou(boxes[backdrop_inds], boxes)
 
-        for i, ind in enumerate(backdrop_tracks):
+        for i, ind in enumerate(backdrop_inds):
             if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():
-                backdrop_tracks[i] = -1
+                backdrop_inds[i] = -1
+        backdrop_inds = backdrop_inds[backdrop_inds > -1]
 
-        backdrop_tracks = backdrop_tracks[backdrop_tracks > -1]
-        new_backdrops = QDTrackState(
-            *(entry[backdrop_tracks] for entry in data)
+        self.backdrops.insert(
+            0,
+            dict(
+                boxes=boxes[backdrop_inds],
+                scores=scores[backdrop_inds],
+                class_ids=class_ids[backdrop_inds],
+                embeddings=embeddings[backdrop_inds],
+            ),
         )
-        self.backdrop_frames = update_frames(
-            self.backdrop_frames, new_backdrops, self.backdrop_memory_limit  # type: ignore # pylint: disable=line-too-long
+
+        # delete invalid tracks from memory
+        invalid_ids = []
+        for k, v in self.tracklets.items():
+            if frame_id - v["last_frame"] >= self.memory_size:
+                invalid_ids.append(k)
+        for invalid_id in invalid_ids:
+            self.tracklets.pop(invalid_id)
+
+        if len(self.backdrops) > self.backdrop_memory_size:
+            self.backdrops.pop()
+
+    def update_track(
+        self,
+        track_id: int,
+        box: Tensor,
+        score: Tensor,
+        class_id: Tensor,
+        embedding: Tensor,
+        frame_id: int,
+    ) -> None:
+        """Update a specific track with a new models."""
+        self.tracklets[track_id]["box"] = box
+        self.tracklets[track_id]["score"] = score
+        self.tracklets[track_id]["class_id"] = class_id
+        self.tracklets[track_id]["embed"] = (
+            1 - self.memory_momentum
+        ) * self.tracklets[track_id][
+            "embed"
+        ] + self.memory_momentum * embedding
+        self.tracklets[track_id]["last_frame"] = frame_id
+
+    def create_track(
+        self,
+        track_id: int,
+        box: Tensor,
+        score: Tensor,
+        class_id: Tensor,
+        embedding: Tensor,
+        frame_id: int,
+    ) -> None:
+        """Create a new track from a models."""
+        self.tracklets[track_id] = Track(
+            box=box,
+            score=score,
+            class_id=class_id,
+            embed=embedding,
+            last_frame=frame_id,
         )
-
-    def get_track(self, track_id: int) -> list[QDTrackState]:
-        """Get representation of a single track across memory frames.
-
-        Args:
-            track_id (int): track id of query track.
-
-        Returns:
-            list[QDTrackState]: List of track states for given query track.
-        """
-        track = []
-        for frame in self.frames:
-            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
-            if len(idx) > 0:
-                track.append(
-                    QDTrackState(*(element[idx] for element in frame))
-                )
-        return track
-
-    def get_empty_frame(
-        self, n_tracks: int, device: torch.device
-    ) -> QDTrackState:
-        """Get an empty frame with the correct number of tracks.
-
-        Args:
-            n_tracks (int): Number of tracks to allocate.
-            device (torch.device): Device to allocate on.
-
-        Returns:
-            QDTrackState: Empty frame.
-        """
-        track_ids = torch.empty((n_tracks,), dtype=torch.int64, device=device)
-        class_ids = torch.empty((n_tracks,), dtype=torch.int64, device=device)
-        scores = torch.empty((n_tracks,), device=device)
-        boxes = torch.empty((n_tracks, 4), device=device)
-        embeddings = torch.empty((n_tracks, 1), device=device)
-        return QDTrackState(track_ids, boxes, scores, class_ids, embeddings)
-
-    def get_current_tracks(self, device: torch.device) -> QDTrackState:
-        """Get all active tracks and backdrops in memory."""
-        # get last states of all tracks
-        if len(self.frames) > 0:
-            memory = QDTrackState(
-                *(concat_states(self.frames))  # type: ignore
-            )
-
-            last_tracks = QDTrackState(*(get_last_tracks(memory)))
-        else:
-            last_tracks = self.get_empty_frame(0, device)
-
-        # add backdrops
-        if len(self.backdrop_frames) > 0:
-            backdrops = QDTrackState(
-                *(concat_states(self.backdrop_frames))  # type: ignore
-            )
-
-            if backdrops.embeddings.size(1) != last_tracks.embeddings.size(1):
-                assert (
-                    len(last_tracks.embeddings) == 0
-                ), "Unequal shape of backdrop embeddings and track embeddings!"
-                last_tracks = last_tracks._replace(
-                    embeddings=torch.empty(
-                        (0, backdrops.embeddings.size(1)), device=device
-                    )
-                )
-
-            last_tracks = QDTrackState(*(merge_tracks(last_tracks, backdrops)))
-
-        return last_tracks

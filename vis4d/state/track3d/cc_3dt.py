@@ -68,7 +68,7 @@ class CC3DTrackGraph:
         self.backdrop_memory_size = backdrop_memory_size
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
 
-        self.track = CC3DTrackAssociation() if track is None else track
+        self.tracker = CC3DTrackAssociation() if track is None else track
 
         self.tracklets: dict[int, Track] = {}
         self.backdrops: list[DictStrAny] = []
@@ -286,7 +286,7 @@ class CC3DTrackGraph:
             [boxes_3d[:, :6], boxes_3d[:, 8].unsqueeze(1)], dim=1
         )
 
-        track_ids, _, filter_indices = self.track(
+        track_ids, filter_indices = self.tracker(
             boxes_2d,
             camera_ids,
             scores_2d,
