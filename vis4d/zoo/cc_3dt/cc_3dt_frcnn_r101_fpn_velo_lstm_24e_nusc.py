@@ -1,10 +1,8 @@
 # pylint: disable=duplicate-code
-"""CC-3DT with Faster-RCNN detector using ResNet-50."""
+"""CC-3DT inference with Faster-RCNN ResNet-101 detector using VeloLSTM."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
-from torch.optim import SGD
-from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
 from vis4d.config.default import (
@@ -13,7 +11,6 @@ from vis4d.config.default import (
     get_default_pl_trainer_cfg,
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
     nuscenes_class_map,
@@ -22,7 +19,6 @@ from vis4d.data.datasets.nuscenes import (
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
-    DataConnector,
     MultiSensorCallbackConnector,
     MultiSensorDataConnector,
 )
@@ -30,17 +26,14 @@ from vis4d.eval.nuscenes import (
     NuScenesDet3DEvaluator,
     NuScenesTrack3DEvaluator,
 )
+from vis4d.model.motion.velo_lstm import VeloLSTM
 from vis4d.op.base import ResNet
 from vis4d.zoo.cc_3dt.data import (
     CONN_NUSC_DET3D_EVAL,
     CONN_NUSC_TRACK3D_EVAL,
     get_nusc_cfg,
 )
-from vis4d.zoo.cc_3dt.model import (
-    CONN_BBOX_3D_TEST,
-    CONN_BBOX_3D_TRAIN,
-    get_cc_3dt_cfg,
-)
+from vis4d.zoo.cc_3dt.model import CONN_BBOX_3D_TEST, get_cc_3dt_cfg
 
 
 def get_config() -> ExperimentConfig:
@@ -52,15 +45,14 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc")
+    config = get_default_cfg(
+        exp_name="cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc"
+    )
+
+    config.velo_lstm_weights = "https://dl.cv.ethz.ch/vis4d/cc_3dt/velo_lstm_cc_3dt_frcnn_r101_fpn_100e_nusc.pt"  # pylint: disable=line-too-long
 
     # Hyper Parameters
-    params = ExperimentParameters()
-    params.samples_per_gpu = 4
-    params.workers_per_gpu = 4
-    params.lr = 0.01
-    params.num_epochs = 12
-    config.params = params
+    config.params = ExperimentParameters()
 
     ######################################################
     ##          Datasets with augmentations             ##
@@ -78,8 +70,6 @@ def get_config() -> ExperimentConfig:
         train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
-        samples_per_gpu=params.samples_per_gpu,
-        workers_per_gpu=params.workers_per_gpu,
         # batch_normalize_images=True,  # Turn on for using old checkpoints
     )
 
@@ -87,7 +77,7 @@ def get_config() -> ExperimentConfig:
     ##                  MODEL & LOSS                    ##
     ######################################################
     basemodel = class_config(
-        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+        ResNet, resnet_name="resnet101", pretrained=True, trainable_layers=3
     )
 
     nuscenes_detection_range = [
@@ -98,69 +88,19 @@ def get_config() -> ExperimentConfig:
         num_classes=len(nuscenes_class_map),
         basemodel=basemodel,
         detection_range=nuscenes_detection_range,
+        motion_model="VeloLSTM",
+        lstm_model=class_config(VeloLSTM, weights=config.velo_lstm_weights),
         fps=2,
     )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = [
-        get_optimizer_cfg(
-            optimizer=class_config(
-                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
-            ),
-            lr_schedulers=[
-                get_lr_scheduler_cfg(
-                    class_config(LinearLR, start_factor=0.1, total_iters=1000),
-                    end=1000,
-                    epoch_based=False,
-                ),
-                get_lr_scheduler_cfg(
-                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
-                ),
-            ],
-            param_groups=[
-                {
-                    "custom_keys": [
-                        "faster_rcnn_head.rpn_head.rpn_cls.weight",
-                        "faster_rcnn_head.rpn_head.rpn_box.weight",
-                        "faster_rcnn_head.roi_head.fc_cls.weight",
-                        "faster_rcnn_head.roi_head.fc_reg.weight",
-                        "bbox_3d_head.dep_convs.0.weight",
-                        "bbox_3d_head.dep_convs.1.weight",
-                        "bbox_3d_head.dep_convs.2.weight",
-                        "bbox_3d_head.dep_convs.3.weight",
-                        "bbox_3d_head.dim_convs.0.weight",
-                        "bbox_3d_head.dim_convs.1.weight",
-                        "bbox_3d_head.dim_convs.2.weight",
-                        "bbox_3d_head.dim_convs.3.weight",
-                        "bbox_3d_head.rot_convs.0.weight"
-                        "bbox_3d_head.rot_convs.1.weight",
-                        "bbox_3d_head.rot_convs.2.weight",
-                        "bbox_3d_head.rot_convs.3.weight",
-                        "bbox_3d_head.cen_2d_convs.0.weight",
-                        "bbox_3d_head.cen_2d_convs.1.weight",
-                        "bbox_3d_head.cen_2d_convs.2.weight",
-                        "bbox_3d_head.cen_2d_convs.3.weight",
-                        "bbox_3d_head.fc_dep.weight",
-                        "bbox_3d_head.fc_dep_uncer.weight",
-                        "bbox_3d_head.fc_dim.weight",
-                        "bbox_3d_head.fc_rot.weight",
-                        "bbox_3d_head.fc_cen_2d.weight",
-                    ],
-                    "lr_mult": 10.0,
-                }
-            ],
-        )
-    ]
+    config.optimizers = []
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-    config.train_data_connector = class_config(
-        DataConnector, key_mapping=CONN_BBOX_3D_TRAIN
-    )
-
     config.test_data_connector = class_config(
         MultiSensorDataConnector,
         key_mapping=CONN_BBOX_3D_TEST,
@@ -214,8 +154,6 @@ def get_config() -> ExperimentConfig:
     ######################################################
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
-    pl_trainer.max_epochs = params.num_epochs
-    pl_trainer.gradient_clip_val = 10
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

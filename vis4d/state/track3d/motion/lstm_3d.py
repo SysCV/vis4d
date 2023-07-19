@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from vis4d.common import ArgsType
+from vis4d.model.motion.velo_lstm import VeloLSTM
 from vis4d.op.geometry.rotation import acute_angle, normalize_angle
 
 from .base import BaseMotionModel, update_array
@@ -24,9 +25,13 @@ class LSTM3DMotionModel(BaseMotionModel):
         """Initialize a motion model using initial bounding box."""
         super().__init__(*args, **kwargs)
         self.init_flag = init_flag
-
         self.device = obs_3d.device
-        self.lstm_model = lstm_model.to(self.device)
+
+        assert isinstance(
+            lstm_model, VeloLSTM
+        ), "Currently only support VeloLSTM motion model!"
+        self.lstm_model = lstm_model
+        self.lstm_model.to(self.device)
         self.lstm_model.eval()
 
         self.obj_state = torch.cat([obs_3d, obs_3d.new_zeros(3)])

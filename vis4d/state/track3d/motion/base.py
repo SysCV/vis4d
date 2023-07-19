@@ -32,7 +32,7 @@ class BaseMotionModel:
         """Predict velocity."""
         raise NotImplementedError()
 
-    def predict(self) -> Tensor:
+    def predict(self, update_state: bool = True) -> Tensor:
         """Predict the state."""
         raise NotImplementedError()
 

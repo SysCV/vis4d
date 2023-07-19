@@ -22,7 +22,7 @@ from vis4d.config.util import (
     get_optimizer_cfg,
     get_train_dataloader_cfg,
 )
-
+from vis4d.data.datasets.nuscenes_trajectory import NuScenesTrajectory
 from vis4d.engine.connectors import (
     DataConnector,
     LossConnector,
@@ -30,8 +30,6 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
-
-from vis4d.data.datasets.trajectory import Trajectory
 from vis4d.model.motion.velo_lstm import VeloLSTM, VeloLSTMLoss
 
 TRAJ_TRAIN = {"pred_traj": "pred_traj"}
@@ -43,7 +41,7 @@ TRAJ_LOSS = {
 
 
 def get_config() -> ExperimentConfig:
-    """Returns the config dict for cc-3dt on nuScenes.
+    """Returns the config dict for VeloLSTM on nuScenes.
 
     Returns:
         ExperimentConfig: The configuration
@@ -51,9 +49,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="velo_lstm_nusc")
-
-    config.seed = 100
+    config = get_default_cfg(exp_name="velo_lstm_frcnn_r101_fpn_100e_nusc")
 
     # Hyper Parameters
     params = ExperimentParameters()
@@ -69,8 +65,8 @@ def get_config() -> ExperimentConfig:
     data = DataConfig()
 
     train_dataset_cfg = class_config(
-        Trajectory,
-        method_name="cc_3dt_frcnn_r101_fpn",
+        NuScenesTrajectory,
+        detector="cc_3dt_frcnn_r101_fpn",
         data_root="data/nuscenes",
         version="v1.0-trainval",
         split="train",
@@ -81,7 +77,7 @@ def get_config() -> ExperimentConfig:
         dataset_cfg=train_dataset_cfg,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
-        collate_keys=["gt_traj", "pred_traj"],
+        collate_keys=["pred_traj", "gt_traj"],
     )
 
     data.test_dataloader = None
@@ -136,7 +132,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir, refresh_rate=10)
+    callbacks = get_default_callbacks_cfg(config.output_dir)
 
     config.callbacks = callbacks
 
@@ -148,7 +144,7 @@ def get_config() -> ExperimentConfig:
     pl_trainer.max_epochs = params.num_epochs
     pl_trainer.gradient_clip_val = 3
     pl_trainer.checkpoint_period = 20
-    pl_trainer.check_val_every_n_epoch = 101
+    pl_trainer.check_val_every_n_epoch = 101  # Disable validation
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

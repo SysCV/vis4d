@@ -113,17 +113,24 @@ def main(argv: ArgsType) -> None:
         resume_ckpt_path = None
 
     trainer = PLTrainer(callbacks=callbacks, **trainer_args)
+
+    hyper_params = trainer_args
+
+    if config.get("params", None) is not None:
+        hyper_params.update(config.params.to_dict())
+
     training_module = TrainingModule(
         config.model,
         config.optimizers,
         loss,
         train_data_connector,
         test_data_connector,
-        {**config.params.to_dict(), **trainer_args},
+        hyper_params,
         config.seed,
         ckpt_path if not resume else None,
         use_ema=config.get("use_ema", True),
     )
+
     data_module = DataModule(config.data)
 
     if mode == "fit":

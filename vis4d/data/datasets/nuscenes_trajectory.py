@@ -1,18 +1,17 @@
-"""Class for processing Trajectory datasets."""
+"""NuScenes trajectory dataset."""
 from __future__ import annotations
 
-import os
 import json
+import os
 
 import numpy as np
-
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
-from vis4d.data.typing import DictData
+from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.typing import DictStrAny, NDArrayF32
-from vis4d.common.imports import NUSCENES_AVAILABLE
+from vis4d.data.typing import DictData
 
 from .base import Dataset
 from .util import CacheMappingMixin
@@ -24,44 +23,62 @@ if NUSCENES_AVAILABLE:
     from nuscenes.utils.splits import create_splits_scenes
 
 
-class Trajectory(CacheMappingMixin, Dataset):
-    """Trajectory dataset."""
+class NuScenesTrajectory(CacheMappingMixin, Dataset):
+    """NuScenes Trajectory dataset with given detection results.
+
+    It will generate a trajectory data pair with minimum sequence length. The
+    detection results will be matched with the ground truth trajectory
+    according to the BEV distance.
+    """
 
     def __init__(
         self,
-        method_name: str,
+        detector: str,
         pure_detection: str,
         data_root: str,
         version: str = "v1.0-trainval",
         split: str = "train",
         min_seq_len: int = 10,
     ) -> None:
-        """Init dataset."""
+        """Init dataset.
+
+        Args:
+            detector (str): The detector name.
+            pure_detection (str): The path to the pure detection results. It
+                should be the same format as nuScenes submission format.
+            data_root (str): The root path of the dataset.
+            version (str, optional): The version of the dataset. Defaults to
+                "v1.0-trainval".
+            split (str, optional): The split of the dataset. Defaults to
+                "train".
+            min_seq_len (int, optional): The minimum sequence length of the
+                trajectory. Defaults to 10.
+        """
         super().__init__()
         self.data_root = data_root
         self.version = version
         self.split = split
 
-        self.method_name = method_name
+        self.detector = detector
         self.min_seq_len = min_seq_len
 
         self.pure_detection = pure_detection
 
         cached_file_path = os.path.join(
-            data_root, f"{self.method_name}_traj_train.pkl"
+            data_root, f"{self.detector}_traj_train.pkl"
         )
 
         # Load trajectories
         self.samples, _ = self._load_mapping(
             self._generate_data_mapping,
-            cache_as_binary=False,
+            cache_as_binary=True,
             cached_file_path=cached_file_path,
         )
         rank_zero_info(f"Generated {len(self.samples)} trajectories.")
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
-        return f"NuScenes Trajectory Data with {self.method_name} detection"
+        return f"NuScenes Trajectory Data with {self.detector} detection"
 
     def _match_gt_pred(
         self,
@@ -69,7 +86,11 @@ class Trajectory(CacheMappingMixin, Dataset):
         gt_class: str,
         predictions: list[DictStrAny],
     ) -> tuple[NDArrayF32, bool]:
-        """Match gt and pred."""
+        """Match gt and pred according to BEV center distance.
+
+        If the distance is less than 2 meters, the prediction will be used
+        instead of the ground truth.
+        """
         if len(predictions) > 0:
             same_class_preds = [
                 pred
@@ -107,8 +128,8 @@ class Trajectory(CacheMappingMixin, Dataset):
 
         return gt_world, True
 
-    def _generate_data_mapping(self) -> list[DictStrAny]:
-        """Generate trajectories and dataset information."""
+    def _generate_data_mapping(self) -> list[dict[str, NDArrayF32]]:
+        """Generate trajectories predction and groundtruth."""
         data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
         )
@@ -123,14 +144,14 @@ class Trajectory(CacheMappingMixin, Dataset):
 
         instance_tokens = []
 
-        with open(self.pure_detection, "r") as f:
+        with open(self.pure_detection, "r", encoding="utf-8") as f:
             predictions = json.load(f)
 
         num_gt_boxes = 0
         num_pred_boxes = 0
         total_traj = []
         for scene in tqdm(scenes):
-            local_traj = {}
+            local_traj: dict[int, dict[str, list[NDArrayF32]]] = {}
 
             sample_token = scene["first_sample_token"]
             while sample_token:
@@ -181,7 +202,7 @@ class Trajectory(CacheMappingMixin, Dataset):
 
                 sample_token = sample["next"]
 
-            for track_id, traj in local_traj.items():
+            for _, traj in local_traj.items():
                 if len(traj["gt"]) >= self.min_seq_len:
                     trajectory = {
                         "gt": np.concatenate(traj["gt"]),

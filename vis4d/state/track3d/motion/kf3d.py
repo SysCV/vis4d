@@ -44,7 +44,7 @@ class KF3DMotionModel(BaseMotionModel):
             obs_3d, self.motion_dims
         )
 
-    def update(self, obs_3d: Tensor, info: Tensor) -> Tensor:
+    def update(self, obs_3d: Tensor, info: Tensor) -> None:
         """Update the state."""
         self.time_since_update = 0
         self.hits += 1

@@ -7,10 +7,10 @@ from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.geometry.rotation import (
-    rotate_orientation,
-    rotate_velocities,
     euler_angles_to_matrix,
     matrix_to_quaternion,
+    rotate_orientation,
+    rotate_velocities,
 )
 from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter, greedy_assign

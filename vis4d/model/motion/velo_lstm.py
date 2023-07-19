@@ -5,11 +5,11 @@ from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import LossesType
-from vis4d.op.geometry.rotation import normalize_angle, acute_angle
+from vis4d.op.geometry.rotation import acute_angle, normalize_angle
 from vis4d.op.layer.weight_init import xavier_init
 from vis4d.op.loss.base import Loss
 
@@ -90,7 +90,12 @@ class VeloLSTM(nn.Module):
         self._init_weights()
 
         if weights is not None:
-            load_model_checkpoint(self, weights, map_location="cpu")
+            load_model_checkpoint(
+                self,
+                weights,
+                map_location="cpu",
+                rev_keys=[(r"^model\.", ""), (r"^module\.", "")],
+            )
 
     def _init_weights(self) -> None:
         """Initialize model weights."""

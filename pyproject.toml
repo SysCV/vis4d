@@ -79,6 +79,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "cloudpickle.*",
         "scalabel.*",
         "scipy.spatial.transform",
+        "scipy.spatial.distance",
         "appdirs.*",
         "open3d.*",
         "ml_collections.*",
