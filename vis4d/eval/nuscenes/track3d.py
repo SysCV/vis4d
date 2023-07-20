@@ -154,7 +154,7 @@ class NuScenesTrack3DEvaluator(Evaluator):
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""
-        return {}, "Currently only save the json files."
+        return {}, "Currently only save the json file."
 
     def save(self, metric: str, output_dir: str) -> None:
         """Save the results to json files."""

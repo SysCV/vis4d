@@ -30,7 +30,8 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 from vis4d.engine.loss_module import LossModule
-from vis4d.model.motion.velo_lstm import VeloLSTM, VeloLSTMLoss
+from vis4d.model.motion.velo_lstm import VeloLSTM
+from vis4d.op.motion.velo_lstm import VeloLSTMLoss
 
 TRAJ_TRAIN = {"pred_traj": "pred_traj"}
 TRAJ_LOSS = {
@@ -71,6 +72,8 @@ def get_config() -> ExperimentConfig:
         version="v1.0-trainval",
         split="train",
         pure_detection="./vis4d-workspace/pure_det/cc_3dt_frcnn_r101_fpn.json",
+        cache_as_binary=True,
+        cached_file_path="data/nuscenes/cc_3dt_frcnn_r101_fpn_traj_train.pkl",
     )
 
     data.train_dataloader = get_train_dataloader_cfg(

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [tool.black]
 line-length = 79
 
@@ -118,7 +122,7 @@ classifiers = [
 dynamic = ["dependencies"]
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements/base.txt"]}
+dependencies = {file = ["requirements/install.txt"]}
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]

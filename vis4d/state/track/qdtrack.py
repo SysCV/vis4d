@@ -268,12 +268,12 @@ class QDTrackGraph:
 
         self.backdrops.insert(
             0,
-            dict(
-                boxes=boxes[backdrop_inds],
-                scores=scores[backdrop_inds],
-                class_ids=class_ids[backdrop_inds],
-                embeddings=embeddings[backdrop_inds],
-            ),
+            {
+                "boxes": boxes[backdrop_inds],
+                "scores": scores[backdrop_inds],
+                "class_ids": class_ids[backdrop_inds],
+                "embeddings": embeddings[backdrop_inds],
+            },
         )
 
         # delete invalid tracks from memory

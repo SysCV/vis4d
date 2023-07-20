@@ -39,6 +39,8 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
         version: str = "v1.0-trainval",
         split: str = "train",
         min_seq_len: int = 10,
+        cache_as_binary: bool = False,
+        cached_file_path: str | None = None,
     ) -> None:
         """Init dataset.
 
@@ -53,6 +55,10 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
                 "train".
             min_seq_len (int, optional): The minimum sequence length of the
                 trajectory. Defaults to 10.
+            cache_as_binary (bool, optional): Whether to cache the dataset as
+                binary. Defaults to False.
+            cached_file_path (str | None, optional): The path to the cached
+                file. Defaults to None.
         """
         super().__init__()
         self.data_root = data_root
@@ -64,14 +70,10 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
 
         self.pure_detection = pure_detection
 
-        cached_file_path = os.path.join(
-            data_root, f"{self.detector}_traj_train.pkl"
-        )
-
         # Load trajectories
         self.samples, _ = self._load_mapping(
             self._generate_data_mapping,
-            cache_as_binary=True,
+            cache_as_binary=cache_as_binary,
             cached_file_path=cached_file_path,
         )
         rank_zero_info(f"Generated {len(self.samples)} trajectories.")

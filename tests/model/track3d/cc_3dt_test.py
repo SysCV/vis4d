@@ -56,10 +56,12 @@ class CC3DTTest(unittest.TestCase):
             nuscenes_detection_range_map[k] for k in nuscenes_class_map
         ]
 
-        track_graph = CC3DTrackGraph(detection_range=nuscenes_detection_range)
+        track_graph = CC3DTrackGraph()
 
         cc_3dt = FasterRCNNCC3DT(
-            num_classes=len(nuscenes_class_map), track_graph=track_graph
+            num_classes=len(nuscenes_class_map),
+            track_graph=track_graph,
+            detection_range=nuscenes_detection_range,
         )
 
         load_model_checkpoint(
@@ -72,9 +74,7 @@ class CC3DTTest(unittest.TestCase):
         preprocess_fn = compose(
             [
                 GenerateResizeParameters(
-                    shape=(900, 1600),
-                    keep_ratio=True,
-                    sensors=self.CAMERAS,
+                    shape=(256, 704), keep_ratio=True, sensors=self.CAMERAS
                 ),
                 ResizeImages(sensors=self.CAMERAS),
                 ResizeIntrinsics(sensors=self.CAMERAS),
@@ -129,7 +129,7 @@ class CC3DTTest(unittest.TestCase):
             for pred, expected in zip(tracks, testcase_gt):
                 for pred_entry, expected_entry in zip(pred, expected):
                     assert (
-                        torch.isclose(pred_entry, expected_entry, atol=1)
+                        torch.isclose(pred_entry, expected_entry, atol=1e-2)
                         .all()
                         .item()
                     )
