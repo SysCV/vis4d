@@ -26,7 +26,7 @@ def test_model_ema() -> None:
     assert model_.ema_model.param.data == model.param.data
 
     model_.model.param.data.add_(1)
-    model_.update()
+    model_.update(0)
     out = model_.ema_model(torch.ones(1))
     assert torch.isclose(model_.ema_model.param.data, torch.tensor([1.0100]))
     assert torch.isclose(out, torch.ones(1) * 1.0100)
@@ -43,7 +43,7 @@ def test_model_exp_ema() -> None:
     assert model_.ema_model.param.data == model.param.data
 
     model_.model.param.data.add_(1)
-    model_.update()
+    model_.update(0)
     out = model_.ema_model(torch.ones(1))
     assert torch.isclose(model_.ema_model.param.data, torch.tensor([1.9995]))
     assert torch.isclose(out, torch.ones(1) * 1.9995)
