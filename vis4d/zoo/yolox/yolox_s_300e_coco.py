@@ -5,10 +5,6 @@ from __future__ import annotations
 import lightning.pytorch as pl
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.coco.yolox import (
-    CONN_COCO_BBOX_EVAL,
-    get_coco_yolox_cfg,
-)
 from vis4d.config.common.models.yolox import (
     get_yolox_cfg,
     get_yolox_optimizers_cfg,
@@ -32,9 +28,13 @@ from vis4d.engine.callbacks import (
     YOLOXModeSwitchCallback,
     YOLOXSyncNormCallback,
 )
+from vis4d.engine.callbacks.yolox_callbacks import (
+    YOLOXSyncRandomResizeCallback,
+)
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.zoo.yolox.data import CONN_COCO_BBOX_EVAL, get_coco_yolox_cfg
 
 CONN_BBOX_2D_TRAIN = {"images": K.images}
 
@@ -49,6 +49,7 @@ def get_config() -> ExperimentConfig:
     ##                    General Config                ##
     ######################################################
     config = get_default_cfg(exp_name="yolox_s_300e_coco")
+    config.checkpoint_period = 15
     config.check_val_every_n_epoch = 10
 
     # High level hyper parameters
@@ -117,6 +118,11 @@ def get_config() -> ExperimentConfig:
     # YOLOX callbacks
     callbacks += [
         class_config(
+            YOLOXSyncRandomResizeCallback,
+            size_list=[(480 + i, 480 + i) for i in range(0, 321, 32)],
+            interval=10,
+        ),
+        class_config(
             YOLOXModeSwitchCallback,
             switch_epoch=params.num_epochs - num_last_epochs,
         ),
@@ -162,9 +168,18 @@ def get_config() -> ExperimentConfig:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
-    pl_trainer.checkpoint_period = config.check_val_every_n_epoch
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
-    pl_trainer.save_top_k = 1
+    pl_trainer.checkpoint_callback = class_config(
+        pl.callbacks.ModelCheckpoint,
+        dirpath=config.get_ref("output_dir") + "/checkpoints",
+        verbose=True,
+        save_last=True,
+        save_on_train_epoch_end=True,
+        every_n_epochs=config.checkpoint_period,
+        save_top_k=3,
+        mode="max",
+        monitor="step",
+    )
     pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
 

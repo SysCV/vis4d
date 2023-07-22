@@ -117,7 +117,7 @@ class MultiSampleDataPipe(DataPipe):
             else:
                 prep_samples = [samples]
             for prep_fn in preprocess_fn:
-                prep_samples = prep_fn.apply_to_data(prep_samples)
+                prep_samples = prep_fn.apply_to_data(prep_samples)  # type: ignore # pylint: disable=line-too-long
             samples = prep_samples[0]
         return samples
 

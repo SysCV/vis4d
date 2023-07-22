@@ -4,6 +4,7 @@ import os
 from tests.util import get_test_data
 from vis4d.data.data_pipe import DataPipe, MultiSampleDataPipe
 from vis4d.data.datasets import BDD100K
+from vis4d.data.transforms.mosaic import GenMosaicParameters, MosaicImages
 
 
 def test_data_pipe():
@@ -44,7 +45,9 @@ def test_mosaic_data_pipe():
         ),
         config_path="box_track",
     )
-    datapipe = MultiSampleDataPipe(dataset)
+    datapipe = MultiSampleDataPipe(
+        dataset, [[GenMosaicParameters((128, 128)), MosaicImages()]]
+    )
 
     batch = datapipe[0]
     assert set(batch.keys()) == {
@@ -59,6 +62,8 @@ def test_mosaic_data_pipe():
         "boxes2d",
         "boxes2d_classes",
         "boxes2d_track_ids",
+        "transforms",
     }
+    assert "mosaic" in batch["transforms"]
 
     assert datapipe[0]["frame_ids"] - datapipe[1]["frame_ids"] in [1, -1]

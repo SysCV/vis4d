@@ -34,11 +34,7 @@ class TestResize(unittest.TestCase):
         )
         data = tr1.apply_to_data([copy.deepcopy(self.data)])
         tr2 = ResizeImages(
-            in_keys=[
-                "img",
-                "transforms.resize.target_shape",
-                "transforms.resize.interpolation",
-            ],
+            in_keys=["img", "transforms.resize.target_shape"],
             out_keys=["img"],
             sensors=["cam"],
         )

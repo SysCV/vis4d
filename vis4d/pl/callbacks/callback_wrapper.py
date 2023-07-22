@@ -67,7 +67,7 @@ def get_loss_module(loss_module: pl.LightningModule) -> LossModule:
     if isinstance(loss_module, TrainingModule):
         assert loss_module.loss_module is not None
         return loss_module.loss_module
-    return loss_module
+    return loss_module  # type: ignore
 
 
 class CallbackWrapper(pl.Callback):

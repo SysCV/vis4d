@@ -16,7 +16,7 @@ from .trainer_state import TrainerState
 class EMACallback(Callback):
     """Callback for EMA."""
 
-    def on_train_batch_end(
+    def on_train_batch_end(  # pylint: disable=useless-return
         self,
         trainer_state: TrainerState,
         model: nn.Module,
@@ -35,3 +35,4 @@ class EMACallback(Callback):
             "EMACallback."
         )
         module.update(trainer_state["global_step"])
+        return None
