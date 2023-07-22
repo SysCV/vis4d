@@ -223,7 +223,6 @@ class Trainer:
 
                 # Input data
                 data = move_data_to_device(data, self.device)
-                train_input = self.train_data_connector(data)
 
                 for callback in self.callbacks:
                     callback.on_train_batch_start(
@@ -234,20 +233,8 @@ class Trainer:
                         batch_idx=batch_idx,
                     )
 
-                # from vis4d.data.const import CommonKeys as K
-                # from vis4d.vis.functional.image import imshow_bboxes
-                # # if any(len(b) == 0 for b in data[K.boxes2d]):
-                # for i in range(len(data[K.images])):
-                #     imshow_bboxes(
-                #         data[K.images][i],
-                #         data[K.boxes2d][i],
-                #         image_mode="BGR",
-                #         save_path=f"test{i}.png",
-                #     )
-                # breakpoint()
-
                 # Forward + backward + optimize
-                output = model(**train_input)
+                output = model(**self.train_data_connector(data))
 
                 losses = loss_module(output, data)
 

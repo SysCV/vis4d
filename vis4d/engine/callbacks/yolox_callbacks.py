@@ -21,7 +21,6 @@ from vis4d.common.distributed import (
 from vis4d.common.logging import rank_zero_info
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.transforms.resize import get_target_shape
 from vis4d.data.typing import DictData
 from vis4d.engine.loss_module import LossModule
 from vis4d.op.detect.yolox import YOLOXHeadLoss
@@ -159,22 +158,17 @@ class YOLOXSyncRandomResizeCallback(Callback):
         super().__init__(*args, **kwargs)
         self.size_list = size_list
         self.interval = interval
-        self.random_shape = None
+        self.random_shape = size_list[-1]
 
-    def _get_random_shape(
-        self, input_shape: tuple[int, int], device: torch.device
-    ) -> tuple[int, int]:
+    def _get_random_shape(self, device: torch.device) -> tuple[int, int]:
         """Randomly generate shape from size_list and sync across ranks."""
-        shape_tensor = torch.LongTensor(2).to(device)
+        shape_tensor = torch.zeros(2, dtype=torch.int).to(device)
         if get_rank() == 0:
-            random_size = random.choice(self.size_list)
-            random_shape = get_target_shape(
-                input_shape, random_size, keep_ratio=True
-            )
+            random_shape = random.choice(self.size_list)
             shape_tensor[0], shape_tensor[1] = random_shape[0], random_shape[1]
         synchronize()
         shape_tensor = broadcast(shape_tensor, 0)
-        return (shape_tensor[0].item(), shape_tensor[1].item())
+        return (int(shape_tensor[0].item()), int(shape_tensor[1].item()))
 
     def on_train_batch_start(
         self,
@@ -185,15 +179,13 @@ class YOLOXSyncRandomResizeCallback(Callback):
         batch_idx: int,
     ) -> None:
         """Hook to run at the start of a training batch."""
-        if (
-            self.random_shape is None
-            or (trainer_state["global_step"] + 1) % self.interval == 0
-        ):
-            self.random_shape = self._get_random_shape(
-                batch[K.input_hw][0], batch[K.images].device
-            )
-        scale_y = self.random_shape[0] / batch[K.input_hw][0][0]
-        scale_x = self.random_shape[1] / batch[K.input_hw][0][1]
+        if (trainer_state["global_step"] + 1) % self.interval == 0:
+            self.random_shape = self._get_random_shape(batch[K.images].device)
+        scale_y = self.random_shape[0] / batch[K.images].shape[-2]
+        scale_x = self.random_shape[1] / batch[K.images].shape[-1]
+
+        if scale_y == 1 and scale_x == 1:
+            return
 
         # resize images
         batch[K.images] = F.interpolate(

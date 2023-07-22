@@ -88,17 +88,14 @@ class MultiSampleDataPipe(DataPipe):
                 GenMosaicParameters and MosaicImages), and the outer list is
                 for different transforms.
         """
-        super().__init__(datasets, preprocess_fn[0])
+        super().__init__(datasets)
         self.preprocess_fns = preprocess_fn
 
     def _sample_indices(self, idx: int, num_samples: int) -> list[int]:
         """Sample additional indices for multi-sample augmentation."""
         indices = [idx]
         for _ in range(1, num_samples):
-            rand_ind = random.randint(0, len(self) - 1)
-            while rand_ind in indices:
-                rand_ind = random.randint(0, len(self) - 1)
-            indices.append(rand_ind)
+            indices.append(random.randint(0, len(self) - 1))
         return indices
 
     def __getitem__(self, idx: int) -> DictDataOrList:

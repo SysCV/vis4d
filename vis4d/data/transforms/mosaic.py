@@ -8,14 +8,13 @@ import random
 from typing import TypedDict
 
 import numpy as np
-import torch
 
 from vis4d.common.typing import NDArrayF32, NDArrayI32
 from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
 from .crop import _get_keep_mask
-from .resize import get_resize_shape, resize_tensor
+from .resize import resize_image
 
 
 class MosaicParam(TypedDict):
@@ -162,9 +161,9 @@ class GenMosaicParameters:
             imgs = input_hw[i : i + self.NUM_SAMPLES]
             for idx, ori_hw in enumerate(imgs):
                 # compute the resize shape
-                h_i, w_i = get_resize_shape(
-                    ori_hw, (h, w), align_long_edge=True
-                )
+                scale_ratio_i = min(h / ori_hw[0], w / ori_hw[1])
+                h_i = int(ori_hw[0] * scale_ratio_i)
+                w_i = int(ori_hw[1] * scale_ratio_i)
 
                 # compute the combine parameters
                 paste_coord, crop_coord = mosaic_combine(
@@ -173,7 +172,7 @@ class GenMosaicParameters:
                 paste_coords.append(paste_coord)
                 crop_coords.append(crop_coord)
                 im_shapes.append((h_i, w_i))
-                im_scales.append((h_i / ori_hw[0], w_i / ori_hw[1]))
+                im_scales.append((scale_ratio_i, scale_ratio_i))
             mosaic_params += [
                 MosaicParam(
                     out_shape=self.out_shape,
@@ -199,22 +198,32 @@ class GenMosaicParameters:
     out_keys=[K.images, K.input_hw],
 )
 class MosaicImages:
-    """Apply Mosaic to images.
-
-    Args:
-        pad_value (float): The value to pad the image with. Defaults to 114.0.
-        interpolation (str): Interpolation mode for resizing image. Defaults to
-            bilinear.
-    """
+    """Apply Mosaic to images."""
 
     NUM_SAMPLES = 4
 
     def __init__(
-        self, pad_value: float = 114.0, interpolation: str = "bilinear"
+        self,
+        pad_value: float = 114.0,
+        interpolation: str = "bilinear",
+        imresize_backend: str = "torch",
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            pad_value (float): The value to pad the image with. Defaults to
+                114.0.
+            interpolation (str): Interpolation mode for resizing image.
+                Defaults to bilinear.
+            imresize_backend (str): One of torch, cv2. Defaults to torch.
+        """
         self.pad_value = pad_value
         self.interpolation = interpolation
+        self.imresize_backend = imresize_backend
+        assert imresize_backend in {
+            "torch",
+            "cv2",
+        }, f"Invalid imresize backend: {imresize_backend}"
 
     def __call__(
         self,
@@ -231,25 +240,27 @@ class MosaicImages:
         mosaic_imgs = []
         for i in range(0, len(images), self.NUM_SAMPLES):
             mosaic_img = np.full(
-                (1, c, h * 2, w * 2), self.pad_value, dtype=np.float32
+                (1, h * 2, w * 2, c), self.pad_value, dtype=np.float32
             )
             imgs = images[i : i + self.NUM_SAMPLES]
             for idx, img in enumerate(imgs):
                 # resize current image
                 h_i, w_i = im_shapes[i][idx]
-                img_ = torch.from_numpy(img).permute(0, 3, 1, 2)
-                img_ = resize_tensor(
-                    img_, (h_i, w_i), interpolation=self.interpolation
+                img_ = resize_image(
+                    img,
+                    (h_i, w_i),
+                    self.interpolation,
+                    backend=self.imresize_backend,
                 )
 
                 x1_p, y1_p, x2_p, y2_p = paste_coords[i][idx]
                 x1_c, y1_c, x2_c, y2_c = crop_coords[i][idx]
 
                 # crop and paste image
-                mosaic_img[:, :, y1_p:y2_p, x1_p:x2_p] = img_[
-                    :, :, y1_c:y2_c, x1_c:x2_c
+                mosaic_img[:, y1_p:y2_p, x1_p:x2_p, :] = img_[
+                    :, y1_c:y2_c, x1_c:x2_c, :
                 ]
-            mosaic_imgs.append(mosaic_img.transpose(0, 2, 3, 1))
+            mosaic_imgs.append(mosaic_img)
         return mosaic_imgs, [(m.shape[1], m.shape[2]) for m in mosaic_imgs]
 
 

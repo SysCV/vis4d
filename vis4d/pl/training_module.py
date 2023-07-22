@@ -82,6 +82,8 @@ class TrainingModule(pl.LightningModule):
 
             if self.hyper_parameters is not None:
                 self.hyper_parameters["seed"] = self.seed
+                if "checkpoint_callback" in self.hyper_parameters:
+                    self.hyper_parameters.pop("checkpoint_callback")
                 self.save_hyperparameters(self.hyper_parameters)
 
         # Instantiate the model after the seed has been set

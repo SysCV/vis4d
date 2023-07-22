@@ -27,9 +27,11 @@ class EMACallback(Callback):
     ) -> None | MetricLogs:
         """Hook to run at the end of a training batch."""
         if is_module_wrapper(model):
-            model = model.module
-        assert isinstance(model, ModelEMAAdapter), (
+            module = model.module
+        else:
+            module = model
+        assert isinstance(module, ModelEMAAdapter), (
             "Model should be wrapped with ModelEMAAdapter when using "
             "EMACallback."
         )
-        model.update(trainer_state["global_step"])
+        module.update(trainer_state["global_step"])

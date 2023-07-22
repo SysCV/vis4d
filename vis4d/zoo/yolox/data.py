@@ -87,7 +87,7 @@ def get_train_dataloader(
         [
             class_config(GenMosaicParameters, out_shape=image_size),
             class_config(MosaicImages),
-            class_config(MosaicBoxes2D, clip_inside_image=False),
+            class_config(MosaicBoxes2D),
         ]
     ]
 
@@ -118,7 +118,9 @@ def get_train_dataloader(
             ]
         ]
 
-    preprocess_transforms.append([PostProcessBoxes2D(min_area=1.0)])
+    preprocess_transforms.append(
+        [class_config(PostProcessBoxes2D, min_area=1.0)]
+    )
 
     train_batchprocess_cfg = class_config(
         compose,
@@ -134,7 +136,10 @@ def get_train_dataloader(
                 same_on_batch=False,
             ),
             class_config(
-                GenResizeParameters, shape=image_size, keep_ratio=True
+                GenResizeParameters,
+                shape=image_size,
+                keep_ratio=True,
+                same_on_batch=False,
             ),
             class_config(ResizeImages),
             class_config(ResizeBoxes2D),

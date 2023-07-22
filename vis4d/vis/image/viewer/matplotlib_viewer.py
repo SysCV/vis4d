@@ -38,4 +38,4 @@ class MatplotlibImageViewer(ImageViewerBackend):
         for i, image in enumerate(images):
             plt.imshow(image)
             plt.axis("off")
-            plt.savefig(f"{file_paths[i]}")
+            plt.savefig(f"{file_paths[i]}", bbox_inches="tight")

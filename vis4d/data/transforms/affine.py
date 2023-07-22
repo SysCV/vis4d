@@ -239,6 +239,12 @@ class AffineImages:
                 dsize=(width, height),
                 borderValue=self.border_val,
             )[None, ...]
+            # image = cv2.warpPerspective(  # pylint: disable=no-member
+            #     image[0].astype(np.uint8),
+            #     warp_matrix,
+            #     dsize=(width, height),
+            #     borderValue=self.border_val,
+            # )[None, ...].astype(np.float32)
 
             images[i] = image
             input_hw_list.append((height, width))

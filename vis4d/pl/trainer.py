@@ -26,6 +26,7 @@ class PLTrainer(pl.Trainer):
         find_unused_parameters: bool = False,
         save_top_k: int = -1,
         checkpoint_period: int = 1,
+        checkpoint_callback: pl.callbacks.ModelCheckpoint | None = None,
         wandb: bool = False,
         **kwargs: ArgsType,
     ) -> None:
@@ -44,6 +45,7 @@ class PLTrainer(pl.Trainer):
             save_top_k: Save top k checkpoints. Default: -1 (save all).
             checkpoint_period: After N epochs / stpes, save out checkpoints.
                 Default: 1.
+            checkpoint_callback: Custom PL checkpoint callback. Default: None.
             wandb: Use weights and biases logging instead of tensorboard.
                 Default: False.
         """
@@ -88,24 +90,27 @@ class PLTrainer(pl.Trainer):
             ]
 
         # Model checkpointer
-        if epoch_based:
-            checkpoint_cb = pl.callbacks.ModelCheckpoint(
-                dirpath=osp.join(self.output_dir, "checkpoints"),
-                verbose=True,
-                save_last=True,
-                save_top_k=save_top_k,
-                every_n_epochs=checkpoint_period,
-                save_on_train_epoch_end=True,
-            )
+        if checkpoint_callback is None:
+            if epoch_based:
+                checkpoint_cb = pl.callbacks.ModelCheckpoint(
+                    dirpath=osp.join(self.output_dir, "checkpoints"),
+                    verbose=True,
+                    save_last=True,
+                    save_top_k=save_top_k,
+                    every_n_epochs=checkpoint_period,
+                    save_on_train_epoch_end=True,
+                )
 
+            else:
+                checkpoint_cb = pl.callbacks.ModelCheckpoint(
+                    dirpath=osp.join(self.output_dir, "checkpoints"),
+                    verbose=True,
+                    save_last=True,
+                    save_top_k=save_top_k,
+                    every_n_train_steps=checkpoint_period,
+                )
         else:
-            checkpoint_cb = pl.callbacks.ModelCheckpoint(
-                dirpath=osp.join(self.output_dir, "checkpoints"),
-                verbose=True,
-                save_last=True,
-                save_top_k=save_top_k,
-                every_n_train_steps=checkpoint_period,
-            )
+            checkpoint_cb = checkpoint_callback
         callbacks += [checkpoint_cb]
 
         kwargs["callbacks"] += callbacks
