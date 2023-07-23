@@ -70,7 +70,6 @@ CONN_BBOX_3D_TEST = {
 def get_cc_3dt_cfg(
     num_classes: int | FieldReference,
     basemodel: ConfigDict,
-    detection_range: list[float] | FieldReference | None = None,
     pure_det: bool | FieldReference = False,
     motion_model: str | FieldReference = "KF3D",
     lstm_model: ConfigDict | None = None,
@@ -81,8 +80,6 @@ def get_cc_3dt_cfg(
     Args:
         num_classes (int): Number of classes.
         basemodel (ConfigDict): Base model config.
-        detection_range (list[float] | None, optional): Detection range.
-            Defaults to None.
         pure_det (bool, optional): Whether to use pure detection mode.
             Defaults to False.
         motion_model (str, optional): Motion model. Defaults to "KF3D".
@@ -125,7 +122,6 @@ def get_cc_3dt_cfg(
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         track_graph=track_graph,
-        detection_range=detection_range,
         pure_det=pure_det,
     )
 

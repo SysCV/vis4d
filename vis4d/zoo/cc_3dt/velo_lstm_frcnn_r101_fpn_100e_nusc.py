@@ -146,7 +146,6 @@ def get_config() -> ExperimentConfig:
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
     pl_trainer.gradient_clip_val = 3
-    pl_trainer.checkpoint_period = 20
     pl_trainer.check_val_every_n_epoch = 101  # Disable validation
     config.pl_trainer = pl_trainer
 

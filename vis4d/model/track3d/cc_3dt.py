@@ -1,7 +1,7 @@
 """CC-3DT model implementation.
 
 This file composes the operations associated with CC-3DT
-`https://arxiv.org/abs/2212.01247'`_.
+`https://arxiv.org/abs/2212.01247`_ into the full model implementation.
 """
 from __future__ import annotations
 
@@ -19,11 +19,7 @@ from vis4d.op.detect3d.util import bev_3d_nms
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.fpp import FPN
-from vis4d.op.track3d.cc_3dt import (
-    cam_to_global,
-    filter_distance,
-    get_track_3d_out,
-)
+from vis4d.op.track3d.cc_3dt import cam_to_global, get_track_3d_out
 from vis4d.op.track3d.common import Track3DOut
 from vis4d.op.track.qdtrack import QDTrackHead
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
@@ -52,7 +48,6 @@ class FasterRCNNCC3DT(nn.Module):
         qdtrack_head: QDTrackHead | None = None,
         track_graph: CC3DTrackGraph | None = None,
         pure_det: bool = False,
-        detection_range: list[float] | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -70,8 +65,6 @@ class FasterRCNNCC3DT(nn.Module):
                 None. If None, will use default CC3DTrackGraph.
             pure_det (bool, optional): Whether to use pure detection. Defaults
                 to False.
-            detection_range (list[float], optional): Detection range. Defaults
-                to None.
         """
         super().__init__()
         self.basemodel = (
@@ -112,7 +105,6 @@ class FasterRCNNCC3DT(nn.Module):
         )
 
         self.pure_det = pure_det
-        self.detection_range = detection_range
 
     def forward(
         self,
@@ -297,27 +289,12 @@ class FasterRCNNCC3DT(nn.Module):
 
         embeddings_list, _, _, _ = self.qdtrack_head(features, boxes_2d_list)
 
-        # Filter out boxes that are too far away and assign camera id
+        # Assign camera id
         camera_ids_list = []
-        for i, boxes_3d in enumerate(boxes_3d_list):
-            if len(boxes_3d) != 0:
-                if self.detection_range is not None:
-                    valid_boxes = filter_distance(
-                        boxes_3d, class_ids_list[i], self.detection_range
-                    )
-                    boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
-                    scores_2d_list[i] = scores_2d_list[i][valid_boxes]
-                    boxes_3d_list[i] = boxes_3d_list[i][valid_boxes]
-                    scores_3d_list[i] = scores_3d_list[i][valid_boxes]
-                    class_ids_list[i] = class_ids_list[i][valid_boxes]
-                    embeddings_list[i] = embeddings_list[i][valid_boxes]
-
-                # add camera id
-                camera_ids_list.append(
-                    (torch.ones(len(boxes_2d_list[i])) * i).to(
-                        boxes_2d_list[i].device
-                    )
-                )
+        for i, boxes_2d in enumerate(boxes_2d_list):
+            camera_ids_list.append(
+                (torch.ones(len(boxes_2d)) * i).to(boxes_2d.device)
+            )
 
         # Move 3D boxes to world coordinate
         boxes_3d_list = cam_to_global(boxes_3d_list, extrinsics)
@@ -333,10 +310,7 @@ class FasterRCNNCC3DT(nn.Module):
 
         if self.pure_det:
             return get_track_3d_out(
-                boxes_3d,
-                class_ids,
-                scores_2d * scores_3d,
-                torch.zeros_like(class_ids),
+                boxes_3d, class_ids, scores_3d, torch.zeros_like(class_ids)
             )
 
         # 3D NMS

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -112,13 +111,16 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
                 if distance_matrix[distance_matrix.argmin()] <= 2:
                     match_pred = same_class_preds[distance_matrix.argmin()]
 
+                    # WLH -> HWL
+                    w, l, h = match_pred["size"]
+                    dimensions = [h, w, l]
                     yaw = Quaternion(match_pred["rotation"]).yaw_pitch_roll[0]
 
                     pred_world = np.array(
                         [
                             [
                                 *match_pred["translation"],
-                                *match_pred["size"],
+                                *dimensions,
                                 yaw,
                                 match_pred["detection_score"],
                             ]
@@ -131,7 +133,14 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
         return gt_world, True
 
     def _generate_data_mapping(self) -> list[dict[str, NDArrayF32]]:
-        """Generate trajectories predction and groundtruth."""
+        """Generate trajectories predction and groundtruth.
+
+        Trajectories will be generated for each scene. Each trajectory consists
+        of [x, y, z, h, w, l, yaw, score] in world coordinate.
+
+        Returns:
+            list[dict[str, NDArrayF32]]: The list of trajectories.
+        """
         data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
         )
@@ -183,10 +192,13 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
                     if track_id not in local_traj:
                         local_traj[track_id] = {"gt": [], "pred": []}
 
+                    # WLH -> HWL
+                    w, l, h = box3d.wlh
+                    dimensions = [h, w, l]
                     yaw = box3d.orientation.yaw_pitch_roll[0]
 
                     gt_world = np.array(
-                        [[*box3d.center, *box3d.wlh, yaw, 1.0]],
+                        [[*box3d.center, *dimensions, yaw, 1.0]],
                         dtype=np.float32,
                     )
 
@@ -222,7 +234,10 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> DictData:
-        """Return the item at the given index."""
+        """Return the item at the given index.
+
+        The trajectory will be randomly cropped to the minimum sequence length.
+        """
         trajectory = self.samples[idx]
         data_dict: DictData = {}
 

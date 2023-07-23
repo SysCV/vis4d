@@ -11,16 +11,10 @@ from vis4d.op.loss.base import Loss
 class VeloLSTMLoss(Loss):
     """Loss term for VeloLSTM."""
 
-    def __init__(
-        self,
-        loc_dim: int = 7,
-        loss_weight: float = 1.0,
-        smooth_weight: float = 0.001,
-    ) -> None:
+    def __init__(self, loc_dim: int = 7, smooth_weight: float = 0.001) -> None:
         """Initialize the loss term."""
         super().__init__()
         self.loc_dim = loc_dim
-        self.loss_weight = loss_weight
         self.smooth_weight = smooth_weight
 
     @staticmethod
@@ -40,16 +34,11 @@ class VeloLSTMLoss(Loss):
         return loss / (s_len - 2)
 
     def forward(
-        self,
-        loc_preds: Tensor,
-        loc_refines: Tensor,
-        gt_traj: Tensor,
+        self, loc_preds: Tensor, loc_refines: Tensor, gt_traj: Tensor
     ) -> LossesType:
         """Loss term for VeloLSTM."""
         refine_loss = F.smooth_l1_loss(
-            loc_refines,
-            gt_traj[:, 1:, : self.loc_dim],
-            reduction="mean",
+            loc_refines, gt_traj[:, 1:, : self.loc_dim], reduction="mean"
         )
         pred_loss = F.smooth_l1_loss(
             loc_preds[:, :-1, :],
@@ -59,7 +48,7 @@ class VeloLSTMLoss(Loss):
         linear_loss = self.linear_motion_loss(loc_preds[:, :-1, :])
 
         return {
-            "refine_loss": self.loss_weight * refine_loss,
-            "pred_loss": self.loss_weight * pred_loss,
-            "linear_loss": self.smooth_weight * self.loss_weight * linear_loss,
+            "refine_loss": refine_loss,
+            "pred_loss": pred_loss,
+            "linear_loss": self.smooth_weight * linear_loss,
         }

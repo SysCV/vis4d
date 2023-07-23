@@ -110,9 +110,7 @@ def get_train_dataloader(
     )
 
 
-def get_test_dataloader(
-    test_dataset: ConfigDict, batch_normalize_images: bool = False
-) -> ConfigDict:
+def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
     """Get the default test dataloader for nuScenes tracking."""
     test_transforms = [
         class_config(
@@ -125,23 +123,13 @@ def get_test_dataloader(
         class_config(ResizeIntrinsics, sensors=NuScenes.CAMERAS),
     ]
 
-    if not batch_normalize_images:
-        test_transforms.append(
-            class_config(NormalizeImages, sensors=NuScenes.CAMERAS)
-        )
-
     test_preprocess_cfg = class_config(compose, transforms=test_transforms)
 
-    test_batch_transforms = [class_config(PadImages, sensors=NuScenes.CAMERAS)]
-
-    if batch_normalize_images:
-        test_batch_transforms.append(
-            class_config(NormalizeImages, sensors=NuScenes.CAMERAS)
-        )
-
-    test_batch_transforms.append(
-        class_config(ToTensor, sensors=NuScenes.CAMERAS)
-    )
+    test_batch_transforms = [
+        class_config(PadImages, sensors=NuScenes.CAMERAS),
+        class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
+        class_config(ToTensor, sensors=NuScenes.CAMERAS),
+    ]
 
     test_batchprocess_cfg = class_config(
         compose, transforms=test_batch_transforms
@@ -167,7 +155,6 @@ def get_nusc_cfg(
     data_backend: None | ConfigDict = None,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
-    batch_normalize_images: bool = False,
 ) -> DataConfig:
     """Get the default config for nuScenes tracking."""
     data = DataConfig()
@@ -208,8 +195,6 @@ def get_nusc_cfg(
         workers_per_gpu=workers_per_gpu,
     )
 
-    data.test_dataloader = get_test_dataloader(
-        test_dataset, batch_normalize_images=batch_normalize_images
-    )
+    data.test_dataloader = get_test_dataloader(test_dataset)
 
     return data

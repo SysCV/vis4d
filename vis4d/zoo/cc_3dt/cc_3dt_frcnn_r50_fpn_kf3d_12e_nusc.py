@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""CC-3DT with Faster-RCNN detector using ResNet-50."""
+"""CC-3DT with Faster-RCNN ResNet-50 detector using KF3D motion model."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -14,11 +14,7 @@ from vis4d.config.default import (
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.data.datasets.nuscenes import (
-    NuScenes,
-    nuscenes_class_map,
-    nuscenes_detection_range_map,
-)
+from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -80,7 +76,6 @@ def get_config() -> ExperimentConfig:
         data_backend=data_backend,
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
-        # batch_normalize_images=True,  # Turn on for using old checkpoints
     )
 
     ######################################################
@@ -90,15 +85,8 @@ def get_config() -> ExperimentConfig:
         ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
     )
 
-    nuscenes_detection_range = [
-        nuscenes_detection_range_map[k] for k in nuscenes_class_map
-    ]
-
     config.model, config.loss = get_cc_3dt_cfg(
-        num_classes=len(nuscenes_class_map),
-        basemodel=basemodel,
-        detection_range=nuscenes_detection_range,
-        fps=2,
+        num_classes=len(nuscenes_class_map), basemodel=basemodel, fps=2
     )
 
     ######################################################

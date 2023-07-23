@@ -12,11 +12,11 @@ To track the 3D locations and trajectories of the other traffic participants at 
 
 ## Model Zoo
 ### CC-3DT with QD-3DT detector
-| Backbone  | Motion Model | Lr schd | NDS-val | AMOTA-val |                          Config                         |  Weights  |   Preds   |   Visuals   |
-| :-------: | :----------: | :-----: | :-----: | :-------: | :-----------------------------------------------------: | :-------: | :-------: | :---------: |
-| R-50-FPN  |     KF3D     |   1x    |         |           | [config](./cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.py)       | [model]() | [preds]() | [visuals]() |
-| R-101-FPN |     KF3D     |   2x    |         |           | [config](./cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc.py)      | [model]() | [preds]() | [visuals]() |
-| R-101-FPN |   VeloLSTM   |   2x    |         |           | [config](./cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc.py) | [model]() | [preds]() | [visuals]() |
+| Backbone | Motion Model | Lr schd | NDS-val | AMOTA-val | Config | Weights | Preds | Visuals |
+| :------: | :----------: | :-----: | :-----: | :-------: | :----: | :-----: | :---: | :-----: |
+| R-50-FPN | KF3D | 1x | 0.3460 | 0.218 | [config](./cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.py) | [tracking model](https://dl.cv.ethz.ch/vis4d/cc_3dt/cc_3dt_frcnn_r50_fpn_12e_nusc_d98509.pt) | [preds]() | [visuals]() |
+| R-101-FPN | KF3D | 2x | 0.3790 | 0.302 | [config](./cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc.py) | [tracking model](https://dl.cv.ethz.ch/vis4d/cc_3dt/cc_3dt_frcnn_r101_fpn_24e_nusc_f24f84.pt) | [preds]() | [visuals]() |
+| R-101-FPN | VeloLSTM | 2x | 0.3914 | 0.311 | [config](./cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc.py) | [motion model](https://dl.cv.ethz.ch/vis4d/cc_3dt/velo_lstm_cc_3dt_frcnn_r101_fpn_100e_nusc_9526a7.pt) | [preds]() | [visuals]() |
 
 ## Getting Started
 ### Train the Tracking Model
@@ -34,7 +34,7 @@ Generate the pure detection results on training set first.
 python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_pure_det_nusc.py --ckpt ${checkpoint_path} --gpus ${num_gpus}
 ```
 
-Then train the VeloLSTM motion model by updating the pure detection results path in the [config](./velo_lstm_frcnn_r101_fpn_100e_nusc.py#L73).
+Then train the VeloLSTM motion model by updating the pure detection results path in the [config](./velo_lstm_frcnn_r101_fpn_100e_nusc.py#L74).
 ```bash
 python -m vis4d.pl fit --config vis4d/zoo/cc_3dt/velo_lstm_frcnn_r101_fpn_100e_nusc.py --gpus 4
 ```

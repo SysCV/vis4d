@@ -385,15 +385,3 @@ def cam_to_global(
                 boxes_3d_list[i][:, 9:12], extrinsics[i]
             )
     return boxes_3d_list
-
-
-def filter_distance(
-    boxes3d: Tensor,
-    class_ids: Tensor,
-    detection_range: list[float],
-    tolerance: float = 2.0,
-) -> Tensor:
-    """Filter boxes3d on distance."""
-    return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= torch.tensor(
-        [detection_range[class_id] + tolerance for class_id in class_ids]
-    ).to(class_ids.device)

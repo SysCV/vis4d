@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os.path as osp
 
-import lightning.pytorch as pl
+from lightning.pytorch import Callback, Trainer
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import Logger, TensorBoardLogger
 from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
@@ -13,7 +14,7 @@ from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 
 
-class PLTrainer(pl.Trainer):
+class PLTrainer(Trainer):
     """Trainer for PyTorch Lightning."""
 
     def __init__(
@@ -25,6 +26,7 @@ class PLTrainer(pl.Trainer):
         epoch_based: bool = True,
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
+        save_top_k: int = 1,
         wandb: bool = False,
         **kwargs: ArgsType,
     ) -> None:
@@ -42,6 +44,7 @@ class PLTrainer(pl.Trainer):
                 performance.
             checkpoint_period: After N epochs / stpes, save out checkpoints.
                 Default: 1
+            save_top_k: Save top k checkpoints. Default: 1
             wandb: Use weights and biases logging instead of tensorboard.
                 Default: False
         """
@@ -77,30 +80,29 @@ class PLTrainer(pl.Trainer):
                 )
             kwargs["logger"] = exp_logger
 
-        callbacks: list[pl.callbacks.Callback] = []
+        callbacks: list[Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
         if TENSORBOARD_AVAILABLE or wandb:
-            callbacks += [
-                pl.callbacks.LearningRateMonitor(logging_interval="step")
-            ]
+            callbacks += [LearningRateMonitor(logging_interval="step")]
 
         # Model checkpointer
         if epoch_based:
-            checkpoint_cb = pl.callbacks.ModelCheckpoint(
+            checkpoint_cb = ModelCheckpoint(
                 dirpath=osp.join(self.output_dir, "checkpoints"),
                 verbose=True,
                 save_last=True,
-                save_top_k=-1,
+                save_top_k=save_top_k,
                 every_n_epochs=checkpoint_period,
                 save_on_train_epoch_end=True,
             )
 
         else:
-            checkpoint_cb = pl.callbacks.ModelCheckpoint(
+            checkpoint_cb = ModelCheckpoint(
                 dirpath=osp.join(self.output_dir, "checkpoints"),
                 verbose=True,
                 save_last=True,
+                save_top_k=save_top_k,
                 every_n_train_steps=checkpoint_period,
             )
         callbacks += [checkpoint_cb]
