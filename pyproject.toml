@@ -40,6 +40,8 @@ include = ["vis4d"]
             "vis4d/engine/experiment.py",
             "vis4d/engine/flag.py",
             "vis4d/pl/run.py",
+            "vis4d/pl/__main__.py",
+            "vis4d/__main__.py",
         ]
 
 [tool.flake8]

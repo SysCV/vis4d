@@ -606,7 +606,7 @@ class Box3DUncertaintyLoss(Loss):
         """Compute box3d loss.
 
         Args:
-            pred (Tensor): Box predictions of shape [N,
+            pred (Tensor): Box predictions of shape [N, num_classes,
                 6 + 3 * num_rotations_bins].
             target (torcch.Tensor): Target boxes of shape [N,
                 6 + num_rotation_bins].
