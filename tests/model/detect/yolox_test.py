@@ -53,7 +53,11 @@ class YOLOXTest(unittest.TestCase):
         batch = next(iter(test_loader))
         inputs, images_hw = (batch[K.images], batch[K.input_hw])
 
-        yolox = YOLOX(num_classes=80, weights="mmdet")
+        weights = (
+            "mmdet://yolox/yolox_s_8x8_300e_coco/"
+            "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
+        )
+        yolox = YOLOX(num_classes=80, weights=weights)
 
         yolox.eval()
         with torch.no_grad():

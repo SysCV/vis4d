@@ -137,13 +137,13 @@ class GenCropParameters:
     def __call__(
         self,
         input_hw_list: list[tuple[int, int]],
-        boxes_list: list[NDArrayF32 | None],
-        masks_list: list[NDArrayUI8 | None],
+        boxes_list: list[NDArrayF32] | None,
+        masks_list: list[NDArrayUI8] | None,
     ) -> list[CropParam]:
         """Compute the parameters and put them in the data dict."""
         im_h, im_w = input_hw_list[0]
-        boxes = boxes_list[0]
-        masks = masks_list[0]
+        boxes = boxes_list[0] if boxes_list is not None else None
+        masks = masks_list[0] if masks_list is not None else None
 
         crop_box, keep_mask = self._get_crop(im_h, im_w, boxes)
         if (boxes is not None and len(boxes) > 0) or self.cat_max_ratio != 1.0:
@@ -168,7 +168,7 @@ class GenCropParameters:
         return crop_params
 
 
-@Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
+@Transform([K.input_hw, K.boxes2d], "transforms.crop")
 class GenCentralCropParameters:
     """Generate the parameters for a central crop operation."""
 
@@ -190,12 +190,11 @@ class GenCentralCropParameters:
     def __call__(
         self,
         input_hw_list: list[tuple[int, int]],
-        boxes_list: list[NDArrayF32 | None],
-        masks_list: list[NDArrayUI8 | None],
+        boxes_list: list[NDArrayF32] | None,
     ) -> list[CropParam]:
         """Compute the parameters and put them in the data dict."""
         im_h, im_w = input_hw_list[0]
-        boxes = boxes_list[0]
+        boxes = boxes_list[0] if boxes_list is not None else None
 
         crop_size = self.crop_func(im_h, im_w, self.shape)
         crop_box = _get_central_crop(im_h, im_w, crop_size)
@@ -211,7 +210,7 @@ class GenCentralCropParameters:
         return crop_params
 
 
-@Transform([K.input_hw, K.boxes2d, K.seg_masks], "transforms.crop")
+@Transform([K.input_hw, K.boxes2d], "transforms.crop")
 class GenRandomSizeCropParameters:
     """Generate the parameters for a random size crop operation.
 
@@ -275,12 +274,11 @@ class GenRandomSizeCropParameters:
     def __call__(
         self,
         input_hw_list: list[tuple[int, int]],
-        boxes_list: list[NDArrayF32 | None],
-        masks_list: list[NDArrayUI8 | None],
+        boxes_list: list[NDArrayF32] | None,
     ) -> list[CropParam]:
         """Compute the parameters and put them in the data dict."""
         im_h, im_w = input_hw_list[0]
-        boxes = boxes_list[0]
+        boxes = boxes_list[0] if boxes_list is not None else None
 
         crop_box = self.get_params(im_h, im_w)
         keep_mask = (
@@ -342,10 +340,10 @@ class CropBoxes2D:
         self,
         boxes_list: list[NDArrayF32],
         classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32 | None],
+        track_ids_list: list[NDArrayI32] | None,
         crop_box_list: list[NDArrayI32],
         keep_mask_list: list[NDArrayBool],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
         """Crop 2D bounding boxes.
 
         Args:
@@ -353,20 +351,25 @@ class CropBoxes2D:
                 cropped.
             classes_list (list[NDArrayI32]): The list of the corresponding
                 classes.
-            crop_box_list (list[NDArrayI32]): The list of box to crop.
-            keep_mask (list[NDArrayBool]): Which boxes to keep.
-            track_ids (list[NDArrayI32] | None, optional): The list of
+            track_ids_list (list[NDArrayI32] | None, optional): The list of
                 corresponding tracking IDs. Defaults to None.
+            crop_box_list (list[NDArrayI32]): The list of box to crop.
+            keep_mask_list (list[NDArrayBool]): Which boxes to keep.
 
         Returns:
-            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32]] | None:
                 List of cropped bounding boxes according to parameters.
         """
+        track_ids_list_ = (
+            track_ids_list
+            if track_ids_list is not None
+            else [None] * len(boxes_list)
+        )
         for i, (boxes, classes, track_ids, crop_box, keep_mask) in enumerate(
             zip(
                 boxes_list,
                 classes_list,
-                track_ids_list,
+                track_ids_list_,
                 crop_box_list,
                 keep_mask_list,
             )

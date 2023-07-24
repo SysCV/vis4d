@@ -26,7 +26,7 @@ class TestSimOTA(unittest.TestCase):
         )
 
         expected_gt_inds = torch.LongTensor([0, 0])
-        expected_labels = torch.LongTensor([1, 0])
+        expected_labels = torch.LongTensor([1, -1])
         self.assertTrue(
             torch.isclose(
                 match_result.assigned_gt_indices, expected_gt_inds
