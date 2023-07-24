@@ -1,4 +1,4 @@
-"""Testcases for NuScenes evaluator."""
+"""Testcases for NuScenes 3D tracking evaluator."""
 from __future__ import annotations
 
 import unittest
@@ -7,7 +7,6 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
-from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
 from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
@@ -26,14 +25,6 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
 
 class TestNuScenesTrack3DEvaluator(unittest.TestCase):
     """NuScenes evaluator testcase class."""
-
-    CONN_BBOX_3D_TEST = {
-        K.images: K.images,
-        K.original_hw: "images_hw",
-        K.intrinsics: K.intrinsics,
-        K.extrinsics: K.extrinsics,
-        K.frame_ids: K.frame_ids,
-    }
 
     CONN_NUSC_EVAL = {
         "tokens": data_key("token"),

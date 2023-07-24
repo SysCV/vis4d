@@ -4,14 +4,19 @@ from __future__ import annotations
 from ml_collections import ConfigDict, FieldReference
 
 from vis4d.config import class_config
+from vis4d.config.common.models.faster_rcnn import (
+    get_default_rcnn_box_codec_cfg,
+    get_default_rpn_box_codec_cfg,
+)
+from vis4d.config.common.models.qdtrack import (
+    CONN_ROI_LOSS_2D as _CONN_ROI_LOSS_2D,
+)
+from vis4d.config.common.models.qdtrack import (
+    CONN_TRACK_LOSS_2D as _CONN_TRACK_LOSS_2D,
+)
 from vis4d.config.util import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
-from vis4d.engine.connectors import (
-    LossConnector,
-    data_key,
-    pred_key,
-    remap_pred_keys,
-)
+from vis4d.engine.connectors import LossConnector, pred_key, remap_pred_keys
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 from vis4d.op.box.anchor import AnchorGenerator
@@ -22,13 +27,6 @@ from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
-
-from .faster_rcnn import (
-    get_default_rcnn_box_codec_cfg,
-    get_default_rpn_box_codec_cfg,
-)
-from .qdtrack import CONN_ROI_LOSS_2D as _CONN_ROI_LOSS_2D
-from .qdtrack import CONN_TRACK_LOSS_2D as _CONN_TRACK_LOSS_2D
 
 PRED_PREFIX = "qdtrack_out"
 
@@ -68,28 +66,13 @@ CONN_BBOX_3D_TEST = {
     "frame_ids": K.frame_ids,
 }
 
-CONN_NUSC_DET3D_EVAL = {
-    "tokens": data_key("token"),
-    "boxes_3d": pred_key("boxes_3d"),
-    "velocities": pred_key("velocities"),
-    "class_ids": pred_key("class_ids"),
-    "scores_3d": pred_key("scores_3d"),
-}
-
-CONN_NUSC_TRACK3D_EVAL = {
-    "tokens": data_key("token"),
-    "boxes_3d": pred_key("boxes_3d"),
-    "velocities": pred_key("velocities"),
-    "class_ids": pred_key("class_ids"),
-    "scores_3d": pred_key("scores_3d"),
-    "track_ids": pred_key("track_ids"),
-}
-
 
 def get_cc_3dt_cfg(
     num_classes: int | FieldReference,
     basemodel: ConfigDict,
-    detection_range: list[float] | FieldReference | None = None,
+    pure_det: bool | FieldReference = False,
+    motion_model: str | FieldReference = "KF3D",
+    lstm_model: ConfigDict | None = None,
     fps: int | FieldReference = 2,
 ) -> tuple[ConfigDict, ConfigDict]:
     """Get CC-3DT model config.
@@ -97,8 +80,10 @@ def get_cc_3dt_cfg(
     Args:
         num_classes (int): Number of classes.
         basemodel (ConfigDict): Base model config.
-        detection_range (list[float] | None, optional): Detection range.
-            Defaults to None.
+        pure_det (bool, optional): Whether to use pure detection mode.
+            Defaults to False.
+        motion_model (str, optional): Motion model. Defaults to "KF3D".
+        lstm_model (ConfigDict, optional): LSTM model config. Defaults to None.
         fps (int, optional): FPS. Defaults to 2.
     """
     ######################################################
@@ -126,8 +111,8 @@ def get_cc_3dt_cfg(
 
     track_graph = class_config(
         CC3DTrackGraph,
-        motion_model="KF3D",
-        detection_range=detection_range,
+        motion_model=motion_model,
+        lstm_model=lstm_model,
         fps=fps,
     )
 
@@ -137,6 +122,7 @@ def get_cc_3dt_cfg(
         basemodel=basemodel,
         faster_rcnn_head=faster_rcnn_head,
         track_graph=track_graph,
+        pure_det=pure_det,
     )
 
     ######################################################

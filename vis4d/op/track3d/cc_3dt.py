@@ -6,10 +6,47 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
-from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
+from vis4d.op.geometry.rotation import (
+    euler_angles_to_matrix,
+    matrix_to_quaternion,
+    rotate_orientation,
+    rotate_velocities,
+)
 from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter, greedy_assign
 from vis4d.op.track.matching import calc_bisoftmax_affinity
+
+from .common import Track3DOut
+
+
+def get_track_3d_out(
+    boxes_3d: Tensor, class_ids: Tensor, scores_3d: Tensor, track_ids: Tensor
+) -> Track3DOut:
+    """Get track 3D output.
+
+    Args:
+        boxes_3d (Tensor): (N, 12): x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
+        class_ids (Tensor): (N,)
+        scores_3d (Tensor): (N,)
+        track_ids (Tensor): (N,)
+
+    Returns:
+        Track3DOut: output
+    """
+    center = boxes_3d[:, :3]
+    # HWL -> WLH
+    dims = boxes_3d[:, [4, 5, 3]]
+    oritentation = matrix_to_quaternion(
+        euler_angles_to_matrix(boxes_3d[:, 6:9])
+    )
+
+    return Track3DOut(
+        boxes_3d=torch.cat([center, dims, oritentation], dim=1),
+        velocities=boxes_3d[:, 9:12],
+        class_ids=class_ids,
+        scores_3d=scores_3d,
+        track_ids=track_ids,
+    )
 
 
 # @torch.jit.script TODO
@@ -201,28 +238,35 @@ class CC3DTrackAssociation:
         detection_scores_3d: Tensor,
         detection_class_ids: Tensor,
         detection_embeddings: Tensor,
-        memory_boxes_3d: Tensor,
-        memory_track_ids: Tensor,
-        memory_class_ids: Tensor,
-        memory_embeddings: Tensor,
-        memory_boxes_3d_predict: Tensor,
-        memory_velocities: Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+        memory_boxes_3d: Tensor | None = None,
+        memory_track_ids: Tensor | None = None,
+        memory_class_ids: Tensor | None = None,
+        memory_embeddings: Tensor | None = None,
+        memory_boxes_3d_predict: Tensor | None = None,
+        memory_velocities: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
         """Process inputs, match detections with existing tracks.
 
         Args:
             detections (Tensor): [N, 4] detected boxes.
+            camera_ids (Tensor): [N,] camera ids.
             detection_scores (Tensor): [N,] confidence scores.
+            detections_3d (Tensor): [N, 7] detected boxes in 3D.
+            detection_scores_3d (Tensor): [N,] confidence scores in 3D.
             detection_class_ids (Tensor): [N,] class indices.
             detection_embeddings (Tensor): [N, C] appearance embeddings.
+            memory_boxes_3d (Tensor): [M, 7] boxes in memory.
             memory_track_ids (Tensor): [M,] track ids in memory.
             memory_class_ids (Tensor): [M,] class indices in memory.
             memory_embeddings (Tensor): [M, C] appearance embeddings in
                 memory.
+            memory_boxes_3d_predict (Tensor): [M, 7] predicted boxes in
+                memory.
+            memory_velocities (Tensor): [M, 7] velocities in memory.
 
         Returns:
-            tuple[Tensor, Tensor]: track ids of active tracks,
-                selected detection indices corresponding to tracks.
+            tuple[Tensor, Tensor]: track ids of active tracks and selected
+                detection indices corresponding to tracks.
         """
         (
             detections,
@@ -242,15 +286,16 @@ class CC3DTrackAssociation:
             detection_embeddings,
         )
 
-        if len(detections) == 0:
-            return (
-                torch.empty((0,), dtype=torch.long, device=detections.device),
-                torch.empty((0,), dtype=torch.long, device=detections.device),
-                torch.empty((0,), dtype=torch.long, device=detections.device),
+        # match if buffer is not empty
+        if len(detections) > 0 and memory_boxes_3d is not None:
+            assert (
+                memory_track_ids is not None
+                and memory_class_ids is not None
+                and memory_embeddings is not None
+                and memory_boxes_3d_predict is not None
+                and memory_velocities is not None
             )
 
-        # match if buffer is not empty
-        if len(memory_track_ids) > 0:
             # Box 3D
             bbox3d_weight_list = []
             for memory_box_3d_predict in memory_boxes_3d_predict:
@@ -317,41 +362,19 @@ class CC3DTrackAssociation:
                 dtype=torch.long,
                 device=detections.device,
             )
-        match_ids = ids[ids > -1]
         new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
         ids[new_inds] = TrackIDCounter.get_ids(
             new_inds.sum(), device=ids.device  # type: ignore
         )
-        return ids, match_ids, permute_inds
+        return ids, permute_inds
 
 
 def cam_to_global(
-    boxes_2d_list: list[Tensor],
-    scores_2d_list: list[Tensor],
-    boxes_3d_list: list[Tensor],
-    scores_3d_list: list[Tensor],
-    class_ids_list: list[Tensor],
-    embeddings_list: list[Tensor],
-    extrinsics: Tensor,
-    detection_range: None | list[float] = None,
-) -> tuple[Tensor, ...]:
+    boxes_3d_list: list[Tensor], extrinsics: Tensor
+) -> list[Tensor]:
     """Convert camera coordinates to global coordinates."""
-    camera_ids_list = []
     for i, boxes_3d in enumerate(boxes_3d_list):
         if len(boxes_3d) != 0:
-            # filter out boxes that are too far away
-            if detection_range is not None:
-                valid_boxes = filter_distance(
-                    class_ids_list[i], boxes_3d, detection_range
-                )
-                boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
-                scores_2d_list[i] = scores_2d_list[i][valid_boxes]
-                boxes_3d_list[i] = boxes_3d[valid_boxes]
-                scores_3d_list[i] = scores_3d_list[i][valid_boxes]
-                class_ids_list[i] = class_ids_list[i][valid_boxes]
-                embeddings_list[i] = embeddings_list[i][valid_boxes]
-
-            # move 3D boxes to world coordinates
             boxes_3d_list[i][:, :3] = transform_points(
                 boxes_3d_list[i][:, :3], extrinsics[i]
             )
@@ -361,37 +384,4 @@ def cam_to_global(
             boxes_3d_list[i][:, 9:12] = rotate_velocities(
                 boxes_3d_list[i][:, 9:12], extrinsics[i]
             )
-
-        # add camera id
-        camera_ids_list.append(
-            (torch.ones(len(boxes_2d_list[i])) * i).to(boxes_2d_list[i].device)
-        )
-
-    boxes_2d = torch.cat(boxes_2d_list)
-    camera_ids = torch.cat(camera_ids_list)
-    scores_2d = torch.cat(scores_2d_list)
-    boxes_3d = torch.cat(boxes_3d_list)
-    scores_3d = torch.cat(scores_3d_list)
-    class_ids = torch.cat(class_ids_list)
-    embeddings = torch.cat(embeddings_list)
-    return (
-        boxes_2d,
-        camera_ids,
-        scores_2d,
-        boxes_3d,
-        scores_3d,
-        class_ids,
-        embeddings,
-    )
-
-
-def filter_distance(
-    class_ids: Tensor,
-    boxes3d: Tensor,
-    detection_range: list[float],
-    tolerance: float = 2.0,
-) -> Tensor:
-    """Filter boxes3d on distance."""
-    return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= torch.tensor(
-        [detection_range[class_id] + tolerance for class_id in class_ids]
-    ).to(class_ids.device)
+    return boxes_3d_list

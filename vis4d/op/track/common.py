@@ -5,9 +5,16 @@ from torch import Tensor
 
 
 class TrackOut(NamedTuple):
-    """Output of track model."""
+    """Output of track model.
 
-    boxes: list[Tensor]  # (N, 4)
+    Attributes:
+        boxes (list[Tensor]): List of bounding boxes (B, N, 4).
+        class_ids (list[Tensor]): List of class ids (B, N).
+        scores (list[Tensor]): List of scores (B, N).
+        track_ids (list[Tensor]): List of track ids (B, N).
+    """
+
+    boxes: list[Tensor]
     class_ids: list[Tensor]
     scores: list[Tensor]
     track_ids: list[Tensor]

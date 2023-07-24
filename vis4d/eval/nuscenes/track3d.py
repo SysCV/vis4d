@@ -154,14 +154,11 @@ class NuScenesTrack3DEvaluator(Evaluator):
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""
-        return {}, "Currently only save the json files."
+        return {}, "Currently only save the json file."
 
     def save(self, metric: str, output_dir: str) -> None:
         """Save the results to json files."""
-        nusc_annos = {
-            "results": self.tracks_3d,
-            "meta": self.meta_data,
-        }
+        nusc_annos = {"results": self.tracks_3d, "meta": self.meta_data}
         result_file = f"{output_dir}/track_3d_predictions.json"
 
         with open(result_file, mode="w", encoding="utf-8") as f:

@@ -154,9 +154,8 @@ def get_test_dataloader(
             keep_ratio=True,
         ),
         class_config(ResizeImages),
+        class_config(NormalizeImages),
     ]
-
-    preprocess_transforms.append(class_config(NormalizeImages))
 
     test_preprocess_cfg = class_config(
         compose,

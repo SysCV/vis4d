@@ -159,8 +159,15 @@ def run_experiment(
         train_dataloader = None
         train_data_connector = None
 
-    test_dataloader = instantiate_classes(config.data.test_dataloader)
-    test_data_connector = instantiate_classes(config.test_data_connector)
+    if config.data.test_dataloader is not None:
+        test_dataloader = instantiate_classes(config.data.test_dataloader)
+    else:
+        test_dataloader = None
+
+    if config.test_data_connector is not None:
+        test_data_connector = instantiate_classes(config.test_data_connector)
+    else:
+        test_data_connector = None
 
     # Setup Model
     if num_gpus == 0:

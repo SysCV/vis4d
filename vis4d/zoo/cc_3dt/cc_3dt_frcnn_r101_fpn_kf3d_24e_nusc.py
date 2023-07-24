@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""CC-3DT with Faster-RCNN detector using ResNet-101."""
+"""CC-3DT with Faster-RCNN ResNet-101 detector using KF3D motion model."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -7,14 +7,6 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.nuscenes import get_nusc_track_cfg
-from vis4d.config.common.models.cc_3dt import (
-    CONN_BBOX_3D_TEST,
-    CONN_BBOX_3D_TRAIN,
-    CONN_NUSC_DET3D_EVAL,
-    CONN_NUSC_TRACK3D_EVAL,
-    get_cc_3dt_cfg,
-)
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
@@ -22,11 +14,7 @@ from vis4d.config.default import (
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.data.datasets.nuscenes import (
-    NuScenes,
-    nuscenes_class_map,
-    nuscenes_detection_range_map,
-)
+from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -39,6 +27,16 @@ from vis4d.eval.nuscenes import (
     NuScenesTrack3DEvaluator,
 )
 from vis4d.op.base import ResNet
+from vis4d.zoo.cc_3dt.data import (
+    CONN_NUSC_DET3D_EVAL,
+    CONN_NUSC_TRACK3D_EVAL,
+    get_nusc_cfg,
+)
+from vis4d.zoo.cc_3dt.model import (
+    CONN_BBOX_3D_TEST,
+    CONN_BBOX_3D_TRAIN,
+    get_cc_3dt_cfg,
+)
 
 
 def get_config() -> ExperimentConfig:
@@ -70,7 +68,7 @@ def get_config() -> ExperimentConfig:
 
     data_backend = class_config(HDF5Backend)
 
-    config.data = get_nusc_track_cfg(
+    config.data = get_nusc_cfg(
         data_root=data_root,
         version=version,
         train_split=train_split,
@@ -87,15 +85,8 @@ def get_config() -> ExperimentConfig:
         ResNet, resnet_name="resnet101", pretrained=True, trainable_layers=3
     )
 
-    nuscenes_detection_range = [
-        nuscenes_detection_range_map[k] for k in nuscenes_class_map
-    ]
-
     config.model, config.loss = get_cc_3dt_cfg(
-        num_classes=len(nuscenes_class_map),
-        basemodel=basemodel,
-        detection_range=nuscenes_detection_range,
-        fps=2,
+        num_classes=len(nuscenes_class_map), basemodel=basemodel, fps=2
     )
 
     ######################################################

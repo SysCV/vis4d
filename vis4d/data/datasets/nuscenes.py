@@ -11,6 +11,8 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.time import Timer
 from vis4d.common.typing import (
     ArgsType,
     DictStrAny,
@@ -25,7 +27,7 @@ from vis4d.op.geometry.projection import generate_depth_map
 from vis4d.op.geometry.transform import inverse_rigid_transform
 
 from .base import VideoDataset, VideoMapping
-from .util import CacheMappingMixin, im_decode
+from .util import CacheMappingMixin, im_decode, print_class_histogram
 
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
@@ -208,7 +210,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         self.sensors = sensors
         self._check_version_and_split(version, split)
         self.include_non_key = include_non_key  # TODO: Add non-key frames
-        # TODO: implenment skip_empty_samples for training
         self.skip_empty_samples = skip_empty_samples
 
         self.point_based_filter = point_based_filter
@@ -225,13 +226,89 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         # Generate video mapping
         self.video_mapping = self._generate_video_mapping()
 
+    # Needed for CBGS
+    def get_cat_ids(self, idx: int) -> list[int]:
+        """Return the samples."""
+        return self.samples[idx]["LIDAR_TOP"]["annotations"]["boxes3d_classes"]
+
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
         """Remove empty samples."""
+        samples = []
+        frequencies = {cat: 0 for cat in nuscenes_class_map}
+        inv_nuscenes_class_map = {v: k for k, v in nuscenes_class_map.items()}
+
+        t = Timer()
+        for sample in data:
+            (
+                _,
+                boxes3d,
+                boxes3d_classes,
+                boxes3d_attributes,
+                boxes3d_track_ids,
+                boxes3d_velocities,
+            ) = self._filter_boxes(sample["LIDAR_TOP"]["annotations"])
+
+            sample["LIDAR_TOP"]["annotations"]["boxes3d"] = boxes3d
+            sample["LIDAR_TOP"]["annotations"][
+                "boxes3d_classes"
+            ] = boxes3d_classes
+            sample["LIDAR_TOP"]["annotations"][
+                "boxes3d_attributes"
+            ] = boxes3d_attributes
+            sample["LIDAR_TOP"]["annotations"][
+                "boxes3d_track_ids"
+            ] = boxes3d_track_ids
+            sample["LIDAR_TOP"]["annotations"][
+                "boxes3d_velocities"
+            ] = boxes3d_velocities
+
+            for box3d_class in boxes3d_classes:
+                frequencies[inv_nuscenes_class_map[box3d_class]] += 1
+
+            for cam in NuScenes.CAMERAS:
+                (
+                    mask,
+                    boxes3d,
+                    boxes3d_classes,
+                    boxes3d_attributes,
+                    boxes3d_track_ids,
+                    boxes3d_velocities,
+                ) = self._filter_boxes(sample[cam]["annotations"])
+
+                sample[cam]["annotations"]["boxes3d"] = boxes3d
+                sample[cam]["annotations"]["boxes3d_classes"] = boxes3d_classes
+                sample[cam]["annotations"][
+                    "boxes3d_attributes"
+                ] = boxes3d_attributes
+                sample[cam]["annotations"][
+                    "boxes3d_track_ids"
+                ] = boxes3d_track_ids
+                sample[cam]["annotations"][
+                    "boxes3d_velocities"
+                ] = boxes3d_velocities
+                sample[cam]["annotations"]["boxes2d"] = sample[cam][
+                    "annotations"
+                ]["boxes2d"][mask]
+
+            if self.skip_empty_samples:
+                if len(sample["LIDAR_TOP"]["annotations"]["boxes3d"]) > 0:
+                    samples.append(sample)
+            else:
+                samples.append(sample)
+
+        rank_zero_info(
+            f"Preprocessing {len(data)} frames takes {t.time():.2f}"
+            " seconds."
+        )
+
+        print_class_histogram(frequencies)
+
         if self.skip_empty_samples:
-            raise NotImplementedError(
-                "skip_empty_samples is not implemented for NuScenes"
+            rank_zero_info(
+                f"Filtered {len(data) - len(samples)} empty frames."
             )
-        return data
+
+        return samples
 
     def _check_version_and_split(self, version: str, split: str) -> None:
         """Check that the version and split are valid."""
@@ -430,7 +507,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             "timestamp": cam_data["timestamp"],
         }
 
-    # TODO: add unit tests for all coordinate transforms
     def _load_annotations(
         self,
         data: NuScenesDevkit,
@@ -705,15 +781,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
 
             # load LiDAR frame
             if "LIDAR_TOP" in self.sensors:
-                (
-                    _,
-                    boxes3d,
-                    boxes3d_classes,
-                    boxes3d_attributes,
-                    boxes3d_track_ids,
-                    boxes3d_velocities,
-                ) = self._filter_boxes(lidar_data["annotations"])
-
                 data_dict["LIDAR_TOP"] = {
                     "token": sample["token"],
                     K.points3d: points,
@@ -721,11 +788,19 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     K.timestamp: lidar_data["timestamp"],
                     K.frame_ids: sample["frame_ids"],
                     K.axis_mode: AxisMode.ROS,
-                    K.boxes3d: boxes3d,
-                    K.boxes3d_classes: boxes3d_classes,
-                    K.boxes3d_track_ids: boxes3d_track_ids,
-                    K.boxes3d_velocities: boxes3d_velocities,
-                    "attributes": boxes3d_attributes,
+                    K.boxes3d: lidar_data["annotations"]["boxes3d"],
+                    K.boxes3d_classes: lidar_data["annotations"][
+                        "boxes3d_classes"
+                    ],
+                    K.boxes3d_track_ids: lidar_data["annotations"][
+                        "boxes3d_track_ids"
+                    ],
+                    K.boxes3d_velocities: lidar_data["annotations"][
+                        "boxes3d_velocities"
+                    ],
+                    "attributes": lidar_data["annotations"][
+                        "boxes3d_attributes"
+                    ],
                 }
 
         # load camera frame
@@ -758,32 +833,35 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     K.boxes3d in self.keys_to_load
                     or K.boxes2d in self.keys_to_load
                 ):
-                    (
-                        mask,
-                        boxes3d,
-                        boxes3d_classes,
-                        boxes3d_attributes,
-                        boxes3d_track_ids,
-                        boxes3d_velocities,
-                    ) = self._filter_boxes(cam_data["annotations"])
-
                     if K.boxes3d in self.keys_to_load:
-                        data_dict[cam][K.boxes3d] = boxes3d
-                        data_dict[cam][K.boxes3d_classes] = boxes3d_classes
-                        data_dict[cam][K.boxes3d_track_ids] = boxes3d_track_ids
-                        data_dict[cam][
-                            K.boxes3d_velocities
-                        ] = boxes3d_velocities
-                        data_dict[cam]["attributes"] = boxes3d_attributes
+                        data_dict[cam][K.boxes3d] = cam_data["annotations"][
+                            "boxes3d"
+                        ]
+                        data_dict[cam][K.boxes3d_classes] = cam_data[
+                            "annotations"
+                        ]["boxes3d_classes"]
+                        data_dict[cam][K.boxes3d_track_ids] = cam_data[
+                            "annotations"
+                        ]["boxes3d_track_ids"]
+                        data_dict[cam][K.boxes3d_velocities] = cam_data[
+                            "annotations"
+                        ]["boxes3d_velocities"]
+                        data_dict[cam]["attributes"] = cam_data["annotations"][
+                            "boxes3d_attributes"
+                        ]
                         data_dict[cam][K.extrinsics] = cam_data["extrinsics"]
                         data_dict[cam][K.axis_mode] = AxisMode.OPENCV
 
                     if K.boxes2d in self.keys_to_load:
-                        boxes2d = cam_data["annotations"]["boxes2d"][mask]
+                        boxes2d = cam_data["annotations"]["boxes2d"]
 
                         data_dict[cam][K.boxes2d] = boxes2d
-                        data_dict[cam][K.boxes2d_classes] = boxes3d_classes
-                        data_dict[cam][K.boxes2d_track_ids] = boxes3d_track_ids
+                        data_dict[cam][K.boxes2d_classes] = data_dict[cam][
+                            K.boxes3d_classes
+                        ]
+                        data_dict[cam][K.boxes2d_track_ids] = data_dict[cam][
+                            K.boxes3d_track_ids
+                        ]
 
                 if K.depth_maps in self.keys_to_load:
                     depth_maps = self._load_depth_map(
