@@ -360,16 +360,10 @@ class CropBoxes2D:
             tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32]] | None:
                 List of cropped bounding boxes according to parameters.
         """
-        track_ids_list_ = (
-            track_ids_list
-            if track_ids_list is not None
-            else [None] * len(boxes_list)
-        )
-        for i, (boxes, classes, track_ids, crop_box, keep_mask) in enumerate(
+        for i, (boxes, classes, crop_box, keep_mask) in enumerate(
             zip(
                 boxes_list,
                 classes_list,
-                track_ids_list_,
                 crop_box_list,
                 keep_mask_list,
             )
@@ -380,8 +374,8 @@ class CropBoxes2D:
             boxes_list[i] = boxes[keep_mask]
             classes_list[i] = classes[keep_mask]
 
-            if track_ids is not None:
-                track_ids_list[i] = track_ids[keep_mask]
+            if track_ids_list is not None:
+                track_ids_list[i] = track_ids_list[i][keep_mask]
 
         return boxes_list, classes_list, track_ids_list
 
