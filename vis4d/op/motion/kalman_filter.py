@@ -1,4 +1,4 @@
-"""Kalman Filter implementation based on torch for vis4d."""
+"""Kalman Filter PyTorch implementation."""
 from __future__ import annotations
 
 import torch

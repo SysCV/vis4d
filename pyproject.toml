@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [tool.black]
 line-length = 79
 
@@ -36,6 +40,8 @@ include = ["vis4d"]
             "vis4d/engine/experiment.py",
             "vis4d/engine/flag.py",
             "vis4d/pl/run.py",
+            "vis4d/pl/__main__.py",
+            "vis4d/__main__.py",
         ]
 
 [tool.flake8]
@@ -79,6 +85,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "cloudpickle.*",
         "scalabel.*",
         "scipy.spatial.transform",
+        "scipy.spatial.distance",
         "appdirs.*",
         "open3d.*",
         "ml_collections.*",
@@ -117,7 +124,7 @@ classifiers = [
 dynamic = ["dependencies"]
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements/base.txt"]}
+dependencies = {file = ["requirements/install.txt"]}
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]

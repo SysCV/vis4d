@@ -263,10 +263,10 @@ class QDTrackAssociation:
         detection_scores: Tensor,
         detection_class_ids: Tensor,
         detection_embeddings: Tensor,
-        memory_track_ids: Tensor,
-        memory_class_ids: Tensor,
-        memory_embeddings: Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+        memory_track_ids: Tensor | None = None,
+        memory_class_ids: Tensor | None = None,
+        memory_embeddings: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
         """Process inputs, match detections with existing tracks.
 
         Args:
@@ -280,8 +280,8 @@ class QDTrackAssociation:
                 memory.
 
         Returns:
-            tuple[Tensor, Tensor]: track ids of active tracks,
-                selected detection indices corresponding to tracks.
+            tuple[Tensor, Tensor]: track ids of active tracks and selected
+                detection indices corresponding to tracks.
         """
         (
             detections,
@@ -295,15 +295,13 @@ class QDTrackAssociation:
             detection_class_ids,
             detection_embeddings,
         )
-        if len(detections) == 0:
-            return (
-                torch.empty((0,), dtype=torch.long, device=detections.device),
-                torch.empty((0,), dtype=torch.long, device=detections.device),
-                torch.empty((0,), dtype=torch.long, device=detections.device),
-            )
 
         # match if buffer is not empty
-        if len(memory_track_ids) > 0:
+        if len(detections) > 0 and memory_track_ids is not None:
+            assert (
+                memory_class_ids is not None and memory_embeddings is not None
+            )
+
             affinity_scores = calc_bisoftmax_affinity(
                 detection_embeddings,
                 memory_embeddings,
@@ -326,12 +324,11 @@ class QDTrackAssociation:
                 dtype=torch.long,
                 device=detections.device,
             )
-        match_ids = ids[ids > -1]
         new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
         ids[new_inds] = TrackIDCounter.get_ids(
             new_inds.sum(), device=ids.device  # type: ignore
         )
-        return ids, match_ids, permute_inds
+        return ids, permute_inds
 
 
 class QDSimilarityHead(nn.Module):

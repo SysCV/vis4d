@@ -38,3 +38,47 @@ class TestCC3DTConfig(unittest.TestCase):
                 self.varying_keys,
             )
         )
+
+    def test_frcnn_r101_fpn_pure_det_nusc(self) -> None:
+        """Test the config."""
+        cfg_gt = (
+            f"{self.gt_config_path}/cc_3dt_frcnn_r101_fpn_pure_det_nusc.yaml"
+        )
+
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.cc_3dt_frcnn_r101_fpn_pure_det_nusc",
+                cfg_gt,
+                self.varying_keys,
+            )
+        )
+
+    def test_frcnn_r101_fpn_velo_lstm_24e_nusc(self) -> None:
+        """Test the config."""
+        cfg_gt = (
+            f"{self.gt_config_path}/"
+            + "cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc.yaml"
+        )
+
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}."
+                + "cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc",
+                cfg_gt,
+                self.varying_keys,
+            )
+        )
+
+    def test_velo_lstm_frcnn_r101_fpn_100e_nusc(self) -> None:
+        """Test the config."""
+        cfg_gt = (
+            f"{self.gt_config_path}/velo_lstm_frcnn_r101_fpn_100e_nusc.yaml"
+        )
+
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.velo_lstm_frcnn_r101_fpn_100e_nusc",
+                cfg_gt,
+                self.varying_keys,
+            )
+        )

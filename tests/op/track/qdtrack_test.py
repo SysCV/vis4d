@@ -44,7 +44,7 @@ def test_association() -> None:
     mem_embeddings = embeddings.clone()
     mem_classes = classes.clone()
 
-    track_ids, _, indices = tracker(
+    track_ids, indices = tracker(
         boxes,
         scores,
         classes,
@@ -57,13 +57,12 @@ def test_association() -> None:
     track_ids_negative = track_ids[scores_permute < tracker.obj_score_thr]
     track_ids_positive = track_ids[scores_permute >= tracker.obj_score_thr]
     assert (track_ids_negative < 0).all()
-    # update test gt after refactoring config
-    # assert torch.isclose(
-    #     track_ids_positive, mem_track_ids[indices[track_ids != -1]]
-    # ).all()
+    assert torch.isclose(
+        track_ids_positive, mem_track_ids[indices[track_ids > -1]]
+    ).all()
 
     # test non-equal classes
-    track_ids, indices, _ = tracker(
+    track_ids, _ = tracker(
         boxes,
         scores,
         classes + 1,

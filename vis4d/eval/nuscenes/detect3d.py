@@ -101,6 +101,7 @@ class NuScenesDet3DEvaluator(Evaluator):
         data_root: str,
         version: str,
         split: str,
+        save_only: bool = False,
         metadata: tuple[str, ...] = ("use_camera",),
         use_default_attr: bool = False,
         velocity_thres: float = 1.0,
@@ -110,6 +111,7 @@ class NuScenesDet3DEvaluator(Evaluator):
         self.data_root = data_root
         self.version = version
         self.split = split
+        self.save_only = save_only
         self.use_default_attr = use_default_attr
         self.velocity_thres = velocity_thres
 
@@ -272,6 +274,9 @@ class NuScenesDet3DEvaluator(Evaluator):
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""
         assert metric == "detect_3d"
+        if self.save_only:
+            return {}, "Results are saved to the json file."
+
         try:
             nusc = NuScenesDevkit(
                 version=self.version,
