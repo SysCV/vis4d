@@ -773,7 +773,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             lidar_data = sample["LIDAR_TOP"]
 
             points_bytes = self.data_backend.get(lidar_data["lidar_path"])
-            points = np.frombuffer(points_bytes, dtype=np.float32)
+            points = np.frombuffer(bytearray(points_bytes), dtype=np.float32)
             points = points.reshape(-1, 5)[:, :3]
 
         if K.depth_maps in self.keys_to_load:
@@ -812,12 +812,14 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     "token": sample["token"],
                     K.frame_ids: sample["frame_ids"],
                     K.timestamp: cam_data["timestamp"],
+                    K.sequence_names: sample["scene_name"],
                 }
 
                 if K.images in self.keys_to_load:
                     im_bytes = self.data_backend.get(cam_data["image_path"])
                     image = np.ascontiguousarray(
-                        im_decode(im_bytes), dtype=np.float32
+                        im_decode(im_bytes, mode=self.image_channel_mode),
+                        dtype=np.float32,
                     )[None]
 
                     data_dict[cam][K.images] = image

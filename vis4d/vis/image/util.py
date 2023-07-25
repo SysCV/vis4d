@@ -15,8 +15,13 @@ from vis4d.common.typing import (
     NDArrayUI8,
 )
 from vis4d.data.const import AxisMode
-from vis4d.op.box.box3d import boxes3d_to_corners
+from vis4d.op.box.box3d import (
+    boxes3d_in_image,
+    boxes3d_to_corners,
+    transform_boxes3d,
+)
 from vis4d.op.geometry.projection import project_points
+from vis4d.op.geometry.transform import inverse_rigid_transform
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 
@@ -158,8 +163,10 @@ def preprocess_boxes(
 
 
 def preprocess_boxes3d(
+    image_hw: tuple[int, int],
     boxes3d: ArrayLikeFloat,
-    intrinsics: NDArrayF32,
+    intrinsics: ArrayLikeFloat,
+    extrinsics: ArrayLikeFloat | None = None,
     scores: None | ArrayLikeFloat = None,
     class_ids: None | ArrayLikeInt = None,
     track_ids: None | ArrayLikeInt = None,
@@ -180,28 +187,42 @@ def preprocess_boxes3d(
         class_id_mapping = {}
 
     boxes3d = array_to_numpy(boxes3d, n_dims=2, dtype=np.float32)
+    intrinsics = array_to_numpy(intrinsics, n_dims=2, dtype=np.float32)
 
-    corners = boxes3d_to_corners(
-        torch.from_numpy(boxes3d), axis_mode=AxisMode.OPENCV
-    )
+    boxes3d = torch.from_numpy(boxes3d)
+    intrinsics = torch.from_numpy(intrinsics)
 
-    corners = torch.cat(
-        [
-            project_points(corners, torch.from_numpy(intrinsics)),
-            corners[:, :, 2:3],
-        ],
-        dim=-1,
-    ).numpy()
+    if extrinsics is not None:
+        extrinsics = array_to_numpy(extrinsics, n_dims=2, dtype=np.float32)
+        extrinsics = torch.from_numpy(extrinsics)
+        global_to_cam = inverse_rigid_transform(extrinsics)
+        boxes3d = transform_boxes3d(
+            boxes3d,
+            global_to_cam,
+            source_axis_mode=AxisMode.ROS,
+            target_axis_mode=AxisMode.OPENCV,
+        )
+
+    corners = boxes3d_to_corners(boxes3d, axis_mode=AxisMode.OPENCV)
+
+    mask = boxes3d_in_image(corners, intrinsics, image_hw)
+
+    corners_np = corners.numpy()
 
     scores_np = array_to_numpy(scores, n_dims=1, dtype=np.float32)
     class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
     track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
+    corners_np = corners_np[mask]
+    scores_np = scores_np[mask] if scores_np is not None else None
+    class_ids_np = class_ids_np[mask] if class_ids_np is not None else None
+    track_ids_np = track_ids_np[mask] if track_ids_np is not None else None
+
     boxes3d_proc: list[list[tuple[float, float, float]]] = []
     colors_proc: list[tuple[int, int, int]] = []
     labels_proc: list[str] = []
 
-    for idx in range(corners.shape[0]):
+    for idx in range(corners_np.shape[0]):
         class_id = None if class_ids_np is None else class_ids_np[idx].item()
         score = None if scores_np is None else scores_np[idx].item()
         track_id = None if track_ids_np is None else track_ids_np[idx].item()
@@ -214,7 +235,7 @@ def preprocess_boxes3d(
             color = default_color
 
         boxes3d_proc.append(
-            [tuple(pts) for pts in corners[idx].tolist()]  # type: ignore
+            [tuple(pts) for pts in corners_np[idx].tolist()]  # type: ignore
         )
         colors_proc.append(color)
         labels_proc.append(
@@ -317,10 +338,10 @@ def get_intersection_point(
     point1: tuple[float, float, float],
     point2: tuple[float, float, float],
     camera_near_clip: float,
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
     """Get point intersecting with camera near plane on line point1 -> point2.
 
-    The line is defined by two points in pixel coordinates and their depth.
+    The line is defined by two points in camera coordinates and their depth.
 
     Args:
         point1 (tuple[float x 3]): First point in camera coordinates.
@@ -328,7 +349,8 @@ def get_intersection_point(
         camera_near_clip (float): camera_near_clip
 
     Returns:
-        tuple[float x 2]: The intersection point in camera coordiantes.
+        tuple[float, float, float]: The intersection point in camera
+            coordiantes.
     """
     c1, c2, c3 = 0, 0, camera_near_clip
     a1, a2, a3 = 0, 0, 1
@@ -341,4 +363,21 @@ def get_intersection_point(
         k = 1.0
     else:
         k = k_up / k_down
-    return ((1 - k) * x1 + k * x1, (1 - k) * x2 + k * x2)
+
+    return ((1 - k) * x1 + k * x2, (1 - k) * y1 + k * y2, camera_near_clip)
+
+
+def project_point(
+    point: tuple[float, float, float], intrinsics: NDArrayF32
+) -> tuple[float, float]:
+    """Project single point into the image plane."""
+    projected_x, projected_y = (
+        project_points(
+            torch.from_numpy(np.array([point], dtype=np.float32)),
+            torch.from_numpy(intrinsics),
+        )
+        .squeeze(0)
+        .numpy()
+        .tolist()
+    )
+    return projected_x, projected_y

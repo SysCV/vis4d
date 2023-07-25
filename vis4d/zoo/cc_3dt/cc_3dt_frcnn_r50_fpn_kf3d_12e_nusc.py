@@ -14,19 +14,23 @@ from vis4d.config.default import (
 )
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
     DataConnector,
     MultiSensorCallbackConnector,
     MultiSensorDataConnector,
+    data_key,
+    pred_key,
 )
 from vis4d.eval.nuscenes import (
     NuScenesDet3DEvaluator,
     NuScenesTrack3DEvaluator,
 )
 from vis4d.op.base import ResNet
+from vis4d.vis.image.bbox3d_visualizer import BoundingBox3DVisualizer
 from vis4d.zoo.cc_3dt.data import (
     CONN_NUSC_DET3D_EVAL,
     CONN_NUSC_TRACK3D_EVAL,
@@ -37,6 +41,18 @@ from vis4d.zoo.cc_3dt.model import (
     CONN_BBOX_3D_TRAIN,
     get_cc_3dt_cfg,
 )
+
+CONN_BBOX_3D_VIS = {
+    "images": data_key(K.original_images),
+    "image_names": data_key(K.sample_names),
+    "boxes3d": pred_key("boxes_3d"),
+    "intrinsics": data_key(K.intrinsics),
+    "extrinsics": data_key(K.extrinsics),
+    "scores": pred_key("scores_3d"),
+    "class_ids": pred_key("class_ids"),
+    "track_ids": pred_key("track_ids"),
+    "sequence_names": data_key(K.sequence_names),
+}
 
 
 def get_config() -> ExperimentConfig:
@@ -65,6 +81,10 @@ def get_config() -> ExperimentConfig:
     version = "v1.0-trainval"
     train_split = "train"
     test_split = "val"
+
+    version = "v1.0-mini"
+    train_split = "mini_train"
+    test_split = "mini_val"
 
     data_backend = class_config(HDF5Backend)
 
@@ -190,6 +210,27 @@ def get_config() -> ExperimentConfig:
             test_connector=class_config(
                 MultiSensorCallbackConnector,
                 key_mapping=CONN_NUSC_TRACK3D_EVAL,
+                sensors=NuScenes.CAMERAS,
+            ),
+        )
+    )
+
+    # Visualizer
+    callbacks.append(
+        class_config(
+            VisualizerCallback,
+            visualizer=class_config(
+                BoundingBox3DVisualizer,
+                cat_mapping=nuscenes_class_map,
+                width=2,
+                camera_near_clip=0.15,
+                cameras=NuScenes.CAMERAS,
+                vis_freq=1,
+            ),
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                MultiSensorCallbackConnector,
+                key_mapping=CONN_BBOX_3D_VIS,
                 sensors=NuScenes.CAMERAS,
             ),
         )

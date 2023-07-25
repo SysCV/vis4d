@@ -5,12 +5,13 @@ import numpy as np
 import torch
 from torch import Tensor
 
+from vis4d.data.const import AxisMode
 from vis4d.op.geometry.projection import project_points, unproject_points
 from vis4d.op.geometry.rotation import (
     alpha2yaw,
-    matrix_to_euler_angles,
     normalize_angle,
     quaternion_to_matrix,
+    rotation_matrix_yaw,
     rotation_output_to_alpha,
     yaw2alpha,
 )
@@ -64,9 +65,9 @@ class QD3DTBox3DEncoder:
         dims = dims[:, [2, 0, 1]]
 
         # rotation
-        yaw = matrix_to_euler_angles(
-            quaternion_to_matrix(boxes3d[:, 6:]), "YZX"
-        )[:, 0]
+        yaw = rotation_matrix_yaw(
+            quaternion_to_matrix(boxes3d[:, 6:]), axis_mode=AxisMode.OPENCV
+        )[:, 1]
         alpha = yaw2alpha(yaw, boxes3d[:, :3])
         bin_cls = torch.zeros(
             (alpha.shape[0], self.num_rotation_bins), device=alpha.device

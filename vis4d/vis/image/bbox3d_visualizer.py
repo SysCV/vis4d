@@ -1,0 +1,300 @@
+"""Bounding box 3D visualizer."""
+from __future__ import annotations
+
+import os
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+import numpy as np
+
+from vis4d.common.array import array_to_numpy
+from vis4d.common.typing import (
+    ArgsType,
+    ArrayLike,
+    ArrayLikeFloat,
+    ArrayLikeInt,
+    NDArrayF32,
+    NDArrayUI8,
+)
+from vis4d.vis.base import Visualizer
+from vis4d.vis.util import generate_color_map
+
+from .canvas import CanvasBackend, PillowCanvasBackend
+from .util import preprocess_boxes3d, preprocess_image, project_point
+from .viewer import ImageViewerBackend, MatplotlibImageViewer
+
+
+@dataclass
+class DetectionBox3D:
+    """Dataclass storing box informations."""
+
+    corners: list[tuple[float, float, float]]
+    label: str
+    color: tuple[int, int, int]
+
+
+@dataclass
+class DataSample:
+    """Dataclass storing a data sample that can be visualized."""
+
+    image: NDArrayUI8
+    image_name: str
+    intrinsics: NDArrayF32
+    sequence_name: str | None
+    camera_name: str | None
+    boxes: list[DetectionBox3D]
+
+
+class BoundingBox3DVisualizer(Visualizer):
+    """Bounding box 3D visualizer class."""
+
+    def __init__(
+        self,
+        *args: ArgsType,
+        n_colors: int = 100,
+        cat_mapping: dict[str, int] | None = None,
+        file_type: str = "png",
+        image_mode: str = "RGB",
+        width: int = 2,
+        camera_near_clip: float = 0.15,
+        cameras: Sequence[str] | None = None,
+        canvas: CanvasBackend | None = None,
+        viewer: ImageViewerBackend | None = None,
+        **kwargs: ArgsType,
+    ) -> None:
+        """Creates a new Visualizer for Image and Bounding Boxes.
+
+        Args:
+            n_colors (int): How many colors should be used for the internal
+                color map. Defaults to 100.
+            cat_mapping (dict[str, int]): Mapping from class names to class
+                ids. Defaults to None.
+            file_type (str): Desired file type. Defaults to "png".
+            image_mode (str): Image channel mode (RGB or BGR). Defaults to
+                "RGB".
+            width (int): Width of the drawn bounding boxes. Defaults to 2.
+            camera_near_clip (float): Near clipping plane of the camera.
+                Defaults to 0.15.
+            cameras (Sequence[str]): Camera names. Defaults to None.
+            canvas (CanvasBackend): Backend that is used to draw on images. If
+                None a PillowCanvasBackend is used.
+            viewer (ImageViewerBackend): Backend that is used show images. If
+                None a MatplotlibImageViewer is used.
+        """
+        super().__init__(*args, **kwargs)
+        self._samples: list[DataSample] = []
+        self.color_palette = generate_color_map(n_colors)
+
+        self.class_id_mapping = (
+            {v: k for k, v in cat_mapping.items()}
+            if cat_mapping is not None
+            else {}
+        )
+
+        self.file_type = file_type
+        self.image_mode = image_mode
+        self.width = width
+        self.cameras = cameras
+        self.camera_near_clip = camera_near_clip
+        self.canvas = canvas if canvas is not None else PillowCanvasBackend()
+        self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
+
+    def reset(self) -> None:
+        """Reset visualizer."""
+        self._samples.clear()
+
+    def process(  # type: ignore # pylint: disable=arguments-differ
+        self,
+        cur_iter: int,
+        images: list[ArrayLike],
+        image_names: list[str],
+        boxes3d: list[ArrayLikeFloat],
+        intrinsics: ArrayLikeFloat,
+        extrinsics: ArrayLikeFloat | None = None,
+        scores: None | ArrayLikeFloat = None,
+        class_ids: None | ArrayLikeInt = None,
+        track_ids: None | ArrayLikeInt = None,
+        sequence_names: None | list[str] = None,
+    ) -> None:
+        """Processes a batch of data.
+
+        Args:
+            cur_iter (int): Current iteration.
+            images (list[ArrayLike]): Images to show.
+            image_names (list[str]): Image names.
+            boxes3d (list[ArrayLikeFloat]): List of predicted bounding boxes
+                with shape [N, 10].
+            intrinsics (ArrayLikeFloat): Camera intrinsics with shape [3, 3].
+            extrinsics (None | ArrayLikeFloat, optional): Camera extrinsics
+                with shape [4, 4]. Defaults to None.
+            scores (None | list[ArrayLikeFloat], optional): List of predicted
+                box scores each of shape [N]. Defaults to None.
+            class_ids (None | list[ArrayLikeInt], optional): List of predicted
+                class ids each of shape [N]. Defaults to None.
+            track_ids (None | list[ArrayLikeInt], optional): List of predicted
+                track ids each of shape [N]. Defaults to None.
+            sequence_names (None | list[str], optional): List of sequence
+                names. Defaults to None.
+        """
+        if self._run_on_batch(cur_iter):
+            for idx, image in enumerate(images):
+                # TODO: Fix batch size
+                self.process_single_image(
+                    image[0],
+                    image_names[idx][0],
+                    boxes3d,
+                    intrinsics[idx][0],
+                    extrinsics[idx][0] if extrinsics is not None else None,
+                    None if scores is None else scores,
+                    None if class_ids is None else class_ids,
+                    None if track_ids is None else track_ids,
+                    None if sequence_names is None else sequence_names[idx][0],
+                    None if self.cameras is None else self.cameras[idx],
+                )
+
+    def process_single_image(
+        self,
+        image: ArrayLike,
+        image_name: str,
+        boxes3d: ArrayLikeFloat,
+        intrinsics: ArrayLikeFloat,
+        extrinsics: ArrayLikeFloat | None = None,
+        scores: None | ArrayLikeFloat = None,
+        class_ids: None | ArrayLikeInt = None,
+        track_ids: None | ArrayLikeInt = None,
+        sequence_name: None | str = None,
+        camera_name: None | str = None,
+    ) -> None:
+        """Processes a single image entry.
+
+        Args:
+            image (ArrayLike): Image to show.
+            image_name (str): Image name.
+            boxes3d (ArrayLikeFloat): Predicted bounding boxes with shape
+                [N, 10], where  N is the number of boxes.
+            intrinsics (ArrayLikeFloat): Camera intrinsics with shape [3, 3].
+            extrinsics (None | ArrayLikeFloat, optional): Camera extrinsics
+                with shape [4, 4]. Defaults to None.
+            scores (None | ArrayLikeFloat, optional): Predicted box scores of
+                shape [N]. Defaults to None.
+            class_ids (None | ArrayLikeInt, optional): Predicted class ids of
+                shape [N]. Defaults to None.
+            track_ids (None | ArrayLikeInt, optional): Predicted track ids of
+                shape [N]. Defaults to None.
+            sequence_name (None | str, optional): Sequence name. Defaults to
+                None.
+            camera_name (None | str, optional): Camera name. Defaults to None.
+        """
+        img_normalized = preprocess_image(image, mode=self.image_mode)
+        image_hw = (img_normalized.shape[0], img_normalized.shape[1])
+
+        intrinsics_np = array_to_numpy(intrinsics, n_dims=2, dtype=np.float32)
+        data_sample = DataSample(
+            img_normalized,
+            image_name,
+            intrinsics_np,  # type: ignore
+            sequence_name,
+            camera_name,
+            [],
+        )
+
+        for corners, label, color in zip(
+            *preprocess_boxes3d(
+                image_hw,
+                boxes3d,
+                intrinsics,
+                extrinsics,
+                scores,
+                class_ids,
+                track_ids,
+                self.color_palette,
+                self.class_id_mapping,
+            )
+        ):
+            data_sample.boxes.append(
+                DetectionBox3D(corners=corners, label=label, color=color)
+            )
+
+        self._samples.append(data_sample)
+
+    def show(self, cur_iter: int, blocking: bool = True) -> None:
+        """Shows the processed images in a interactive window.
+
+        Args:
+            cur_iter (int): Current iteration.
+            blocking (bool): If the visualizer should be blocking i.e. wait for
+                human input for each image. Defaults to True.
+        """
+        if self._run_on_batch(cur_iter):
+            image_data = [self._draw_image(d) for d in self._samples]
+            self.viewer.show_images(image_data, blocking=blocking)
+
+    def _draw_image(self, sample: DataSample) -> NDArrayUI8:
+        """Visualizes the datasample and returns is as numpy image.
+
+        Args:
+            sample (DataSample): The data sample to visualize.
+
+        Returns:
+            NDArrayUI8: A image with the visualized data sample.
+        """
+        self.canvas.create_canvas(sample.image)
+        for box in sample.boxes:
+            self.canvas.draw_box_3d(
+                box.corners,
+                box.color,
+                sample.intrinsics,
+                self.width,
+                self.camera_near_clip,
+            )
+
+            selected_corner = project_point(box.corners[0], sample.intrinsics)
+            self.canvas.draw_text(
+                (selected_corner[0], selected_corner[1]),
+                box.label,
+            )
+
+        return self.canvas.as_numpy_image()
+
+    def save_to_disk(self, cur_iter: int, output_folder: str) -> None:
+        """Saves the visualization to disk.
+
+        Writes all processes samples to the output folder naming each image
+        <sample.image_name>.<filetype>.
+
+        Args:
+            cur_iter (int): Current iteration.
+            output_folder (str): Folder where the output should be written.
+        """
+        if self._run_on_batch(cur_iter):
+            for sample in self._samples:
+                output_dir = output_folder
+                image_name = f"{sample.image_name}.{self.file_type}"
+
+                self.canvas.create_canvas(sample.image)
+
+                for box in sample.boxes:
+                    self.canvas.draw_box_3d(
+                        box.corners,
+                        box.color,
+                        sample.intrinsics,
+                        self.width,
+                        self.camera_near_clip,
+                    )
+
+                    selected_corner = project_point(
+                        box.corners[0], sample.intrinsics
+                    )
+                    self.canvas.draw_text(
+                        (selected_corner[0], selected_corner[1]),
+                        box.label,
+                    )
+
+                if sample.sequence_name is not None:
+                    output_dir = os.path.join(output_dir, sample.sequence_name)
+
+                if sample.camera_name is not None:
+                    output_dir = os.path.join(output_dir, sample.camera_name)
+
+                os.makedirs(output_dir, exist_ok=True)
+                self.canvas.save_to_disk(os.path.join(output_dir, image_name))

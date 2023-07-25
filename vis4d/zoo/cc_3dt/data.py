@@ -89,7 +89,6 @@ def get_train_dataloader(
         )
     )
 
-    preprocess_transforms.append(class_config(NormalizeImages))
     preprocess_transforms.append(class_config(PostProcessBoxes2D))
 
     train_preprocess_cfg = class_config(
@@ -98,7 +97,11 @@ def get_train_dataloader(
 
     train_batchprocess_cfg = class_config(
         compose,
-        transforms=[class_config(PadImages), class_config(ToTensor)],
+        transforms=[
+            class_config(PadImages),
+            class_config(NormalizeImages),
+            class_config(ToTensor),
+        ],
     )
 
     return get_train_dataloader_cfg(
@@ -110,7 +113,9 @@ def get_train_dataloader(
     )
 
 
-def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
+def get_test_dataloader(
+    test_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
+) -> ConfigDict:
     """Get the default test dataloader for nuScenes tracking."""
     test_transforms = [
         class_config(
@@ -141,6 +146,8 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
 
     return get_inference_dataloaders_cfg(
         datasets_cfg=test_dataset_cfg,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
         video_based_inference=True,
         batchprocess_cfg=test_batchprocess_cfg,
         collate_fn=multi_sensor_collate,
@@ -195,6 +202,8 @@ def get_nusc_cfg(
         workers_per_gpu=workers_per_gpu,
     )
 
-    data.test_dataloader = get_test_dataloader(test_dataset)
+    data.test_dataloader = get_test_dataloader(
+        test_dataset, samples_per_gpu=1, workers_per_gpu=1
+    )
 
     return data

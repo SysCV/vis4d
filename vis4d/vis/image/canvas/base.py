@@ -1,7 +1,7 @@
 """Base class of canvas for image based visualization."""
 from __future__ import annotations
 
-from vis4d.common.typing import NDArrayBool, NDArrayUI8
+from vis4d.common.typing import NDArrayBool, NDArrayF32, NDArrayUI8
 
 
 class CanvasBackend:
@@ -124,6 +124,7 @@ class CanvasBackend:
         self,
         corners: list[tuple[float, float, float]],
         color: tuple[int, int, int],
+        intrinsics: NDArrayF32,
         width: int = 0,
         camera_near_clip: float = 0.15,
     ) -> None:
@@ -133,6 +134,7 @@ class CanvasBackend:
             corners (list[tuple[float, float, float]]): Containing the eight
                 corners of the box.
             color (tuple[int, int, int]): Color of the line.
+            intrinsics (NDArrayF32): Camera intrinsics matrix.
             width (int, optional): The width of the line. Defaults to 0.
             camera_near_clip (float, optional): The near clipping plane of the
                 camera. Defaults to 0.15.
