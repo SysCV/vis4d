@@ -1,6 +1,7 @@
 """Base data connector to define data structures for data connection."""
 from __future__ import annotations
 
+from typing import NamedTuple
 from torch import Tensor
 
 from vis4d.common.typing import DictStrArrNested
@@ -16,12 +17,12 @@ class DataConnector:
     the next component with the provided new key.
     """
 
-    def __init__(self, key_mapping: dict[str, str]):
+    def __init__(self, key_mapping: dict[str, str | SourceKeyDescription]):
         """Initializes the data connector with static remapping of the keys.
 
         Args:
-            key_mapping (dict[str, str]): Defines which kwargs to pass onto the
-                module.
+            key_mapping (dict[str, str | SourceKeyDescription]): Defines which
+                kwargs to pass onto the module.
 
         Simple Example Configuration:
 
@@ -32,11 +33,7 @@ class DataConnector:
         """
         self.key_mapping = key_mapping
 
-    def __call__(  # pytlint: disable=arguments-differ
-        self, data: DictDataOrList
-    ) -> dict[
-        str, Tensor | DictStrArrNested | list[Tensor | DictStrArrNested]
-    ]:
+    def __call__(self, data: DictDataOrList) -> DictData:
         """Returns the kwargs that are passed to the module.
 
         Args:
@@ -44,8 +41,7 @@ class DataConnector:
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrNested | list[Tensor |
-                DictStrArrNested]]: kwargs that are passed onto the model.
+            DictData: kwargs that are passed onto the model.
         """
         if isinstance(data, list):
             return {
@@ -66,14 +62,13 @@ class LossConnector:
         self.key_mapping = key_mapping
 
     def __call__(
-        self, prediction: DictData, data: DictData
+        self, prediction: NamedTuple, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the loss during training.
+        """Returns the kwargs that are passed to the loss module.
 
         Args:
-            prediction (DictData): The datadict (e.g. output from model) which
-                contains all the model outputs.
-            data (DictData): The datadict (e.g. from the dataloader) which
+            prediction (DictData | NamedTuple): The output from model.
+            data (DictData): The data dictionary from the dataloader which
                 contains all data that was loaded.
 
         Returns:
@@ -95,14 +90,13 @@ class CallbackConnector:
         self.key_mapping = key_mapping
 
     def __call__(
-        self, prediction: DictData, data: DictData
+        self, prediction: DictData | NamedTuple, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the callback during training.
+        """Returns the kwargs that are passed to the callback.
 
         Args:
-            prediction (DictData): The datadict (e.g. output from model) which
-                contains all the model outputs.
-            data (DictData): The datadict (e.g. from the dataloader) which
+            prediction (DictData | NamedTuple): The output from model.
+            data (DictData): The data dictionary from the dataloader which
                 contains all data that was loaded.
 
         Returns:

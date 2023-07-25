@@ -399,6 +399,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     frame["LIDAR_TOP"]["extrinsics"],
                     sample["anns"],
                     instance_tokens,
+                    axis_mode=AxisMode.LIDAR,
                 )
 
                 # Get the sample data for each camera
@@ -601,14 +602,14 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 )
 
             # Get 3D box yaw. Use extrinsic rotation to align with PyTorch3D.
-            if axis_mode == AxisMode.ROS:
-                yaw = box3d.orientation.yaw_pitch_roll[0]
-                x, y, z, w = R.from_euler("XYZ", [0, 0, yaw]).as_quat()
-                orientation = Quaternion([w, x, y, z])
-            else:
+            if axis_mode == AxisMode.OPENCV:
                 yaw = -box3d.orientation.yaw_pitch_roll[0]
                 x, y, z, w = R.from_euler("XYZ", [0, yaw, 0]).as_quat()
-                orientation = Quaternion([w, x, y, z])
+            else:
+                yaw = box3d.orientation.yaw_pitch_roll[0]
+                x, y, z, w = R.from_euler("XYZ", [0, 0, yaw]).as_quat()
+
+            orientation = Quaternion([w, x, y, z])
 
             boxes3d = np.concatenate(
                 [
@@ -768,6 +769,11 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         sample = self.samples[idx]
         data_dict: DictData = {}
 
+        # metadata
+        data_dict["token"] = sample["token"]
+        data_dict[K.frame_ids] = sample["frame_ids"]
+        data_dict[K.sequence_names] = sample["scene_name"]
+
         # TODO: add support for keys_to_load for lidar data
         if "LIDAR_TOP" in self.sensors or K.depth_maps in self.keys_to_load:
             lidar_data = sample["LIDAR_TOP"]
@@ -782,12 +788,10 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             # load LiDAR frame
             if "LIDAR_TOP" in self.sensors:
                 data_dict["LIDAR_TOP"] = {
-                    "token": sample["token"],
                     K.points3d: points,
                     K.extrinsics: lidar_data["extrinsics"],
                     K.timestamp: lidar_data["timestamp"],
-                    K.frame_ids: sample["frame_ids"],
-                    K.axis_mode: AxisMode.ROS,
+                    K.axis_mode: AxisMode.LIDAR,
                     K.boxes3d: lidar_data["annotations"]["boxes3d"],
                     K.boxes3d_classes: lidar_data["annotations"][
                         "boxes3d_classes"
@@ -808,12 +812,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             if cam in self.sensors:
                 cam_data = sample[cam]
 
-                data_dict[cam] = {
-                    "token": sample["token"],
-                    K.frame_ids: sample["frame_ids"],
-                    K.timestamp: cam_data["timestamp"],
-                    K.sequence_names: sample["scene_name"],
-                }
+                data_dict[cam] = {K.timestamp: cam_data["timestamp"]}
 
                 if K.images in self.keys_to_load:
                     im_bytes = self.data_backend.get(cam_data["image_path"])

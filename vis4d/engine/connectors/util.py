@@ -1,8 +1,11 @@
 """Utility functions for the connectors module."""
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from copy import deepcopy
 from typing import NamedTuple, TypedDict
+from typing_extensions import NotRequired
 
 from torch import Tensor
 
@@ -25,6 +28,7 @@ class SourceKeyDescription(TypedDict):
 
     key: str
     source: str
+    sensors: NotRequired[Sequence[str]]
 
 
 def remap_pred_keys(
@@ -48,7 +52,9 @@ def remap_pred_keys(
     return info
 
 
-def data_key(key: str) -> SourceKeyDescription:
+def data_key(
+    key: str, sensors: Sequence[str] | None = None
+) -> SourceKeyDescription:
     """Returns a SourceKeyDescription with data as source.
 
     Args:
@@ -57,7 +63,10 @@ def data_key(key: str) -> SourceKeyDescription:
     Returns:
         SourceKeyDescription: A SourceKeyDescription with data as source.
     """
-    return SourceKeyDescription(key=key, source="data")
+    if sensors is None:
+        return SourceKeyDescription(key=key, source="data")
+
+    return SourceKeyDescription(key=key, source="data", sensors=sensors)
 
 
 def pred_key(key: str) -> SourceKeyDescription:

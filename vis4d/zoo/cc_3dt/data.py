@@ -151,6 +151,7 @@ def get_test_dataloader(
         video_based_inference=True,
         batchprocess_cfg=test_batchprocess_cfg,
         collate_fn=multi_sensor_collate,
+        sensors=NuScenes.CAMERAS,
     )
 
 

@@ -28,6 +28,7 @@ def get_train_dataloader_cfg(
     batchprocess_cfg: ConfigDict | None = None,
     collate_fn: GenericFunc = default_collate,
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+    sensors: Sequence[str] | None = None,
     pin_memory: bool | FieldReference = True,
     shuffle: bool | FieldReference = True,
 ) -> ConfigDict:
@@ -51,6 +52,8 @@ def get_train_dataloader_cfg(
             Defaults to default_collate.
         collate_keys (Sequence[str], optional): The keys to collate. Defaults
             to DEFAULT_COLLATE_KEYS.
+        sensors (Sequence[str], optional): The sensors to collate. Defaults to
+            None.
         pin_memory (bool | FieldReference, optional): Whether to pin memory.
             Defaults to True.
         shuffle (bool | FieldReference, optional): Whether to shuffle the
@@ -77,6 +80,7 @@ def get_train_dataloader_cfg(
         batchprocess_fn=batchprocess_cfg,
         collate_fn=get_callable_cfg(collate_fn),
         collate_keys=collate_keys,
+        sensors=sensors,
         pin_memory=pin_memory,
         shuffle=shuffle,
     )
@@ -90,6 +94,7 @@ def get_inference_dataloaders_cfg(
     batchprocess_cfg: ConfigDict | None = None,
     collate_fn: GenericFunc = default_collate,
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+    sensors: Sequence[str] | None = None,
 ) -> ConfigDict:
     """Creates dataloader configuration given dataset for inference.
 
@@ -109,6 +114,8 @@ def get_inference_dataloaders_cfg(
             used to stack the batch. Defaults to default_collate.
         collate_keys (Sequence[str], optional): The keys to collate. Defaults
             to DEFAULT_COLLATE_KEYS.
+        sensors (Sequence[str], optional): The sensors to collate. Defaults to
+            None.
 
     Returns:
         ConfigDict: The dataloader configuration.
@@ -125,4 +132,5 @@ def get_inference_dataloaders_cfg(
         batchprocess_fn=batchprocess_cfg,
         collate_fn=get_callable_cfg(collate_fn),
         collate_keys=collate_keys,
+        sensors=sensors,
     )

@@ -51,13 +51,12 @@ class BoundingBox3DVisualizer(Visualizer):
     def __init__(
         self,
         *args: ArgsType,
-        n_colors: int = 100,
+        n_colors: int = 50,
         cat_mapping: dict[str, int] | None = None,
         file_type: str = "png",
         image_mode: str = "RGB",
         width: int = 2,
         camera_near_clip: float = 0.15,
-        cameras: Sequence[str] | None = None,
         canvas: CanvasBackend | None = None,
         viewer: ImageViewerBackend | None = None,
         **kwargs: ArgsType,
@@ -75,7 +74,6 @@ class BoundingBox3DVisualizer(Visualizer):
             width (int): Width of the drawn bounding boxes. Defaults to 2.
             camera_near_clip (float): Near clipping plane of the camera.
                 Defaults to 0.15.
-            cameras (Sequence[str]): Camera names. Defaults to None.
             canvas (CanvasBackend): Backend that is used to draw on images. If
                 None a PillowCanvasBackend is used.
             viewer (ImageViewerBackend): Backend that is used show images. If
@@ -94,7 +92,7 @@ class BoundingBox3DVisualizer(Visualizer):
         self.file_type = file_type
         self.image_mode = image_mode
         self.width = width
-        self.cameras = cameras
+
         self.camera_near_clip = camera_near_clip
         self.canvas = canvas if canvas is not None else PillowCanvasBackend()
         self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
@@ -110,7 +108,7 @@ class BoundingBox3DVisualizer(Visualizer):
         image_names: list[str],
         boxes3d: list[ArrayLikeFloat],
         intrinsics: ArrayLikeFloat,
-        extrinsics: ArrayLikeFloat | None = None,
+        extrinsics: None | ArrayLikeFloat = None,
         scores: None | ArrayLikeFloat = None,
         class_ids: None | ArrayLikeInt = None,
         track_ids: None | ArrayLikeInt = None,
@@ -123,33 +121,32 @@ class BoundingBox3DVisualizer(Visualizer):
             images (list[ArrayLike]): Images to show.
             image_names (list[str]): Image names.
             boxes3d (list[ArrayLikeFloat]): List of predicted bounding boxes
-                with shape [N, 10].
-            intrinsics (ArrayLikeFloat): Camera intrinsics with shape [3, 3].
+                with shape [B, N, 10].
+            intrinsics (ArrayLikeFloat): Camera intrinsics with shape
+                [B, 3, 3].
             extrinsics (None | ArrayLikeFloat, optional): Camera extrinsics
-                with shape [4, 4]. Defaults to None.
+                with shape [B, 4, 4]. Defaults to None.
             scores (None | list[ArrayLikeFloat], optional): List of predicted
-                box scores each of shape [N]. Defaults to None.
+                box scores each of shape [B, N]. Defaults to None.
             class_ids (None | list[ArrayLikeInt], optional): List of predicted
-                class ids each of shape [N]. Defaults to None.
+                class ids each of shape [B, N]. Defaults to None.
             track_ids (None | list[ArrayLikeInt], optional): List of predicted
-                track ids each of shape [N]. Defaults to None.
+                track ids each of shape [B, N]. Defaults to None.
             sequence_names (None | list[str], optional): List of sequence
-                names. Defaults to None.
+                names of shape [B,]. Defaults to None.
         """
         if self._run_on_batch(cur_iter):
-            for idx, image in enumerate(images):
-                # TODO: Fix batch size
+            for batch, image in enumerate(images):
                 self.process_single_image(
-                    image[0],
-                    image_names[idx][0],
-                    boxes3d,
-                    intrinsics[idx][0],
-                    extrinsics[idx][0] if extrinsics is not None else None,
-                    None if scores is None else scores,
-                    None if class_ids is None else class_ids,
-                    None if track_ids is None else track_ids,
-                    None if sequence_names is None else sequence_names[idx][0],
-                    None if self.cameras is None else self.cameras[idx],
+                    image,
+                    image_names[batch],
+                    boxes3d[batch],
+                    intrinsics[batch],
+                    None if extrinsics is None else extrinsics[batch],
+                    None if scores is None else scores[batch],
+                    None if class_ids is None else class_ids[batch],
+                    None if track_ids is None else track_ids[batch],
+                    None if sequence_names is None else sequence_names[batch],
                 )
 
     def process_single_image(
@@ -158,7 +155,7 @@ class BoundingBox3DVisualizer(Visualizer):
         image_name: str,
         boxes3d: ArrayLikeFloat,
         intrinsics: ArrayLikeFloat,
-        extrinsics: ArrayLikeFloat | None = None,
+        extrinsics: None | ArrayLikeFloat = None,
         scores: None | ArrayLikeFloat = None,
         class_ids: None | ArrayLikeInt = None,
         track_ids: None | ArrayLikeInt = None,
@@ -298,3 +295,69 @@ class BoundingBox3DVisualizer(Visualizer):
 
                 os.makedirs(output_dir, exist_ok=True)
                 self.canvas.save_to_disk(os.path.join(output_dir, image_name))
+
+
+class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
+    def __init__(
+        self, *args: ArgsType, cameras: Sequence[str], **kwargs: ArgsType
+    ) -> None:
+        """Creates a new Visualizer for Image and 3D Bounding Boxes.
+
+        Args:
+            cameras (Sequence[str]): Camera names.
+        """
+        super().__init__(*args, **kwargs)
+
+        self.cameras = cameras
+
+    def process(  # type: ignore # pylint: disable=arguments-differ
+        self,
+        cur_iter: int,
+        images: list[list[ArrayLike]],
+        image_names: list[list[str]],
+        boxes3d: list[ArrayLikeFloat],
+        intrinsics: list[ArrayLikeFloat],
+        extrinsics: list[ArrayLikeFloat] | None = None,
+        scores: list[ArrayLikeFloat] | None = None,
+        class_ids: list[ArrayLikeInt] | None = None,
+        track_ids: list[ArrayLikeInt] | None = None,
+        sequence_names: list[str] | None = None,
+    ) -> None:
+        """Processes a batch of data.
+
+        Args:
+            cur_iter (int): Current iteration.
+            images (list[ArrayLike]): Images to show.
+            image_names (list[str]): Image names.
+            boxes3d (list[ArrayLikeFloat]): List of predicted bounding boxes
+                with shape [B, N, 10].
+            intrinsics (ArrayLikeFloat): Camera intrinsics with shape
+                [num_cam, B, 3, 3].
+            extrinsics (None | ArrayLikeFloat, optional): Camera extrinsics
+                with shape [num_cam, B, 4, 4]. Defaults to None.
+            scores (None | list[ArrayLikeFloat], optional): List of predicted
+                box scores each of shape [B, N]. Defaults to None.
+            class_ids (None | list[ArrayLikeInt], optional): List of predicted
+                class ids each of shape [B, N]. Defaults to None.
+            track_ids (None | list[ArrayLikeInt], optional): List of predicted
+                track ids each of shape [B, N]. Defaults to None.
+            sequence_names (None | list[str], optional): List of sequence
+                names of shape [B,]. Defaults to None.
+        """
+        if self._run_on_batch(cur_iter):
+            for idx, batch_images in enumerate(images):
+                for batch, image in enumerate(batch_images):
+                    self.process_single_image(
+                        image,
+                        image_names[idx][batch],
+                        boxes3d[batch],
+                        intrinsics[idx][batch],
+                        None if extrinsics is None else extrinsics[idx][batch],
+                        None if scores is None else scores[batch],
+                        None if class_ids is None else class_ids[batch],
+                        None if track_ids is None else track_ids[batch],
+                        None
+                        if sequence_names is None
+                        else sequence_names[batch],
+                        self.cameras[idx],
+                    )

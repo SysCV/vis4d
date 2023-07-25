@@ -16,7 +16,12 @@ from vis4d.config.common.models.qdtrack import (
 )
 from vis4d.config.util import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
-from vis4d.engine.connectors import LossConnector, pred_key, remap_pred_keys
+from vis4d.engine.connectors import (
+    LossConnector,
+    data_key,
+    pred_key,
+    remap_pred_keys,
+)
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 from vis4d.op.box.anchor import AnchorGenerator
@@ -58,11 +63,13 @@ CONN_BBOX_3D_TRAIN = {
     "keyframes": "keyframes",
 }
 
+from vis4d.data.datasets.nuscenes import NuScenes
+
 CONN_BBOX_3D_TEST = {
-    "images": K.images,
-    "images_hw": K.original_hw,
-    "intrinsics": K.intrinsics,
-    "extrinsics": K.extrinsics,
+    "images": data_key(K.images, sensors=NuScenes.CAMERAS),
+    "images_hw": data_key(K.original_hw, sensors=NuScenes.CAMERAS),
+    "intrinsics": data_key(K.intrinsics, sensors=NuScenes.CAMERAS),
+    "extrinsics": data_key(K.extrinsics, sensors=NuScenes.CAMERAS),
     "frame_ids": K.frame_ids,
 }
 
