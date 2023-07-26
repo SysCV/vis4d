@@ -25,7 +25,7 @@ class DataLoaderTest(unittest.TestCase):
         batch_size = 2
         preprocess_fn = compose(
             [
-                resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+                resize.GenResizeParameters((256, 256), keep_ratio=True),
                 resize.ResizeImages(),
                 normalize.NormalizeImages(),
             ]
@@ -51,7 +51,7 @@ class DataLoaderTest(unittest.TestCase):
         coco = COCO(data_root=get_test_data("coco_test"), split="train")
         preprocess_fn = compose(
             [
-                resize.GenerateResizeParameters((256, 256), keep_ratio=True),
+                resize.GenResizeParameters((256, 256), keep_ratio=True),
                 resize.ResizeImages(),
                 normalize.NormalizeImages(),
             ]

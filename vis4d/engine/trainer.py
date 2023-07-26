@@ -16,7 +16,7 @@ from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 
 from .optim import LRSchedulerWrapper
-from .util import ModelEMAAdapter, move_data_to_device
+from .util import move_data_to_device
 
 
 class Trainer:
@@ -38,7 +38,6 @@ class Trainer:
         check_val_every_n_epoch: int | None = 1,
         val_check_interval: int | None = None,
         log_every_n_steps: int = 50,
-        use_ema: bool = True,
     ) -> None:
         """Initialize the trainer.
 
@@ -67,8 +66,6 @@ class Trainer:
                 the model during training. Defaults to None.
             log_every_n_steps (int, optional): Log the training status every n
                 steps. Defaults to 50.
-            use_ema (bool, optional): Use the EMA model for testing if model is
-                ModelEMAAdapter. Defaults to True.
         """
         self.device = device
         self.output_dir = output_dir
@@ -92,8 +89,6 @@ class Trainer:
 
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.val_check_interval = val_check_interval
-
-        self.use_ema = use_ema
         self.log_every_n_steps = log_every_n_steps
 
         self.epoch = epoch
@@ -203,7 +198,9 @@ class Trainer:
         while True:
             # Run callbacks for epoch begin
             for callback in self.callbacks:
-                callback.on_train_epoch_start(self.get_state(), model)
+                callback.on_train_epoch_start(
+                    self.get_state(), model, loss_module
+                )
 
             # Set model to train mode
             model.train()
@@ -226,18 +223,18 @@ class Trainer:
 
                 # Input data
                 data = move_data_to_device(data, self.device)
-                train_input = self.train_data_connector(data)
 
                 for callback in self.callbacks:
                     callback.on_train_batch_start(
                         trainer_state=self.get_state(),
                         model=model,
+                        loss_module=loss_module,
                         batch=data,
                         batch_idx=batch_idx,
                     )
 
                 # Forward + backward + optimize
-                output = model(**train_input)
+                output = model(**self.train_data_connector(data))
 
                 losses = loss_module(output, data)
 
@@ -270,14 +267,11 @@ class Trainer:
                 for lr_scheduler in lr_schedulers:
                     lr_scheduler.step_on_batch(self.global_step)
 
-                # update EMA model if available
-                if isinstance(model, ModelEMAAdapter):
-                    model.update()
-
                 for callback in self.callbacks:
                     log_dict = callback.on_train_batch_end(
                         trainer_state=self.get_state(metrics),
                         model=model,
+                        loss_module=loss_module,
                         outputs=output,
                         batch=data,
                         batch_idx=batch_idx,
@@ -311,6 +305,7 @@ class Trainer:
                         optimizers=optimizers, lr_schedulers=lr_schedulers
                     ),
                     model,
+                    loss_module,
                 )
 
             # Testing (epoch-based)
@@ -349,10 +344,7 @@ class Trainer:
                 test_input = self.test_data_connector(data)
 
                 # forward
-                if self.use_ema and isinstance(model, ModelEMAAdapter):
-                    output = model.ema_model(**test_input)
-                else:
-                    output = model(**test_input)
+                output = model(**test_input)
 
                 for callback in self.callbacks:
                     callback.on_test_batch_end(
@@ -401,6 +393,8 @@ class Trainer:
             num_train_batches=num_train_batches,
             test_dataloader=self.test_dataloader,
             num_test_batches=num_test_batches,
+            train_module=self,
+            train_engine="vis4d",
         )
 
         if metrics is not None:

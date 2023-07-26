@@ -40,6 +40,7 @@ TorchCheckpoint = DictStrAny
 LossesType = Dict[str, Tensor]
 TorchLossFunc = Callable[..., Any]  # type: ignore
 GenericFunc = Callable[..., Any]  # type: ignore
+TrainingModule = Any  # type: ignore
 
 ArrayIterableFloat = Iterable[Union[float, "ArrayIterableFloat"]]
 ArrayIterableBool = Iterable[Union[bool, "ArrayIterableBool"]]

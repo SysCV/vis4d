@@ -21,6 +21,8 @@ class ParamGroupCfg(TypedDict):
     custom_keys: list[str]
     lr_mult: NotRequired[float]
     decay_mult: NotRequired[float]
+    norm_decay_mult: NotRequired[float]
+    bias_decay_mult: NotRequired[float]
 
 
 class DataConfig(ConfigDict):  # type: ignore

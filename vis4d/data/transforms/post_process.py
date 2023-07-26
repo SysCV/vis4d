@@ -30,19 +30,19 @@ from .base import Transform
     ],
 )
 class PostProcessBoxes2D:
-    """Post process after transformation."""
+    """Post process after transformation.
+
+    Args:
+        min_area (float): Minimum area of the bounding box. Defaults to
+            7.0 * 7.0.
+        clip_bboxes_to_image (bool): Whether to clip the bounding boxes to the
+            image size. Defaults to True.
+    """
 
     def __init__(
         self, min_area: float = 7.0 * 7.0, clip_bboxes_to_image: bool = True
     ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            min_area (float): Minimum area of the bounding box. Defaults to
-                7.0 * 7.0.
-            clip_bboxes_to_image (bool): Whether to clip the bounding boxes to
-                the image size. Defaults to True.
-        """
+        """Creates an instance of the class."""
         self.min_area = min_area
         self.clip_bboxes_to_image = clip_bboxes_to_image
 
@@ -50,18 +50,18 @@ class PostProcessBoxes2D:
         self,
         boxes_list: list[NDArrayF32],
         classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32 | None],
+        track_ids_list: list[NDArrayI32] | None,
         input_hw_list: list[tuple[int, int]],
-        boxes3d_list: list[NDArrayF32 | None],
-        boxes3d_classes_list: list[NDArrayI32 | None],
-        boxes3d_track_ids_list: list[NDArrayI32 | None],
+        boxes3d_list: list[NDArrayF32] | None,
+        boxes3d_classes_list: list[NDArrayI32] | None,
+        boxes3d_track_ids_list: list[NDArrayI32] | None,
     ) -> tuple[
         list[NDArrayF32],
         list[NDArrayI32],
-        list[NDArrayI32 | None],
-        list[NDArrayF32 | None],
-        list[NDArrayI32 | None],
-        list[NDArrayI32 | None],
+        list[NDArrayI32] | None,
+        list[NDArrayF32] | None,
+        list[NDArrayI32] | None,
+        list[NDArrayI32] | None,
     ]:
         """Post process according to boxes2D after transformation.
 
@@ -85,23 +85,19 @@ class PostProcessBoxes2D:
                 list[NDArrayF32 | None], list[NDArrayI32 | None],
                 list[NDArrayI32 | None]]: The post processed results.
         """
-        for i, (
-            boxes,
-            classes,
-            track_ids,
-            boxes3d,
-            boxes3d_classes,
-            boxes3d_trakc_ids,
-        ) in enumerate(
-            zip(
-                boxes_list,
-                classes_list,
-                track_ids_list,
-                boxes3d_list,
-                boxes3d_classes_list,
-                boxes3d_track_ids_list,
-            )
-        ):
+        new_track_ids: list[NDArrayI32] | None = (
+            [] if track_ids_list is not None else None
+        )
+        new_boxes3d: list[NDArrayF32] | None = (
+            [] if boxes3d_list is not None else None
+        )
+        new_boxes3d_classes: list[NDArrayI32] | None = (
+            [] if boxes3d_classes_list is not None else None
+        )
+        new_boxes3d_track_ids: list[NDArrayI32] | None = (
+            [] if boxes3d_track_ids_list is not None else None
+        )
+        for i, (boxes, classes) in enumerate(zip(boxes_list, classes_list)):
             boxes_ = torch.from_numpy(boxes)
             if self.clip_bboxes_to_image:
                 boxes_ = bbox_clip(boxes_, input_hw_list[i])
@@ -111,23 +107,27 @@ class PostProcessBoxes2D:
             boxes_list[i] = boxes[keep]
             classes_list[i] = classes[keep]
 
-            if track_ids is not None:
-                track_ids_list[i] = track_ids[keep]
+            if track_ids_list is not None:
+                assert new_track_ids is not None
+                new_track_ids.append(track_ids_list[i][keep])
 
-            if boxes3d is not None:
-                boxes3d_list[i] = boxes3d[keep]
+            if boxes3d_list is not None:
+                assert new_boxes3d is not None
+                new_boxes3d.append(boxes3d_list[keep])
 
-            if boxes3d_classes is not None:
-                boxes3d_classes_list[i] = boxes3d_classes[keep]
+            if boxes3d_classes_list is not None:
+                assert new_boxes3d_classes is not None
+                new_boxes3d_classes.append(boxes3d_classes_list[keep])
 
-            if boxes3d_trakc_ids is not None:
-                boxes3d_track_ids_list[i] = boxes3d_trakc_ids[keep]
+            if boxes3d_track_ids_list is not None:
+                assert new_boxes3d_track_ids is not None
+                new_boxes3d_track_ids.append(boxes3d_track_ids_list[keep])
 
         return (
             boxes_list,
             classes_list,
-            track_ids_list,
-            boxes3d_list,
-            boxes3d_classes_list,
-            boxes3d_track_ids_list,
+            new_track_ids,
+            new_boxes3d,
+            new_boxes3d_classes,
+            new_boxes3d_track_ids,
         )

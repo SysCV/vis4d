@@ -5,7 +5,7 @@ import unittest
 
 import torch
 
-from tests.util import MockModel
+from tests.util import MOCKLOSS, MockModel
 from vis4d.config.default.data_connectors import CONN_BBOX_2D_VIS
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import TrainerState, VisualizerCallback
@@ -48,6 +48,7 @@ class TestVisualizerCallback(unittest.TestCase):
         self.callback.on_train_batch_end(
             self.trainer_state,
             MockModel(0),
+            MOCKLOSS,
             outputs={
                 "boxes": [torch.zeros((0, 4))],
                 "scores": [torch.zeros((0,))],

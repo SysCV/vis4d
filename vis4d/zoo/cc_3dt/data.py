@@ -32,7 +32,7 @@ from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
     ResizeIntrinsics,
@@ -69,9 +69,7 @@ def get_train_dataloader(
     )
 
     preprocess_transforms = [
-        class_config(
-            GenerateResizeParameters, shape=(900, 1600), keep_ratio=True
-        ),
+        class_config(GenResizeParameters, shape=(900, 1600), keep_ratio=True),
         class_config(ResizeImages),
         class_config(ResizeBoxes2D),
     ]
@@ -114,7 +112,7 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
     """Get the default test dataloader for nuScenes tracking."""
     test_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(900, 1600),
             keep_ratio=True,
             sensors=NuScenes.CAMERAS,

@@ -1,13 +1,16 @@
 """Dataloader utility functions."""
 from __future__ import annotations
 
+import random
+import warnings
 from collections.abc import Callable, Sequence
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.distributed import get_world_size
+from vis4d.common.distributed import get_rank, get_world_size
 
 from .const import CommonKeys as K
 from .data_pipe import DataPipe
@@ -106,6 +109,8 @@ def build_train_dataloader(
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
     pin_memory: bool = True,
     shuffle: bool = True,
+    seed: int | None = None,
+    disable_subprocess_warning: bool = False,
 ) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
     assert isinstance(dataset, DataPipe), "dataset must be a DataPipe"
@@ -127,6 +132,22 @@ def build_train_dataloader(
             views.append(view)
         return views
 
+    def _worker_init_fn(worker_id: int) -> None:
+        """Will be called on each worker after seeding and before data loading.
+
+        Args:
+            worker_id (int): Worker id in [0, num_workers - 1].
+        """
+        if seed is not None:
+            # The seed of each worker equals to
+            # num_workers * rank + worker_id + user_seed
+            worker_seed = workers_per_gpu * get_rank() + worker_id + seed
+            np.random.seed(worker_seed)
+            random.seed(worker_seed)
+            torch.manual_seed(worker_seed)
+            if disable_subprocess_warning and worker_id != 0:
+                warnings.simplefilter("ignore")
+
     sampler = None
     if get_world_size() > 1:
         sampler = DistributedSampler(dataset, shuffle=shuffle)
@@ -140,6 +161,7 @@ def build_train_dataloader(
         if dataset.has_reference
         else _collate_fn_single,
         sampler=sampler,
+        worker_init_fn=_worker_init_fn,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
         shuffle=shuffle,

@@ -10,7 +10,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import FlipImages
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
 )
@@ -42,15 +42,9 @@ def test_compose():
         }
     }
 
-    tr1 = GenerateResizeParameters(
-        shape=(16, 16), in_keys=["img"], sensors=["cam"]
-    )
+    tr1 = GenResizeParameters(shape=(16, 16), in_keys=["img"], sensors=["cam"])
     tr2 = ResizeImages(
-        in_keys=[
-            "img",
-            "transforms.resize.target_shape",
-            "transforms.resize.interpolation",
-        ],
+        in_keys=["img", "transforms.resize.target_shape"],
         out_keys=["img"],
         sensors=["cam"],
     )

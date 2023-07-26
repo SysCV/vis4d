@@ -10,6 +10,7 @@ from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
 from vis4d.data.typing import DictData
+from vis4d.engine.loss_module import LossModule
 
 from .base import Callback
 from .trainer_state import TrainerState
@@ -32,6 +33,7 @@ class LoggingCallback(Callback):
         self,
         trainer_state: TrainerState,
         model: nn.Module,
+        loss_module: LossModule,
         batch: DictData,
         batch_idx: int,
     ) -> None:
@@ -40,7 +42,10 @@ class LoggingCallback(Callback):
             self.train_timer.resume()
 
     def on_train_epoch_start(
-        self, trainer_state: TrainerState, model: nn.Module
+        self,
+        trainer_state: TrainerState,
+        model: nn.Module,
+        loss_module: LossModule,
     ) -> None:
         """Hook to run at the start of a training epoch."""
         if self.epoch_based:
@@ -53,6 +58,7 @@ class LoggingCallback(Callback):
         self,
         trainer_state: TrainerState,
         model: nn.Module,
+        loss_module: LossModule,
         outputs: DictData,
         batch: DictData,
         batch_idx: int,

@@ -8,6 +8,7 @@ from torch import nn
 from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast
 from vis4d.data.typing import DictData
+from vis4d.engine.loss_module import LossModule
 from vis4d.vis.base import Visualizer
 
 from .base import Callback
@@ -61,6 +62,7 @@ class VisualizerCallback(Callback):
         self,
         trainer_state: TrainerState,
         model: nn.Module,
+        loss_module: LossModule,
         outputs: DictData,
         batch: DictData,
         batch_idx: int,

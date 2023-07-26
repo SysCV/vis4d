@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""QDTrack BDD100K."""
+"""QDTrack-FasterRCNN BDD100K."""
 from __future__ import annotations
 
 import lightning.pytorch as pl

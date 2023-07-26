@@ -18,7 +18,7 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
     ResizeInstanceMasks,
@@ -36,7 +36,7 @@ def get_train_dataloader(
 ) -> DataLoader:
     """Get data loader for training."""
     resize_trans = [
-        GenerateResizeParameters(im_hw, keep_ratio=True),
+        GenResizeParameters(im_hw, keep_ratio=True),
         ResizeImages(),
         ResizeBoxes2D(),
     ]
@@ -59,7 +59,7 @@ def get_test_dataloader(
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            GenerateResizeParameters(im_hw),
+            GenResizeParameters(im_hw),
             ResizeImages(),
             ResizeBoxes2D(),
             NormalizeImages(),
