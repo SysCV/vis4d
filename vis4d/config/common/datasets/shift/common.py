@@ -36,7 +36,7 @@ from vis4d.data.transforms.flip import (
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeDepthMaps,
     ResizeImages,
@@ -97,7 +97,7 @@ def get_train_preprocessing(
     if image_size != (800, 1280):
         preprocess_transforms.append(
             class_config(
-                GenerateResizeParameters,
+                GenResizeParameters,
                 shape=image_size,
                 keep_ratio=True,
                 **views_arg,
@@ -242,7 +242,7 @@ def get_test_preprocessing(
     if image_size != (800, 1280):
         preprocess_transforms.append(
             class_config(
-                GenerateResizeParameters,
+                GenResizeParameters,
                 shape=image_size,
                 keep_ratio=True,
                 **views_arg,

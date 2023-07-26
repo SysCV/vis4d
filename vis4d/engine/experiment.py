@@ -147,7 +147,9 @@ def run_experiment(
     if mode == "fit":
         set_random_seed(seed)
         _info(f"[rank {get_rank()}] Global seed set to {seed}")
-        train_dataloader = instantiate_classes(config.data.train_dataloader)
+        train_dataloader = instantiate_classes(
+            config.data.train_dataloader, seed=seed
+        )
         train_data_connector = instantiate_classes(config.train_data_connector)
         optimizers, lr_schedulers = set_up_optimizers(
             config.optimizers, [model]
@@ -230,7 +232,6 @@ def run_experiment(
         check_val_every_n_epoch=config.get("check_val_every_n_epoch", 1),
         val_check_interval=config.get("val_check_interval", None),
         log_every_n_steps=config.get("log_every_n_steps", 50),
-        use_ema=config.get("use_ema", True),
     )
 
     if resume:

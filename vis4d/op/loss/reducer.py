@@ -44,11 +44,13 @@ def sum_loss(loss: Tensor) -> Tensor:
 class SumWeightedLoss:
     """A loss reducer to calculated weighted sum loss."""
 
-    def __init__(self, weight: Tensor, avg_factor: float | Tensor) -> None:
+    def __init__(
+        self, weight: float | Tensor, avg_factor: float | Tensor
+    ) -> None:
         """Initialize the loss reducer.
 
         Args:
-            weight (Tensor): Weights for each loss elements
+            weight (float | Tensor): Weights for each loss elements
             avg_factor (float | Tensor): average factor for the weighted loss
         """
         self.weight = weight

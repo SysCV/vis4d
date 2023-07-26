@@ -7,11 +7,11 @@ from tests.util import generate_boxes
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
 
 
-class TestRandom(unittest.TestCase):
+class TestMaxIoUMatcher(unittest.TestCase):
     """Test cases for max iou matcher."""
 
     def test_match(self) -> None:
-        """Testcase for sample function."""
+        """Testcase for match function."""
         num_boxes = 10
 
         boxes = generate_boxes(128, 128, num_boxes)[0]

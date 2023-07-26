@@ -29,7 +29,7 @@ from vis4d.data.transforms.mixup import (
 )
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.random_erasing import RandomErasing
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.cls import ClsOut
 from vis4d.model.cls.vit import ViTClassifer
@@ -44,7 +44,7 @@ def get_train_dataloader(
     random_resized_crop_trans = [
         GenRandomSizeCropParameters(),
         CropImages(),
-        GenerateResizeParameters(im_hw, keep_ratio=False),
+        GenResizeParameters(im_hw, keep_ratio=False),
         ResizeImages(),
         RandAug(magnitude=10, use_increasing=True),
         RandomErasing(),
@@ -72,7 +72,7 @@ def get_test_dataloader(
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            GenerateResizeParameters(
+            GenResizeParameters(
                 (256, 256),
                 keep_ratio=True,
                 allow_overflow=True,

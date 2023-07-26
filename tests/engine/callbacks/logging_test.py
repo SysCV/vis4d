@@ -1,7 +1,7 @@
 """Test cases for logging callback."""
 import unittest
 
-from tests.util import MockModel
+from tests.util import MOCKLOSS, MockModel
 from vis4d.engine.callbacks import LoggingCallback, TrainerState
 
 
@@ -25,7 +25,9 @@ class TestLoggingCallback(unittest.TestCase):
 
     def test_on_train_epoch_start(self) -> None:
         """Test on_train_epoch_start function."""
-        self.callback.on_train_epoch_start(self.trainer_state, MockModel(0))
+        self.callback.on_train_epoch_start(
+            self.trainer_state, MockModel(0), MOCKLOSS
+        )
 
     def test_on_train_batch_end(self) -> None:
         """Test on_train_batch_end function."""
@@ -34,6 +36,7 @@ class TestLoggingCallback(unittest.TestCase):
         self.callback.on_train_batch_end(
             self.trainer_state,
             MockModel(0),
+            MOCKLOSS,
             outputs={},
             batch={},
             batch_idx=0,
@@ -45,7 +48,7 @@ class TestLoggingCallback(unittest.TestCase):
         """Test on_test_epoch_start function."""
         self.callback.on_test_epoch_start(self.trainer_state, MockModel(0))
 
-    def test_on_train_epoch_end(self) -> None:
+    def test_on_test_batch_end(self) -> None:
         """Test on_test_batch_end function."""
         self.callback.on_test_batch_end(
             self.trainer_state,

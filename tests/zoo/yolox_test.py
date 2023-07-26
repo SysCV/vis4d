@@ -11,13 +11,24 @@ class TestYOLOXConfig(unittest.TestCase):
     gt_config_path = "tests/vis4d-test-data/config_test/yolox"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
-    def test_yolox_coco(self) -> None:
-        """Test the config for YOLOX COCO.
+    def test_yolox_tiny_300e_coco(self) -> None:
+        """Test the config for YOLOX-t COCO.
 
         This instantiates the config and compares it to a ground truth.
         """
         compare_configs(
-            f"{self.config_prefix}.yolox_coco",
-            f"{self.gt_config_path}/yolox_coco.yaml",
+            f"{self.config_prefix}.yolox_tiny_300e_coco",
+            f"{self.gt_config_path}/yolox_tiny_300e_coco.yaml",
+            self.varying_keys,
+        )
+
+    def test_yolox_s_300e_coco(self) -> None:
+        """Test the config for YOLOX-s COCO.
+
+        This instantiates the config and compares it to a ground truth.
+        """
+        compare_configs(
+            f"{self.config_prefix}.yolox_s_300e_coco",
+            f"{self.gt_config_path}/yolox_s_300e_coco.yaml",
             self.varying_keys,
         )

@@ -128,9 +128,7 @@ def main(argv: ArgsType) -> None:
         hyper_params,
         config.seed,
         ckpt_path if not resume else None,
-        use_ema=config.get("use_ema", True),
     )
-
     data_module = DataModule(config.data)
 
     if mode == "fit":

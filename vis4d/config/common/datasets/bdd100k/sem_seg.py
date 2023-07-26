@@ -27,7 +27,7 @@ from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages, PadSegMasks
 from vis4d.data.transforms.photometric import ColorJitter
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeImages,
     ResizeSegMasks,
 )
@@ -64,7 +64,7 @@ def get_train_dataloader(
     # Train Preprocessing
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=image_size,
             keep_ratio=True,
             scale_range=(0.5, 2.0),
@@ -141,9 +141,7 @@ def get_test_dataloader(
 
     # Test Preprocessing
     preprocess_transforms = [
-        class_config(
-            GenerateResizeParameters, shape=image_size, keep_ratio=True
-        ),
+        class_config(GenResizeParameters, shape=image_size, keep_ratio=True),
         class_config(ResizeImages),
         class_config(ResizeSegMasks),
     ]

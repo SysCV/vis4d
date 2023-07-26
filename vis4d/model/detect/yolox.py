@@ -31,6 +31,7 @@ class YOLOX(nn.Module):
         fpn: FeaturePyramidProcessing | None = None,
         yolox_head: YOLOXHead | None = None,
         weights: None | str = None,
+        postprocessor: YOLOXPostprocess | None = None,
     ) -> None:
         """Creates an instance of the class.
 
@@ -42,6 +43,8 @@ class YOLOX(nn.Module):
                 Processing. Defaults to None. If None, will use YOLOXPAFPN.
             yolox_head (YOLOXHead, optional): YOLOX head. Defaults to None. If
                 None, will use YOLOXHead.
+            postprocessor (YOLOXPostprocess, optional): Post processor.
+                Defaults to None. If None, will use YOLOXPostprocess.
             weights (None | str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
@@ -64,21 +67,24 @@ class YOLOX(nn.Module):
             if yolox_head is None
             else yolox_head
         )
-        self.transform_outs = YOLOXPostprocess(
-            self.yolox_head.point_generator,
-            self.yolox_head.box_decoder,
-            nms_threshold=0.65,
-            score_thr=0.01,
+        self.postprocessor = (
+            YOLOXPostprocess(
+                self.yolox_head.point_generator,
+                self.yolox_head.box_decoder,
+                nms_threshold=0.65,
+                score_thr=0.01,
+            )
+            if postprocessor is None
+            else postprocessor
         )
 
-        if weights == "mmdet":
-            weights = (
-                "mmdet://yolox/yolox_s_8x8_300e_coco/"
-                "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
-            )
-            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
-        elif weights is not None:
-            load_model_checkpoint(self, weights)
+        if weights is not None:
+            if weights.startswith("mmdet://") or weights.startswith(
+                "bdd100k://"
+            ):
+                load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
+            else:
+                load_model_checkpoint(self, weights)
 
     def forward(
         self,
@@ -114,7 +120,7 @@ class YOLOX(nn.Module):
         Returns:
             YOLOXOut: Raw model outputs.
         """
-        features = self.fpn(self.basemodel(images))
+        features = self.fpn(self.basemodel(images.contiguous()))
         return self.yolox_head(features[-3:])
 
     def forward_test(
@@ -136,7 +142,7 @@ class YOLOX(nn.Module):
         """
         features = self.fpn(self.basemodel(images))
         outs = self.yolox_head(features[-3:])
-        boxes, scores, class_ids = self.transform_outs(
+        boxes, scores, class_ids = self.postprocessor(
             cls_outs=outs.cls_score,
             reg_outs=outs.bbox_pred,
             obj_outs=outs.objectness,

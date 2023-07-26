@@ -45,7 +45,6 @@ class SegMaskVisualizer(Visualizer):
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
         file_type: str = "png",
-        image_mode: str = "RGB",
         color_palette: list[tuple[int, int, int]] | None = None,
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
@@ -58,7 +57,6 @@ class SegMaskVisualizer(Visualizer):
             class_id_mapping (dict[int, str]): Mapping from class id to
                 human readable name.
             file_type (str): Desired file type
-            image_mode (str): Image channel mode (RGB or BGR)
             color_palette (list[tuple[int, int, int]]): Color palette for each
                 class, in RGB format (0-255). If None, a random color palette
                 with n_colors is generated automatically. Defaults to None.
@@ -76,7 +74,6 @@ class SegMaskVisualizer(Visualizer):
             class_id_mapping if class_id_mapping is not None else {}
         )
         self.file_type = file_type
-        self.image_mode = image_mode
         self.canvas = canvas
         self.viewer = viewer
 

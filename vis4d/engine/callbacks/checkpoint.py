@@ -10,6 +10,7 @@ from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, rank_zero_only
 from vis4d.data.typing import DictData
 from vis4d.engine.callbacks.trainer_state import TrainerState
+from vis4d.engine.loss_module import LossModule
 
 from .base import Callback
 from .trainer_state import TrainerState
@@ -77,6 +78,7 @@ class CheckpointCallback(Callback):
         self,
         trainer_state: TrainerState,
         model: nn.Module,
+        loss_module: LossModule,
         outputs: DictData,
         batch: DictData,
         batch_idx: int,
@@ -89,7 +91,10 @@ class CheckpointCallback(Callback):
             self._save_checkpoint(trainer_state, model)
 
     def on_train_epoch_end(
-        self, trainer_state: TrainerState, model: nn.Module
+        self,
+        trainer_state: TrainerState,
+        model: nn.Module,
+        loss_module: LossModule,
     ) -> None:
         """Hook to run at the end of a training epoch."""
         if (
