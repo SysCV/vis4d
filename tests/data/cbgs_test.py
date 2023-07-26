@@ -6,10 +6,14 @@ from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 
 def test_cbgs():
     """Test CBGS dataset."""
+    data_root = get_test_data("nuscenes_test")
+
     nusc = NuScenes(
-        data_root=get_test_data("nuscenes_test"),
+        data_root=data_root,
         version="v1.0-mini",
         split="mini_train",
+        cache_as_binary=True,
+        cached_file_path=f"{data_root}/mini_train.pkl",
     )
 
     cbgs_dataset = CBGSDataset(dataset=nusc, class_map=nuscenes_class_map)

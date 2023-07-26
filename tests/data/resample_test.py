@@ -6,11 +6,15 @@ from vis4d.data.resample import ResampleDataset
 
 def test_resample():
     """Test RsampleDataset."""
+    data_root = get_test_data("nuscenes_test")
+
     nusc = NuScenes(
         data_root=get_test_data("nuscenes_test"),
         version="v1.0-mini",
         split="mini_train",
         skip_empty_samples=True,
+        cache_as_binary=True,
+        cached_file_path=f"{data_root}/mini_train.pkl",
     )
 
     dataset = ResampleDataset(dataset=nusc)

@@ -41,6 +41,8 @@ class TestNuScenesDet3DEvaluator(unittest.TestCase):
             data_root=data_root,
             version="v1.0-mini",
             split="mini_val",
+            cache_as_binary=True,
+            cached_file_path=f"{data_root}/mini_val.pkl",
         )
         test_loader = get_dataloader(
             dataset, batch_size, sensors=NuScenes.CAMERAS

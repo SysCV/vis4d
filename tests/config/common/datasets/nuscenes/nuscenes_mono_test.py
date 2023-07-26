@@ -19,7 +19,7 @@ class TestNuscenesConfig(unittest.TestCase):
     def test_mini_train_cfg(self):
         """Test nuscenes mono mini train dataset config."""
         dataset_cfg = get_nusc_mono_mini_train_cfg(
-            data_root=self.NUSC_DATA_ROOT, cache_as_binary=False
+            data_root=self.NUSC_DATA_ROOT
         )
         self.assertTrue(isinstance(dataset_cfg, ConfigDict))
         nusc = instantiate_classes(dataset_cfg)

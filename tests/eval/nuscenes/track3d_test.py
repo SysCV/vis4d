@@ -31,13 +31,16 @@ class TestNuScenesTrack3DEvaluator(unittest.TestCase):
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
         batch_size = 1
+        data_root = get_test_data("nuscenes_test")
         nusc_eval = NuScenesTrack3DEvaluator()
 
         # test gt
         dataset = NuScenes(
-            data_root=get_test_data("nuscenes_test"),
+            data_root=data_root,
             version="v1.0-mini",
             split="mini_val",
+            cache_as_binary=True,
+            cached_file_path=f"{data_root}/mini_val.pkl",
         )
         test_loader = get_dataloader(
             dataset, batch_size, sensors=NuScenes.CAMERAS

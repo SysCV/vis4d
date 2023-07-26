@@ -31,6 +31,7 @@ class CC3DTTest(unittest.TestCase):
 
     def test_r50_fpn_inference(self):
         """Inference test."""
+        data_root = get_test_data("nuscenes_test")
         model_weights = (
             self.model_weights_prefix
             + "cc_3dt_frcnn_r50_fpn_12e_nusc_d98509.pt"
@@ -59,10 +60,12 @@ class CC3DTTest(unittest.TestCase):
         )
 
         dataset = NuScenes(
-            data_root=get_test_data("nuscenes_test"),
+            data_root=data_root,
             keys_to_load=[K.images, K.original_images, K.boxes3d],
             version="v1.0-mini",
             split="mini_val",
+            cache_as_binary=True,
+            cached_file_path=f"{data_root}/mini_val.pkl",
         )
         datapipe = DataPipe(dataset, preprocess_fn=preprocess_fn)
         test_loader = build_inference_dataloaders(

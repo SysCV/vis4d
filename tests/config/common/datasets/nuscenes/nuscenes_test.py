@@ -21,9 +21,7 @@ class TestNuscenesConfig(unittest.TestCase):
 
     def test_mini_train_cfg(self):
         """Test nuscenes mini train dataset config."""
-        dataset_cfg = get_nusc_mini_train_cfg(
-            data_root=self.NUSC_DATA_ROOT, cache_as_binary=False
-        )
+        dataset_cfg = get_nusc_mini_train_cfg(data_root=self.NUSC_DATA_ROOT)
         self.assertTrue(isinstance(dataset_cfg, ConfigDict))
         nusc = instantiate_classes(dataset_cfg)
         self.assertTrue(isinstance(nusc, NuScenes))
@@ -33,9 +31,7 @@ class TestNuscenesConfig(unittest.TestCase):
 
     def test_mini_val_cfg(self):
         """Test nuscenes mini val dataset config."""
-        dataset_cfg = get_nusc_mini_val_cfg(
-            data_root=self.NUSC_DATA_ROOT, cache_as_binary=False
-        )
+        dataset_cfg = get_nusc_mini_val_cfg(data_root=self.NUSC_DATA_ROOT)
         self.assertTrue(isinstance(dataset_cfg, ConfigDict))
         nusc = instantiate_classes(dataset_cfg)
         self.assertTrue(isinstance(nusc, NuScenes))
