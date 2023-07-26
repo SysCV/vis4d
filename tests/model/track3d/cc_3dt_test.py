@@ -21,29 +21,13 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import MultiSensorDataConnector
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT, Track3DOut
+from vis4d.zoo.cc_3dt.data import CONN_NUSC_BBOX_3D_TEST
 
 
 class CC3DTTest(unittest.TestCase):
     """CC-3DT class tests."""
 
     model_weights_prefix = "https://dl.cv.ethz.ch/vis4d/cc_3dt/"
-
-    CONN_BBOX_3D_TEST = {
-        "images": K.images,
-        "images_hw": K.original_hw,
-        "intrinsics": K.intrinsics,
-        "extrinsics": K.extrinsics,
-        "frame_ids": K.frame_ids,
-    }
-
-    CAMERAS = [
-        "CAM_FRONT",
-        "CAM_FRONT_LEFT",
-        "CAM_FRONT_RIGHT",
-        "CAM_BACK",
-        "CAM_BACK_LEFT",
-        "CAM_BACK_RIGHT",
-    ]
 
     def test_r50_fpn_inference(self):
         """Inference test."""
@@ -59,18 +43,18 @@ class CC3DTTest(unittest.TestCase):
         preprocess_fn = compose(
             [
                 GenerateResizeParameters(
-                    shape=(256, 704), keep_ratio=True, sensors=self.CAMERAS
+                    shape=(256, 704), keep_ratio=True, sensors=NuScenes.CAMERAS
                 ),
-                ResizeImages(sensors=self.CAMERAS),
-                ResizeIntrinsics(sensors=self.CAMERAS),
+                ResizeImages(sensors=NuScenes.CAMERAS),
+                ResizeIntrinsics(sensors=NuScenes.CAMERAS),
             ]
         )
 
         batch_fn = compose(
             [
-                PadImages(sensors=self.CAMERAS),
-                NormalizeImages(sensors=self.CAMERAS),
-                ToTensor(sensors=self.CAMERAS),
+                PadImages(sensors=NuScenes.CAMERAS),
+                NormalizeImages(sensors=NuScenes.CAMERAS),
+                ToTensor(sensors=NuScenes.CAMERAS),
             ]
         )
 
@@ -87,11 +71,11 @@ class CC3DTTest(unittest.TestCase):
             workers_per_gpu=1,
             batchprocess_fn=batch_fn,
             collate_fn=multi_sensor_collate,
+            sensors=NuScenes.CAMERAS,
         )[0]
 
         data_connector = MultiSensorDataConnector(
-            key_mapping=self.CONN_BBOX_3D_TEST,
-            sensors=self.CAMERAS,
+            key_mapping=CONN_NUSC_BBOX_3D_TEST
         )
 
         cc_3dt.eval()

@@ -217,7 +217,7 @@ def draw_bbox3d(
     )
     canvas.create_canvas(image)
 
-    for corners, label, color in zip(*boxes3d_data):
+    for _, corners, label, color, _ in zip(*boxes3d_data):
         canvas.draw_box_3d(corners, color, intrinsics, width, camera_near_clip)
 
         selected_corner = project_point(corners[0], intrinsics)

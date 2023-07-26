@@ -44,8 +44,8 @@ from vis4d.data.transforms.resize import (
     ResizeOpticalFlows,
     ResizeSegMasks,
 )
-from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.data.transforms.select_sensor import SelectSensor
+from vis4d.data.transforms.to_tensor import ToTensor
 
 IMAGE_MEAN = [122.884, 117.266, 110.287]
 IMAGE_STD = [59.925, 59.466, 60.69]

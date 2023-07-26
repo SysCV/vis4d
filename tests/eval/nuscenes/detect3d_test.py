@@ -5,10 +5,14 @@ import unittest
 
 import torch
 
+from tests.eval.utils import get_dataloader
 from tests.util import get_test_data
 from vis4d.data.datasets.nuscenes import NuScenes
-from vis4d.data.loader import build_inference_dataloaders, multi_sensor_collate
-from vis4d.engine.connectors import data_key, get_multi_sensor_inputs, pred_key
+from vis4d.engine.connectors import (
+    data_key,
+    get_inputs_for_pred_and_data,
+    pred_key,
+)
 from vis4d.eval.nuscenes import NuScenesDet3DEvaluator
 
 
@@ -22,15 +26,6 @@ class TestNuScenesDet3DEvaluator(unittest.TestCase):
         "class_ids": pred_key("class_ids"),
         "scores_3d": pred_key("scores_3d"),
     }
-
-    CAMERAS = [
-        "CAM_FRONT",
-        "CAM_FRONT_LEFT",
-        "CAM_FRONT_RIGHT",
-        "CAM_BACK",
-        "CAM_BACK_LEFT",
-        "CAM_BACK_RIGHT",
-    ]
 
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
@@ -47,26 +42,21 @@ class TestNuScenesDet3DEvaluator(unittest.TestCase):
             version="v1.0-mini",
             split="mini_val",
         )
-        test_loader = build_inference_dataloaders(
-            dataset,
-            samples_per_gpu=batch_size,
-            workers_per_gpu=1,
-            collate_fn=multi_sensor_collate,
-        )[0]
+        test_loader = get_dataloader(
+            dataset, batch_size, sensors=NuScenes.CAMERAS
+        )
 
         output = {
-            "boxes_3d": torch.zeros(batch_size, 10),
-            "velocities": torch.zeros(batch_size, 3),
-            "class_ids": torch.zeros(batch_size),
-            "scores_3d": torch.zeros(batch_size),
+            "boxes_3d": [torch.zeros(batch_size, 10)],
+            "velocities": [torch.zeros(batch_size, 3)],
+            "class_ids": [torch.zeros(batch_size)],
+            "scores_3d": [torch.zeros(batch_size)],
         }
 
         batch = next(iter(test_loader))
 
         nusc_eval.process_batch(
-            **get_multi_sensor_inputs(
-                self.CONN_NUSC_EVAL, output, batch, self.CAMERAS
-            )
+            **get_inputs_for_pred_and_data(self.CONN_NUSC_EVAL, output, batch)
         )
 
         _, _ = nusc_eval.evaluate("detect_3d")

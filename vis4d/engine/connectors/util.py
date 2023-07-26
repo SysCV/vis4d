@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-
 from copy import deepcopy
 from typing import NamedTuple, TypedDict
-from typing_extensions import NotRequired
 
 from torch import Tensor
+from typing_extensions import NotRequired
 
 from vis4d.common.dict import get_dict_nested
 from vis4d.common.named_tuple import get_from_namedtuple, is_namedtuple
@@ -24,6 +23,7 @@ class SourceKeyDescription(TypedDict):
             Options are ['data', 'prediction'] where data referes to the
             output of the dataloader and prediction refers to the model
             output
+        sensors (Sequence[str]): Which sensors to use for the data.
     """
 
     key: str
@@ -59,6 +59,8 @@ def data_key(
 
     Args:
         key (str): Key to use for the data entry.
+        sensors (Sequence[str] | None, optional): Which sensors to use for the
+            data. Defaults to None.
 
     Returns:
         SourceKeyDescription: A SourceKeyDescription with data as source.

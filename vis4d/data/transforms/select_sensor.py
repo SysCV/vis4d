@@ -40,7 +40,7 @@ class SelectSensor:
         for data in batch:
             output_data = {}
             for key in data.keys():
-                if key in self.all_sensors:
+                if key in self.sensors:
                     if key == self.selected_sensor:
                         output_data.update(data[key])
                 else:

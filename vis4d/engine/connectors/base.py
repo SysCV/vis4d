@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import NamedTuple
+
 from torch import Tensor
 
 from vis4d.common.typing import DictStrArrNested
@@ -17,12 +18,12 @@ class DataConnector:
     the next component with the provided new key.
     """
 
-    def __init__(self, key_mapping: dict[str, str | SourceKeyDescription]):
+    def __init__(self, key_mapping: dict[str, str]):
         """Initializes the data connector with static remapping of the keys.
 
         Args:
-            key_mapping (dict[str, str | SourceKeyDescription]): Defines which
-                kwargs to pass onto the module.
+            key_mapping (dict[str, str]): Defines which kwargs to pass onto the
+                module.
 
         Simple Example Configuration:
 
@@ -62,7 +63,7 @@ class LossConnector:
         self.key_mapping = key_mapping
 
     def __call__(
-        self, prediction: NamedTuple, data: DictData
+        self, prediction: DictData | NamedTuple, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the loss module.
 

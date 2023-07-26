@@ -57,6 +57,26 @@ CONN_NUSC_TRACK3D_EVAL = {
     "track_ids": pred_key("track_ids"),
 }
 
+CONN_NUSC_BBOX_3D_TEST = {
+    "images": data_key(K.images, sensors=NuScenes.CAMERAS),
+    "images_hw": data_key(K.original_hw, sensors=NuScenes.CAMERAS),
+    "intrinsics": data_key(K.intrinsics, sensors=NuScenes.CAMERAS),
+    "extrinsics": data_key(K.extrinsics, sensors=NuScenes.CAMERAS),
+    "frame_ids": K.frame_ids,
+}
+
+CONN_NUSC_BBOX_3D_VIS = {
+    "images": data_key(K.original_images, sensors=NuScenes.CAMERAS),
+    "image_names": data_key(K.sample_names, sensors=NuScenes.CAMERAS),
+    "boxes3d": pred_key("boxes_3d"),
+    "intrinsics": data_key(K.intrinsics, sensors=NuScenes.CAMERAS),
+    "extrinsics": data_key(K.extrinsics, sensors=NuScenes.CAMERAS),
+    "scores": pred_key("scores_3d"),
+    "class_ids": pred_key("class_ids"),
+    "track_ids": pred_key("track_ids"),
+    "sequence_names": data_key(K.sequence_names),
+}
+
 
 def get_train_dataloader(
     train_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int

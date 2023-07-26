@@ -116,7 +116,11 @@ def transform_boxes3d(
             boxes.
         only_yaw (bool): Whether to only care about yaw rotation.
     """
-    boxes3d[:, :3] = transform_points(boxes3d[:, :3], transform_matrix)
+    boxes3d_transformed = boxes3d.new_zeros(boxes3d.shape)
+    boxes3d_transformed[:, :3] = transform_points(
+        boxes3d[:, :3], transform_matrix
+    )
+    boxes3d_transformed[:, 3:6] = boxes3d[:, 3:6]
 
     if only_yaw:
         orientation = rotation_matrix_yaw(
@@ -127,11 +131,13 @@ def transform_boxes3d(
             orientation, transform_matrix, axis_mode=target_axis_mode
         )
 
-        boxes3d[:, 6:] = matrix_to_quaternion(
+        boxes3d_transformed[:, 6:] = matrix_to_quaternion(
             euler_angles_to_matrix(orientation)
         )
     else:
         rot_quat = matrix_to_quaternion(transform_matrix[:3, :3])
-        boxes3d[:, 6:] = quaternion_multiply(rot_quat, boxes3d[:, 6:])
+        boxes3d_transformed[:, 6:] = quaternion_multiply(
+            rot_quat, boxes3d[:, 6:]
+        )
 
-    return boxes3d
+    return boxes3d_transformed

@@ -111,7 +111,7 @@ class FasterRCNNCC3DT(nn.Module):
         images: list[Tensor],
         images_hw: list[list[tuple[int, int]]],
         intrinsics: list[Tensor],
-        extrinsics: Tensor | None = None,
+        extrinsics: list[Tensor] | None = None,
         frame_ids: list[int] | None = None,
         boxes2d: list[list[Tensor]] | None = None,
         boxes3d: list[list[Tensor]] | None = None,

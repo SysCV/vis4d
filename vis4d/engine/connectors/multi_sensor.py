@@ -12,28 +12,43 @@ from .util import SourceKeyDescription, get_field_from_prediction
 class MultiSensorDataConnector(DataConnector):
     """Data connector for multi-sensor data dict."""
 
+    def __init__(self, key_mapping: dict[str, str | SourceKeyDescription]):
+        """Initializes the data connector with static remapping of the keys.
+
+        Args:
+            key_mapping (dict[str, | SourceKeyDescription]): Defines which
+                kwargs to pass onto the module.
+
+        TODO: Add Simple Example Configuration:
+        """
+        _key_mapping = {}
+        multi_sensor_key_mapping = {}
+
+        for k, v in key_mapping.items():
+            if isinstance(v, dict):
+                multi_sensor_key_mapping[k] = v
+            else:
+                _key_mapping[k] = v
+
+        super().__init__(_key_mapping)
+        self.multi_sensor_key_mapping = multi_sensor_key_mapping
+
     def __call__(self, data: DictDataOrList) -> DictData:
         """Returns the train input for the model."""
-        input_dict: DictData = {}
+        input_dict = super().__call__(data)
 
-        for target_key, source_key in self.key_mapping.items():
-            if isinstance(source_key, dict):
-                key = source_key["key"]
-                sensors = source_key["sensors"]
+        for target_key, source_key in self.multi_sensor_key_mapping.items():
+            key = source_key["key"]
+            sensors = source_key["sensors"]
 
-                if isinstance(data, list):
-                    input_dict[target_key] = [
-                        [data[sensor][key] for sensor in sensors] for d in data
-                    ]
-                else:
-                    input_dict[target_key] = [
-                        data[sensor][key] for sensor in sensors
-                    ]
+            if isinstance(data, list):
+                input_dict[target_key] = [
+                    [d[sensor][key] for sensor in sensors] for d in data
+                ]
             else:
-                if isinstance(data, list):
-                    input_dict[target_key] = [d[source_key] for d in data]
-                else:
-                    input_dict[target_key] = data[source_key]
+                input_dict[target_key] = [
+                    data[sensor][key] for sensor in sensors
+                ]
         return input_dict
 
 

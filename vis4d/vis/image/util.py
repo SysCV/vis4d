@@ -173,15 +173,18 @@ def preprocess_boxes3d(
     color_palette: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
+    axis_mode: AxisMode = AxisMode.OPENCV,
 ) -> tuple[
+    list[tuple[float, float, float]],
     list[list[tuple[float, float, float]]],
     list[str],
     list[tuple[int, int, int]],
+    list[int],
 ]:
     """Preprocesses bounding boxes.
 
     Converts the given predicted bounding boxes and class/track information
-    into lists of corners, labels and colors.
+    into lists of centers, corners, labels, colors and track_ids.
     """
     if class_id_mapping is None:
         class_id_mapping = {}
@@ -192,35 +195,44 @@ def preprocess_boxes3d(
     boxes3d = torch.from_numpy(boxes3d)
     intrinsics = torch.from_numpy(intrinsics)
 
-    if extrinsics is not None:
+    if axis_mode != AxisMode.OPENCV:
+        assert (
+            extrinsics is not None
+        ), "extrinsics must be provided to move boxes to camera coordiante."
         extrinsics = array_to_numpy(extrinsics, n_dims=2, dtype=np.float32)
         extrinsics = torch.from_numpy(extrinsics)
         global_to_cam = inverse_rigid_transform(extrinsics)
-        boxes3d = transform_boxes3d(
+        boxes3d_cam = transform_boxes3d(
             boxes3d,
             global_to_cam,
             source_axis_mode=AxisMode.ROS,
             target_axis_mode=AxisMode.OPENCV,
         )
+    else:
+        boxes3d_cam = boxes3d
 
-    corners = boxes3d_to_corners(boxes3d, axis_mode=AxisMode.OPENCV)
+    corners = boxes3d_to_corners(boxes3d_cam, axis_mode=AxisMode.OPENCV)
 
     mask = boxes3d_in_image(corners, intrinsics, image_hw)
 
+    boxes3d_np = boxes3d.numpy()
     corners_np = corners.numpy()
 
     scores_np = array_to_numpy(scores, n_dims=1, dtype=np.float32)
     class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
     track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
+    boxes3d_np = boxes3d_np[mask]
     corners_np = corners_np[mask]
     scores_np = scores_np[mask] if scores_np is not None else None
     class_ids_np = class_ids_np[mask] if class_ids_np is not None else None
     track_ids_np = track_ids_np[mask] if track_ids_np is not None else None
 
-    boxes3d_proc: list[list[tuple[float, float, float]]] = []
+    centers_proc: list[tuple[float, float, float]] = []
+    corners_proc: list[list[tuple[float, float, float]]] = []
     colors_proc: list[tuple[int, int, int]] = []
     labels_proc: list[str] = []
+    track_ids_proc: list[int] = []
 
     for idx in range(corners_np.shape[0]):
         class_id = None if class_ids_np is None else class_ids_np[idx].item()
@@ -234,14 +246,22 @@ def preprocess_boxes3d(
         else:
             color = default_color
 
-        boxes3d_proc.append(
+        centers_proc.append(
+            (
+                boxes3d_np[idx][0].item(),
+                boxes3d_np[idx][1].item(),
+                boxes3d_np[idx][2].item(),
+            )
+        )
+        corners_proc.append(
             [tuple(pts) for pts in corners_np[idx].tolist()]  # type: ignore
         )
         colors_proc.append(color)
         labels_proc.append(
             _get_box_label(class_id, score, track_id, class_id_mapping)
         )
-    return boxes3d_proc, labels_proc, colors_proc
+        track_ids_proc.append(track_id)
+    return centers_proc, corners_proc, labels_proc, colors_proc, track_ids_proc
 
 
 def preprocess_masks(

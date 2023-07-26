@@ -79,6 +79,21 @@ class CanvasBackend:
         """
         raise NotImplementedError
 
+    def draw_circle(
+        self,
+        center: tuple[float, float],
+        color: tuple[int, int, int],
+        radius: int = 2,
+    ) -> None:
+        """Draw a circle onto canvas.
+
+        Args:
+            center (tuple[float, float]): Center of the circle.
+            color (tuple[int, int, int]): Color of the circle.
+            radius (int, optional): Radius of the circle. Defaults to 2.
+        """
+        raise NotImplementedError
+
     def draw_box(
         self,
         corners: tuple[float, float, float, float],

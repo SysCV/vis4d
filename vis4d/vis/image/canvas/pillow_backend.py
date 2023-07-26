@@ -185,6 +185,29 @@ class PillowCanvasBackend(CanvasBackend):
             )
         self._image_draw.line((point1, point2), width=width, fill=color)
 
+    def draw_circle(
+        self,
+        center: tuple[float, float],
+        color: tuple[int, int, int],
+        radius: int = 2,
+    ) -> None:
+        """Draw a circle onto canvas.
+
+        Args:
+            center (tuple[float, float]): Center of the circle.
+            color (tuple[int, int, int]): Color of the circle.
+            radius (int, optional): Radius of the circle. Defaults to 2.
+        """
+        x1 = center[0] - radius
+        y1 = center[1] - radius
+        x2 = center[0] + radius
+        y2 = center[1] + radius
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
+        self._image_draw.ellipse((x1, y1, x2, y2), fill=color, outline=color)
+
     def _draw_box_3d_line(
         self,
         point1: tuple[float, float, float],

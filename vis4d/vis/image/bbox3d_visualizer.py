@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import os
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
+import torch
 
 from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
@@ -16,6 +18,8 @@ from vis4d.common.typing import (
     NDArrayF32,
     NDArrayUI8,
 )
+from vis4d.data.const import AxisMode
+from vis4d.op.geometry.transform import inverse_rigid_transform
 from vis4d.vis.base import Visualizer
 from vis4d.vis.util import generate_color_map
 
@@ -31,6 +35,7 @@ class DetectionBox3D:
     corners: list[tuple[float, float, float]]
     label: str
     color: tuple[int, int, int]
+    track_id: int | None
 
 
 @dataclass
@@ -40,6 +45,7 @@ class DataSample:
     image: NDArrayUI8
     image_name: str
     intrinsics: NDArrayF32
+    extrinsics: NDArrayF32 | None
     sequence_name: str | None
     camera_name: str | None
     boxes: list[DetectionBox3D]
@@ -57,6 +63,9 @@ class BoundingBox3DVisualizer(Visualizer):
         image_mode: str = "RGB",
         width: int = 2,
         camera_near_clip: float = 0.15,
+        axis_mode: AxisMode = AxisMode.ROS,
+        trajectory_length: int = 10,
+        plot_trajectory: bool = True,
         canvas: CanvasBackend | None = None,
         viewer: ImageViewerBackend | None = None,
         **kwargs: ArgsType,
@@ -74,6 +83,12 @@ class BoundingBox3DVisualizer(Visualizer):
             width (int): Width of the drawn bounding boxes. Defaults to 2.
             camera_near_clip (float): Near clipping plane of the camera.
                 Defaults to 0.15.
+            axis_mode (AxisMode): Axis mode for the input bboxes. Defaults to
+                AxisMode.ROS (i.e. global coordinate).
+            trajectory_length (int): How many past frames should be used to
+                draw the trajectory. Defaults to 10.
+            plot_trajectory (bool): If the trajectory should be plotted.
+                Defaults to True.
             canvas (CanvasBackend): Backend that is used to draw on images. If
                 None a PillowCanvasBackend is used.
             viewer (ImageViewerBackend): Backend that is used show images. If
@@ -81,6 +96,13 @@ class BoundingBox3DVisualizer(Visualizer):
         """
         super().__init__(*args, **kwargs)
         self._samples: list[DataSample] = []
+        self.axis_mode = axis_mode
+        self.trajectories: dict[
+            int, list[tuple[float, float, float]]
+        ] = defaultdict(list)
+        self.trajectory_length = trajectory_length
+        self.plot_trajectory = plot_trajectory
+
         self.color_palette = generate_color_map(n_colors)
 
         self.class_id_mapping = (
@@ -109,9 +131,9 @@ class BoundingBox3DVisualizer(Visualizer):
         boxes3d: list[ArrayLikeFloat],
         intrinsics: ArrayLikeFloat,
         extrinsics: None | ArrayLikeFloat = None,
-        scores: None | ArrayLikeFloat = None,
-        class_ids: None | ArrayLikeInt = None,
-        track_ids: None | ArrayLikeInt = None,
+        scores: None | list[ArrayLikeFloat] = None,
+        class_ids: None | list[ArrayLikeInt] = None,
+        track_ids: None | list[ArrayLikeInt] = None,
         sequence_names: None | list[str] = None,
     ) -> None:
         """Processes a batch of data.
@@ -141,13 +163,19 @@ class BoundingBox3DVisualizer(Visualizer):
                     image,
                     image_names[batch],
                     boxes3d[batch],
-                    intrinsics[batch],
-                    None if extrinsics is None else extrinsics[batch],
+                    intrinsics[batch],  # type: ignore
+                    None
+                    if extrinsics is None
+                    else extrinsics[batch],  # type: ignore
                     None if scores is None else scores[batch],
                     None if class_ids is None else class_ids[batch],
                     None if track_ids is None else track_ids[batch],
                     None if sequence_names is None else sequence_names[batch],
                 )
+
+            for tid in self.trajectories:
+                if len(self.trajectories[tid]) > self.trajectory_length:
+                    self.trajectories[tid].pop(0)
 
     def process_single_image(
         self,
@@ -186,16 +214,22 @@ class BoundingBox3DVisualizer(Visualizer):
         image_hw = (img_normalized.shape[0], img_normalized.shape[1])
 
         intrinsics_np = array_to_numpy(intrinsics, n_dims=2, dtype=np.float32)
+        extrinsics_np = (
+            array_to_numpy(extrinsics, n_dims=2, dtype=np.float32)
+            if extrinsics is not None
+            else None
+        )
         data_sample = DataSample(
             img_normalized,
             image_name,
             intrinsics_np,  # type: ignore
+            extrinsics_np,  # type: ignore
             sequence_name,
             camera_name,
             [],
         )
 
-        for corners, label, color in zip(
+        for center, corners, label, color, track_id in zip(
             *preprocess_boxes3d(
                 image_hw,
                 boxes3d,
@@ -206,12 +240,19 @@ class BoundingBox3DVisualizer(Visualizer):
                 track_ids,
                 self.color_palette,
                 self.class_id_mapping,
+                axis_mode=self.axis_mode,
             )
         ):
             data_sample.boxes.append(
-                DetectionBox3D(corners=corners, label=label, color=color)
+                DetectionBox3D(
+                    corners=corners,
+                    label=label,
+                    color=color,
+                    track_id=track_id,
+                )
             )
-
+            if track_id is not None:
+                self.trajectories[track_id].append(center)
         self._samples.append(data_sample)
 
     def show(self, cur_iter: int, blocking: bool = True) -> None:
@@ -251,6 +292,27 @@ class BoundingBox3DVisualizer(Visualizer):
                 box.label,
             )
 
+            if self.plot_trajectory:
+                assert (
+                    sample.extrinsics is not None and box.track_id is not None
+                ), "Extrinsics and track id must be set to plot trajectory."
+
+                trajectory = self.trajectories[box.track_id]
+                for center in trajectory:
+                    # Move global center to current camera frame
+                    global_to_cam = inverse_rigid_transform(
+                        torch.from_numpy(sample.extrinsics)
+                    ).numpy()
+                    center_cam = np.dot(global_to_cam, [*center, 1])[:3]
+
+                    if center_cam[2] > 0:
+                        projected_center = project_point(
+                            center_cam, sample.intrinsics
+                        )
+                        self.canvas.draw_circle(
+                            projected_center, box.color, self.width * 2
+                        )
+
         return self.canvas.as_numpy_image()
 
     def save_to_disk(self, cur_iter: int, output_folder: str) -> None:
@@ -268,24 +330,7 @@ class BoundingBox3DVisualizer(Visualizer):
                 output_dir = output_folder
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                self.canvas.create_canvas(sample.image)
-
-                for box in sample.boxes:
-                    self.canvas.draw_box_3d(
-                        box.corners,
-                        box.color,
-                        sample.intrinsics,
-                        self.width,
-                        self.camera_near_clip,
-                    )
-
-                    selected_corner = project_point(
-                        box.corners[0], sample.intrinsics
-                    )
-                    self.canvas.draw_text(
-                        (selected_corner[0], selected_corner[1]),
-                        box.label,
-                    )
+                self._draw_image(sample)
 
                 if sample.sequence_name is not None:
                     output_dir = os.path.join(output_dir, sample.sequence_name)
@@ -298,6 +343,8 @@ class BoundingBox3DVisualizer(Visualizer):
 
 
 class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
+    """Bounding box 3D visualizer class for multi-camera datasets."""
+
     def __init__(
         self, *args: ArgsType, cameras: Sequence[str], **kwargs: ArgsType
     ) -> None:
@@ -351,8 +398,10 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
                         image,
                         image_names[idx][batch],
                         boxes3d[batch],
-                        intrinsics[idx][batch],
-                        None if extrinsics is None else extrinsics[idx][batch],
+                        intrinsics[idx][batch],  # type: ignore
+                        None
+                        if extrinsics is None
+                        else extrinsics[idx][batch],  # type: ignore
                         None if scores is None else scores[batch],
                         None if class_ids is None else class_ids[batch],
                         None if track_ids is None else track_ids[batch],
