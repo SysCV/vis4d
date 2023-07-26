@@ -43,7 +43,8 @@ class PillowCanvasBackend(CanvasBackend):
         if image is None and image_hw is None:
             raise ValueError("Image or Image Shapes required to create canvas")
         if image_hw is not None:
-            image = np.zeros(image_hw, dtype=np.uint8)
+            white_image = np.ones([*image_hw, 3]) * 255
+            image = white_image.astype(np.uint8)
         self._image = Image.fromarray(image)
         self._image_draw = ImageDraw.Draw(self._image)
 
@@ -130,7 +131,7 @@ class PillowCanvasBackend(CanvasBackend):
 
     def draw_rotated_box(
         self,
-        corners: tuple[tuple[float, float], ...],
+        corners: list[tuple[float, float]],
         color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
@@ -145,8 +146,8 @@ class PillowCanvasBackend(CanvasBackend):
         (0) +---------+ (1)
 
         Args:
-            corners (tuple[tuple[float, float], ...]): Containing the four
-                corners of the box.
+            corners (list[tuple[float, float]]): Containing the four corners of
+                the box.
             color (tuple[int, int, int]): Color of the box [0,255].
             width (int, optional): Line width. Defaults to 0.
 
@@ -158,8 +159,20 @@ class PillowCanvasBackend(CanvasBackend):
             raise ValueError(
                 "No Image Draw initialized! Did you call 'create_canvas'?"
             )
-        for i in range(3):
-            self.draw_line(corners[i], corners[i + 1], color, width)
+
+        self.draw_line(corners[0], corners[1], color, 2 * width)
+        self.draw_line(corners[0], corners[2], color, width)
+        self.draw_line(corners[1], corners[3], color, width)
+        self.draw_line(corners[2], corners[3], color, width)
+
+        center_forward = np.mean(corners[:2], axis=0, dtype=np.float32)
+        center = np.mean(corners, axis=0, dtype=np.float32)
+        self.draw_line(
+            tuple(center.tolist()),  # type: ignore
+            tuple(center_forward.tolist()),  # type: ignore
+            color,
+            width,
+        )
 
     def draw_line(
         self,
@@ -305,8 +318,8 @@ class PillowCanvasBackend(CanvasBackend):
         center_bottom_forward = np.mean(corners[:2], axis=0, dtype=np.float32)
         center_bottom = np.mean(corners[:4], axis=0, dtype=np.float32)
         self._draw_box_3d_line(
-            center_bottom,
-            center_bottom_forward,
+            tuple(center_bottom.tolist()),  # type: ignore
+            tuple(center_bottom_forward.tolist()),  # type: ignore
             color,
             intrinsics,
             width,

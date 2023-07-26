@@ -70,7 +70,7 @@ class BoundingBox3DVisualizer(Visualizer):
         viewer: ImageViewerBackend | None = None,
         **kwargs: ArgsType,
     ) -> None:
-        """Creates a new Visualizer for Image and Bounding Boxes.
+        """Creates a new Visualizer for Image and 3D Bounding Boxes.
 
         Args:
             n_colors (int): How many colors should be used for the internal
@@ -277,6 +277,11 @@ class BoundingBox3DVisualizer(Visualizer):
             NDArrayUI8: A image with the visualized data sample.
         """
         self.canvas.create_canvas(sample.image)
+
+        global_to_cam = inverse_rigid_transform(
+            torch.from_numpy(sample.extrinsics)
+        ).numpy()
+
         for box in sample.boxes:
             self.canvas.draw_box_3d(
                 box.corners,
@@ -300,9 +305,6 @@ class BoundingBox3DVisualizer(Visualizer):
                 trajectory = self.trajectories[box.track_id]
                 for center in trajectory:
                     # Move global center to current camera frame
-                    global_to_cam = inverse_rigid_transform(
-                        torch.from_numpy(sample.extrinsics)
-                    ).numpy()
                     center_cam = np.dot(global_to_cam, [*center, 1])[:3]
 
                     if center_cam[2] > 0:

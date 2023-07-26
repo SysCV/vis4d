@@ -113,7 +113,7 @@ class CanvasBackend:
 
     def draw_rotated_box(
         self,
-        corners: tuple[tuple[float, float], ...],
+        corners: list[tuple[float, float]],
         color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
@@ -128,8 +128,8 @@ class CanvasBackend:
         (0) +---------+ (1)
 
         Args:
-            corners (tuple[tuple[float, float], ...]): Containing the four
-                corners of the box.
+            corners (list[tuple[float, float]]): Containing the four corners of
+                the box.
             color (tuple[int, int, int]): Color of the box [0,255].
             width (int, optional): Line width. Defaults to 0.
         """

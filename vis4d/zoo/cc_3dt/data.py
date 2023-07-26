@@ -77,6 +77,14 @@ CONN_NUSC_BBOX_3D_VIS = {
     "sequence_names": data_key(K.sequence_names),
 }
 
+CONN_NUSC_BEV_BBOX_3D_VIS = {
+    "sample_names": data_key(K.sample_names, sensors=["LIDAR_TOP"]),
+    "boxes3d": pred_key("boxes_3d"),
+    "extrinsics": data_key(K.extrinsics, sensors=["LIDAR_TOP"]),
+    "track_ids": pred_key("track_ids"),
+    "sequence_names": data_key(K.sequence_names),
+}
+
 
 def get_train_dataloader(
     train_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
@@ -153,7 +161,7 @@ def get_test_dataloader(
     test_batch_transforms = [
         class_config(PadImages, sensors=NuScenes.CAMERAS),
         class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
-        class_config(ToTensor, sensors=NuScenes.CAMERAS),
+        class_config(ToTensor, sensors=NuScenes.SENSORS),
     ]
 
     test_batchprocess_cfg = class_config(
@@ -171,7 +179,7 @@ def get_test_dataloader(
         video_based_inference=True,
         batchprocess_cfg=test_batchprocess_cfg,
         collate_fn=multi_sensor_collate,
-        sensors=NuScenes.CAMERAS,
+        sensors=NuScenes.SENSORS,
     )
 
 
