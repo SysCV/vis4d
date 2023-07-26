@@ -11,10 +11,10 @@ In this report, we present some experienced improvements to YOLO series, forming
 
 ### Results
 
-| Backbone | Model | Lr schd | Box AP-val | Scores-val | Box AP-test | Scores-test |                        Config                         |  Weights  |   Preds   |   Visuals   |
-| :------: | :-----: | :------: | :--------: | :--------: | :---------: | :---------: | :---------------------------------------------------: | :-------: | :-------: | :---------: |
-| CSP-Darknet | Tiny |   300e   |        | [scores]() |             | [scores]()  | [config](./yolox_tiny_300e_coco.py) | [model]() | [preds]() | [visuals]() |
-| CSP-Darknet | S |   300e   |        | [scores]() |             | [scores]()  | [config](./yolox_s_300e_coco.py) | [model]() | [preds]() | [visuals]() |
+| Backbone | Model | Lr schd | Box AP-val | Scores-val |                        Config                         |  Weights  |   Preds   |   Visuals   |
+| :------: | :-----: | :------: | :--------: | :--------: | :---------------------------------------------------: | :-------: | :-------: | :---------: |
+| CSP-Darknet | Tiny |   300e   |  32.1  | [scores]() | [config](./yolox_tiny_300e_coco.py) | [model]() | [preds]() | [visuals]() |
+| CSP-Darknet | S |   300e   |  40.0  | [scores]() | [config](./yolox_s_300e_coco.py) | [model]() | [preds]() | [visuals]() |
 
 ## Citation
 

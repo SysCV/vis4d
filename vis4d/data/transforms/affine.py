@@ -104,19 +104,6 @@ class GenAffineParameters:
 
     This operation randomly generates affine transform matrix which including
     rotation, translation, shear, and scaling transforms.
-
-    Args:
-        max_rotate_degree (float): Maximum degrees of rotation transform.
-            Defaults to 10.
-        max_translate_ratio (float): Maximum ratio of translation.
-            Defaults to 0.1.
-        scaling_ratio_range (tuple[float]): Min and max ratio of
-            scaling transform. Defaults to (0.5, 1.5).
-        max_shear_degree (float): Maximum degrees of shear
-            transform. Defaults to 2.
-        border (tuple[int, int]): Distance from height and width sides of input
-            image to adjust output shape. Only used in mosaic dataset.
-            Defaults to (0, 0).
     """
 
     def __init__(
@@ -127,7 +114,21 @@ class GenAffineParameters:
         max_shear_degree: float = 2.0,
         border: tuple[int, int] = (0, 0),
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            max_rotate_degree (float): Maximum degrees of rotation transform.
+                Defaults to 10.
+            max_translate_ratio (float): Maximum ratio of translation.
+                Defaults to 0.1.
+            scaling_ratio_range (tuple[float]): Min and max ratio of
+                scaling transform. Defaults to (0.5, 1.5).
+            max_shear_degree (float): Maximum degrees of shear
+                transform. Defaults to 2.
+            border (tuple[int, int]): Distance from height and width sides of
+                input image to adjust output shape. Only used in mosaic
+                dataset. Defaults to (0, 0).
+        """
         assert 0 <= max_translate_ratio <= 1
         assert scaling_ratio_range[0] <= scaling_ratio_range[1]
         assert scaling_ratio_range[0] > 0
@@ -200,18 +201,23 @@ class GenAffineParameters:
     [K.images, K.input_hw],
 )
 class AffineImages:
-    """Affine Images.
-
-    Args:
-        border_val (tuple[int, int, int]): Border padding values of 3 channels.
-            Defaults to (114, 114, 114).
-    """
+    """Affine Images."""
 
     def __init__(
-        self, border_val: tuple[int, int, int] = (114, 114, 114)
+        self,
+        border_val: tuple[int, int, int] = (114, 114, 114),
+        as_int: bool = False,
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            border_val (tuple[int, int, int]): Border padding values of 3
+                channels. Defaults to (114, 114, 114).
+            as_int (bool): Whether to convert the image to int. Defaults to
+                False.
+        """
         self.border_val = border_val
+        self.as_int = as_int
 
     def __call__(
         self,
@@ -233,18 +239,13 @@ class AffineImages:
         for i, (image, warp_matrix, height, width) in enumerate(
             zip(images, warp_matrix_list, height_list, width_list)
         ):
+            image = image[0].astype(np.uint8) if self.as_int else image[0]
             image = cv2.warpPerspective(  # pylint: disable=no-member
-                image[0],
+                image,
                 warp_matrix,
                 dsize=(width, height),
                 borderValue=self.border_val,
-            )[None, ...]
-            # image = cv2.warpPerspective(  # pylint: disable=no-member
-            #     image[0].astype(np.uint8),
-            #     warp_matrix,
-            #     dsize=(width, height),
-            #     borderValue=self.border_val,
-            # )[None, ...].astype(np.float32)
+            )[None, ...].astype(np.float32)
 
             images[i] = image
             input_hw_list.append((height, width))
@@ -263,37 +264,34 @@ class AffineImages:
     out_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
 )
 class AffineBoxes2D:
-    """Apply Affine to a list of 2D bounding boxes.
-
-    Args:
-        bbox_clip_border (bool, optional): Whether to clip the objects outside
-            the border of the image. In some dataset like MOT17, the gt bboxes
-            are allowed to cross the border of images. Therefore, we don't
-            need to clip the gt bboxes in these cases. Defaults to True.
-    """
+    """Apply Affine to a list of 2D bounding boxes."""
 
     def __init__(self, bbox_clip_border: bool = True) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            bbox_clip_border (bool, optional): Whether to clip the objects
+                outside the border of the image. In some dataset like MOT17,
+                the gt bboxes are allowed to cross the border of images.
+                Therefore, we don't need to clip the gt bboxes in these cases.
+                Defaults to True.
+        """
         self.bbox_clip_border = bbox_clip_border
 
     def __call__(
         self,
         boxes: list[NDArrayF32],
         classes: list[NDArrayI32],
-        track_ids: list[NDArrayI32 | None],
+        track_ids: list[NDArrayI32] | None,
         warp_matrix_list: list[NDArrayF32],
         height_list: list[int],
         width_list: list[int],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None]]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
         """Apply Affine to 2D bounding boxes."""
-        track_ids_ = (
-            track_ids if track_ids is not None else [None] * len(boxes)
-        )
-        for i, (box, class_, tids, warp_matrix, height, width) in enumerate(
+        for i, (box, class_, warp_matrix, height, width) in enumerate(
             zip(
                 boxes,
                 classes,
-                track_ids_,
                 warp_matrix_list,
                 height_list,
                 width_list,
@@ -311,7 +309,7 @@ class AffineBoxes2D:
             )
             boxes[i] = boxes[i][keep_mask]
             classes[i] = class_[keep_mask]
-            if tids is not None:
-                track_ids_[i] = tids[keep_mask]
+            if track_ids is not None:
+                track_ids[i] = track_ids[i][keep_mask]
 
-        return boxes, classes, track_ids_
+        return boxes, classes, track_ids

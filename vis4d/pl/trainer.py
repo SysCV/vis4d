@@ -29,6 +29,7 @@ class PLTrainer(Trainer):
         checkpoint_period: int = 1,
         checkpoint_callback: ModelCheckpoint | None = None,
         wandb: bool = False,
+        seed: int = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -49,10 +50,14 @@ class PLTrainer(Trainer):
             checkpoint_callback: Custom PL checkpoint callback. Default: None.
             wandb: Use weights and biases logging instead of tensorboard.
                 Default: False.
+            seed (int, optional): The integer value seed for global random
+                state. Defaults to -1. If -1, a random seed will be generated.
+                This will be set by TrainingModule.
         """
         self.work_dir = work_dir
         self.exp_name = exp_name
         self.version = version
+        self.seed = seed
 
         self.output_dir = osp.join(work_dir, exp_name, version)
 

@@ -129,7 +129,7 @@ def main(argv: ArgsType) -> None:
         config.seed,
         ckpt_path if not resume else None,
     )
-    data_module = DataModule(config.data, training_module.seed)
+    data_module = DataModule(config.data)
 
     if mode == "fit":
         trainer.fit(

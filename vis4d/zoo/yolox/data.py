@@ -86,7 +86,7 @@ def get_train_dataloader(
     preprocess_transforms = [
         [
             class_config(GenMosaicParameters, out_shape=image_size),
-            class_config(MosaicImages),
+            class_config(MosaicImages, imresize_backend="cv2"),
             class_config(MosaicBoxes2D),
         ]
     ]
@@ -98,7 +98,7 @@ def get_train_dataloader(
                 scaling_ratio_range=scaling_ratio_range,
                 border=(-image_size[0] // 2, -image_size[1] // 2),
             ),
-            class_config(AffineImages),
+            class_config(AffineImages, as_int=True),
             class_config(AffineBoxes2D),
         ]
     ]
@@ -113,7 +113,7 @@ def get_train_dataloader(
                     scale_range=(0.8, 1.6),
                     pad_value=114.0,
                 ),
-                class_config(MixupImages),
+                class_config(MixupImages, imresize_backend="cv2"),
                 class_config(MixupBoxes2D),
             ]
         ]
@@ -141,7 +141,7 @@ def get_train_dataloader(
                 keep_ratio=True,
                 same_on_batch=False,
             ),
-            class_config(ResizeImages),
+            class_config(ResizeImages, imresize_backend="cv2"),
             class_config(ResizeBoxes2D),
             class_config(PadImages, value=114.0, pad2square=True),
             class_config(ToTensor),
@@ -187,7 +187,7 @@ def get_test_dataloader(
     # Test Preprocessing
     preprocess_transforms = [
         class_config(GenResizeParameters, shape=image_size, keep_ratio=True),
-        class_config(ResizeImages),
+        class_config(ResizeImages, imresize_backend="cv2"),
     ]
 
     test_preprocess_cfg = class_config(

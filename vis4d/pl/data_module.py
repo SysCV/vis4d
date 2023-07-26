@@ -16,20 +16,16 @@ class DataModule(pl.LightningDataModule):
     pytorch-lightning for training and testing.
     """
 
-    def __init__(
-        self,
-        data_cfg: DataConfig,
-        seed: int = -1,
-    ) -> None:
+    def __init__(self, data_cfg: DataConfig) -> None:
         """Creates an instance of the class."""
         super().__init__()
         self.data_cfg = data_cfg
-        self.seed = seed
 
     def train_dataloader(self) -> DataLoader[DictData]:
         """Return dataloader for training."""
         return instantiate_classes(
-            self.data_cfg.train_dataloader, seed=self.seed
+            self.data_cfg.train_dataloader,
+            seed=self.trainer.seed,  # type: ignore
         )
 
     def test_dataloader(self) -> list[DataLoader[DictData]]:

@@ -203,7 +203,10 @@ class MosaicImages:
     NUM_SAMPLES = 4
 
     def __init__(
-        self, pad_value: float = 114.0, interpolation: str = "bilinear"
+        self,
+        pad_value: float = 114.0,
+        interpolation: str = "bilinear",
+        imresize_backend: str = "torch",
     ) -> None:
         """Creates an instance of the class.
 
@@ -212,9 +215,15 @@ class MosaicImages:
                 114.0.
             interpolation (str): Interpolation mode for resizing image.
                 Defaults to bilinear.
+            imresize_backend (str): One of torch, cv2. Defaults to torch.
         """
         self.pad_value = pad_value
         self.interpolation = interpolation
+        self.imresize_backend = imresize_backend
+        assert imresize_backend in {
+            "torch",
+            "cv2",
+        }, f"Invalid imresize backend: {imresize_backend}"
 
     def __call__(
         self,
@@ -237,7 +246,12 @@ class MosaicImages:
             for idx, img in enumerate(imgs):
                 # resize current image
                 h_i, w_i = im_shapes[i][idx]
-                img_ = resize_image(img, (h_i, w_i), self.interpolation)
+                img_ = resize_image(
+                    img,
+                    (h_i, w_i),
+                    self.interpolation,
+                    backend=self.imresize_backend,
+                )
 
                 x1_p, y1_p, x2_p, y2_p = paste_coords[i][idx]
                 x1_c, y1_c, x2_c, y2_c = crop_coords[i][idx]

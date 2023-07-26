@@ -12,7 +12,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import bbox_intersection
 
 from .base import Transform
-from .resize import get_resize_shape, resize_tensor
+from .resize import get_resize_shape, resize_image
 
 
 class MixupParam(TypedDict):
@@ -125,28 +125,31 @@ class GenMixupParameters:
         return parameter_list
 
 
-@Transform(
-    in_keys=(K.images, "transforms.mixup"),
-    out_keys=(K.images,),
-)
+@Transform(in_keys=(K.images, "transforms.mixup"), out_keys=(K.images,))
 class MixupImages:
     """Mixup a batch of images."""
 
     NUM_SAMPLES = 2
 
-    def __init__(self, interpolation: str = "bilinear") -> None:
+    def __init__(
+        self, interpolation: str = "bilinear", imresize_backend: str = "torch"
+    ) -> None:
         """Init function.
 
         Args:
             interpolation (str, optional): Interpolation method for resizing
                 the other image. Defaults to "bilinear".
+            imresize_backend (str): One of torch, cv2. Defaults to torch.
         """
         self.interpolation = interpolation
+        self.imresize_backend = imresize_backend
+        assert imresize_backend in {
+            "torch",
+            "cv2",
+        }, f"Invalid imresize backend: {imresize_backend}"
 
     def __call__(
-        self,
-        images: list[NDArrayF32],
-        mixup_parameters: list[MixupParam],
+        self, images: list[NDArrayF32], mixup_parameters: list[MixupParam]
     ) -> list[NDArrayF32]:
         """Execute image mixup operation."""
         batch_size = len(images)
@@ -162,13 +165,11 @@ class MixupImages:
             c = ori_img.shape[-1]
 
             # resize, scale jitter other image
-            other_img_ = torch.from_numpy(other_img).permute(0, 3, 1, 2)
-            other_img = (
-                resize_tensor(
-                    other_img_, (h_i, w_i), interpolation=self.interpolation
-                )
-                .permute(0, 2, 3, 1)
-                .numpy()
+            other_img = resize_image(
+                other_img,
+                (h_i, w_i),
+                self.interpolation,
+                backend=self.imresize_backend,
             )
 
             # pad, optionally random crop other image

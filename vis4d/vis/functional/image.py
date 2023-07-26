@@ -153,7 +153,6 @@ def imshow_bboxes(
     n_colors: int = 50,
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
-    save_path: str | None = None,
 ) -> None:
     """Shows the bounding boxes overlayed on the given image.
 
@@ -171,7 +170,6 @@ def imshow_bboxes(
         image_mode (str, optional): Image channel mode (RGB or BGR).
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
-        save_path (str, optional): Path to save the image to. Defaults to None.
     """
     image = preprocess_image(image, mode=image_mode)
     img = draw_bboxes(
@@ -184,10 +182,7 @@ def imshow_bboxes(
         n_colors,
         image_mode,
     )
-    if save_path is not None:
-        imsave(img, save_path, image_mode, image_viewer)
-    else:
-        imshow(img, image_mode, image_viewer)
+    imshow(img, image_mode, image_viewer)
 
 
 def draw_bbox3d(

@@ -120,7 +120,6 @@ class Transform:
                     if any(d is None for d in key_data):
                         # If any of the data in the batch is None, replace
                         # the input of the key with None.
-                        # TODO: discuss this, remove TODO after discussion.
                         in_batch.append(None)
                     else:
                         in_batch.append(key_data)

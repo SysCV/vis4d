@@ -9,11 +9,22 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import transform_bbox
 
 from .base import Transform
+
+if OPENCV_AVAILABLE:
+    import cv2
+    from cv2 import (  # pylint: disable=no-member,no-name-in-module
+        INTER_AREA,
+        INTER_CUBIC,
+        INTER_LANCZOS4,
+        INTER_LINEAR,
+        INTER_NEAREST,
+    )
 
 
 class ResizeParam(TypedDict):
@@ -101,7 +112,10 @@ class ResizeImages:
     """Resize Images."""
 
     def __init__(
-        self, interpolation: str = "bilinear", antialias: bool = False
+        self,
+        interpolation: str = "bilinear",
+        antialias: bool = False,
+        imresize_backend: str = "torch",
     ) -> None:
         """Creates an instance of the class.
 
@@ -109,9 +123,15 @@ class ResizeImages:
             interpolation (str, optional): Interpolation method. One of
                 ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
             antialias (bool): Whether to use antialiasing. Defaults to False.
+            imresize_backend (str): One of torch, cv2. Defaults to torch.
         """
         self.interpolation = interpolation
         self.antialias = antialias
+        self.imresize_backend = imresize_backend
+        assert imresize_backend in {
+            "torch",
+            "cv2",
+        }, f"Invalid imresize backend: {imresize_backend}"
 
     def __call__(
         self, images: list[NDArrayF32], target_shapes: list[tuple[int, int]]
@@ -119,8 +139,8 @@ class ResizeImages:
         """Resize an image of dimensions [N, H, W, C].
 
         Args:
-            images (Tensor): The image.
-            target_shapes (tuple[int, int]): The target shape after resizing.
+            image (Tensor): The image.
+            target_shape (tuple[int, int]): The target shape after resizing.
 
         Returns:
             list[NDArrayF32]: Resized images according to parameters in resize.
@@ -131,6 +151,7 @@ class ResizeImages:
                 target_shape,
                 interpolation=self.interpolation,
                 antialias=self.antialias,
+                backend=self.imresize_backend,
             )
         return images
 
@@ -354,11 +375,27 @@ def resize_image(
     shape: tuple[int, int],
     interpolation: str = "bilinear",
     antialias: bool = False,
+    backend: str = "torch",
 ) -> NDArrayF32:
     """Resize image."""
-    image = torch.from_numpy(inputs).permute(0, 3, 1, 2)
-    image = resize_tensor(image, shape, interpolation, antialias)
-    return image.permute(0, 2, 3, 1).numpy()
+    if backend == "torch":
+        image = torch.from_numpy(inputs).permute(0, 3, 1, 2)
+        image = resize_tensor(image, shape, interpolation, antialias)
+        return image.permute(0, 2, 3, 1).numpy()
+    if backend == "cv2":
+        cv2_interp_codes = {
+            "nearest": INTER_NEAREST,
+            "bilinear": INTER_LINEAR,
+            "bicubic": INTER_CUBIC,
+            "area": INTER_AREA,
+            "lanczos": INTER_LANCZOS4,
+        }
+        return cv2.resize(  # pylint: disable=no-member
+            inputs[0].astype(np.uint8),
+            (shape[1], shape[0]),
+            interpolation=cv2_interp_codes[interpolation],
+        )[None, ...].astype(np.float32)
+    raise ValueError(f"Invalid imresize backend: {backend}")
 
 
 def resize_tensor(

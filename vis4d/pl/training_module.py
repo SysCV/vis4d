@@ -1,15 +1,12 @@
 """LightningModule that wraps around the models, losses and optims."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
-from lightning.pytorch.core.optimizer import LightningOptimizer
 from ml_collections import ConfigDict
 from torch import Tensor, nn
-from torch.optim.optimizer import Optimizer
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
@@ -76,6 +73,7 @@ class TrainingModule(pl.LightningModule):
             if self.seed == -1:
                 self.seed = init_random_seed()
                 self.seed = broadcast(self.seed)
+            self.trainer.seed = self.seed  # type: ignore
 
             seed_everything(self.seed, workers=True)
             rank_zero_info(f"Global seed set to {self.seed}")
@@ -158,13 +156,3 @@ class TrainingModule(pl.LightningModule):
         """Perform a step on the lr scheduler."""
         # TODO: Support metric if needed
         scheduler.step(self.current_epoch)
-
-    def optimizer_step(  # type: ignore
-        self,
-        epoch: int,
-        batch_idx: int,
-        optimizer: Optimizer | LightningOptimizer,
-        optimizer_closure: Callable[[], Any] | None = None,
-    ) -> None:
-        """Perform a single optimization step."""
-        optimizer.step(closure=optimizer_closure)
