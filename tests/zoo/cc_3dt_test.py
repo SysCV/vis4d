@@ -82,3 +82,15 @@ class TestCC3DTConfig(unittest.TestCase):
                 self.varying_keys,
             )
         )
+
+    def test_nusc_vis(self) -> None:
+        """Test the config."""
+        cfg_gt = f"{self.gt_config_path}/cc_3dt_nusc_vis.yaml"
+
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.cc_3dt_nusc_vis",
+                cfg_gt,
+                self.varying_keys,
+            )
+        )

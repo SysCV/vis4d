@@ -63,10 +63,6 @@ def get_config() -> ExperimentConfig:
     train_split = "train"
     test_split = "val"
 
-    version = "v1.0-mini"
-    train_split = "mini_train"
-    test_split = "mini_val"
-
     data_backend = class_config(HDF5Backend)
 
     config.data = get_nusc_cfg(
