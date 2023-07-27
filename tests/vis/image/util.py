@@ -1,4 +1,6 @@
 """Utility functions for image visualization tests."""
+import numpy as np
+from PIL import Image
 
 COCO_COLOR_MAPPING = {
     1: "person",
@@ -82,3 +84,16 @@ COCO_COLOR_MAPPING = {
     89: "hair drier",
     90: "toothbrush",
 }
+
+
+def compare_images(pred_path: str, gt_path: str) -> bool:
+    """Compares two images.
+
+    Args:
+        pred_path (str): Path to predicted image.
+        gt_path (str): Path to groundtruth image.
+    """
+    # copy the pred as gt
+    pred_np = np.asarray(Image.open(pred_path))
+    gt_np = np.asarray(Image.open(gt_path))
+    return np.allclose(pred_np, gt_np)

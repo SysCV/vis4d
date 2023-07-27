@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data, get_test_file
+from tests.util import get_test_data
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
@@ -44,7 +44,9 @@ class CC3DTTest(unittest.TestCase):
         preprocess_fn = compose(
             [
                 GenResizeParameters(
-                    shape=(256, 704), keep_ratio=True, sensors=NuScenes.CAMERAS
+                    shape=(900, 1600),
+                    keep_ratio=True,
+                    sensors=NuScenes.CAMERAS,
                 ),
                 ResizeImages(sensors=NuScenes.CAMERAS),
                 ResizeIntrinsics(sensors=NuScenes.CAMERAS),
@@ -96,7 +98,8 @@ class CC3DTTest(unittest.TestCase):
                 if cur_iter == 1:
                     break
 
-        testcase_gt_list = torch.load(get_test_file("cc_3dt.pt"))
+        testcase_gt_list = torch.load(f"{data_root}/cc_3dt.pt")
+
         for tracks, testcase_gt in zip(tracks_list, testcase_gt_list):
             for pred, expected in zip(tracks, testcase_gt):
                 for pred_entry, expected_entry in zip(pred, expected):

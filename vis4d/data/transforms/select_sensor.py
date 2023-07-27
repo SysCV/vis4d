@@ -1,3 +1,4 @@
+# pylint: disable=no-member
 """Select Sensor transformation."""
 from vis4d.data.typing import DictData
 
@@ -14,25 +15,27 @@ class SelectSensor:
     sensors.
 
     Example:
-        >>> data = [{"sensor1": {"image": 1, "label": 2}, "meta": 3},]
+        >>> data = [
+                {
+                    "sensor1": {"image": 1, "label": 2},
+                    "sensor2": {"image": 1, "label": 2},
+                    "meta": 3},
+                },
+            ]
         >>> tsfm = SelectSensor(
-                sensor="sensor1",
-                all_sensors=["sensor1", "sensor2"]
+                sensor="sensor1", sensors=["sensor1", "sensor2"]
             )
         >>> tsfm(data)
         [{"image": 1, "label": 2, "meta": 3},]
     """
 
-    def __init__(self, selected_sensor: str, sensors: list[str]) -> None:
+    def __init__(self, selected_sensor: str) -> None:
         """Creates an instance of SelectSensor.
 
         Args:
             selected_sensor (str): The name of the sensor to keep.
-            sensors (list[str]): The names of all sensors, used to check
-                whether the key is for a sensor or shared data.
         """
         self.selected_sensor = selected_sensor
-        self.sensors = sensors
 
     def __call__(self, batch: list[DictData]) -> list[DictData]:
         """Select data from one sensor only."""
@@ -40,7 +43,7 @@ class SelectSensor:
         for data in batch:
             output_data = {}
             for key in data.keys():
-                if key in self.sensors:
+                if key in self.sensors:  # type: ignore
                     if key == self.selected_sensor:
                         output_data.update(data[key])
                 else:
