@@ -8,14 +8,14 @@ from vis4d.data.datasets.nuscenes import NuScenes
 class NuScenesTest(unittest.TestCase):
     """Test NuScenes dataloading."""
 
-    data_root = get_test_data("nuscenes_test")
+    data_root = get_test_data("nuscenes_test", absolute_path=False)
 
     nusc = NuScenes(
         data_root=data_root,
         version="v1.0-mini",
         split="mini_val",
         cache_as_binary=True,
-        cached_file_path=f"{data_root}/mini_train.pkl",
+        cached_file_path=f"{data_root}/mini_val.pkl",
     )
 
     def test_len(self) -> None:
@@ -30,6 +30,7 @@ class NuScenesTest(unittest.TestCase):
                 "token",
                 "frame_ids",
                 "sequence_names",
+                "LIDAR_TOP",
                 "CAM_FRONT",
                 "CAM_FRONT_LEFT",
                 "CAM_FRONT_RIGHT",

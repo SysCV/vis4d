@@ -6,7 +6,7 @@ from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 
 def test_cbgs():
     """Test CBGS dataset."""
-    data_root = get_test_data("nuscenes_test")
+    data_root = get_test_data("nuscenes_test", absolute_path=False)
 
     nusc = NuScenes(
         data_root=data_root,

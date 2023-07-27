@@ -30,7 +30,7 @@ class TestNuScenesDet3DEvaluator(unittest.TestCase):
     def test_nusc_eval(self) -> None:
         """Testcase for NuScenes evaluation."""
         batch_size = 1
-        data_root = get_test_data("nuscenes_test")
+        data_root = get_test_data("nuscenes_test", absolute_path=False)
 
         nusc_eval = NuScenesDet3DEvaluator(
             data_root=data_root, version="v1.0-mini", split="mini_val"

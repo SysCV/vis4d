@@ -14,7 +14,7 @@ from vis4d.data.datasets.nuscenes_mono import NuScenesMono
 class TestNuscenesConfig(unittest.TestCase):
     """Test cases for the nuscenes dataset configs."""
 
-    NUSC_DATA_ROOT = get_test_data("nuscenes_test")
+    NUSC_DATA_ROOT = get_test_data("nuscenes_test", absolute_path=False)
 
     def test_mini_train_cfg(self):
         """Test nuscenes mono mini train dataset config."""

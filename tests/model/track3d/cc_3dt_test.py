@@ -31,7 +31,7 @@ class CC3DTTest(unittest.TestCase):
 
     def test_r50_fpn_inference(self):
         """Inference test."""
-        data_root = get_test_data("nuscenes_test")
+        data_root = get_test_data("nuscenes_test", absolute_path=False)
         model_weights = (
             self.model_weights_prefix
             + "cc_3dt_frcnn_r50_fpn_12e_nusc_d98509.pt"
