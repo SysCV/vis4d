@@ -1,4 +1,4 @@
-#pylint: disable=unexpected-keyword-arg
+# pylint: disable=unexpected-keyword-arg
 """Select Sensor transformation tests."""
 from vis4d.data.transforms.select_sensor import SelectSensor
 
