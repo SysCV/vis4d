@@ -4,9 +4,9 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.common.typing import NDArrayBool, NDArrayF64, NDArrayUI8
+from vis4d.common.typing import NDArrayBool, NDArrayF32, NDArrayF64, NDArrayUI8
 
-from ..util import get_intersection_point
+from ..util import get_intersection_point, project_point
 from .base import CanvasBackend
 
 
@@ -43,7 +43,8 @@ class PillowCanvasBackend(CanvasBackend):
         if image is None and image_hw is None:
             raise ValueError("Image or Image Shapes required to create canvas")
         if image_hw is not None:
-            image = np.zeros(image_hw, dtype=np.uint8)
+            white_image = np.ones([*image_hw, 3]) * 255
+            image = white_image.astype(np.uint8)
         self._image = Image.fromarray(image)
         self._image_draw = ImageDraw.Draw(self._image)
 
@@ -130,7 +131,7 @@ class PillowCanvasBackend(CanvasBackend):
 
     def draw_rotated_box(
         self,
-        corners: tuple[tuple[float, float], ...],
+        corners: list[tuple[float, float]],
         color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
@@ -145,8 +146,8 @@ class PillowCanvasBackend(CanvasBackend):
         (0) +---------+ (1)
 
         Args:
-            corners (tuple[tuple[float, float], ...]): Containing the four
-                corners of the box.
+            corners (list[tuple[float, float]]): Containing the four corners of
+                the box.
             color (tuple[int, int, int]): Color of the box [0,255].
             width (int, optional): Line width. Defaults to 0.
 
@@ -158,8 +159,20 @@ class PillowCanvasBackend(CanvasBackend):
             raise ValueError(
                 "No Image Draw initialized! Did you call 'create_canvas'?"
             )
-        for i in range(3):
-            self.draw_line(corners[i], corners[i + 1], color, width)
+
+        self.draw_line(corners[0], corners[1], color, 2 * width)
+        self.draw_line(corners[0], corners[2], color, width)
+        self.draw_line(corners[1], corners[3], color, width)
+        self.draw_line(corners[2], corners[3], color, width)
+
+        center_forward = np.mean(corners[:2], axis=0, dtype=np.float32)
+        center = np.mean(corners, axis=0, dtype=np.float32)
+        self.draw_line(
+            tuple(center.tolist()),  # type: ignore
+            tuple(center_forward.tolist()),  # type: ignore
+            color,
+            width,
+        )
 
     def draw_line(
         self,
@@ -185,11 +198,35 @@ class PillowCanvasBackend(CanvasBackend):
             )
         self._image_draw.line((point1, point2), width=width, fill=color)
 
+    def draw_circle(
+        self,
+        center: tuple[float, float],
+        color: tuple[int, int, int],
+        radius: int = 2,
+    ) -> None:
+        """Draw a circle onto canvas.
+
+        Args:
+            center (tuple[float, float]): Center of the circle.
+            color (tuple[int, int, int]): Color of the circle.
+            radius (int, optional): Radius of the circle. Defaults to 2.
+        """
+        x1 = center[0] - radius
+        y1 = center[1] - radius
+        x2 = center[0] + radius
+        y2 = center[1] + radius
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
+        self._image_draw.ellipse((x1, y1, x2, y2), fill=color, outline=color)
+
     def _draw_box_3d_line(
         self,
         point1: tuple[float, float, float],
         point2: tuple[float, float, float],
         color: tuple[int, int, int],
+        intrinsics: NDArrayF32,
         width: int = 0,
         camera_near_clip: float = 0.15,
     ) -> None:
@@ -201,6 +238,7 @@ class PillowCanvasBackend(CanvasBackend):
             point2 (tuple[float, float, float]): The first point. The third
                 coordinate is the depth.
             color (tuple[int, int, int]): Color of the line.
+            intrinsics (NDArrayF32): Camera intrinsics matrix.
             width (int, optional): The width of the line. Defaults to 0.
             camera_near_clip (float, optional): The near clipping plane of the
                 camera. Defaults to 0.15.
@@ -211,74 +249,82 @@ class PillowCanvasBackend(CanvasBackend):
         if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
             return
 
-        pt1 = point1[:2]
-        pt2 = point2[:2]
-
         if point1[2] < camera_near_clip:
-            pt1 = get_intersection_point(point1, point2, camera_near_clip)
+            point1 = get_intersection_point(point1, point2, camera_near_clip)
         elif point2[2] < camera_near_clip:
-            pt2 = get_intersection_point(point1, point2, camera_near_clip)
+            point2 = get_intersection_point(point1, point2, camera_near_clip)
+
+        pt1 = project_point(point1, intrinsics)
+        pt2 = project_point(point2, intrinsics)
+
         if self._image_draw is None:
             raise ValueError(
                 "No Image Draw initialized! Did you call 'create_canvas'?"
             )
-        self._image_draw.line(
-            (tuple(pt1), tuple(pt2)), width=width, fill=color
-        )
+        self._image_draw.line((pt1, pt2), width=width, fill=color)
 
     def draw_box_3d(
         self,
         corners: list[tuple[float, float, float]],
         color: tuple[int, int, int],
+        intrinsics: NDArrayF32,
         width: int = 0,
         camera_near_clip: float = 0.15,
     ) -> None:
         """Draws a 3D box onto the given canvas."""
         # Draw Front
         self._draw_box_3d_line(
-            corners[0], corners[1], color, width, camera_near_clip
+            corners[0], corners[1], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[1], corners[5], color, width, camera_near_clip
+            corners[1], corners[5], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[5], corners[4], color, width, camera_near_clip
+            corners[5], corners[4], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[4], corners[0], color, width, camera_near_clip
+            corners[4], corners[0], color, intrinsics, width, camera_near_clip
         )
+
         # Draw Sides
         self._draw_box_3d_line(
-            corners[0], corners[2], color, width, camera_near_clip
+            corners[0], corners[2], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[1], corners[3], color, width, camera_near_clip
+            corners[1], corners[3], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[4], corners[4], color, width, camera_near_clip
+            corners[4], corners[6], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[5], corners[7], color, width, camera_near_clip
+            corners[5], corners[7], color, intrinsics, width, camera_near_clip
         )
 
         # Draw Back
         self._draw_box_3d_line(
-            corners[2], corners[3], color, width, camera_near_clip
+            corners[2], corners[3], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[3], corners[7], color, width, camera_near_clip
+            corners[3], corners[7], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[7], corners[6], color, width, camera_near_clip
+            corners[7], corners[6], color, intrinsics, width, camera_near_clip
         )
         self._draw_box_3d_line(
-            corners[6], corners[2], color, width, camera_near_clip
+            corners[6], corners[2], color, intrinsics, width, camera_near_clip
         )
 
         # Draw line indicating the front
-        center_bottom_forward = np.mean(corners[:2], axis=0)
-        center_bottom = np.mean(corners[:4], axis=0)
-        self._draw_box_3d_line(center_bottom, center_bottom_forward, color)
+        center_bottom_forward = np.mean(corners[:2], axis=0, dtype=np.float32)
+        center_bottom = np.mean(corners[:4], axis=0, dtype=np.float32)
+        self._draw_box_3d_line(
+            tuple(center_bottom.tolist()),  # type: ignore
+            tuple(center_bottom_forward.tolist()),  # type: ignore
+            color,
+            intrinsics,
+            width,
+            camera_near_clip,
+        )
 
     def as_numpy_image(self) -> NDArrayUI8:
         """Returns the current canvas as numpy image.

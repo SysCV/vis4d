@@ -41,11 +41,11 @@ def get_track_3d_out(
     )
 
     return Track3DOut(
-        boxes_3d=torch.cat([center, dims, oritentation], dim=1),
-        velocities=boxes_3d[:, 9:12],
-        class_ids=class_ids,
-        scores_3d=scores_3d,
-        track_ids=track_ids,
+        boxes_3d=[torch.cat([center, dims, oritentation], dim=1)],
+        velocities=[boxes_3d[:, 9:12]],
+        class_ids=[class_ids],
+        scores_3d=[scores_3d],
+        track_ids=[track_ids],
     )
 
 

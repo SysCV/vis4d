@@ -552,6 +552,11 @@ def _instantiate_classes(data: Any) -> Any:  # type: ignore
     if "class_path" in data and not isinstance(data["class_path"], ConfigDict):
         module_name, class_name = data["class_path"].rsplit(".", 1)
         init_args = data.get("init_args", {})
+
+        # Convert ConfigDict to normal dictionary
+        if isinstance(init_args, ConfigDict):
+            init_args = init_args.to_dict()
+
         module = importlib.import_module(module_name)
         # Instantiate class
         clazz = getattr(module, class_name)(**init_args)

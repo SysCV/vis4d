@@ -57,6 +57,34 @@ CONN_NUSC_TRACK3D_EVAL = {
     "track_ids": pred_key("track_ids"),
 }
 
+CONN_NUSC_BBOX_3D_TEST = {
+    "images": data_key(K.images, sensors=NuScenes.CAMERAS),
+    "images_hw": data_key(K.original_hw, sensors=NuScenes.CAMERAS),
+    "intrinsics": data_key(K.intrinsics, sensors=NuScenes.CAMERAS),
+    "extrinsics": data_key(K.extrinsics, sensors=NuScenes.CAMERAS),
+    "frame_ids": K.frame_ids,
+}
+
+CONN_NUSC_BBOX_3D_VIS = {
+    "images": data_key(K.original_images, sensors=NuScenes.CAMERAS),
+    "image_names": data_key(K.sample_names, sensors=NuScenes.CAMERAS),
+    "boxes3d": pred_key("boxes_3d"),
+    "intrinsics": data_key(K.intrinsics, sensors=NuScenes.CAMERAS),
+    "extrinsics": data_key(K.extrinsics, sensors=NuScenes.CAMERAS),
+    "scores": pred_key("scores_3d"),
+    "class_ids": pred_key("class_ids"),
+    "track_ids": pred_key("track_ids"),
+    "sequence_names": data_key(K.sequence_names),
+}
+
+CONN_NUSC_BEV_BBOX_3D_VIS = {
+    "sample_names": data_key(K.sample_names, sensors=["LIDAR_TOP"]),
+    "boxes3d": pred_key("boxes_3d"),
+    "extrinsics": data_key(K.extrinsics, sensors=["LIDAR_TOP"]),
+    "track_ids": pred_key("track_ids"),
+    "sequence_names": data_key(K.sequence_names),
+}
+
 
 def get_train_dataloader(
     train_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
@@ -87,7 +115,6 @@ def get_train_dataloader(
         )
     )
 
-    preprocess_transforms.append(class_config(NormalizeImages))
     preprocess_transforms.append(class_config(PostProcessBoxes2D))
 
     train_preprocess_cfg = class_config(
@@ -96,7 +123,11 @@ def get_train_dataloader(
 
     train_batchprocess_cfg = class_config(
         compose,
-        transforms=[class_config(PadImages), class_config(ToTensor)],
+        transforms=[
+            class_config(PadImages),
+            class_config(NormalizeImages),
+            class_config(ToTensor),
+        ],
     )
 
     return get_train_dataloader_cfg(
@@ -108,7 +139,9 @@ def get_train_dataloader(
     )
 
 
-def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
+def get_test_dataloader(
+    test_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
+) -> ConfigDict:
     """Get the default test dataloader for nuScenes tracking."""
     test_transforms = [
         class_config(
@@ -126,7 +159,7 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
     test_batch_transforms = [
         class_config(PadImages, sensors=NuScenes.CAMERAS),
         class_config(NormalizeImages, sensors=NuScenes.CAMERAS),
-        class_config(ToTensor, sensors=NuScenes.CAMERAS),
+        class_config(ToTensor, sensors=NuScenes.SENSORS),
     ]
 
     test_batchprocess_cfg = class_config(
@@ -139,9 +172,12 @@ def get_test_dataloader(test_dataset: ConfigDict) -> ConfigDict:
 
     return get_inference_dataloaders_cfg(
         datasets_cfg=test_dataset_cfg,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
         video_based_inference=True,
         batchprocess_cfg=test_batchprocess_cfg,
         collate_fn=multi_sensor_collate,
+        sensors=NuScenes.SENSORS,
     )
 
 
@@ -193,6 +229,8 @@ def get_nusc_cfg(
         workers_per_gpu=workers_per_gpu,
     )
 
-    data.test_dataloader = get_test_dataloader(test_dataset)
+    data.test_dataloader = get_test_dataloader(
+        test_dataset, samples_per_gpu=1, workers_per_gpu=1
+    )
 
     return data

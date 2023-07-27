@@ -8,15 +8,19 @@ from vis4d.data.datasets.nuscenes_mono import NuScenesMono
 class NuScenesMonoTest(unittest.TestCase):
     """Test NuScenes Monocular dataloading."""
 
+    data_root = get_test_data("nuscenes_test", absolute_path=False)
+
     nusc = NuScenesMono(
-        data_root=get_test_data("nuscenes_test"),
+        data_root=data_root,
         version="v1.0-mini",
-        split="mini_val",
+        split="mini_train",
+        cache_as_binary=True,
+        cached_file_path=f"{data_root}/mono_mini_train.pkl",
     )
 
     def test_len(self) -> None:
         """Test if len of dataset correct."""
-        self.assertEqual(len(self.nusc), 486)
+        self.assertEqual(len(self.nusc), 1938)
 
     def test_sample(self) -> None:
         """Test if sample loaded correctly."""
