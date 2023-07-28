@@ -101,25 +101,31 @@ class MultiSampleDataPipe(DataPipe):
     def __getitem__(self, idx: int) -> DictDataOrList:
         """Wrap getitem to apply augmentations."""
         samples = super(DataPipe, self).__getitem__(idx)
-        if isinstance(samples, list):
-            # TODO: Implement augmentation for multi-view datasets.
-            return self.preprocess_fn(samples)
+        if not isinstance(samples, list):
+            samples = [samples]
+            single_view = True
+        else:
+            single_view = False
 
         for preprocess_fn in self.preprocess_fns:
             if hasattr(preprocess_fn[0], "NUM_SAMPLES"):
-                aug_inds = self._sample_indices(
-                    idx, preprocess_fn[0].NUM_SAMPLES
-                )
-                prep_samples = [samples] + [
+                num_samples = preprocess_fn[0].NUM_SAMPLES
+                aug_inds = self._sample_indices(idx, num_samples)
+                add_samples = [
                     super(DataPipe, self).__getitem__(ind)
                     for ind in aug_inds[1:]
                 ]
+                prep_samples = []
+                for i, samp in enumerate(samples):
+                    prep_samples.append(samp)
+                    prep_samples += [s[i] for s in add_samples]
             else:
-                prep_samples = [samples]
+                num_samples = 1
+                prep_samples = samples
             for prep_fn in preprocess_fn:
                 prep_samples = prep_fn.apply_to_data(prep_samples)  # type: ignore # pylint: disable=line-too-long
-            samples = prep_samples[0]
-        return samples
+            samples = prep_samples[::num_samples]
+        return samples[0] if single_view else samples
 
 
 def _check_reference(dataset: Dataset[DictDataOrList]) -> bool:

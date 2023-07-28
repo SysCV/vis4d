@@ -30,19 +30,19 @@ from .base import Transform
     ],
 )
 class PostProcessBoxes2D:
-    """Post process after transformation.
-
-    Args:
-        min_area (float): Minimum area of the bounding box. Defaults to
-            7.0 * 7.0.
-        clip_bboxes_to_image (bool): Whether to clip the bounding boxes to the
-            image size. Defaults to True.
-    """
+    """Post process after transformation."""
 
     def __init__(
         self, min_area: float = 7.0 * 7.0, clip_bboxes_to_image: bool = True
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            min_area (float): Minimum area of the bounding box. Defaults to
+                7.0 * 7.0.
+            clip_bboxes_to_image (bool): Whether to clip the bounding boxes to
+                the image size. Defaults to True.
+        """
         self.min_area = min_area
         self.clip_bboxes_to_image = clip_bboxes_to_image
 
@@ -69,21 +69,21 @@ class PostProcessBoxes2D:
             boxes_list (list[NDArrayF32]): The bounding boxes to be post
                 processed.
             classes_list (list[NDArrayF32]): The classes of the bounding boxes.
-            track_ids_list (list[NDArrayI32 | None]): The track ids of the
+            track_ids_list (list[NDArrayI32] | None): The track ids of the
                 bounding boxes.
             input_hw_list (list[tuple[int, int]]): The height and width of the
                 input image.
-            boxes3d_list (list[NDArrayF32 | None]): The 3D bounding boxes to be
+            boxes3d_list (list[NDArrayF32] | None): The 3D bounding boxes to be
                 post processed.
-            boxes3d_classes_list (list[NDArrayI32 | None]): The classes of the
+            boxes3d_classes_list (list[NDArrayI32] | None): The classes of the
                 3D bounding boxes.
-            boxes3d_track_ids_list (list[NDArrayI32 | None]): The track ids of
+            boxes3d_track_ids_list (list[NDArrayI32] | None): The track ids of
                 the 3D bounding boxes.
 
         Returns:
-            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32 | None],
-                list[NDArrayF32 | None], list[NDArrayI32 | None],
-                list[NDArrayI32 | None]]: The post processed results.
+            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None,
+                list[NDArrayF32] | None, list[NDArrayI32] | None,
+                list[NDArrayI32] | None]: The post processed results.
         """
         new_track_ids: list[NDArrayI32] | None = (
             [] if track_ids_list is not None else None
@@ -131,3 +131,30 @@ class PostProcessBoxes2D:
             new_boxes3d_classes,
             new_boxes3d_track_ids,
         )
+
+
+@Transform(in_keys=[K.boxes2d_track_ids], out_keys=[K.boxes2d_track_ids])
+class RescaleTrackIDs:
+    """Rescale track ids."""
+
+    def __call__(self, track_ids_list: list[NDArrayI32]) -> list[NDArrayI32]:
+        """Rescale the track ids.
+
+        Args:
+            track_ids_list (list[NDArrayI32]): The track ids to be
+                rescaled.
+
+        Returns:
+            list[NDArrayI32]: The rescaled track ids.
+        """
+        track_ids_all = {}
+        for track_ids in track_ids_list:
+            for track_id in track_ids:
+                if track_id not in track_ids_all:
+                    track_ids_all[track_id] = len(track_ids_all)
+
+        for track_ids in track_ids_list:
+            for i, track_id in enumerate(track_ids):
+                track_ids[i] = track_ids_all[track_id]
+
+        return track_ids_list

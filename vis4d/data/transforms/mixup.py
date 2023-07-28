@@ -27,8 +27,8 @@ class MixupParam(TypedDict):
     ratio: float
     im_shape: tuple[int, int]
     im_scale: tuple[float, float]
-    other_ori_wh: tuple[int, int]
-    other_new_wh: tuple[int, int]
+    other_ori_hw: tuple[int, int]
+    other_new_hw: tuple[int, int]
     crop_coord: tuple[int, int, int, int]
     pad_hw: tuple[int, int]
     pad_value: float
@@ -83,35 +83,34 @@ class GenMixupParameters:
         batch_size = len(images)
         assert batch_size % 2 == 0, "MixUp only supports even batch size."
 
-        parameter_list = []
-        for i in range(batch_size):
-            if self.mixup_ratio_dist == "beta":
-                ratio = np.random.beta(self.alpha, self.alpha)
-            else:
-                ratio = self.const_ratio
+        if self.mixup_ratio_dist == "beta":
+            ratio = np.random.beta(self.alpha, self.alpha)
+        else:
+            ratio = self.const_ratio
+        jit_factor = random.uniform(*self.scale_range)
 
-            h, w = self.out_shape
-            ori_img, other_img = images[i], images[batch_size - i - 1]
-            ori_h, ori_w = ori_img.shape[1], ori_img.shape[2]
-            other_ori_h, other_ori_w = other_img.shape[1], other_img.shape[2]
-            other_ori_wh = (other_ori_w, other_ori_h)
-            w_i, h_i = get_resize_shape(other_ori_wh, (w, h), keep_ratio=True)
-            jit_factor = random.uniform(*self.scale_range)
-            h_i, w_i = int(jit_factor * h_i), int(jit_factor * w_i)
-            pad_shape = (max(h_i, ori_h), max(w_i, ori_w))
+        h, w = self.out_shape
+        ori_img, other_img = images[0], images[1]
+        ori_h, ori_w = ori_img.shape[1], ori_img.shape[2]
+        other_ori_h, other_ori_w = other_img.shape[1], other_img.shape[2]
+        other_ori_hw = (other_ori_h, other_ori_w)
+        h_i, w_i = get_resize_shape(other_ori_hw, (h, w), keep_ratio=True)
+        h_i, w_i = int(jit_factor * h_i), int(jit_factor * w_i)
+        pad_shape = (max(h_i, ori_h), max(w_i, ori_w))
 
-            x_offset, y_offset = 0, 0
-            if pad_shape[0] > ori_h:
-                y_offset = random.randint(0, pad_shape[0] - ori_h)
-            if pad_shape[1] > ori_w:
-                x_offset = random.randint(0, pad_shape[1] - ori_w)
+        x_offset, y_offset = 0, 0
+        if pad_shape[0] > ori_h:
+            y_offset = random.randint(0, pad_shape[0] - ori_h)
+        if pad_shape[1] > ori_w:
+            x_offset = random.randint(0, pad_shape[1] - ori_w)
 
-            parameters = MixupParam(
+        parameter_list = [
+            MixupParam(
                 ratio=ratio,
                 im_scale=(w_i / other_ori_w, h_i / other_ori_h),
                 im_shape=(w_i, h_i),
-                other_ori_wh=other_ori_wh,
-                other_new_wh=(min(w_i, ori_w), min(h_i, ori_h)),
+                other_ori_hw=other_ori_hw,
+                other_new_hw=(min(w_i, ori_w), min(h_i, ori_h)),
                 pad_hw=pad_shape,
                 pad_value=self.pad_value,
                 crop_coord=(
@@ -121,7 +120,8 @@ class GenMixupParameters:
                     y_offset + ori_h,
                 ),
             )
-            parameter_list.append(parameters)
+            for _ in range(batch_size)
+        ]
         return parameter_list
 
 
@@ -158,8 +158,8 @@ class MixupImages:
         ), "Batch size must be even for mixup!"
 
         mixup_images = []
-        for i in range(batch_size):
-            j = batch_size - i - 1
+        for i in range(0, batch_size, self.NUM_SAMPLES):
+            j = i + 1
             ori_img, other_img = images[i], images[j]
             w_i, h_i = mixup_parameters[i]["im_shape"]
             c = ori_img.shape[-1]
@@ -185,7 +185,7 @@ class MixupImages:
             # mix ori and other
             ratio = mixup_parameters[i]["ratio"]
             mixup_image = ratio * ori_img + (1 - ratio) * padded_cropped_img
-            mixup_images.append(mixup_image)
+            mixup_images += [mixup_image for _ in range(self.NUM_SAMPLES)]
         return mixup_images
 
 
@@ -246,11 +246,12 @@ class MixupCategories:
         ), "Batch size must be even for mixup!"
 
         smooth_categories = [np.empty(0, dtype=np.float32)] * batch_size
-        for i in range(batch_size):
-            j = batch_size - i - 1
+        for i in range(0, batch_size, self.NUM_SAMPLES):
+            j = i + 1
             smooth_categories[i] = self._label_smoothing(
                 categories[i], categories[j], mixup_parameters[i]["ratio"]
             )
+            smooth_categories[j] = smooth_categories[i]
         return smooth_categories
 
 
@@ -261,7 +262,7 @@ class MixupCategories:
         K.boxes2d_track_ids,
         "transforms.mixup",
     ),
-    out_keys=(K.boxes2d, K.boxes2d_classes),
+    out_keys=(K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids),
 )
 class MixupBoxes2D:
     """Mixup a batch of boxes."""
@@ -271,7 +272,14 @@ class MixupBoxes2D:
     def __init__(
         self, clip_inside_image: bool = True, max_track_ids: int = 1000
     ) -> None:
-        """Init function."""
+        """Creates an instance of the class.
+
+        Args:
+            clip_inside_image (bool): Whether to clip the boxes to be inside
+                the image. Defaults to True.
+            max_track_ids (int): The maximum number of track ids. Defaults to
+                1000.
+        """
         self.clip_inside_image = clip_inside_image
         self.max_track_ids = max_track_ids
 
@@ -293,8 +301,8 @@ class MixupBoxes2D:
         mixup_track_ids_list: list[NDArrayI32] | None = (
             [] if track_ids_list is not None else None
         )
-        for i in range(batch_size):
-            j = batch_size - i - 1
+        for i in range(0, batch_size, self.NUM_SAMPLES):
+            j = i + 1
             ori_boxes, other_boxes = boxes_list[i].copy(), boxes_list[j].copy()
             ori_classes, other_classes = (
                 classes_list[i].copy(),
@@ -305,56 +313,64 @@ class MixupBoxes2D:
             im_scale = mixup_parameters[i]["im_scale"]
             x1_c, y1_c, _, _ = crop_coord
 
+            if len(other_boxes) == 0:
+                continue
             # adjust boxes to new image size and origin coord
-            if len(other_boxes) > 0:
-                other_boxes[:, [0, 2]] = (
-                    im_scale[0] * other_boxes[:, [0, 2]] - x1_c
-                )
-                other_boxes[:, [1, 3]] = (
-                    im_scale[1] * other_boxes[:, [1, 3]] - y1_c
-                )
-                # filter boxes outside other image
-                crop_box = torch.tensor(crop_coord).unsqueeze(0)
-                is_overlap = (
-                    bbox_intersection(torch.from_numpy(other_boxes), crop_box)
-                    .squeeze(-1)
-                    .numpy()
-                )
-                other_boxes = other_boxes[is_overlap > 0]
-                other_classes = other_classes[is_overlap > 0]
+            other_boxes[:, [0, 2]] = (
+                im_scale[0] * other_boxes[:, [0, 2]] - x1_c
+            )
+            other_boxes[:, [1, 3]] = (
+                im_scale[1] * other_boxes[:, [1, 3]] - y1_c
+            )
+            # filter boxes outside other image
+            crop_box = torch.tensor(crop_coord).unsqueeze(0)
+            is_overlap = (
+                bbox_intersection(torch.from_numpy(other_boxes), crop_box)
+                .squeeze(-1)
+                .numpy()
+            )
+            other_boxes = other_boxes[is_overlap > 0]
+            other_classes = other_classes[is_overlap > 0]
 
-                # mixup track ids if available
-                if track_ids_list is not None:
-                    assert mixup_track_ids_list is not None
-                    ori_track_ids = track_ids_list[i].copy()
-                    other_track_ids = track_ids_list[j].copy()
-                    if (
-                        max(ori_track_ids) >= self.max_track_ids
-                        or max(other_track_ids) >= self.max_track_ids
-                    ):
-                        raise ValueError(
-                            f"Track id exceeds maximum track id"
-                            f"{self.max_track_ids}!"
-                        )
-                    other_track_ids += max(ori_track_ids)
-                    other_track_ids = other_track_ids[is_overlap > 0]
-                    mixup_track_ids: NDArrayI32 = np.concatenate(
-                        (ori_track_ids, other_track_ids), 0
+            # mixup track ids if available
+            if track_ids_list is not None:
+                assert mixup_track_ids_list is not None
+                ori_track_ids = track_ids_list[i].copy()
+                other_track_ids = track_ids_list[j].copy()
+                if (
+                    len(ori_track_ids) > 0
+                    and max(ori_track_ids) >= self.max_track_ids
+                ) or (
+                    len(other_track_ids) > 0
+                    and max(other_track_ids) >= self.max_track_ids
+                ):
+                    raise ValueError(
+                        f"Track id exceeds maximum track id"
+                        f"{self.max_track_ids}!"
                     )
-                    mixup_track_ids_list.append(mixup_track_ids)
-
-                if self.clip_inside_image:
-                    new_w, new_h = mixup_parameters[i]["other_new_wh"]
-                    other_boxes[:, [0, 2]] = np.clip(
-                        other_boxes[:, [0, 2]], 0, new_w
-                    )
-                    other_boxes[:, [1, 3]] = np.clip(
-                        other_boxes[:, [1, 3]], 0, new_h
-                    )
-                mixup_boxes = np.concatenate((ori_boxes, other_boxes), axis=0)
-                mixup_classes = np.concatenate(
-                    (ori_classes, other_classes), axis=0
+                other_track_ids += self.max_track_ids
+                other_track_ids = other_track_ids[is_overlap > 0]
+                mixup_track_ids: NDArrayI32 = np.concatenate(
+                    (ori_track_ids, other_track_ids), 0
                 )
-                mixup_boxes_list.append(mixup_boxes)
-                mixup_classes_list.append(mixup_classes)
+                mixup_track_ids_list += [
+                    mixup_track_ids for _ in range(self.NUM_SAMPLES)
+                ]
+
+            if self.clip_inside_image:
+                new_h, new_w = mixup_parameters[i]["other_new_hw"]
+                other_boxes[:, [0, 2]] = np.clip(
+                    other_boxes[:, [0, 2]], 0, new_w
+                )
+                other_boxes[:, [1, 3]] = np.clip(
+                    other_boxes[:, [1, 3]], 0, new_h
+                )
+            mixup_boxes = np.concatenate((ori_boxes, other_boxes), axis=0)
+            mixup_classes = np.concatenate(
+                (ori_classes, other_classes), axis=0
+            )
+            mixup_boxes_list += [mixup_boxes for _ in range(self.NUM_SAMPLES)]
+            mixup_classes_list += [
+                mixup_classes for _ in range(self.NUM_SAMPLES)
+            ]
         return mixup_boxes_list, mixup_classes_list, mixup_track_ids_list

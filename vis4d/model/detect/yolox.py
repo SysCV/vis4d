@@ -30,8 +30,8 @@ class YOLOX(nn.Module):
         basemodel: BaseModel | None = None,
         fpn: FeaturePyramidProcessing | None = None,
         yolox_head: YOLOXHead | None = None,
-        weights: None | str = None,
         postprocessor: YOLOXPostprocess | None = None,
+        weights: None | str = None,
     ) -> None:
         """Creates an instance of the class.
 

@@ -424,7 +424,22 @@ def get_resize_shape(
     align_long_edge: bool = False,
     allow_overflow: bool = False,
 ) -> tuple[int, int]:
-    """Get shape for resize, considering keep_ratio and align_long_edge."""
+    """Get shape for resize, considering keep_ratio and align_long_edge.
+
+    Args:
+        original_shape (tuple[int, int]): Original shape in [H, W].
+        new_shape (tuple[int, int]): New shape in [H, W].
+        keep_ratio (bool, optional): Whether to keep the aspect ratio.
+            Defaults to True.
+        align_long_edge (bool, optional): Whether to align the long edge of
+            the original shape with the long edge of the new shape.
+            Defaults to False.
+        allow_overflow (bool, optional): Whether to allow overflow.
+            Defaults to False.
+
+    Returns:
+        tuple[int, int]: The new shape in [H, W].
+    """
     h, w = original_shape
     new_h, new_w = new_shape
     if keep_ratio:

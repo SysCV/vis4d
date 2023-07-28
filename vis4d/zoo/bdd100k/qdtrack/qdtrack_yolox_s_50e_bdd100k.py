@@ -1,14 +1,19 @@
 # pylint: disable=duplicate-code
-"""YOLOX COCO."""
+"""QDTrack-YOLOX BDD100K."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
+from vis4d.config.common.datasets.bdd100k import CONN_BDD100K_TRACK_EVAL
+from vis4d.config.common.models.qdtrack import (
+    CONN_BBOX_2D_TEST,
+    CONN_BBOX_2D_YOLOX_TRAIN,
+    get_qdtrack_yolox_cfg,
+)
 from vis4d.config.common.models.yolox import (
     get_yolox_callbacks_cfg,
-    get_yolox_cfg,
     get_yolox_optimizers_cfg,
 )
 from vis4d.config.default import (
@@ -16,24 +21,20 @@ from vis4d.config.default import (
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
-from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_VIS,
-)
+from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.data.const import CommonKeys as K
+from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
-from vis4d.eval.coco import COCODetectEvaluator
+from vis4d.eval.bdd100k import BDD100KTrackEvaluator
+from vis4d.pl.callbacks import CallbackWrapper
 from vis4d.vis.image import BoundingBoxVisualizer
-from vis4d.zoo.yolox.data import CONN_COCO_BBOX_EVAL, get_coco_yolox_cfg
-
-CONN_BBOX_2D_TRAIN = {"images": K.images}
+from vis4d.zoo.bdd100k.qdtrack.data_yolox import get_bdd100k_track_cfg
 
 
 def get_config() -> ExperimentConfig:
-    """Returns the YOLOX config dict for the coco detection task.
+    """Returns the config dict for qdtrack on bdd100k.
 
     Returns:
         ExperimentConfig: The configuration
@@ -41,49 +42,53 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="yolox_tiny_300e_coco")
-    config.checkpoint_period = 15
-    config.check_val_every_n_epoch = 10
+    config = get_default_cfg(exp_name="qdtrack_yolox_s_50e_bdd100k")
+    config.checkpoint_period = 5
+    config.check_val_every_n_epoch = 5
 
-    # High level hyper parameters
+    # ckpt_path = (
+    #     "vis4d-workspace/QDTrack/pretrained/qdtrack-yolox-ema_bdd100k.ckpt"
+    # )
+
+    # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 8
+    params.samples_per_gpu = 4
     params.workers_per_gpu = 4
-    params.lr = 0.01
-    params.num_epochs = 300
-    params.num_classes = 80
+    params.lr = 0.0005
+    params.num_epochs = 50
     config.params = params
 
     ######################################################
     ##          Datasets with augmentations             ##
     ######################################################
-    data_root = "data/coco"
-    train_split = "train2017"
-    test_split = "val2017"
-
     data_backend = class_config(HDF5Backend)
 
-    config.data = get_coco_yolox_cfg(
-        data_root=data_root,
-        train_split=train_split,
-        test_split=test_split,
+    config.data = get_bdd100k_track_cfg(
         data_backend=data_backend,
-        scaling_ratio_range=(0.5, 1.5),
-        use_mixup=False,
-        test_image_size=(416, 416),
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )
 
     ######################################################
-    ##                  MODEL & LOSS                    ##
+    ##                        MODEL                     ##
     ######################################################
-    config.model, config.loss = get_yolox_cfg(params.num_classes, "tiny")
+    num_classes = len(bdd100k_track_map)
+    weights = (
+        "mmdet://yolox/yolox_s_8x8_300e_coco/"
+        "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
+    )
+    # weights = (
+    #     "mmdet://yolox/yolox_l_8x8_300e_coco/"
+    #     "yolox_l_8x8_300e_coco_20211126_140236-d3bd2b23.pth"
+    # )
+    config.model, config.loss = get_qdtrack_yolox_cfg(
+        num_classes, "small", weights=weights
+    )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    steps_per_epoch, num_last_epochs, warmup_epochs = 1849, 15, 5
+    steps_per_epoch, num_last_epochs, warmup_epochs = 5354, 25, 1
     config.optimizers = get_yolox_optimizers_cfg(
         params.lr,
         params.num_epochs,
@@ -96,7 +101,7 @@ def get_config() -> ExperimentConfig:
     ##                  DATA CONNECTOR                  ##
     ######################################################
     config.train_data_connector = class_config(
-        DataConnector, key_mapping=CONN_BBOX_2D_TRAIN
+        DataConnector, key_mapping=CONN_BBOX_2D_YOLOX_TRAIN
     )
 
     config.test_data_connector = class_config(
@@ -113,19 +118,19 @@ def get_config() -> ExperimentConfig:
 
     # YOLOX callbacks
     callbacks += get_yolox_callbacks_cfg(
-        switch_epoch=params.num_epochs - num_last_epochs, shape=(320, 320)
+        switch_epoch=params.num_epochs - num_last_epochs,
+        shape=(576, 1440),
+        num_sizes=15,
     )
 
     # Visualizer
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(
-                BoundingBoxVisualizer, vis_freq=100, image_mode="BGR"
-            ),
+            visualizer=class_config(BoundingBoxVisualizer, vis_freq=500),
             save_prefix=config.output_dir,
             test_connector=class_config(
-                CallbackConnector, key_mapping=CONN_BBOX_2D_VIS
+                CallbackConnector, key_mapping=CONN_BBOX_2D_TRACK_VIS
             ),
         )
     )
@@ -135,11 +140,11 @@ def get_config() -> ExperimentConfig:
         class_config(
             EvaluatorCallback,
             evaluator=class_config(
-                COCODetectEvaluator, data_root=data_root, split=test_split
+                BDD100KTrackEvaluator,
+                annotation_path="data/bdd100k/labels/box_track_20/val/",
             ),
-            metrics_to_eval=["Det"],
             test_connector=class_config(
-                CallbackConnector, key_mapping=CONN_COCO_BBOX_EVAL
+                CallbackConnector, key_mapping=CONN_BDD100K_TRACK_EVAL
             ),
         )
     )
@@ -160,11 +165,12 @@ def get_config() -> ExperimentConfig:
         save_last=True,
         save_on_train_epoch_end=True,
         every_n_epochs=config.checkpoint_period,
-        save_top_k=3,
+        save_top_k=5,
         mode="max",
         monitor="step",
     )
     pl_trainer.wandb = True
+    pl_trainer.precision = "16-mixed"
     config.pl_trainer = pl_trainer
 
     # PL Callbacks

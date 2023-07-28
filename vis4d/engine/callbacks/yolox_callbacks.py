@@ -179,26 +179,32 @@ class YOLOXSyncRandomResizeCallback(Callback):
         batch_idx: int,
     ) -> None:
         """Hook to run at the start of a training batch."""
+        if not isinstance(batch, list):
+            batch = [batch]
         if (trainer_state["global_step"] + 1) % self.interval == 0:
-            self.random_shape = self._get_random_shape(batch[K.images].device)
-        scale_y = self.random_shape[0] / batch[K.images].shape[-2]
-        scale_x = self.random_shape[1] / batch[K.images].shape[-1]
+            self.random_shape = self._get_random_shape(
+                batch[0][K.images].device
+            )
 
-        if scale_y == 1 and scale_x == 1:
-            return
+        for b in batch:
+            scale_y = self.random_shape[0] / b[K.images].shape[-2]
+            scale_x = self.random_shape[1] / b[K.images].shape[-1]
 
-        # resize images
-        batch[K.images] = F.interpolate(
-            batch[K.images],
-            size=self.random_shape,
-            mode="bilinear",
-            align_corners=False,
-        )
-        batch[K.input_hw] = [
-            self.random_shape for _ in range(batch[K.images].size(0))
-        ]
+            if scale_y == 1 and scale_x == 1:
+                return
 
-        # resize boxes
-        for boxes in batch[K.boxes2d]:
-            boxes[..., ::2] = boxes[..., ::2] * scale_x
-            boxes[..., 1::2] = boxes[..., 1::2] * scale_y
+            # resize images
+            b[K.images] = F.interpolate(
+                b[K.images],
+                size=self.random_shape,
+                mode="bilinear",
+                align_corners=False,
+            )
+            b[K.input_hw] = [
+                self.random_shape for _ in range(b[K.images].size(0))
+            ]
+
+            # resize boxes
+            for boxes in b[K.boxes2d]:
+                boxes[..., ::2] = boxes[..., ::2] * scale_x
+                boxes[..., 1::2] = boxes[..., 1::2] * scale_y

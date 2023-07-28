@@ -36,7 +36,9 @@ class YOLOXOut(NamedTuple):
     # Each box has regression for all classes for each feature level. So the
     # tensor dimension is [batch_size, 4, height, width].
     bbox_pred: list[torch.Tensor]
-    objectness: list[torch.Tensor]  # TODO: Update docstring.
+    # Objectness scores for each feature level. The tensor dimension is
+    # [batch_size, 1, height, width]
+    objectness: list[torch.Tensor]
 
 
 def get_default_point_generator() -> MlvlPointGenerator:
@@ -211,6 +213,8 @@ def bboxes_nms(
     objectness: torch.Tensor,
     nms_threshold: float = 0.65,
     score_thr: float = 0.01,
+    nms_pre: int = -1,
+    max_per_img: int = -1,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Decode box energies into detections for a single image.
 
@@ -225,20 +229,35 @@ def bboxes_nms(
             Defaults to 0.65.
         score_thr (float, optional): score threshold to filter detections.
             Defaults to 0.01.
+        nms_pre (int, optional): number of topk results before NMS.
+            Defaults to -1 (all).
+        max_per_img (int, optional): number of topk results after NMS.
+            Defaults to -1 (all).
 
     Returns:
         tuple[torch.Tensor, torch.Tensor, torch.Tensor]: decoded boxes, scores,
             and labels.
     """
+    if nms_pre == -1:
+        nms_pre = len(cls_scores)
+    if max_per_img == -1:
+        max_per_img = len(cls_scores)
     max_scores, labels = torch.max(cls_scores, 1)
     valid_mask = objectness * max_scores >= score_thr
+    valid_idxs = valid_mask.nonzero()[:, 0]
+    num_topk = min(nms_pre, valid_mask.sum())
 
-    bboxes = bboxes[valid_mask]
-    scores = max_scores[valid_mask] * objectness[valid_mask]
-    labels = labels[valid_mask]
+    scores, idxs = (max_scores[valid_mask] * objectness[valid_mask]).sort(
+        descending=True
+    )
+    scores = scores[:num_topk]
+    topk_idxs = valid_idxs[idxs[:num_topk]]
+
+    bboxes = bboxes[topk_idxs]
+    labels = labels[topk_idxs]
 
     if labels.numel() > 0:
-        keep = batched_nms(bboxes, scores, labels, nms_threshold)
+        keep = batched_nms(bboxes, scores, labels, nms_threshold)[:max_per_img]
         return bboxes[keep], scores[keep], labels[keep]
     return bboxes.new_zeros(0, 4), scores.new_zeros(0), labels.new_zeros(0)
 
@@ -299,16 +318,7 @@ def preprocess_outputs(
 
 
 class YOLOXPostprocess(nn.Module):
-    """Postprocess detections from YOLOX detection head.
-
-    Args:
-        point_generator (MlvlPointGenerator): Point generator.
-        box_decoder (YOLOXBBoxDecoder): Box decoder.
-        nms_threshold (float, optional): IoU threshold for NMS. Defaults to
-            0.65.
-        score_thr (float, optional): Score threshold to filter detections.
-            Defaults to 0.01.
-    """
+    """Postprocess detections from YOLOX detection head."""
 
     def __init__(
         self,
@@ -316,13 +326,30 @@ class YOLOXPostprocess(nn.Module):
         box_decoder: YOLOXBBoxDecoder,
         nms_threshold: float = 0.65,
         score_thr: float = 0.01,
+        nms_pre: int = -1,
+        max_per_img: int = -1,
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+
+        Args:
+            point_generator (MlvlPointGenerator): Point generator.
+            box_decoder (YOLOXBBoxDecoder): Box decoder.
+            nms_threshold (float, optional): IoU threshold for NMS. Defaults to
+                0.65.
+            score_thr (float, optional): Score threshold to filter detections.
+                Defaults to 0.01.
+            nms_pre (int, optional): Number of topk results before NMS.
+                Defaults to -1 (all).
+            max_per_img (int, optional): Number of topk results after NMS.
+                Defaults to -1 (all).
+        """
         super().__init__()
         self.point_generator = point_generator
         self.box_decoder = box_decoder
         self.nms_threshold = nms_threshold
         self.score_thr = score_thr
+        self.nms_pre = nms_pre
+        self.max_per_img = max_per_img
 
     def forward(
         self,
@@ -360,6 +387,8 @@ class YOLOXPostprocess(nn.Module):
                 flatten_obj[img_id],
                 nms_threshold=self.nms_threshold,
                 score_thr=self.score_thr,
+                nms_pre=self.nms_pre,
+                max_per_img=self.max_per_img,
             )
             bbox_list.append(bboxes)
             score_list.append(scores)
