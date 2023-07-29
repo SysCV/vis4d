@@ -21,7 +21,7 @@ from vis4d.common.distributed import (
 from vis4d.common.logging import rank_zero_info
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.typing import DictData
+from vis4d.data.typing import DictDataOrList
 from vis4d.engine.loss_module import LossModule
 from vis4d.op.detect.yolox import YOLOXHeadLoss
 from vis4d.op.loss.common import l1_loss
@@ -175,7 +175,7 @@ class YOLOXSyncRandomResizeCallback(Callback):
         trainer_state: TrainerState,
         model: nn.Module,
         loss_module: LossModule,
-        batch: DictData,
+        batch: DictDataOrList,
         batch_idx: int,
     ) -> None:
         """Hook to run at the start of a training batch."""
