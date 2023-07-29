@@ -44,7 +44,8 @@ from vis4d.data.transforms.resize import (
     ResizeOpticalFlows,
     ResizeSegMasks,
 )
-from vis4d.data.transforms.to_tensor import SelectSensor, ToTensor
+from vis4d.data.transforms.select_sensor import SelectSensor
+from vis4d.data.transforms.to_tensor import ToTensor
 
 IMAGE_MEAN = [122.884, 117.266, 110.287]
 IMAGE_STD = [59.925, 59.466, 60.69]
@@ -79,7 +80,18 @@ def get_train_preprocessing(
 
     for key_to_load in keys_to_load:
         assert key_to_load in SHIFT.KEYS, f"Invalid key: {key_to_load}"
-    views_arg = {"sensors": views_to_load} if len(views_to_load) > 0 else {}
+
+    views_arg = {}
+    if len(views_to_load) == 1:
+        preprocess_transforms.append(
+            class_config(
+                SelectSensor,
+                selected_sensor=views_to_load[0],
+                sensors=views_to_load,
+            )
+        )
+    elif len(views_to_load) > 1:
+        views_arg["sensors"] = views_to_load
 
     # Resize
     if image_size != (800, 1280):
@@ -185,14 +197,6 @@ def get_train_preprocessing(
     )
 
     batchprocess_transforms = [class_config(ToTensor, **views_arg)]
-    if len(views_to_load) == 1:
-        batchprocess_transforms.append(
-            class_config(
-                SelectSensor,
-                sensor=views_to_load[0],
-                all_sensors=views_to_load,
-            )
-        )
     train_batchprocess_cfg = class_config(
         compose, transforms=batchprocess_transforms
     )
@@ -221,7 +225,18 @@ def get_test_preprocessing(
 
     for key_to_load in keys_to_load:
         assert key_to_load in SHIFT.KEYS, f"Invalid key: {key_to_load}"
-    views_arg = {"sensors": views_to_load} if len(views_to_load) > 0 else {}
+
+    views_arg = {}
+    if len(views_to_load) == 1:
+        preprocess_transforms.append(
+            class_config(
+                SelectSensor,
+                selected_sensor=views_to_load[0],
+                sensors=views_to_load,
+            )
+        )
+    elif len(views_to_load) > 1:
+        views_arg["sensors"] = views_to_load
 
     # Resize
     if image_size != (800, 1280):
@@ -261,14 +276,7 @@ def get_test_preprocessing(
     )
 
     batchprocess_transforms = [class_config(ToTensor, **views_arg)]
-    if len(views_to_load) == 1:
-        batchprocess_transforms.append(
-            class_config(
-                SelectSensor,
-                sensor=views_to_load[0],
-                all_sensors=views_to_load,
-            )
-        )
+
     test_batchprocess_cfg = class_config(
         compose, transforms=batchprocess_transforms
     )

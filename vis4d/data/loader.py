@@ -31,7 +31,9 @@ DEFAULT_COLLATE_KEYS = (
 
 
 def default_collate(
-    batch: list[DictData], collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS
+    batch: list[DictData],
+    collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+    sensors: Sequence[str] | None = None,
 ) -> DictData:
     """Default batch collate.
 
@@ -42,10 +44,14 @@ def default_collate(
         batch (list[DictData]): List of data dicts.
         collate_keys (Sequence[str]): Keys to be collated. Default is
             DEFAULT_COLLATE_KEYS.
+        sensors (Sequence[str] | None): List of sensors to collate. If is not
+            None will raise an error. Default is None.
 
     Returns:
         DictData: Collated data dict.
     """
+    assert sensors is None, "If specified sensors, use multi_sensor_collate."
+
     data: DictData = {}
     for key in batch[0]:
         try:
@@ -63,7 +69,9 @@ def default_collate(
 
 
 def multi_sensor_collate(
-    batch: list[DictData], collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS
+    batch: list[DictData],
+    collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+    sensors: Sequence[str] | None = None,
 ) -> DictData:
     """Default multi-sensor batch collate.
 
@@ -72,22 +80,25 @@ def multi_sensor_collate(
             data from multiple sensors.
         collate_keys (Sequence[str]): Keys to be collated. Default is
             DEFAULT_COLLATE_KEYS.
+        sensors (Sequence[str] | None): List of sensors to collate. If None,
+            will raise an error. Default is None.
 
     Returns:
         DictData: Collated data dict.
     """
+    assert (
+        sensors is not None
+    ), "If not specified sensors, use default_collate."
+
     collated_batch: DictData = {}
-    sensors = list(batch[0].keys())
 
-    # For each sensor, collate the batch.
-    for sensor in sensors:
-        # Only collate if all items are a dict, otherwise keep as it is.
-        inner_batch = [b[sensor] for b in batch]
-        if all(isinstance(item, dict) for item in inner_batch):
-            collated_batch[sensor] = default_collate(inner_batch, collate_keys)
+    # For each sensor, collate the batch. Other keys will be put into a list.
+    for key in batch[0]:
+        inner_batch = [b[key] for b in batch]
+        if key in sensors:
+            collated_batch[key] = default_collate(inner_batch, collate_keys)
         else:
-            collated_batch[sensor] = inner_batch
-
+            collated_batch[key] = inner_batch
     return collated_batch
 
 
@@ -107,6 +118,7 @@ def build_train_dataloader(
         [list[DictData], Sequence[str]], DictData
     ] = default_collate,
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+    sensors: Sequence[str] | None = None,
     pin_memory: bool = True,
     shuffle: bool = True,
     seed: int | None = None,
@@ -118,7 +130,9 @@ def build_train_dataloader(
     def _collate_fn_single(data: list[DictData]) -> DictData:
         """Collates data from single view dataset."""
         return collate_fn(  # type: ignore
-            batch=batchprocess_fn(data), collate_keys=collate_keys
+            batch=batchprocess_fn(data),
+            collate_keys=collate_keys,
+            sensors=sensors,
         )
 
     def _collate_fn_multi(data: list[list[DictData]]) -> list[DictData]:
@@ -128,6 +142,7 @@ def build_train_dataloader(
             view = collate_fn(  # type: ignore
                 batch=batchprocess_fn([d[view_idx] for d in data]),
                 collate_keys=collate_keys,
+                sensors=sensors,
             )
             views.append(view)
         return views
@@ -181,13 +196,16 @@ def build_inference_dataloaders(
         [list[DictData], Sequence[str]], DictData
     ] = default_collate,
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
+    sensors: Sequence[str] | None = None,
 ) -> list[DataLoader[DictDataOrList]]:
     """Build dataloaders for test / predict."""
 
     def _collate_fn(data: list[DictData]) -> DictData:
         """Collates data for inference."""
         return collate_fn(  # type: ignore
-            batch=batchprocess_fn(data), collate_keys=collate_keys
+            batch=batchprocess_fn(data),
+            collate_keys=collate_keys,
+            sensors=sensors,
         )
 
     if isinstance(datasets, Dataset):

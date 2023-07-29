@@ -249,27 +249,23 @@ class NuScenesDet3DEvaluator(Evaluator):
 
     def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
-        tokens: list[str] | str,
-        boxes_3d: ArrayLike,
-        velocities: ArrayLike,
-        class_ids: ArrayLike,
-        scores_3d: ArrayLike,
-        attributes: ArrayLike | None = None,
+        tokens: list[str],
+        boxes_3d: list[ArrayLike],
+        velocities: list[ArrayLike],
+        class_ids: list[ArrayLike],
+        scores_3d: list[ArrayLike],
+        attributes: list[ArrayLike] | None = None,
     ) -> None:
         """Process the results."""
-        # Currently only support batch size of 1.
-        if isinstance(tokens, list):
-            tokens = sum(tokens, [])
-            token = tokens[0]
-            assert all(
-                token == t for t in tokens
-            ), "Tokens should be the same."
-        else:
-            token = tokens
-
-        self._process_detect_3d(
-            token, boxes_3d, velocities, scores_3d, class_ids, attributes
-        )
+        for i, token in enumerate(tokens):
+            self._process_detect_3d(
+                token,
+                boxes_3d[i],
+                velocities[i],
+                scores_3d[i],
+                class_ids[i],
+                attributes[i] if attributes is not None else None,
+            )
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""

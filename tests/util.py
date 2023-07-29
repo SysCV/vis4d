@@ -33,17 +33,22 @@ def fill_weights(module: nn.Module, value: float = 0.0) -> None:
         param.data.fill_(value)
 
 
-def get_test_data(dir_name: str) -> str:
-    """Return the absolute path to the given test data directory.
+def get_test_data(dir_name: str, absolute_path: bool = True) -> str:
+    """Return the path to the given test data directory.
 
     Args:
         dir_name (str): Name of test data directory.
+        absolute_path (bool, optional): If the absolute path should be
+            returned. Defaults to True.
 
     Returns:
         str: Absolute path to test data directory.
     """
-    prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
-    prefix_code, _ = prefix.rsplit("tests", 1)
+    if absolute_path:
+        prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
+        prefix_code, _ = prefix.rsplit("tests", 1)
+    else:
+        prefix_code = ""
     return os.path.join(prefix_code, "tests", "vis4d-test-data", dir_name)
 
 

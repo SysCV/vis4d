@@ -113,15 +113,15 @@ class PostProcessBoxes2D:
 
             if boxes3d_list is not None:
                 assert new_boxes3d is not None
-                new_boxes3d.append(boxes3d_list[keep])
+                new_boxes3d.append(boxes3d_list[i][keep])
 
             if boxes3d_classes_list is not None:
                 assert new_boxes3d_classes is not None
-                new_boxes3d_classes.append(boxes3d_classes_list[keep])
+                new_boxes3d_classes.append(boxes3d_classes_list[i][keep])
 
             if boxes3d_track_ids_list is not None:
                 assert new_boxes3d_track_ids is not None
-                new_boxes3d_track_ids.append(boxes3d_track_ids_list[keep])
+                new_boxes3d_track_ids.append(boxes3d_track_ids_list[i][keep])
 
         return (
             boxes_list,

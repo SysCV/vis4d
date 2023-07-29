@@ -22,10 +22,17 @@ class AxisMode(Enum):
         y axis points down
         z axis points forward
     See also: https://docs.opencv.org/3.4/d9/d0c/group__calib3d.html
+
+    LiDAR: The coordinate frame aligns with a LiDAR coordinate system:
+        x axis points right
+        y axis points forward
+        z axis points up
+    See also: https://www.nuscenes.org/nuscenes#data-collection
     """
 
     ROS = 0
     OPENCV = 1
+    LIDAR = 2
 
 
 @dataclass

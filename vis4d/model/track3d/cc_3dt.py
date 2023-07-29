@@ -108,11 +108,11 @@ class FasterRCNNCC3DT(nn.Module):
 
     def forward(
         self,
-        images: list[Tensor] | Tensor,
+        images: list[Tensor],
         images_hw: list[list[tuple[int, int]]],
-        intrinsics: list[Tensor] | Tensor,
-        extrinsics: Tensor | None = None,
-        frame_ids: list[list[int]] | None = None,
+        intrinsics: list[Tensor],
+        extrinsics: list[Tensor] | None = None,
+        frame_ids: list[int] | None = None,
         boxes2d: list[list[Tensor]] | None = None,
         boxes3d: list[list[Tensor]] | None = None,
         boxes3d_classes: list[list[Tensor]] | None = None,
@@ -122,9 +122,7 @@ class FasterRCNNCC3DT(nn.Module):
         """Forward."""
         if self.training:
             assert (
-                isinstance(images, list)
-                and isinstance(intrinsics, list)
-                and boxes2d is not None
+                boxes2d is not None
                 and boxes3d is not None
                 and boxes3d_classes is not None
                 and boxes3d_track_ids is not None
@@ -141,12 +139,7 @@ class FasterRCNNCC3DT(nn.Module):
                 keyframes,
             )
 
-        assert (
-            not isinstance(images, list)
-            and not isinstance(intrinsics, list)
-            and extrinsics is not None
-            and frame_ids is not None
-        )
+        assert extrinsics is not None and frame_ids is not None
         return self._forward_test(
             images, images_hw, intrinsics, extrinsics, frame_ids
         )
@@ -246,28 +239,25 @@ class FasterRCNNCC3DT(nn.Module):
 
     def _forward_test(
         self,
-        images: Tensor,
+        images_list: list[Tensor],
         images_hw: list[list[tuple[int, int]]],
-        intrinsics: Tensor,
-        extrinsics: Tensor,
-        frame_ids: list[list[int]],
+        intrinsics_list: list[Tensor],
+        extrinsics_list: list[Tensor],
+        frame_ids: list[int],
     ) -> Track3DOut:
-        """Forward inference stage."""
-        # Curretnly only work with single batch per gpu
-        # (N, 1, 3, H, W) -> (N, 3, H, W)
-        images = images.squeeze(1)
-        # (N, 1, 3, 3) -> (N, 3, 3)
-        intrinsics = intrinsics.squeeze(1)
-        # (N, 1, 4, 4) -> (N, 4, 4)
-        extrinsics = extrinsics.squeeze(1)
-        # (N, 1) -> (N,)
-        images_hw_list: list[tuple[int, int]] = sum(images_hw, [])
-        frame_ids_list: list[int] = sum(frame_ids, [])
+        """Forward inference stage.
 
-        assert all(
-            fid == frame_ids_list[0] for fid in frame_ids_list
-        ), "All cameras should have same frame_id."
-        frame_id = frame_ids_list[0]
+        Curretnly only work with single batch per gpu.
+        """
+        # (N, 1, 3, H, W) -> (N, 3, H, W)
+        images = torch.cat(images_list)
+        # (N, 1, 3, 3) -> (N, 3, 3)
+        intrinsics = torch.cat(intrinsics_list)
+        # (N, 1, 4, 4) -> (N, 4, 4)
+        extrinsics = torch.cat(extrinsics_list)
+        # (N, 1) -> (N,)
+        frame_id = frame_ids[0]
+        images_hw_list: list[tuple[int, int]] = sum(images_hw, [])
 
         features = self.basemodel(images)
         features = self.fpn(features)

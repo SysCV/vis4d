@@ -130,27 +130,23 @@ class NuScenesTrack3DEvaluator(Evaluator):
 
     def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,
-        tokens: list[str] | str,
-        boxes_3d: ArrayLike,
-        velocities: ArrayLike,
-        class_ids: ArrayLike,
-        scores_3d: ArrayLike,
-        track_ids: ArrayLike,
+        tokens: list[str],
+        boxes_3d: list[ArrayLike],
+        velocities: list[ArrayLike],
+        class_ids: list[ArrayLike],
+        scores_3d: list[ArrayLike],
+        track_ids: list[ArrayLike],
     ) -> None:
         """Process the results."""
-        # Currently only support batch size of 1.
-        if isinstance(tokens, list):
-            tokens = sum(tokens, [])
-            token = tokens[0]
-            assert all(
-                token == t for t in tokens
-            ), "Tokens should be the same."
-        else:
-            token = tokens
-
-        self._process_track_3d(
-            token, boxes_3d, velocities, scores_3d, class_ids, track_ids
-        )
+        for i, token in enumerate(tokens):
+            self._process_track_3d(
+                token,
+                boxes_3d[i],
+                velocities[i],
+                scores_3d[i],
+                class_ids[i],
+                track_ids[i],
+            )
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the results."""

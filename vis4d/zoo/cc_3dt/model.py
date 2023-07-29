@@ -58,14 +58,6 @@ CONN_BBOX_3D_TRAIN = {
     "keyframes": "keyframes",
 }
 
-CONN_BBOX_3D_TEST = {
-    "images": K.images,
-    "images_hw": K.original_hw,
-    "intrinsics": K.intrinsics,
-    "extrinsics": K.extrinsics,
-    "frame_ids": K.frame_ids,
-}
-
 
 def get_cc_3dt_cfg(
     num_classes: int | FieldReference,

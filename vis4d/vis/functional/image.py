@@ -18,6 +18,7 @@ from vis4d.vis.image.util import (
     preprocess_boxes3d,
     preprocess_image,
     preprocess_masks,
+    project_point,
 )
 from vis4d.vis.image.viewer import ImageViewerBackend, MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map
@@ -189,6 +190,7 @@ def draw_bbox3d(
     image: NDArrayUI8,
     boxes3d: ArrayLikeFloat,
     intrinsics: NDArrayF32,
+    extrinsics: NDArrayF32 | None = None,
     scores: None | ArrayLikeFloat = None,
     class_ids: None | ArrayLikeInt = None,
     track_ids: None | ArrayLikeInt = None,
@@ -201,9 +203,12 @@ def draw_bbox3d(
 ) -> NDArrayUI8:
     """Draw 3D box onto image."""
     image = preprocess_image(image, image_mode)
+    image_hw = (image.shape[0], image.shape[1])
     boxes3d_data = preprocess_boxes3d(
+        image_hw,
         boxes3d,
         intrinsics,
+        extrinsics,
         scores,
         class_ids,
         track_ids,
@@ -212,9 +217,11 @@ def draw_bbox3d(
     )
     canvas.create_canvas(image)
 
-    for corners, label, color in zip(*boxes3d_data):
-        canvas.draw_box_3d(corners, color, width, camera_near_clip)
-        canvas.draw_text((corners[0][0], corners[0][1]), label)
+    for _, corners, label, color, _ in zip(*boxes3d_data):
+        canvas.draw_box_3d(corners, color, intrinsics, width, camera_near_clip)
+
+        selected_corner = project_point(corners[0], intrinsics)
+        canvas.draw_text((selected_corner[0], selected_corner[1]), label)
 
     return canvas.as_numpy_image()
 
@@ -223,6 +230,7 @@ def imshow_bboxes3d(
     image: ArrayLike,
     boxes3d: ArrayLikeFloat,
     intrinsics: NDArrayF32,
+    extrinsics: NDArrayF32 | None = None,
     scores: None | ArrayLikeFloat = None,
     class_ids: None | ArrayLikeInt = None,
     track_ids: None | ArrayLikeInt = None,
@@ -237,6 +245,7 @@ def imshow_bboxes3d(
         image,
         boxes3d,
         intrinsics,
+        extrinsics,
         scores,
         class_ids,
         track_ids,

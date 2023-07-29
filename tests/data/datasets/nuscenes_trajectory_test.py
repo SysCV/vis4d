@@ -8,7 +8,7 @@ from vis4d.data.datasets.nuscenes_trajectory import NuScenesTrajectory
 class NuScenesTrajectoryTest(unittest.TestCase):
     """Testclass for NuScenes trajectory dataset."""
 
-    data_root = get_test_data("nuscenes_test")
+    data_root = get_test_data("nuscenes_test", absolute_path=False)
 
     nusc = NuScenesTrajectory(
         detector="test",
