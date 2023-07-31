@@ -47,9 +47,11 @@ REV_KEYS = [
 
 # from old Vis4D checkpoint
 YOLOX_REV_KEYS = [
-    (r"^backbone\.", "basemodel."),
+    (r"^detector.backbone.mm_backbone\.", "basemodel."),
     (r"^bbox_head\.", "yolox_head."),
-    (r"^neck\.", "fpn."),
+    (r"^detector.backbone.neck.mm_neck\.", "fpn."),
+    (r"^detector.bbox_head.mm_dense_head\.", "yolox_head."),
+    (r"^similarity_head\.", "qdtrack_head.similarity_head."),
     (r"\.bn\.", ".norm."),
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
