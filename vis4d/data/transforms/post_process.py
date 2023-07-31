@@ -147,7 +147,7 @@ class RescaleTrackIDs:
         Returns:
             list[NDArrayI32]: The rescaled track ids.
         """
-        track_ids_all = {}
+        track_ids_all: dict[int, int] = {}
         for track_ids in track_ids_list:
             for track_id in track_ids:
                 if track_id not in track_ids_all:

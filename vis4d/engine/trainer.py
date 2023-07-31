@@ -238,18 +238,6 @@ class Trainer:
 
                 losses = loss_module(output, data)
 
-                from vis4d.data.const import CommonKeys as K
-                from vis4d.vis.functional.image import imshow_bboxes
-                for d in data:
-                    for i in range(len(d[K.images])):
-                        imshow_bboxes(
-                            d[K.images][i],
-                            d[K.boxes2d][i],
-                            image_mode="BGR",
-                            save_path=f"test{i}.png",
-                        )
-                breakpoint()
-
                 metrics: dict[str, float] = {}
                 if isinstance(losses, Tensor):
                     total_loss = losses

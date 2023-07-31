@@ -41,7 +41,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="qdtrack_yolox_s_50e_bdd100k")
+    config = get_default_cfg(exp_name="qdtrack_yolox_x_50e_bdd100k")
     config.checkpoint_period = 5
     config.check_val_every_n_epoch = 5
 
@@ -51,9 +51,9 @@ def get_config() -> ExperimentConfig:
 
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 2
+    params.samples_per_gpu = 5
     params.workers_per_gpu = 4
-    params.lr = 0.0005
+    params.lr = 0.000625
     params.num_epochs = 50
     config.params = params
 
@@ -73,11 +73,11 @@ def get_config() -> ExperimentConfig:
     ######################################################
     num_classes = len(bdd100k_track_map)
     weights = (
-        "mmdet://yolox/yolox_s_8x8_300e_coco/"
-        "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
+        "mmdet://yolox/yolox_x_8x8_300e_coco/"
+        "yolox_x_8x8_300e_coco_20211126_140254-1ef88d67.pth"
     )
     config.model, config.loss = get_qdtrack_yolox_cfg(
-        num_classes, "small", weights=weights
+        num_classes, "xlarge", weights=weights
     )
 
     ######################################################

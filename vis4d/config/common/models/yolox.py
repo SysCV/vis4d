@@ -101,15 +101,19 @@ def get_yolox_callbacks_cfg(
     use_ema: bool = True,
 ) -> list[ConfigDict]:
     """Get YOLOX callbacks for training."""
-    callbacks = [
-        class_config(
-            YOLOXSyncRandomResizeCallback,
-            size_list=[
-                (shape[0] + i * 32, shape[1] + i * 32)
-                for i in range(num_sizes)
-            ],
-            interval=10,
-        ),
+    callbacks = []
+    if num_sizes > 0:
+        callbacks.append(
+            class_config(
+                YOLOXSyncRandomResizeCallback,
+                size_list=[
+                    (shape[0] + i * 32, shape[1] + i * 32)
+                    for i in range(num_sizes)
+                ],
+                interval=10,
+            )
+        )
+    callbacks += [
         class_config(YOLOXModeSwitchCallback, switch_epoch=switch_epoch),
         class_config(YOLOXSyncNormCallback),
     ]

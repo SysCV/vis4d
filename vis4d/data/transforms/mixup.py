@@ -107,10 +107,10 @@ class GenMixupParameters:
         parameter_list = [
             MixupParam(
                 ratio=ratio,
-                im_scale=(w_i / other_ori_w, h_i / other_ori_h),
-                im_shape=(w_i, h_i),
+                im_scale=(h_i / other_ori_h, w_i / other_ori_w),
+                im_shape=(h_i, w_i),
                 other_ori_hw=other_ori_hw,
-                other_new_hw=(min(w_i, ori_w), min(h_i, ori_h)),
+                other_new_hw=(min(h_i, ori_h), min(w_i, ori_w)),
                 pad_hw=pad_shape,
                 pad_value=self.pad_value,
                 crop_coord=(
@@ -161,7 +161,7 @@ class MixupImages:
         for i in range(0, batch_size, self.NUM_SAMPLES):
             j = i + 1
             ori_img, other_img = images[i], images[j]
-            w_i, h_i = mixup_parameters[i]["im_shape"]
+            h_i, w_i = mixup_parameters[i]["im_shape"]
             c = ori_img.shape[-1]
 
             # resize, scale jitter other image
@@ -317,10 +317,10 @@ class MixupBoxes2D:
                 continue
             # adjust boxes to new image size and origin coord
             other_boxes[:, [0, 2]] = (
-                im_scale[0] * other_boxes[:, [0, 2]] - x1_c
+                im_scale[1] * other_boxes[:, [0, 2]] - x1_c
             )
             other_boxes[:, [1, 3]] = (
-                im_scale[1] * other_boxes[:, [1, 3]] - y1_c
+                im_scale[0] * other_boxes[:, [1, 3]] - y1_c
             )
             # filter boxes outside other image
             crop_box = torch.tensor(crop_coord).unsqueeze(0)

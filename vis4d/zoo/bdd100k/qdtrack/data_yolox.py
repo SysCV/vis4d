@@ -18,6 +18,11 @@ from vis4d.data.transforms.affine import (
     GenAffineParameters,
 )
 from vis4d.data.transforms.base import RandomApply, compose
+from vis4d.data.transforms.crop import (
+    CropBoxes2D,
+    CropImages,
+    GenCropParameters,
+)
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
 from vis4d.data.transforms.mixup import (
     GenMixupParameters,
@@ -153,10 +158,16 @@ def get_train_dataloader(
                 GenResizeParameters,
                 shape=image_size,
                 keep_ratio=True,
+                scale_range=(0.5, 1.5),
                 same_on_batch=False,
             ),
-            class_config(ResizeImages, imresize_backend="cv2"),
+            class_config(ResizeImages),
             class_config(ResizeBoxes2D),
+            class_config(
+                GenCropParameters, shape=image_size, same_on_batch=False
+            ),
+            class_config(CropImages),
+            class_config(CropBoxes2D),
             class_config(PadImages, value=114.0),
             class_config(ToTensor),
         ],
