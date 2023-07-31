@@ -152,7 +152,7 @@ def run_experiment(
         )
         train_data_connector = instantiate_classes(config.train_data_connector)
         optimizers, lr_schedulers = set_up_optimizers(
-            config.optimizers, [model]
+            config.optimizers, [model], len(train_dataloader)
         )
         loss = instantiate_classes(config.loss)
     else:

@@ -38,7 +38,6 @@ CONN_YOLOX_LOSS_2D = {
 def get_yolox_optimizers_cfg(
     lr: float | FieldReference,
     num_epochs: int | FieldReference,
-    steps_per_epoch: int,
     warmup_epochs: int,
     num_last_epochs: int,
 ) -> list[OptimizerConfig]:
@@ -54,23 +53,23 @@ def get_yolox_optimizers_cfg(
             ),
             lr_schedulers=[
                 get_lr_scheduler_cfg(
-                    class_config(
-                        QuadraticLRWarmup,
-                        max_steps=steps_per_epoch * warmup_epochs,
-                    ),
-                    end=steps_per_epoch * warmup_epochs,
+                    class_config(QuadraticLRWarmup, max_steps=warmup_epochs),
+                    end=warmup_epochs,
                     epoch_based=False,
+                    convert_epochs_to_steps=True,
+                    convert_attributes=["max_steps"],
                 ),
                 get_lr_scheduler_cfg(
                     class_config(
                         CosineAnnealingLR,
-                        T_max=(num_epochs - num_last_epochs - warmup_epochs)
-                        * steps_per_epoch,
+                        T_max=num_epochs - num_last_epochs - warmup_epochs,
                         eta_min=lr * 0.05,
                     ),
-                    begin=steps_per_epoch * warmup_epochs,
-                    end=(num_epochs - num_last_epochs) * steps_per_epoch,
+                    begin=warmup_epochs,
+                    end=num_epochs - num_last_epochs,
                     epoch_based=False,
+                    convert_epochs_to_steps=True,
+                    convert_attributes=["T_max"],
                 ),
                 get_lr_scheduler_cfg(
                     class_config(

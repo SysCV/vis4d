@@ -190,7 +190,7 @@ def get_qdtrack_yolox_cfg(
         weights=weights,
     )
     if use_ema:
-        model = class_config(ModelExpEMAAdapter, model=model, decay=0.9999)
+        model = class_config(ModelExpEMAAdapter, model=model)
 
     track_loss = class_config(QDTrackInstanceSimilarityLoss)
 

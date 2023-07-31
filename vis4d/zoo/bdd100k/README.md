@@ -77,3 +77,29 @@ The recently introduced panoptic segmentation task has renewed our community's i
 | Base Network | Iters |    Input    | mIoU-val | Scores-val | mIoU-test | Scores-test |                          Config                          |  Weights  |   Preds   |   Visuals   |
 | :----------: | :---: | :---------: | :------: | :--------: | :-------: | :---------: | :------------------------------------------------------: | :-------: | :-------: | :---------: |
 |   R-50-FPN   |  40K  | 512 \* 1024 |   59.2   | [scores]() |           | [scores]()  | [config](./semantic_fpn/semantic_fpn_r50_40k_bdd100k.py) | [model]() | [preds]() | [visuals]() |
+
+---
+
+## Multiple Object Tracking
+
+The multiple object tracking (MOT) task involves detecting and tracking objects of interest throughout each video sequence.
+
+The BDD100K dataset contains MOT annotations for 2K videos (1.4K/200/400 for train/val/test) with 8 categories. Each video is approximately 40 seconds and annotated at 5 fps, resulting in around 200 frames per video. For details about downloading the data and the annotation format for this task, see the [official documentation](https://doc.bdd100k.com/download.html).
+
+### QDTrack
+
+[Quasi-Dense Similarity Learning for Multiple Object Tracking](https://arxiv.org/abs/2006.06664) [CVPR 2021 Oral]
+
+Authors: [Jiangmiao Pang](https://scholar.google.com/citations?user=ssSfKpAAAAAJ), [Linlu Qiu](https://linlu-qiu.github.io/), [Xia Li](https://xialipku.github.io/), [Haofeng Chen](https://www.haofeng.io/), Qi Li, [Trevor Darrell](https://people.eecs.berkeley.edu/~trevor/), [Fisher Yu](https://www.yf.io/)
+
+<details>
+<summary>Abstract</summary>
+Similarity learning has been recognized as a crucial step for object tracking. However, existing multiple object tracking methods only use sparse ground truth matching as the training objective, while ignoring the majority of the informative regions on the images. In this paper, we present Quasi-Dense Similarity Learning, which densely samples hundreds of region proposals on a pair of images for contrastive learning. We can naturally combine this similarity learning with existing detection methods to build Quasi-Dense Tracking (QDTrack) without turning to displacement regression or motion priors. We also find that the resulting distinctive feature space admits a simple nearest neighbor search at the inference time. Despite its simplicity, QDTrack outperforms all existing methods on MOT, BDD100K, Waymo, and TAO tracking benchmarks. It achieves 68.7 MOTA at 20.3 FPS on MOT17 without using external training data. Compared to methods with similar detectors, it boosts almost 10 points of MOTA and significantly decreases the number of ID switches on BDD100K and Waymo datasets.
+</details>
+
+#### Results
+
+| Detector  | Base Network | mMOTA-val | mIDF1-val | ID Sw.-val | Scores-val | Config | Weights | Preds | Visuals |
+| :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| Faster R-CNN | R-50-FPN |  |  |  | [scores]() | [config]() | [model]() | [preds]() | [visuals]() |
+| YOLOX-x | CSPNet |  |  |  | [scores]() | [config]() | [model]() | [preds]() | [visuals]() |

@@ -16,7 +16,7 @@ from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXOut, YOLOXPostprocess
 from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
 from vis4d.op.track.common import TrackOut
-from vis4d.op.track.qdtrack import QDSimilarityHead, QDTrackHead
+from vis4d.op.track.qdtrack import QDSimilarityHead, QDTrackHead, QDTrackAssociation
 from vis4d.state.track.qdtrack import QDTrackGraph
 
 from .util import split_key_ref_indices
@@ -114,7 +114,7 @@ class FasterRCNNQDTrack(nn.Module):
         )
 
         self.track_graph = (
-            QDTrackGraph() if track_graph is None else track_graph
+            QDTrackGraph(track=QDTrackAssociation(init_score_thr=0.5, obj_score_thr=0.35)) if track_graph is None else track_graph
         )
 
         if weights is not None:
@@ -375,7 +375,7 @@ class YOLOXQDTrack(nn.Module):
                 self.yolox_head.point_generator,
                 self.yolox_head.box_decoder,
                 nms_threshold=0.65,
-                score_thr=0.01,
+                score_thr=0.1,
             )
             if test_postprocessor is None
             else test_postprocessor

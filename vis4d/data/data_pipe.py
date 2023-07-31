@@ -118,7 +118,9 @@ class MultiSampleDataPipe(DataPipe):
                 prep_samples = []
                 for i, samp in enumerate(samples):
                     prep_samples.append(samp)
-                    prep_samples += [s[i] for s in add_samples]
+                    prep_samples += [
+                        s[i] if isinstance(s, list) else s for s in add_samples
+                    ]
             else:
                 num_samples = 1
                 prep_samples = samples

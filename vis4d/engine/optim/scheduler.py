@@ -24,13 +24,17 @@ class LRSchedulerWrapper(LRScheduler):
     """LR scheduler wrapper."""
 
     def __init__(
-        self, lr_schedulers_cfg: list[LrSchedulerConfig], optimizer: Optimizer
+        self,
+        lr_schedulers_cfg: list[LrSchedulerConfig],
+        optimizer: Optimizer,
+        steps_per_epoch: int = -1,
     ) -> None:
         """Initialize LRSchedulerWrapper."""
         self.lr_schedulers_cfg = lr_schedulers_cfg
         self.lr_schedulers: dict[int, LRSchedulerDict] = {}
         super().__init__(optimizer)
 
+        self.steps_per_epoch = steps_per_epoch
         for i, lr_scheduler_cfg in enumerate(self.lr_schedulers_cfg):
             if lr_scheduler_cfg["begin"] == 0:
                 self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
@@ -44,6 +48,19 @@ class LRSchedulerWrapper(LRScheduler):
             lr_scheduler_cfg["scheduler"]["init_args"]["max_lr"] = [
                 pg["lr"] for pg in self.optimizer.param_groups
             ]
+
+        # Convert epochs to steps
+        if (
+            lr_scheduler_cfg["convert_epochs_to_steps"]
+            and not lr_scheduler_cfg["epoch_based"]
+        ):
+            lr_scheduler_cfg["begin"] *= self.steps_per_epoch
+            lr_scheduler_cfg["end"] *= self.steps_per_epoch
+            if lr_scheduler_cfg["convert_attributes"] is not None:
+                for attr in lr_scheduler_cfg["convert_attributes"]:
+                    lr_scheduler_cfg["scheduler"]["init_args"][
+                        attr
+                    ] *= self.steps_per_epoch
 
         self.lr_schedulers[scheduler_idx] = {
             "scheduler": instantiate_classes(

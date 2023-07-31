@@ -28,7 +28,6 @@ from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
-from vis4d.pl.callbacks import CallbackWrapper
 from vis4d.vis.image import BoundingBoxVisualizer
 from vis4d.zoo.bdd100k.qdtrack.data_yolox import get_bdd100k_track_cfg
 
@@ -52,7 +51,7 @@ def get_config() -> ExperimentConfig:
 
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 4
+    params.samples_per_gpu = 2
     params.workers_per_gpu = 4
     params.lr = 0.0005
     params.num_epochs = 50
@@ -77,10 +76,6 @@ def get_config() -> ExperimentConfig:
         "mmdet://yolox/yolox_s_8x8_300e_coco/"
         "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
     )
-    # weights = (
-    #     "mmdet://yolox/yolox_l_8x8_300e_coco/"
-    #     "yolox_l_8x8_300e_coco_20211126_140236-d3bd2b23.pth"
-    # )
     config.model, config.loss = get_qdtrack_yolox_cfg(
         num_classes, "small", weights=weights
     )
@@ -88,13 +83,9 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    steps_per_epoch, num_last_epochs, warmup_epochs = 5354, 25, 1
+    num_last_epochs, warmup_epochs = 25, 1
     config.optimizers = get_yolox_optimizers_cfg(
-        params.lr,
-        params.num_epochs,
-        steps_per_epoch,
-        warmup_epochs,
-        num_last_epochs,
+        params.lr, params.num_epochs, warmup_epochs, num_last_epochs
     )
 
     ######################################################

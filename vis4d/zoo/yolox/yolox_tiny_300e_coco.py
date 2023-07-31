@@ -83,13 +83,9 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    steps_per_epoch, num_last_epochs, warmup_epochs = 1849, 15, 5
+    num_last_epochs, warmup_epochs = 15, 5
     config.optimizers = get_yolox_optimizers_cfg(
-        params.lr,
-        params.num_epochs,
-        steps_per_epoch,
-        warmup_epochs,
-        num_last_epochs,
+        params.lr, params.num_epochs, warmup_epochs, num_last_epochs
     )
 
     ######################################################

@@ -40,7 +40,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="qdtrack_frcnn_r50_fpn_bdd100k")
+    config = get_default_cfg(exp_name="qdtrack_frcnn_r50_fpn_1x_bdd100k")
 
     # High level hyper parameters
     params = ExperimentParameters()
