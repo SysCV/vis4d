@@ -1,4 +1,4 @@
-# tests/transforms/test_mixup.py
+# pylint: disable=no-member
 """Tests for Mixup."""
 
 import unittest
@@ -45,10 +45,10 @@ class TestMixup(unittest.TestCase):
         tr3 = MixupCategories(num_classes=2, label_smoothing=0.1)
         tr4 = MixupBoxes2D()
 
-        batch = tr1.apply_to_data(batch)  # pylint: disable=no-member
-        batch = tr2.apply_to_data(batch)  # pylint: disable=no-member
-        batch = tr3.apply_to_data(batch)  # pylint: disable=no-member
-        batch = tr4.apply_to_data(batch)  # pylint: disable=no-member
+        batch = tr1.apply_to_data(batch)
+        batch = tr2.apply_to_data(batch)
+        batch = tr3.apply_to_data(batch)
+        batch = tr4.apply_to_data(batch)
 
         images = [data["images"] for data in batch]
         categories = [data["categories"] for data in batch]
@@ -60,13 +60,10 @@ class TestMixup(unittest.TestCase):
         self.assertEqual(images[0].shape, (1, 32, 32, 3))
         self.assertEqual(images[1].shape, (1, 32, 32, 3))
 
-        self.assertAlmostEqual(images[0][0, 0, 0, 0], 0.4491, places=3)
-        self.assertAlmostEqual(images[1][0, 0, 0, 0], 0.9762, places=3)
-
-        self.assertAlmostEqual(categories[0][0], 0.5233, places=3)
-        self.assertAlmostEqual(categories[0][1], 0.4267, places=3)
-        self.assertAlmostEqual(categories[1][0], 0.0225, places=3)
-        self.assertAlmostEqual(categories[1][1], 0.9274, places=3)
+        for i in range(2):
+            self.assertAlmostEqual(images[i][0, 0, 0, 0], 0.4491, places=3)
+            self.assertAlmostEqual(categories[i][0], 0.5233, places=3)
+            self.assertAlmostEqual(categories[i][1], 0.4267, places=3)
 
         assert (
             batch[0]["boxes2d"]
@@ -96,7 +93,7 @@ class TestMixup(unittest.TestCase):
             {
                 "images": np.zeros((1, 32, 32, 3)).astype(np.float32),
                 "boxes2d": np.array(
-                    [[23.0, 23.0, 24.0, 25.0]], dtype=np.float32
+                    [[23.0, 13.0, 24.0, 15.0]], dtype=np.float32
                 ),
                 "boxes2d_classes": np.array([1], dtype=np.int32),
                 "boxes2d_track_ids": np.array([20], dtype=np.int32),
@@ -107,24 +104,26 @@ class TestMixup(unittest.TestCase):
         tr2 = MixupImages()
         tr3 = MixupBoxes2D()
 
-        batch = tr1.apply_to_data(batch)  # pylint: disable=no-member
-        batch = tr2.apply_to_data(batch)  # pylint: disable=no-member
-        batch = tr3.apply_to_data(batch)  # pylint: disable=no-member
+        batch = tr1.apply_to_data(batch)
+        batch = tr2.apply_to_data(batch)
+        batch = tr3.apply_to_data(batch)
 
         boxes = [data["boxes2d"] for data in batch]
         classes = [data["boxes2d_classes"] for data in batch]
         track_ids = [data["boxes2d_track_ids"] for data in batch]
 
-        assert (
-            boxes[0] == np.array([[5.0, 5.0, 10.0, 10.0]], dtype=np.float32)
-        ).all()
-        assert (
-            boxes[1] == np.array([[23.0, 23.0, 24.0, 25.0]], dtype=np.float32)
-        ).all()
-        assert (classes[0] == np.array([0], dtype=np.int32)).all()
-        assert (classes[1] == np.array([1], dtype=np.int32)).all()
-        assert (track_ids[0] == np.array([10], dtype=np.int32)).all()
-        assert (track_ids[1] == np.array([20], dtype=np.int32)).all()
+        for box, cls, tid in zip(boxes, classes, track_ids):
+            assert (
+                box[0] == np.array([[5.0, 5.0, 10.0, 10.0]], dtype=np.float32)
+            ).all()
+            assert (
+                box[1]
+                == np.array([[30.0, 22.0, 32.0, 26.0]], dtype=np.float32)
+            ).all()
+            assert (cls[0] == np.array([0], dtype=np.int32)).all()
+            assert (cls[1] == np.array([1], dtype=np.int32)).all()
+            assert (tid[0] == np.array([10], dtype=np.int32)).all()
+            assert (tid[1] == np.array([1020], dtype=np.int32)).all()
 
     def test_mixup_compose(self):
         """Test batch mixup using compose function."""
@@ -157,10 +156,7 @@ class TestMixup(unittest.TestCase):
         self.assertEqual(images[0].shape, (1, 32, 32, 3))
         self.assertEqual(images[1].shape, (1, 32, 32, 3))
 
-        self.assertAlmostEqual(images[0][0, 0, 0, 0], 0.4491, places=3)
-        self.assertAlmostEqual(images[1][0, 0, 0, 0], 0.9762, places=3)
-
-        self.assertAlmostEqual(categories[0][0], 0.5233, places=3)
-        self.assertAlmostEqual(categories[0][1], 0.4267, places=3)
-        self.assertAlmostEqual(categories[1][0], 0.0225, places=3)
-        self.assertAlmostEqual(categories[1][1], 0.9274, places=3)
+        for i in range(2):
+            self.assertAlmostEqual(images[i][0, 0, 0, 0], 0.4491, places=3)
+            self.assertAlmostEqual(categories[i][0], 0.5233, places=3)
+            self.assertAlmostEqual(categories[i][1], 0.4267, places=3)

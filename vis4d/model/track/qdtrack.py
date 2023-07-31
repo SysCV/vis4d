@@ -118,13 +118,7 @@ class FasterRCNNQDTrack(nn.Module):
         )
 
         self.track_graph = (
-            QDTrackGraph(
-                track=QDTrackAssociation(
-                    init_score_thr=0.5, obj_score_thr=0.35
-                )
-            )
-            if track_graph is None
-            else track_graph
+            QDTrackGraph() if track_graph is None else track_graph
         )
 
         if weights is not None:
@@ -407,7 +401,13 @@ class YOLOXQDTrack(nn.Module):
         )
 
         self.track_graph = (
-            QDTrackGraph() if track_graph is None else track_graph
+            QDTrackGraph(
+                track=QDTrackAssociation(
+                    init_score_thr=0.5, obj_score_thr=0.35
+                )
+            )
+            if track_graph is None
+            else track_graph
         )
 
         if weights is not None:

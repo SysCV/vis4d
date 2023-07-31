@@ -179,13 +179,15 @@ def get_qdtrack_yolox_cfg(
         basemodel=basemodel,
         fpn=fpn,
         yolox_head=yolox_head,
-        qdtrack_head=QDTrackHead(
-            QDSimilarityHead(
-                MultiScaleRoIAlign(
-                    resolution=[7, 7], strides=[8, 16, 32], sampling_ratio=0
+        qdtrack_head=class_config(
+            QDTrackHead,
+            similarity_head=class_config(
+                QDSimilarityHead,
+                proposal_pooler=MultiScaleRoIAlign(
+                    resolution=(7, 7), strides=[8, 16, 32], sampling_ratio=0
                 ),
                 in_dim=in_dim,
-            )
+            ),
         ),
         weights=weights,
     )

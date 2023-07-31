@@ -190,8 +190,7 @@ class MixupImages:
 
 
 @Transform(
-    in_keys=(K.categories, "transforms.mixup"),
-    out_keys=(K.categories,),
+    in_keys=(K.categories, "transforms.mixup"), out_keys=(K.categories,)
 )
 class MixupCategories:
     """Mixup a batch of categories."""
