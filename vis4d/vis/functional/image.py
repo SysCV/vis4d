@@ -303,6 +303,7 @@ def imshow_topk_bboxes(
     class_id_mapping: None | dict[int, str] = None,
     n_colors: int = 50,
     image_mode: str = "RGB",
+    box_width: int = 1,
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
 ) -> None:
     """Visualize the 'topk' bounding boxes with highest score.
@@ -320,6 +321,7 @@ def imshow_topk_bboxes(
         n_colors (int, optional): Number of distinct colors used to color the
                                   boxes. Defaults to 50.
         image_mode (str, optional): Image channel mode (RGB or BGR).
+        box_width (int, optional): Width of the box border. Defaults to 1.
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
 
@@ -339,6 +341,7 @@ def imshow_topk_bboxes(
         class_id_mapping,
         n_colors,
         image_mode,
+        box_width,
         image_viewer,
     )
 
