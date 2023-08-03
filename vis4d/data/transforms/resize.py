@@ -190,7 +190,7 @@ class ResizeBoxes2D:
     [
         K.depth_maps,
         "transforms.resize.target_shape",
-        "transforms.resize.scale_factors",
+        "transforms.resize.scale_factor",
     ],
     K.depth_maps,
 )

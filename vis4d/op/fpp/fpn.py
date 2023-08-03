@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import nn, Tensor
 from torchvision.ops import FeaturePyramidNetwork as _FPN
 from torchvision.ops.feature_pyramid_network import (
     ExtraFPNBlock,
@@ -76,6 +76,31 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
     def __call__(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
         """Type definition for call implementation."""
         return self._call_impl(x)
+
+
+# TODO: Refactor this
+class LastLevelP6(ExtraFPNBlock):  # type: ignore
+    def __init__(
+        self, in_channels: int, out_channels: int, extra_relu: bool = False
+    ) -> None:
+        """Create an instance of the class."""
+        super().__init__()
+        self.p6_conv = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
+        self.extra_relu = extra_relu
+
+    def forward(
+        self, results: list[Tensor], x: list[Tensor], names: list[str]
+    ) -> tuple[list[Tensor], list[str]]:
+        """Forward."""
+        p5 = results[-1]
+
+        if self.extra_relu:
+            p5 = F.relu(p5)
+        p6 = self.p6_conv(p5)
+
+        results.extend([p6])
+        names.extend(["p6"])
+        return results, names
 
 
 class LastLevelP6P7(ExtraFPNBlock):  # type: ignore

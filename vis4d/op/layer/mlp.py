@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 
 
 class ResnetBlockFC(nn.Module):
@@ -106,7 +106,7 @@ class TransformerBlockMLP(nn.Module):
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias)
         self.drop2 = nn.Dropout(drop)
 
-    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+    def __call__(self, data: Tensor) -> Tensor:
         """Applies the layer.
 
         Args:
@@ -114,7 +114,7 @@ class TransformerBlockMLP(nn.Module):
         """
         return self._call_impl(data)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         """Forward pass.
 
         Args:
@@ -126,3 +126,96 @@ class TransformerBlockMLP(nn.Module):
         x = self.fc2(x)
         x = self.drop2(x)
         return x
+
+
+class FFN(nn.Module):
+    """Implements feed-forward networks (FFNs) with identity connection."""
+
+    def __init__(
+        self,
+        layers: nn.Modele,
+        embed_dims: int = 256,
+        dropout_layer: nn.Module = nn.Identity(),
+        add_identity: bool = True,
+        layer_scale_init_value: float = 0.0,
+    ) -> None:
+        """Init FFN.
+
+        Args:
+            layers (nn.Module): The layers of the FFN.
+            embed_dims (int): The feature dimension. Same as
+                `MultiheadAttention`. Defaults: 256.
+            dropout_layer (nn.Module): The dropout_layer used when adding the
+                shortcut.
+            add_identity (bool, optional): Whether to add the identity
+                connection. Default: `True`.
+            layer_scale_init_value (float): Initial value of scale factor in
+                LayerScale. Default: 0.0
+        """
+        super().__init__()
+        self.layers = layers
+
+        self.dropout_layer = dropout_layer
+        self.add_identity = add_identity
+
+        if layer_scale_init_value > 0:
+            self.gamma2 = LayerScale(embed_dims, scale=layer_scale_init_value)
+        else:
+            self.gamma2 = nn.Identity()
+
+    def forward(self, x: Tensor, identity: Tensor | None = None) -> None:
+        """Forward function for `FFN`.
+
+        The function would add x to the output tensor if residue is None.
+        """
+        out = self.layers(x)
+        out = self.gamma2(out)
+
+        if self.add_identity:
+            identity = x if identity is None else identity
+            return identity + self.dropout_layer(out)
+
+        return self.dropout_layer(out)
+
+
+class LayerScale(nn.Module):
+    """LayerScale layer."""
+
+    def __init__(
+        self,
+        dim: int,
+        inplace: bool = False,
+        data_format: str = "channels_last",
+        scale: float = 1e-5,
+    ) -> None:
+        """Init LayerScale.
+
+        Args:
+            dim (int): Dimension of input features.
+            inplace (bool): Whether performs operation in-place. Default:
+                `False`.
+            data_format (str): The input data format, could be 'channels_last'
+                or 'channels_first', representing (B, C, H, W) and (B, N, C)
+                format data respectively. Default: 'channels_last'.
+            scale (float): Initial value of scale factor. Default: 1e-5.
+        """
+        super().__init__()
+        assert data_format in (
+            "channels_last",
+            "channels_first",
+        ), "'data_format' could only be channels_last or channels_first."
+        self.inplace = inplace
+        self.data_format = data_format
+        self.weight = nn.Parameter(torch.ones(dim) * scale)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward function for `LayerScale`."""
+        if self.data_format == "channels_first":
+            shape = tuple((1, -1, *(1 for _ in range(x.dim() - 2))))
+        else:
+            shape = tuple((*(1 for _ in range(x.dim() - 1)), -1))
+
+        if self.inplace:
+            return x.mul_(self.weight.view(*shape))
+        else:
+            return x * self.weight.view(*shape)
