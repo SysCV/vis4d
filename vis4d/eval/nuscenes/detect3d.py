@@ -151,8 +151,14 @@ class NuScenesDet3DEvaluator(Evaluator):
         """
         detect_3d_list = gather_func(self.detect_3d)
         if detect_3d_list is not None:
-            prediction_list = [p.items() for p in detect_3d_list]
-            self.detect_3d = dict(itertools.chain(*prediction_list))
+            collated_detect_3d: DictStrAny = {}
+            for prediction in detect_3d_list:
+                for k, v in prediction.items():
+                    if k not in collated_detect_3d:
+                        collated_detect_3d[k] = v
+                    else:
+                        collated_detect_3d[k].extend(v)
+            self.detect_3d = collated_detect_3d
 
     def reset(self) -> None:
         """Reset evaluator."""

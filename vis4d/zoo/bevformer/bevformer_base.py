@@ -57,13 +57,9 @@ def get_config() -> ExperimentConfig:
     ##          Datasets with augmentations             ##
     ######################################################
     data_root = "data/nuscenes"
-    # version = "v1.0-trainval"
-    # train_split = "train"
-    # test_split = "val"
-
-    version = "v1.0-mini"
-    train_split = "mini_train"
-    test_split = "mini_val"
+    version = "v1.0-trainval"
+    train_split = "train"
+    test_split = "val"
 
     data_backend = class_config(HDF5Backend)
 
