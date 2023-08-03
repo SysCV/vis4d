@@ -137,7 +137,7 @@ class PerceptionTransformer(nn.Module):
 
             if self.rotate_prev_bev:
                 for i in range(B):
-                    rotation_angle = int(can_bus[i][-1])
+                    rotation_angle = float(can_bus[i][-1])
                     tmp_prev_bev = (
                         prev_bev[:, i]
                         .reshape(bev_h, bev_w, -1)
