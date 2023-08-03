@@ -1,15 +1,16 @@
 """Spatial Cross Attention Module for BEVFormer."""
 from __future__ import annotations
+
 import math
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
-from vis4d.op.layer.weight_init import constant_init, xavier_init
 from vis4d.op.layer.ms_deform_attn import (
     MSDeformAttentionFunction,
     is_power_of_2,
 )
+from vis4d.op.layer.weight_init import constant_init, xavier_init
 
 
 class SpatialCrossAttention(nn.Module):

@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torchvision.ops import FeaturePyramidNetwork as _FPN
 from torchvision.ops.feature_pyramid_network import (
     ExtraFPNBlock,

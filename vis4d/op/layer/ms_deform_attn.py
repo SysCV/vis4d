@@ -11,13 +11,13 @@ import math
 
 import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn.init import constant_, xavier_uniform_
+from vis4d_cuda_ops import ms_deform_attn_backward, ms_deform_attn_forward
 
 from vis4d.common.logging import rank_zero_warn
-from vis4d_cuda_ops import ms_deform_attn_forward, ms_deform_attn_backward
 
 
 class MSDeformAttentionFunction(Function):

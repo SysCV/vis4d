@@ -35,8 +35,8 @@ from .util import CacheMappingMixin, im_decode, print_class_histogram
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
     from nuscenes.can_bus.can_bus_api import NuScenesCanBus
-    from nuscenes.eval.detection.utils import category_to_detection_name
     from nuscenes.eval.common.utils import quaternion_yaw
+    from nuscenes.eval.detection.utils import category_to_detection_name
     from nuscenes.scripts.export_2d_annotations_as_json import (
         post_process_coords,
     )

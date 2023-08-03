@@ -7,15 +7,14 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torch.nn.init import normal_
-
 from torchvision.transforms.functional import rotate
 
 from vis4d.op.layer.weight_init import xavier_init
 
-from .encoder import BEVFormerEncoder
 from .decoder import BEVFormerDecoder
+from .encoder import BEVFormerEncoder
 
 
 class PerceptionTransformer(nn.Module):

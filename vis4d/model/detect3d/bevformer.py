@@ -1,27 +1,26 @@
 """BEVFromer."""
 from __future__ import annotations
 
+import copy
 from typing import NamedTuple
 
-import copy
 import numpy as np
-
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import AxisMode
 from vis4d.op.base import BaseModel
-from vis4d.op.fpp.fpn import FPN, LastLevelP6
 from vis4d.op.box.box3d import transform_boxes3d
+from vis4d.op.detect3d.bevformer import BEVFormerHead
+from vis4d.op.fpp.fpn import FPN, LastLevelP6
 from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_quaternion,
     rotate_velocities,
 )
 
-from vis4d.op.detect3d.bevformer import BEVFormerHead
 from .grid_mask import GridMask
 
 REV_KEYS = [

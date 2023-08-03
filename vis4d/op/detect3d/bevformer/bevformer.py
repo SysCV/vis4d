@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import copy
+
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from vis4d.op.box.encoder.nms_free import NMSFreeDecoder
-from vis4d.op.layer.weight_init import bias_init_with_prob
-from vis4d.op.layer.transformer import inverse_sigmoid
 from vis4d.op.layer.positional_encoding import LearnedPositionalEncoding
+from vis4d.op.layer.transformer import inverse_sigmoid
+from vis4d.op.layer.weight_init import bias_init_with_prob
 
 from .transformer import PerceptionTransformer
 

@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchvision.ops import DeformConv2d
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn.modules.utils import _pair
-
+from torchvision.ops import DeformConv2d
 from vis4d_cuda_ops import (
-    modulated_deform_conv_forward,
     modulated_deform_conv_backward,
+    modulated_deform_conv_forward,
 )
 
 from vis4d.common.logging import rank_zero_info

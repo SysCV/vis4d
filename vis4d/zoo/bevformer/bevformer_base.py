@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytorch_lightning as pl
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
 from vis4d.config.default import (
@@ -14,24 +14,24 @@ from vis4d.config.default import (
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
-    MultiSensorDataConnector,
     MultiSensorCallbackConnector,
+    MultiSensorDataConnector,
 )
+from vis4d.eval.nuscenes import NuScenesDet3DEvaluator
 from vis4d.model.detect3d.bevformer import BEVFormer
 from vis4d.op.base.resnet_mm import ResNet
+from vis4d.vis.image.bbox3d_visualizer import MultiCameraBBox3DVisualizer
 from vis4d.zoo.bevformer.data import (
     CONN_NUSC_BBOX_3D_TEST,
     CONN_NUSC_BBOX_3D_VIS,
     CONN_NUSC_DET3D_EVAL,
-    get_nusc_cfg,
     NUSC_CAMERAS,
+    get_nusc_cfg,
     nuscenes_class_map,
 )
-from vis4d.eval.nuscenes import NuScenesDet3DEvaluator
-from vis4d.engine.callbacks import VisualizerCallback, EvaluatorCallback
-from vis4d.vis.image.bbox3d_visualizer import MultiCameraBBox3DVisualizer
 
 
 def get_config() -> ExperimentConfig:

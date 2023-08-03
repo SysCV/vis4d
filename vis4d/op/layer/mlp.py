@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 
 class ResnetBlockFC(nn.Module):

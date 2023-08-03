@@ -39,7 +39,6 @@ from vis4d.data.transforms.resize import (
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 
-
 nuscenes_class_map = {
     "car": 0,
     "truck": 1,

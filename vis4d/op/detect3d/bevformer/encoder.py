@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from vis4d.op.geometry.transform import inverse_rigid_transform
 from vis4d.op.layer.mlp import FFN
 
-
-from .temporal_self_attention import TemporalSelfAttention
 from .spatial_cross_attention import SpatialCrossAttention
+from .temporal_self_attention import TemporalSelfAttention
 
 
 class BEVFormerEncoder(nn.Module):

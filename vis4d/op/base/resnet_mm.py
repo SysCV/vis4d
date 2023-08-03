@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from torch import nn, Tensor
 import torch.utils.checkpoint as cp
+from torch import Tensor, nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from vis4d.op.layer.deform_conv import ModulatedDeformConv2dPack

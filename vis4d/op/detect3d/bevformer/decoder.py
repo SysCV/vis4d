@@ -4,16 +4,16 @@ from __future__ import annotations
 import math
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from vis4d.op.layer.attention import MultiheadAttention
 from vis4d.op.layer.mlp import FFN
-from vis4d.op.layer.weight_init import xavier_init, constant_init
 from vis4d.op.layer.ms_deform_attn import (
     MSDeformAttentionFunction,
     is_power_of_2,
 )
 from vis4d.op.layer.transformer import inverse_sigmoid
+from vis4d.op.layer.weight_init import constant_init, xavier_init
 
 
 class BEVFormerDecoder(nn.Module):

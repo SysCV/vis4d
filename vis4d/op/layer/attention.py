@@ -1,10 +1,10 @@
 """Attention layer."""
 from __future__ import annotations
 
-from torch import nn, Tensor
+from torch import Tensor, nn
 
-from vis4d.common.typing import ArgsType
 from vis4d.common.logging import rank_zero_warn
+from vis4d.common.typing import ArgsType
 
 
 class Attention(nn.Module):
