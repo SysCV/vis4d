@@ -1,7 +1,7 @@
 """Grid mask for BEVFormer."""
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn, Tensor
 from PIL import Image
 
 
@@ -9,7 +9,14 @@ class GridMask(nn.Module):
     """Grid Mask Layer."""
 
     def __init__(
-        self, use_h, use_w, rotate=1, offset=False, ratio=0.5, mode=0, prob=1.0
+        self,
+        use_h: bool,
+        use_w: bool,
+        rotate: int = 1,
+        offset: bool = False,
+        ratio: float = 0.5,
+        mode: int = 0,
+        prob: float = 1.0,
     ) -> None:
         """Init."""
         super().__init__()
@@ -22,10 +29,8 @@ class GridMask(nn.Module):
         self.st_prob = prob
         self.prob = prob
 
-    def set_prob(self, epoch, max_epoch):
-        self.prob = self.st_prob * epoch / max_epoch  # + 1.#0.5
-
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward."""
         if np.random.rand() > self.prob or not self.training:
             return x
         n, c, h, w = x.size()

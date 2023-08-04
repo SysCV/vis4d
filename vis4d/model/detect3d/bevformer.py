@@ -9,11 +9,10 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.common.typing import NDArrayF32
 from vis4d.data.const import AxisMode
 from vis4d.op.base import BaseModel
 from vis4d.op.box.box3d import transform_boxes3d
-from vis4d.op.detect3d.bevformer import BEVFormerHead
+from vis4d.op.detect3d.bevformer import BEVFormerHead, GridMask
 from vis4d.op.fpp.fpn import FPN, LastLevelP6
 from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
@@ -21,7 +20,6 @@ from vis4d.op.geometry.rotation import (
     rotate_velocities,
 )
 
-from .grid_mask import GridMask
 
 REV_KEYS = [
     (r"^img_backbone\.", "basemodel."),
@@ -43,7 +41,7 @@ class Detect3DOut(NamedTuple):
 
 
 def bbox3d2result(bbox_list, lidar2global: Tensor) -> Detect3DOut:
-    """Convert detection results to a list of numpy arrays."""
+    """Convert detection results to Detect3DOut."""
     boxes_3d = []
     velocities = []
     class_ids = []
@@ -115,9 +113,10 @@ class BEVFormer(nn.Module):
 
     def extract_feat(self, images: list[Tensor]) -> list[Tensor]:
         """Extract features of images."""
-        N = len(images)
-        B = images[0].shape[0]
-        images = torch.cat(images)  # [N * B, C, H, W]
+        n = len(images)  # N
+        b = images[0].shape[0]  # B
+        images = torch.stack(images, dim=1)  # [B, N, C, H, W]
+        images = images.view(-1, *images.shape[2:])  # [B*N, C, H, W]
 
         if self.use_grid_mask:
             images = self.grid_mask(images)
@@ -127,8 +126,8 @@ class BEVFormer(nn.Module):
 
         img_feats = []
         for img_feat in features:
-            BN, C, H, W = img_feat.size()
-            img_feats.append(img_feat.view(B, N, C, H, W))
+            _, c, h, w = img_feat.size()
+            img_feats.append(img_feat.view(b, n, c, h, w))
 
         return img_feats
 
@@ -136,18 +135,17 @@ class BEVFormer(nn.Module):
         self,
         images: list[Tensor],
         images_hw: list[list[tuple[int, int]]],
-        can_bus: list[NDArrayF32],
+        can_bus: list[list[float]],
         scene_names: list[list[str]],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: list[Tensor],
     ) -> Detect3DOut:
         """Forward."""
-        # FIXME: Refactor ToTensor transform
         lidar_extrinsics = lidar_extrinsics[0]
-        can_bus = torch.cat(
-            [torch.from_numpy(c).unsqueeze(0) for c in can_bus]
-        ).to(images[0].device)
+        can_bus_tensor = torch.tensor(
+            can_bus, dtype=torch.float32, device=images[0].device
+        )
 
         if scene_names[0] != self.prev_frame_info["scene_name"]:
             # the first sample of each scene is truncated
@@ -161,20 +159,20 @@ class BEVFormer(nn.Module):
             self.prev_frame_info["prev_bev"] = None
 
         # Get the delta of ego position and angle between two timestamps.
-        tmp_pos = copy.deepcopy(can_bus[0][:3])
-        tmp_angle = copy.deepcopy(can_bus[0][-1])
+        tmp_pos = copy.deepcopy(can_bus_tensor[0][:3])
+        tmp_angle = copy.deepcopy(can_bus_tensor[0][-1])
         if self.prev_frame_info["prev_bev"] is not None:
-            can_bus[0][:3] -= self.prev_frame_info["prev_pos"]
-            can_bus[0][-1] -= self.prev_frame_info["prev_angle"]
+            can_bus_tensor[0][:3] -= self.prev_frame_info["prev_pos"]
+            can_bus_tensor[0][-1] -= self.prev_frame_info["prev_angle"]
         else:
-            can_bus[0][:3] = 0
-            can_bus[0][-1] = 0
+            can_bus_tensor[0][:3] = 0
+            can_bus_tensor[0][-1] = 0
 
         img_feats = self.extract_feat(images=images)
 
         bev_embed, bbox_list = self.pts_bbox_head(
             img_feats,
-            can_bus,
+            can_bus_tensor,
             images_hw,
             cam_intrinsics,
             cam_extrinsics,
@@ -189,24 +187,3 @@ class BEVFormer(nn.Module):
         self.prev_frame_info["prev_bev"] = bev_embed
 
         return bbox3d2result(bbox_list, lidar_extrinsics)
-
-
-def filer_distance(boxes3d: Tensor, class_ids: Tensor) -> Tensor:
-    """Filter boxes3d on distance."""
-    from vis4d.data.datasets.nuscenes import (
-        nuscenes_class_map,
-        nuscenes_detection_range_map,
-    )
-
-    inv_class_map = {v: k for k, v in nuscenes_class_map.items()}
-
-    det_range = torch.tensor(
-        [
-            nuscenes_detection_range_map[inv_class_map[int(class_id)]]
-            for class_id in class_ids
-        ]
-    ).to(boxes3d.device)
-
-    radius = torch.linalg.norm(boxes3d[:, :2], dim=1)
-
-    return radius <= det_range

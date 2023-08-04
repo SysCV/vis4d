@@ -1,5 +1,5 @@
 """BEVFormer ops."""
 from .bevformer import BEVFormerHead
-from .temporal_self_attention import TemporalSelfAttention
+from .grid_mask import GridMask
 
-__all__ = ["BEVFormerHead", "TemporalSelfAttention"]
+__all__ = ["BEVFormerHead", "GridMask"]

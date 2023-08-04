@@ -472,19 +472,19 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         scene_name: str,
         can_bus_data: NuScenesCanBus,
         sample_timestamp: int,
-    ) -> NDArrayF32:
+    ) -> list[float]:
         """Load can bus data."""
         try:
             pose_list = can_bus_data.get_messages(scene_name, "pose")
-        except:
+        except AssertionError:
             # server scenes do not have can bus information.
-            return np.zeros(18, dtype=np.float32)
+            return [0.0] * 18
 
         # during each scene, the first timestamp of can_bus may be large than
         # the first sample's timestamp
         can_bus = []
         last_pose = pose_list[0]
-        for _, pose in enumerate(pose_list):
+        for pose in pose_list:
             if pose["utime"] > sample_timestamp:
                 break
             last_pose = pose
@@ -497,10 +497,10 @@ class NuScenes(CacheMappingMixin, VideoDataset):
 
         # 16 elements
         for key in last_pose.keys():
-            can_bus.extend(pose[key])
+            can_bus.extend(last_pose[key])
         can_bus.extend([0.0, 0.0])
 
-        return np.array(can_bus, dtype=np.float32)
+        return can_bus
 
     def _load_lidar_data(
         self, data: NuScenesDevkit, lidar_token: str

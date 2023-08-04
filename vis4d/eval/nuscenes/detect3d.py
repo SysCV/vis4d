@@ -1,7 +1,6 @@
 """NuScenes 3D detection evaluation code."""
 from __future__ import annotations
 
-import itertools
 import json
 import os
 from collections.abc import Callable
@@ -101,7 +100,7 @@ class NuScenesDet3DEvaluator(Evaluator):
         version: str,
         split: str,
         save_only: bool = False,
-        class_map: dict[str, int] = nuscenes_class_map,
+        class_map: dict[str, int] | None = None,
         metadata: tuple[str, ...] = ("use_camera",),
         use_default_attr: bool = False,
         velocity_thres: float = 1.0,
@@ -126,6 +125,7 @@ class NuScenesDet3DEvaluator(Evaluator):
         for m in metadata:
             self.meta_data[m] = True
 
+        class_map = class_map or nuscenes_class_map
         self.inv_nuscenes_class_map = {v: k for k, v in class_map.items()}
 
         self.output_dir = ""
