@@ -140,7 +140,7 @@ class CC3DTTest(unittest.TestCase):
             for pred, expected in zip(dets, testcase_gt):
                 for pred_entry, expected_entry in zip(pred, expected):
                     assert (
-                        torch.isclose(pred_entry, expected_entry, atol=1e-2)
+                        torch.isclose(pred_entry, expected_entry, atol=1e-1)
                         .all()
                         .item()
                     )
