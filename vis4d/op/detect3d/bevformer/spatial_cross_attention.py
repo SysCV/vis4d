@@ -9,6 +9,7 @@ from torch import Tensor, nn
 from vis4d.op.layer.ms_deform_attn import (
     MSDeformAttentionFunction,
     is_power_of_2,
+    ms_deformable_attention_cpu,
 )
 from vis4d.op.layer.weight_init import constant_init, xavier_init
 
@@ -38,9 +39,7 @@ class SpatialCrossAttention(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
         self.deformable_attention = (
-            MSDeformableAttention3D(embed_dims=256, num_points=8, num_levels=4)
-            if deformable_attention is None
-            else deformable_attention
+            deformable_attention or MSDeformableAttention3D()
         )
         self.embed_dims = embed_dims
         self.num_cams = num_cams
@@ -358,14 +357,19 @@ class MSDeformableAttention3D(nn.Module):
                 + f"{reference_points.shape[-1]} instead."
             )
 
-        output = MSDeformAttentionFunction.apply(
-            value,
-            spatial_shapes,
-            level_start_index,
-            sampling_locations,
-            attention_weights,
-            self.im2col_step,
-        )
+        if torch.cuda.is_available() and value.is_cuda:
+            output = MSDeformAttentionFunction.apply(
+                value,
+                spatial_shapes,
+                level_start_index,
+                sampling_locations,
+                attention_weights,
+                self.im2col_step,
+            )
+        else:
+            output = ms_deformable_attention_cpu(
+                value, spatial_shapes, sampling_locations, attention_weights
+            )
 
         if not self.batch_first:
             output = output.permute(1, 0, 2)

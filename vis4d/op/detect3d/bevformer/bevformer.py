@@ -1,7 +1,6 @@
 """BEVFormer head."""
 from __future__ import annotations
 
-import copy
 from collections.abc import Sequence
 
 import numpy as np
@@ -17,7 +16,7 @@ from vis4d.op.geometry.rotation import (
     rotate_velocities,
 )
 from vis4d.op.layer.positional_encoding import LearnedPositionalEncoding
-from vis4d.op.layer.transformer import inverse_sigmoid
+from vis4d.op.layer.transformer import get_clones, inverse_sigmoid
 from vis4d.op.layer.weight_init import bias_init_with_prob
 
 from ..common import Detect3DOut
@@ -72,7 +71,9 @@ class BEVFormerHead(nn.Module):
         num_classes: int = 10,
         embed_dims: int = 256,
         num_query: int = 900,
+        transformer: PerceptionTransformer | None = None,
         num_reg_fcs: int = 2,
+        num_cls_fcs: int = 2,
         point_cloud_range: Sequence[float] = (
             -51.2,
             -51.2,
@@ -81,7 +82,6 @@ class BEVFormerHead(nn.Module):
             51.2,
             3.0,
         ),
-        num_cls_fcs: int = 2,
         bev_h: int = 200,
         bev_w: int = 200,
     ) -> None:
@@ -91,12 +91,15 @@ class BEVFormerHead(nn.Module):
             num_classes (int, optional): Number of classes. Defaults to 10.
             embed_dims (int, optional): Embedding dimensions. Defaults to 256.
             num_query (int, optional): Number of queries. Defaults to 900.
+            transformer (PerceptionTransformer, optional): Transformer.
+                Defaults to None. If None, a default transformer will be
+                created.
             num_reg_fcs (int, optional): Number of fully connected layers in
                 regression branch. Defaults to 2.
-            point_cloud_range (Sequence[float], optional): Point cloud range.
-                Defaults to (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0).
             num_cls_fcs (int, optional): Number of fully connected layers in
                 classification branch. Defaults to 2.
+            point_cloud_range (Sequence[float], optional): Point cloud range.
+                Defaults to (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0).
             bev_h (int, optional): BEV height. Defaults to 200.
             bev_w (int, optional): BEV width. Defaults to 200.
         """
@@ -107,12 +110,14 @@ class BEVFormerHead(nn.Module):
         self.bev_w = bev_w
 
         self.positional_encoding = LearnedPositionalEncoding(
-            num_feats=128, row_num_embed=200, col_num_embed=200
+            num_feats=embed_dims // 2, row_num_embed=bev_h, col_num_embed=bev_w
         )
 
         self.cls_out_channels = num_classes
 
-        self.transformer = PerceptionTransformer(embed_dims=embed_dims)
+        self.transformer = transformer or PerceptionTransformer(
+            embed_dims=embed_dims
+        )
 
         self.code_size = 10
         self.num_query = num_query
@@ -157,8 +162,8 @@ class BEVFormerHead(nn.Module):
 
         num_pred = self.transformer.decoder.num_layers
 
-        self.cls_branches = _get_clones(fc_cls, num_pred)
-        self.reg_branches = _get_clones(fc_reg, num_pred)
+        self.cls_branches = get_clones(fc_cls, num_pred)
+        self.reg_branches = get_clones(fc_reg, num_pred)
 
         self.bev_embedding = nn.Embedding(
             self.bev_h * self.bev_w, self.embed_dims
@@ -290,8 +295,3 @@ class BEVFormerHead(nn.Module):
             lidar_extrinsics,
             prev_bev,
         )
-
-
-def _get_clones(module: nn.Module, num: int) -> nn.ModuleList:
-    """Create N identical layers."""
-    return nn.ModuleList([copy.deepcopy(module) for _ in range(num)])

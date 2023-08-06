@@ -365,8 +365,10 @@ class ResizeIntrinsics:
     ) -> list[NDArrayF32]:
         """Scale camera intrinsics when resizing."""
         for i, scale_factor in enumerate(scale_factors):
-            intrinsics[i][0, 0] *= scale_factor[0]
-            intrinsics[i][1, 1] *= scale_factor[1]
+            scale_matrix = np.eye(3, dtype=np.float32)
+            scale_matrix[0, 0] *= scale_factor[0]
+            scale_matrix[1, 1] *= scale_factor[1]
+            intrinsics[i] = scale_matrix @ intrinsics[i]
         return intrinsics
 
 

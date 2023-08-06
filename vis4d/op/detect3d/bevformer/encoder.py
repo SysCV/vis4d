@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.op.geometry.transform import inverse_rigid_transform
-from vis4d.op.layer.transformer import FFN
+from vis4d.op.layer.transformer import FFN, get_clones
 
 from .spatial_cross_attention import SpatialCrossAttention
 from .temporal_self_attention import TemporalSelfAttention
@@ -19,6 +19,7 @@ class BEVFormerEncoder(nn.Module):
     def __init__(
         self,
         num_layers: int = 6,
+        layer: BEVFormerEncoderLayer | None = None,
         embed_dims: int = 256,
         num_points_in_pillar: int = 4,
         point_cloud_range: Sequence[float] = (
@@ -35,6 +36,8 @@ class BEVFormerEncoder(nn.Module):
 
         Args:
             num_layers (int): Number of layers in the encoder.
+            layer (BEVFormerEncoderLayer, optional): Encoder layer. Defaults to
+                None. If None, a default layer will be used.
             embed_dims (int): Embedding dimension.
             num_points_in_pillar (int): Number of points in each pillar.
             point_cloud_range (Sequence[float]): Range of the point cloud.
@@ -48,12 +51,9 @@ class BEVFormerEncoder(nn.Module):
         self.pc_range = point_cloud_range
         self.return_intermediate = return_intermediate
 
-        self.layers = nn.ModuleList(
-            [
-                BEVFormerEncoderLayer(embed_dims=embed_dims)
-                for _ in range(self.num_layers)
-            ]
-        )
+        layer = layer or BEVFormerEncoderLayer(embed_dims=embed_dims)
+
+        self.layers = get_clones(layer, num=self.num_layers)
 
         self.eps = 1e-5
 
@@ -344,6 +344,8 @@ class BEVFormerEncoderLayer(nn.Module):
     def __init__(
         self,
         embed_dims: int = 256,
+        self_attn: TemporalSelfAttention | None = None,
+        cross_attn: SpatialCrossAttention | None = None,
         feedforward_channels: int = 512,
         drop_out: float = 0.1,
         batch_first: bool = True,
@@ -355,10 +357,14 @@ class BEVFormerEncoderLayer(nn.Module):
         self.pre_norm = pre_norm
 
         self.attentions = nn.ModuleList()
-        self.attentions.append(
-            TemporalSelfAttention(embed_dims=embed_dims, num_levels=1)
+
+        self_attn = self_attn or TemporalSelfAttention(
+            embed_dims=embed_dims, num_levels=1
         )
-        self.attentions.append(SpatialCrossAttention(embed_dims=embed_dims))
+        self.attentions.append(self_attn)
+
+        cross_attn = cross_attn or SpatialCrossAttention(embed_dims=embed_dims)
+        self.attentions.append(cross_attn)
 
         self.embed_dims = embed_dims
 

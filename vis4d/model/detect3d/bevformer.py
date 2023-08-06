@@ -38,26 +38,27 @@ class BEVFormer(nn.Module):
     def __init__(
         self,
         basemodel: BaseModel,
-        bevformer_head: BEVFormerHead | None = None,
-        fpn_start_index: int = 3,
+        fpn: FPN | None = None,
+        pts_bbox_head: BEVFormerHead | None = None,
+        weights: str | None = None,
     ) -> None:
         """Init."""
         super().__init__()
         self.basemodel = basemodel
-        self.fpn = FPN(
+        self.fpn = fpn or FPN(
             self.basemodel.out_channels[3:],
             256,
             extra_blocks=ExtraFPNBlock(
                 extra_levels=1, in_channels=256, out_channels=256
             ),
-            start_index=fpn_start_index,
+            start_index=3,
         )
 
         self.grid_mask = GridMask(
             True, True, rotate=1, offset=False, ratio=0.5, mode=1, prob=0.7
         )
 
-        self.pts_bbox_head = bevformer_head or BEVFormerHead()
+        self.pts_bbox_head = pts_bbox_head or BEVFormerHead()
 
         # Temporal information
         self.prev_frame_info = PrevFrameInfo(
@@ -67,11 +68,8 @@ class BEVFormer(nn.Module):
             prev_angle=torch.zeros(1),
         )
 
-        load_model_checkpoint(
-            self,
-            "https://github.com/zhiqi-li/storage/releases/download/v1.0/bevformer_r101_dcn_24ep.pth",  # pylint: disable=line-too-long
-            rev_keys=REV_KEYS,
-        )
+        if weights is not None:
+            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
 
     def extract_feat(self, images_list: list[Tensor]) -> list[Tensor]:
         """Extract features of images."""

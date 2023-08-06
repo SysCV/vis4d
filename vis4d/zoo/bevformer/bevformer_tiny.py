@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""BEVFormer base with ResNet-101-DCN backbone."""
+"""BEVFormer tiny with ResNet-50 backbone."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -20,6 +20,17 @@ from vis4d.engine.connectors import CallbackConnector, MultiSensorDataConnector
 from vis4d.eval.nuscenes import NuScenesDet3DEvaluator
 from vis4d.model.detect3d.bevformer import BEVFormer
 from vis4d.op.base import ResNet
+from vis4d.op.detect3d.bevformer import BEVFormerHead
+from vis4d.op.detect3d.bevformer.encoder import (
+    BEVFormerEncoder,
+    BEVFormerEncoderLayer,
+)
+from vis4d.op.detect3d.bevformer.spatial_cross_attention import (
+    MSDeformableAttention3D,
+    SpatialCrossAttention,
+)
+from vis4d.op.detect3d.bevformer.transformer import PerceptionTransformer
+from vis4d.op.fpp.fpn import FPN
 from vis4d.zoo.bevformer.data import (
     CONN_NUSC_BBOX_3D_TEST,
     CONN_NUSC_DET3D_EVAL,
@@ -63,6 +74,8 @@ def get_config() -> ExperimentConfig:
         train_split=train_split,
         test_split=test_split,
         data_backend=data_backend,
+        scale_factor=0.5,
+        style="pytorch",
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
     )
@@ -71,17 +84,42 @@ def get_config() -> ExperimentConfig:
     ##                  MODEL & LOSS                    ##
     ######################################################
     basemodel = class_config(
-        ResNet,
-        resnet_name="resnet101",
-        trainable_layers=3,
-        style="caffe",
-        stages_with_dcn=(False, False, True, True),
+        ResNet, resnet_name="resnet50", trainable_layers=3, pretrained=True
     )
 
     config.model = class_config(
         BEVFormer,
         basemodel=basemodel,
-        weights="https://github.com/zhiqi-li/storage/releases/download/v1.0/bevformer_r101_dcn_24ep.pth",  # pylint: disable=line-too-long
+        fpn=class_config(
+            FPN,
+            in_channels_list=[2048],
+            out_channels=256,
+            extra_blocks=None,
+            start_index=5,
+        ),
+        pts_bbox_head=class_config(
+            BEVFormerHead,
+            transformer=class_config(
+                PerceptionTransformer,
+                encoder=class_config(
+                    BEVFormerEncoder,
+                    layer=class_config(
+                        BEVFormerEncoderLayer,
+                        cross_attn=class_config(
+                            SpatialCrossAttention,
+                            deformable_attention=class_config(
+                                MSDeformableAttention3D,
+                                num_levels=1,
+                            ),
+                        ),
+                    ),
+                    num_layers=3,
+                ),
+            ),
+            bev_h=50,
+            bev_w=50,
+        ),
+        weights="https://github.com/zhiqi-li/storage/releases/download/v1.0/bevformer_tiny_epoch_24.pth",  # pylint: disable=line-too-long
     )
 
     config.loss = None

@@ -5,6 +5,8 @@ mmdetection (https://github.com/open-mmlab/mmdetection).
 """
 from __future__ import annotations
 
+import copy
+
 import torch
 from torch import Tensor, nn
 
@@ -28,6 +30,11 @@ def inverse_sigmoid(x: Tensor, eps: float = 1e-5) -> Tensor:
     x1 = x.clamp(min=eps)
     x2 = (1 - x).clamp(min=eps)
     return torch.log(x1 / x2)
+
+
+def get_clones(module: nn.Module, num: int) -> nn.ModuleList:
+    """Create N identical layers."""
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(num)])
 
 
 class LayerScale(nn.Module):

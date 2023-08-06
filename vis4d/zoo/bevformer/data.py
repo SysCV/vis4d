@@ -87,23 +87,25 @@ CONN_NUSC_DET3D_EVAL = {
 
 
 def get_test_dataloader(
-    test_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
+    test_dataset: ConfigDict,
+    shape: tuple[int, int],
+    mean: list[float],
+    std: list[float],
+    samples_per_gpu: int,
+    workers_per_gpu: int,
 ) -> ConfigDict:
     """Get the default test dataloader for nuScenes tracking."""
     test_transforms = [
         class_config(
             GenResizeParameters,
-            shape=(900, 1600),
+            shape=shape,
             keep_ratio=True,
             sensors=NUSC_CAMERAS,
         ),
         class_config(ResizeImages, sensors=NUSC_CAMERAS),
         class_config(ResizeIntrinsics, sensors=NUSC_CAMERAS),
         class_config(
-            NormalizeImages,
-            mean=[103.530, 116.280, 123.675],
-            std=[1.0, 1.0, 1.0],
-            sensors=NUSC_CAMERAS,
+            NormalizeImages, mean=mean, std=std, sensors=NUSC_CAMERAS
         ),
     ]
 
@@ -139,18 +141,31 @@ def get_nusc_cfg(
     train_split: str = "train",
     test_split: str = "val",
     data_backend: None | ConfigDict = None,
+    scale_factor: float = 1.0,
+    style: str = "caffe",
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 4,
 ) -> DataConfig:
     """Get the default config for nuScenes tracking."""
     data = DataConfig()
 
+    shape = (int(900 * scale_factor), int(1600 * scale_factor))
+
+    if style == "pytorch":
+        mean = [123.675, 116.28, 103.53]
+        std = [58.395, 57.12, 57.375]
+        image_channel_mode = "RGB"
+    elif style == "caffe":
+        mean = [103.530, 116.280, 123.675]
+        std = [1.0, 1.0, 1.0]
+        image_channel_mode = "BGR"
+
     if version == "v1.0-mini":
         assert train_split == "mini_train"
         assert test_split == "mini_val"
         test_dataset = get_nusc_mini_val_cfg(
             data_root=data_root,
-            image_channel_mode="BGR",
+            image_channel_mode=image_channel_mode,
             data_backend=data_backend,
             cached_file_path=f"{data_root}/bevformer_mini_val.pkl",
         )
@@ -159,7 +174,7 @@ def get_nusc_cfg(
         assert test_split == "val"
         test_dataset = get_nusc_val_cfg(
             data_root=data_root,
-            image_channel_mode="BGR",
+            image_channel_mode=image_channel_mode,
             data_backend=data_backend,
             cached_file_path=f"{data_root}/bevformer_val.pkl",
         )
@@ -172,6 +187,9 @@ def get_nusc_cfg(
 
     data.test_dataloader = get_test_dataloader(
         test_dataset,
+        shape,
+        mean,
+        std,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
     )

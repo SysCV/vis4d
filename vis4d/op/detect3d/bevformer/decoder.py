@@ -10,6 +10,7 @@ from vis4d.op.layer.attention import MultiheadAttention
 from vis4d.op.layer.ms_deform_attn import (
     MSDeformAttentionFunction,
     is_power_of_2,
+    ms_deformable_attention_cpu,
 )
 from vis4d.op.layer.transformer import FFN, inverse_sigmoid
 from vis4d.op.layer.weight_init import constant_init, xavier_init
@@ -394,14 +395,19 @@ class DecoderCrossAttention(nn.Module):
                 f" 2 or 4, but get {reference_points.shape[-1]} instead."
             )
 
-        output = MSDeformAttentionFunction.apply(
-            value,
-            spatial_shapes,
-            level_start_index,
-            sampling_locations,
-            attention_weights,
-            self.im2col_step,
-        )
+        if torch.cuda.is_available() and value.is_cuda:
+            output = MSDeformAttentionFunction.apply(
+                value,
+                spatial_shapes,
+                level_start_index,
+                sampling_locations,
+                attention_weights,
+                self.im2col_step,
+            )
+        else:
+            output = ms_deformable_attention_cpu(
+                value, spatial_shapes, sampling_locations, attention_weights
+            )
 
         output = self.output_proj(output)
 

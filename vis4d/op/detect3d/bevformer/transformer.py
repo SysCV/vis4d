@@ -18,6 +18,8 @@ class PerceptionTransformer(nn.Module):
     def __init__(
         self,
         num_cams: int = 6,
+        encoder: BEVFormerEncoder | None = None,
+        decoder: BEVFormerDecoder | None = None,
         embed_dims: int = 256,
         num_feature_levels: int = 4,
         rotate_center: tuple[int, int] = (100, 100),
@@ -29,8 +31,8 @@ class PerceptionTransformer(nn.Module):
         self.num_feature_levels = num_feature_levels
         self.rotate_center = list(rotate_center)
 
-        self.encoder = BEVFormerEncoder()
-        self.decoder = BEVFormerDecoder()
+        self.encoder = encoder or BEVFormerEncoder(embed_dims=self.embed_dims)
+        self.decoder = decoder or BEVFormerDecoder(embed_dims=self.embed_dims)
 
         self._init_layers()
         self._init_weights()
