@@ -1,10 +1,8 @@
-# ------------------------------------------------------------------------------------------------
-# Deformable DETR
-# Copyright (c) 2020 SenseTime. All Rights Reserved.
-# Licensed under the Apache License, Version 2.0 [see LICENSE for details]
-# ------------------------------------------------------------------------------------------------
-# Modified from https://github.com/chengdazhi/Deformable-Convolution-V2-PyTorch/tree/pytorch_1.0.0
-# ------------------------------------------------------------------------------------------------
+# pylint: disable=no-name-in-module, abstract-method, arguments-differ
+"""Multi-Scale Deformable Attention Module.
+
+Modified from Deformable DETR (https://github.com/fundamentalvision/Deformable-DETR/blob/main/models/ops/modules/ms_deform_attn.py) # pylint: disable=line-too-long 
+"""
 from __future__ import annotations
 
 import math
@@ -85,13 +83,13 @@ class MSDeformAttentionFunction(Function):
         )
 
 
-def is_power_of_2(n: int) -> None:
+def is_power_of_2(number: int) -> None:
     """Check if a number is a power of 2."""
-    if (not isinstance(n, int)) or (n < 0):
+    if (not isinstance(number, int)) or (number < 0):
         raise ValueError(
-            "invalid input for is_power_of_2: {} (type: {})".format(n, type(n))
+            f"invalid input for is_power_of_2: {number} (type: {type(number)})"
         )
-    if not ((n & (n - 1) == 0) and n != 0):
+    if not ((number & (number - 1) == 0) and number != 0):
         rank_zero_warn(
             "You'd better set hidden dimensions in MultiScaleDeformAttention"
             "to make the dimension of each attention head a power of 2, "
@@ -178,48 +176,48 @@ class MSDeformAttention(nn.Module):
         input_level_start_index: Tensor,
         input_padding_mask: Tensor | None = None,
     ) -> Tensor:
-        """Forward function.
+        r"""Forward function.
 
         Args:
-            query (Tensor): (N, Length_{query}, C).
-            reference_points (Tensor): (N, Length_{query}, n_levels, 2),
+            query (Tensor): (n, length_{query}, C).
+            reference_points (Tensor): (n, length_{query}, n_levels, 2),
                 range in [0, 1], top-left (0,0), bottom-right (1, 1), including
-                padding area or (N, Length_{query}, n_levels, 4), add
+                padding area or (n, length_{query}, n_levels, 4), add
                 additional (w, h) to form reference boxes.
-            input_flatten (Tensor): (N, \sum_{l=0}^{L-1} H_l \cdot W_l, C).
+            input_flatten (Tensor): (n, \sum_{l=0}^{L-1} H_l \cdot W_l, C).
             input_spatial_shapes (Tensor): (n_levels, 2), [(H_0, W_0),
                 (H_1, W_1), ..., (H_{L-1}, W_{L-1})]
             input_level_start_index (Tensor): (n_levels, ), [0, H_0*W_0,
                 H_0*W_0+H_1*W_1, H_0*W_0+H_1*W_1+H_2*W_2, ...,
                 H_0*W_0+H_1*W_1+...+H_{L-1}*W_{L-1}]
-            input_padding_mask (Tensor): (N, \sum_{l=0}^{L-1} H_l \cdot W_l),
+            input_padding_mask (Tensor): (n, \sum_{l=0}^{L-1} H_l \cdot W_l),
                 True for padding elements, False for non-padding elements.
 
         Retrun
-            output (Tensor): (N, Length_{query}, C).
+            output (Tensor): (n, length_{query}, C).
         """
-        N, Len_q, _ = query.shape
-        N, Len_in, _ = input_flatten.shape
+        n, len_q, _ = query.shape
+        n, len_in, _ = input_flatten.shape
         assert (
             input_spatial_shapes[:, 0] * input_spatial_shapes[:, 1]
-        ).sum() == Len_in
+        ).sum() == len_in
 
         value = self.value_proj(input_flatten)
         if input_padding_mask is not None:
             value = value.masked_fill(input_padding_mask[..., None], float(0))
         value = value.view(
-            N, Len_in, self.n_heads, self.d_model // self.n_heads
+            n, len_in, self.n_heads, self.d_model // self.n_heads
         )
         sampling_offsets = self.sampling_offsets(query).view(
-            N, Len_q, self.n_heads, self.n_levels, self.n_points, 2
+            n, len_q, self.n_heads, self.n_levels, self.n_points, 2
         )
         attention_weights = self.attention_weights(query).view(
-            N, Len_q, self.n_heads, self.n_levels * self.n_points
+            n, len_q, self.n_heads, self.n_levels * self.n_points
         )
         attention_weights = F.softmax(attention_weights, -1).view(
-            N, Len_q, self.n_heads, self.n_levels, self.n_points
+            n, len_q, self.n_heads, self.n_levels, self.n_points
         )
-        # N, Len_q, n_heads, n_levels, n_points, 2
+        # n, len_q, n_heads, n_levels, n_points, 2
         if reference_points.shape[-1] == 2:
             offset_normalizer = torch.stack(
                 [input_spatial_shapes[..., 1], input_spatial_shapes[..., 0]],

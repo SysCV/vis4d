@@ -2,24 +2,15 @@
 from __future__ import annotations
 
 import copy
-from typing import NamedTuple
 
-import numpy as np
 import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.data.const import AxisMode
 from vis4d.op.base import BaseModel
-from vis4d.op.box.box3d import transform_boxes3d
 from vis4d.op.detect3d.bevformer import BEVFormerHead, GridMask
+from vis4d.op.detect3d.common import Detect3DOut
 from vis4d.op.fpp.fpn import FPN, LastLevelP6
-from vis4d.op.geometry.rotation import (
-    euler_angles_to_matrix,
-    matrix_to_quaternion,
-    rotate_velocities,
-)
-
 
 REV_KEYS = [
     (r"^img_backbone\.", "basemodel."),
@@ -31,58 +22,32 @@ REV_KEYS = [
 ]
 
 
-class Detect3DOut(NamedTuple):
-    """Output of detect 3D model."""
-
-    boxes_3d: list[Tensor]
-    velocities: list[Tensor]
-    class_ids: list[Tensor]
-    scores_3d: list[Tensor]
-
-
-def bbox3d2result(bbox_list, lidar2global: Tensor) -> Detect3DOut:
-    """Convert detection results to Detect3DOut."""
-    boxes_3d = []
-    velocities = []
-    class_ids = []
-    scores_3d = []
-    for i, (bboxes, scores, labels) in enumerate(bbox_list):
-        yaw = bboxes.new_zeros(bboxes.shape[0], 3)
-        yaw[:, 2] = -(bboxes[:, 6] + np.pi / 2)
-        orientation = matrix_to_quaternion(euler_angles_to_matrix(yaw))
-
-        boxes3d_lidar = torch.cat([bboxes[:, :6], orientation], dim=1)
-        boxes_3d.append(
-            transform_boxes3d(
-                boxes3d_lidar, lidar2global[i], AxisMode.LIDAR, AxisMode.ROS
-            )
-        )
-
-        _velocities = bboxes.new_zeros(bboxes.shape[0], 3)
-        _velocities[:, :2] = bboxes[:, -2:]
-        velocities.append(rotate_velocities(_velocities, lidar2global[i]))
-
-        class_ids.append(labels)
-        scores_3d.append(scores)
-
-    return Detect3DOut(boxes_3d, velocities, class_ids, scores_3d)
-
-
 class BEVFormer(nn.Module):
     """BEVFomer."""
 
     def __init__(
         self,
-        use_grid_mask: bool,
-        video_test_mode: bool,
         basemodel: BaseModel,
+        bevformer_head: BEVFormerHead | None = None,
+        fpn_start_index: int = 3,
     ) -> None:
         """Init."""
         super().__init__()
-        self.use_grid_mask = use_grid_mask
+        self.basemodel = basemodel
+        self.fpn = FPN(
+            self.basemodel.out_channels[3:],
+            256,
+            extra_blocks=LastLevelP6(256, 256),
+            start_index=fpn_start_index,
+        )
 
-        # temporal
-        self.video_test_mode = video_test_mode
+        self.grid_mask = GridMask(
+            True, True, rotate=1, offset=False, ratio=0.5, mode=1, prob=0.7
+        )
+
+        self.pts_bbox_head = bevformer_head or BEVFormerHead()
+
+        # Temporal information
         self.prev_frame_info = {
             "scene_name": None,
             "prev_bev": None,
@@ -90,24 +55,9 @@ class BEVFormer(nn.Module):
             "prev_angle": 0,
         }
 
-        self.basemodel = basemodel
-        self.fpn = FPN(
-            self.basemodel.out_channels[3:],
-            256,
-            extra_blocks=LastLevelP6(256, 256),
-            start_index=0,
-        )
-
-        self.grid_mask = GridMask(
-            True, True, rotate=1, offset=False, ratio=0.5, mode=1, prob=0.7
-        )
-
-        self.pts_bbox_head = BEVFormerHead()
-
         load_model_checkpoint(
             self,
-            "vis4d-workspace/checkpoints/bevformer_r101_dcn_24ep.pth",
-            map_location="cpu",
+            "https://github.com/zhiqi-li/storage/releases/download/v1.0/bevformer_r101_dcn_24ep.pth",  # pylint: disable=line-too-long
             rev_keys=REV_KEYS,
         )
 
@@ -118,12 +68,14 @@ class BEVFormer(nn.Module):
         images = torch.stack(images, dim=1)  # [B, N, C, H, W]
         images = images.view(-1, *images.shape[2:])  # [B*N, C, H, W]
 
-        if self.use_grid_mask:
-            images = self.grid_mask(images)
+        # grid mask
+        images = self.grid_mask(images)
 
         features = self.basemodel(images)
-        features = self.fpn(features)
-
+        # TODO: Refactor FPN to return only the features used starting from
+        # start_index.
+        features = self.fpn(features)[self.fpn.start_index :]
+        
         img_feats = []
         for img_feat in features:
             _, c, h, w = img_feat.size()
@@ -142,7 +94,8 @@ class BEVFormer(nn.Module):
         lidar_extrinsics: list[Tensor],
     ) -> Detect3DOut:
         """Forward."""
-        lidar_extrinsics = lidar_extrinsics[0]
+        # Parse lidar extrinsics from LIDAR sensor data.
+        lidar_extrinsics_tensor = lidar_extrinsics[0]
         can_bus_tensor = torch.tensor(
             can_bus, dtype=torch.float32, device=images[0].device
         )
@@ -153,10 +106,6 @@ class BEVFormer(nn.Module):
 
         # update idx
         self.prev_frame_info["scene_name"] = scene_names[0]
-
-        # do not use temporal information
-        if not self.video_test_mode:
-            self.prev_frame_info["prev_bev"] = None
 
         # Get the delta of ego position and angle between two timestamps.
         tmp_pos = copy.deepcopy(can_bus_tensor[0][:3])
@@ -170,13 +119,13 @@ class BEVFormer(nn.Module):
 
         img_feats = self.extract_feat(images=images)
 
-        bev_embed, bbox_list = self.pts_bbox_head(
+        out, bev_embed = self.pts_bbox_head(
             img_feats,
             can_bus_tensor,
             images_hw,
             cam_intrinsics,
             cam_extrinsics,
-            lidar_extrinsics,
+            lidar_extrinsics_tensor,
             prev_bev=self.prev_frame_info["prev_bev"],
         )
 
@@ -186,4 +135,4 @@ class BEVFormer(nn.Module):
         self.prev_frame_info["prev_angle"] = tmp_angle
         self.prev_frame_info["prev_bev"] = bev_embed
 
-        return bbox3d2result(bbox_list, lidar_extrinsics)
+        return out

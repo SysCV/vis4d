@@ -1,38 +1,23 @@
-"""CC-3DT NuScenes data config."""
+"""BEVFormer NuScenes data config."""
 from __future__ import annotations
 
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
 from vis4d.config.common.datasets.nuscenes import (
-    get_nusc_mini_train_cfg,
     get_nusc_mini_val_cfg,
-    get_nusc_train_cfg,
     get_nusc_val_cfg,
 )
 from vis4d.config.typing import DataConfig
-from vis4d.config.util import (
-    get_inference_dataloaders_cfg,
-    get_train_dataloader_cfg,
-)
+from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.loader import multi_sensor_collate
-from vis4d.data.reference import MultiViewDataset, UniformViewSampler
-from vis4d.data.transforms import RandomApply, compose
-from vis4d.data.transforms.flip import (
-    FlipBoxes2D,
-    FlipBoxes3D,
-    FlipImages,
-    FlipIntrinsics,
-)
+from vis4d.data.transforms import compose
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
     GenResizeParameters,
-    ResizeBoxes2D,
     ResizeImages,
     ResizeIntrinsics,
 )
@@ -101,59 +86,6 @@ CONN_NUSC_DET3D_EVAL = {
 }
 
 
-def get_train_dataloader(
-    train_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
-) -> ConfigDict:
-    """Get the default train dataloader for nuScenes tracking."""
-    train_dataset_cfg = class_config(
-        MultiViewDataset,
-        dataset=train_dataset,
-        sampler=class_config(UniformViewSampler, scope=2, num_ref_samples=1),
-    )
-
-    preprocess_transforms = [
-        class_config(GenResizeParameters, shape=(900, 1600), keep_ratio=True),
-        class_config(ResizeImages),
-        class_config(ResizeBoxes2D),
-    ]
-
-    preprocess_transforms.append(
-        class_config(
-            RandomApply,
-            transforms=[
-                class_config(FlipImages),
-                class_config(FlipIntrinsics),
-                class_config(FlipBoxes2D),
-                class_config(FlipBoxes3D),
-            ],
-            probability=0.5,
-        )
-    )
-
-    preprocess_transforms.append(class_config(PostProcessBoxes2D))
-
-    train_preprocess_cfg = class_config(
-        compose, transforms=preprocess_transforms
-    )
-
-    train_batchprocess_cfg = class_config(
-        compose,
-        transforms=[
-            class_config(PadImages),
-            class_config(NormalizeImages),
-            class_config(ToTensor),
-        ],
-    )
-
-    return get_train_dataloader_cfg(
-        preprocess_cfg=train_preprocess_cfg,
-        dataset_cfg=train_dataset_cfg,
-        samples_per_gpu=samples_per_gpu,
-        workers_per_gpu=workers_per_gpu,
-        batchprocess_cfg=train_batchprocess_cfg,
-    )
-
-
 def get_test_dataloader(
     test_dataset: ConfigDict, samples_per_gpu: int, workers_per_gpu: int
 ) -> ConfigDict:
@@ -178,7 +110,7 @@ def get_test_dataloader(
     test_preprocess_cfg = class_config(compose, transforms=test_transforms)
 
     test_batch_transforms = [
-        class_config(PadImages, sensors=NUSC_CAMERAS),
+        class_config(PadImages, update_shape=True, sensors=NUSC_CAMERAS),
         class_config(ToTensor, sensors=NUSC_SENSORS),
     ]
 
@@ -207,8 +139,8 @@ def get_nusc_cfg(
     train_split: str = "train",
     test_split: str = "val",
     data_backend: None | ConfigDict = None,
-    samples_per_gpu: int = 2,
-    workers_per_gpu: int = 2,
+    samples_per_gpu: int = 1,
+    workers_per_gpu: int = 4,
 ) -> DataConfig:
     """Get the default config for nuScenes tracking."""
     data = DataConfig()
@@ -216,49 +148,32 @@ def get_nusc_cfg(
     if version == "v1.0-mini":
         assert train_split == "mini_train"
         assert test_split == "mini_val"
-        train_dataset = get_nusc_mini_train_cfg(
-            data_root=data_root,
-            data_backend=data_backend,
-            cache_as_binary=False,
-        )
         test_dataset = get_nusc_mini_val_cfg(
             data_root=data_root,
             image_channel_mode="BGR",
             data_backend=data_backend,
-            cached_file_path="data/nuscenes/bevformer_mini_val.pkl",
+            cached_file_path=f"{data_root}/bevformer_mini_val.pkl",
         )
     elif version == "v1.0-trainval":
         assert train_split == "train"
-        train_dataset = get_nusc_train_cfg(
-            data_root=data_root, data_backend=data_backend
+        assert test_split == "val"
+        test_dataset = get_nusc_val_cfg(
+            data_root=data_root,
+            image_channel_mode="BGR",
+            data_backend=data_backend,
+            cached_file_path=f"{data_root}/bevformer_val.pkl",
         )
-
-        if test_split == "val":
-            test_dataset = get_nusc_val_cfg(
-                data_root=data_root,
-                image_channel_mode="BGR",
-                data_backend=data_backend,
-                cached_file_path="data/nuscenes/bevformer_val.pkl",
-            )
-        elif test_split == "train":
-            test_dataset = get_nusc_train_cfg(
-                data_root=data_root,
-                skip_empty_samples=False,
-                keys_to_load=[K.images, K.original_images, K.boxes3d],
-                data_backend=data_backend,
-            )
     else:
         # TODO: Add support for v1.0-test
         raise ValueError(f"Unknown version {version}")
 
-    data.train_dataloader = get_train_dataloader(
-        train_dataset=train_dataset,
-        samples_per_gpu=samples_per_gpu,
-        workers_per_gpu=workers_per_gpu,
-    )
+    # TODO: Add train dataloader
+    data.train_dataloader = None
 
     data.test_dataloader = get_test_dataloader(
-        test_dataset, samples_per_gpu=1, workers_per_gpu=1
+        test_dataset,
+        samples_per_gpu=samples_per_gpu,
+        workers_per_gpu=workers_per_gpu,
     )
 
     return data

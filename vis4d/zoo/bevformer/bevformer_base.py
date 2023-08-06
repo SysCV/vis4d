@@ -1,4 +1,4 @@
-"""BEVFormer with ResNet-101-DCN backbone."""
+"""BEVFormer base with ResNet-101-DCN backbone."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -14,21 +14,14 @@ from vis4d.config.default import (
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
-from vis4d.engine.connectors import (
-    CallbackConnector,
-    MultiSensorCallbackConnector,
-    MultiSensorDataConnector,
-)
+from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.connectors import CallbackConnector, MultiSensorDataConnector
 from vis4d.eval.nuscenes import NuScenesDet3DEvaluator
 from vis4d.model.detect3d.bevformer import BEVFormer
-from vis4d.op.base.resnet_mm import ResNet
-from vis4d.vis.image.bbox3d_visualizer import MultiCameraBBox3DVisualizer
+from vis4d.op.base import ResNet
 from vis4d.zoo.bevformer.data import (
     CONN_NUSC_BBOX_3D_TEST,
-    CONN_NUSC_BBOX_3D_VIS,
     CONN_NUSC_DET3D_EVAL,
-    NUSC_CAMERAS,
     get_nusc_cfg,
     nuscenes_class_map,
 )
@@ -50,7 +43,7 @@ def get_config() -> ExperimentConfig:
     params.samples_per_gpu = 1
     params.workers_per_gpu = 4
     params.lr = 2e-4
-    params.num_epochs = 12
+    params.num_epochs = 24
     config.params = params
 
     ######################################################
@@ -78,21 +71,13 @@ def get_config() -> ExperimentConfig:
     ######################################################
     basemodel = class_config(
         ResNet,
-        depth=101,
-        num_stages=4,
-        out_indices=(1, 2, 3),
-        frozen_stages=1,
-        norm_eval=True,
+        resnet_name="resnet101",
+        trainable_layers=3,
         style="caffe",
-        stage_with_dcn=(False, False, True, True),
+        stages_with_dcn=(False, False, True, True),
     )
 
-    config.model = class_config(
-        BEVFormer,
-        use_grid_mask=True,
-        video_test_mode=True,
-        basemodel=basemodel,
-    )
+    config.model = class_config(BEVFormer, basemodel=basemodel)
 
     config.loss = None
 
@@ -152,27 +137,6 @@ def get_config() -> ExperimentConfig:
             ),
         )
     )
-
-    # Visualizer
-    # callbacks.append(
-    #     class_config(
-    #         VisualizerCallback,
-    #         visualizer=class_config(
-    #             MultiCameraBBox3DVisualizer,
-    #             cat_mapping=nuscenes_class_map,
-    #             width=2,
-    #             camera_near_clip=0.15,
-    #             cameras=NUSC_CAMERAS,
-    #             vis_freq=1,
-    #             plot_trajectory=False,
-    #         ),
-    #         save_prefix=config.output_dir,
-    #         test_connector=class_config(
-    #             MultiSensorCallbackConnector,
-    #             key_mapping=CONN_NUSC_BBOX_3D_VIS,
-    #         ),
-    #     )
-    # )
 
     config.callbacks = callbacks
 

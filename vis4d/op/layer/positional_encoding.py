@@ -1,4 +1,7 @@
-"""Positional encoding for transformer."""
+"""Positional encoding for transformer.
+
+Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
+"""
 import math
 
 import torch
@@ -12,24 +15,6 @@ class SinePositionalEncoding(nn.Module):
 
     See `End-to-End Object Detection with Transformers
     <https://arxiv.org/pdf/2005.12872>`_ for details.
-
-    Args:
-        num_feats (int): The feature dimension for each position
-            along x-axis or y-axis. Note the final returned dimension
-            for each position is 2 times of this value.
-        temperature (int, optional): The temperature used for scaling
-            the position embedding. Defaults to 10000.
-        normalize (bool, optional): Whether to normalize the position
-            embedding. Defaults to False.
-        scale (float, optional): A scale factor that scales the position
-            embedding. The scale will be used only when `normalize` is True.
-            Defaults to 2*pi.
-        eps (float, optional): A value added to the denominator for
-            numerical stability. Defaults to 1e-6.
-        offset (float): offset add to embed when do the normalization.
-            Defaults to 0.
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-            Defaults to None
     """
 
     def __init__(
@@ -41,6 +26,24 @@ class SinePositionalEncoding(nn.Module):
         eps: float = 1e-6,
         offset: float = 0.0,
     ) -> None:
+        """Initialization for `SinePositionalEncoding`.
+
+        Args:
+            num_feats (int): The feature dimension for each position
+                along x-axis or y-axis. Note the final returned dimension
+                for each position is 2 times of this value.
+            temperature (int, optional): The temperature used for scaling
+                the position embedding. Defaults to 10000.
+            normalize (bool, optional): Whether to normalize the position
+                embedding. Defaults to False.
+            scale (float, optional): A scale factor that scales the position
+                embedding. The scale will be used only when normalize is True.
+                Defaults to 2*pi.
+            eps (float, optional): A value added to the denominator for
+                numerical stability. Defaults to 1e-6.
+            offset (float, optional): offset add to embed when do the
+                normalization. Defaults to 0.
+        """
         super().__init__()
         if normalize:
             assert isinstance(scale, (float, int)), (
@@ -91,13 +94,13 @@ class SinePositionalEncoding(nn.Module):
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t
         # use `view` instead of `flatten` for dynamically exporting to ONNX
-        B, H, W = mask.size()
+        b, h, w = mask.size()
         pos_x = torch.stack(
             (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4
-        ).view(B, H, W, -1)
+        ).view(b, h, w, -1)
         pos_y = torch.stack(
             (pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4
-        ).view(B, H, W, -1)
+        ).view(b, h, w, -1)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
         return pos
 
@@ -113,22 +116,22 @@ class SinePositionalEncoding(nn.Module):
 
 
 class LearnedPositionalEncoding(nn.Module):
-    """Position embedding with learnable embedding weights.
-
-    Args:
-        num_feats (int): The feature dimension for each position
-            along x-axis or y-axis. The final returned dimension for
-            each position is 2 times of this value.
-        row_num_embed (int, optional): The dictionary size of row embeddings.
-            Defaults to 50.
-        col_num_embed (int, optional): The dictionary size of col embeddings.
-            Defaults to 50.
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-    """
+    """Position embedding with learnable embedding weights."""
 
     def __init__(
         self, num_feats: int, row_num_embed: int = 50, col_num_embed: int = 50
     ) -> None:
+        """Initialization for LearnedPositionalEncoding.
+
+        Args:
+            num_feats (int): The feature dimension for each position
+                along x-axis or y-axis. The final returned dimension for
+                each position is 2 times of this value.
+            row_num_embed (int, optional): The dictionary size of row
+                embeddings. Defaults to 50.
+            col_num_embed (int, optional): The dictionary size of col
+                embeddings. Defaults to 50.
+        """
         super().__init__()
         self.row_embed = nn.Embedding(row_num_embed, num_feats)
         self.col_embed = nn.Embedding(col_num_embed, num_feats)
@@ -136,8 +139,12 @@ class LearnedPositionalEncoding(nn.Module):
         self.row_num_embed = row_num_embed
         self.col_num_embed = col_num_embed
 
-        uniform_init(self.row_embed, a=0, b=1)
-        uniform_init(self.col_embed, a=0, b=1)
+        self.init_weights()
+
+    def init_weights(self) -> None:
+        """Initialize the weights of position embedding."""
+        uniform_init(self.row_embed, lower=0, upper=1)
+        uniform_init(self.col_embed, lower=0, upper=1)
 
     def forward(self, mask: Tensor) -> Tensor:
         """Forward function for `LearnedPositionalEncoding`.
@@ -180,29 +187,7 @@ class LearnedPositionalEncoding(nn.Module):
 
 
 class SinePositionalEncoding3D(SinePositionalEncoding):
-    """Position encoding with sine and cosine functions.
-
-    See `End-to-End Object Detection with Transformers
-    <https://arxiv.org/pdf/2005.12872>`_ for details.
-
-    Args:
-        num_feats (int): The feature dimension for each position
-            along x-axis or y-axis. Note the final returned dimension
-            for each position is 2 times of this value.
-        temperature (int, optional): The temperature used for scaling
-            the position embedding. Defaults to 10000.
-        normalize (bool, optional): Whether to normalize the position
-            embedding. Defaults to False.
-        scale (float, optional): A scale factor that scales the position
-            embedding. The scale will be used only when `normalize` is True.
-            Defaults to 2*pi.
-        eps (float, optional): A value added to the denominator for
-            numerical stability. Defaults to 1e-6.
-        offset (float): offset add to embed when do the normalization.
-            Defaults to 0.
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-            Defaults to None.
-    """
+    """3D Position encoding with sine and cosine functions."""
 
     def forward(self, mask: Tensor) -> Tensor:
         """Forward function for `SinePositionalEncoding3D`.
@@ -259,18 +244,18 @@ class SinePositionalEncoding3D(SinePositionalEncoding):
         pos_y = y_embed[:, :, :, :, None] / dim_t
         pos_z = z_embed[:, :, :, :, None] / dim_t_z
         # use `view` instead of `flatten` for dynamically exporting to ONNX
-        B, T, H, W = mask.size()
+        b, t, h, w = mask.size()
         pos_x = torch.stack(
             (pos_x[:, :, :, :, 0::2].sin(), pos_x[:, :, :, :, 1::2].cos()),
             dim=5,
-        ).view(B, T, H, W, -1)
+        ).view(b, t, h, w, -1)
         pos_y = torch.stack(
             (pos_y[:, :, :, :, 0::2].sin(), pos_y[:, :, :, :, 1::2].cos()),
             dim=5,
-        ).view(B, T, H, W, -1)
+        ).view(b, t, h, w, -1)
         pos_z = torch.stack(
             (pos_z[:, :, :, :, 0::2].sin(), pos_z[:, :, :, :, 1::2].cos()),
             dim=5,
-        ).view(B, T, H, W, -1)
+        ).view(b, t, h, w, -1)
         pos = (torch.cat((pos_y, pos_x), dim=4) + pos_z).permute(0, 1, 4, 2, 3)
         return pos

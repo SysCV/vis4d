@@ -2,20 +2,70 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Sequence
 
+import numpy as np
 import torch
 from torch import Tensor, nn
 
-from vis4d.op.box.encoder.nms_free import NMSFreeDecoder
+from vis4d.data.const import AxisMode
+from vis4d.op.box.box3d import transform_boxes3d
+from vis4d.op.box.encoder.bevformer import NMSFreeDecoder
+from vis4d.op.geometry.rotation import (
+    euler_angles_to_matrix,
+    matrix_to_quaternion,
+    rotate_velocities,
+)
 from vis4d.op.layer.positional_encoding import LearnedPositionalEncoding
 from vis4d.op.layer.transformer import inverse_sigmoid
 from vis4d.op.layer.weight_init import bias_init_with_prob
 
+from ..common import Detect3DOut
 from .transformer import PerceptionTransformer
 
 
+def bbox3d2result(
+    bbox_list: list[tuple[Tensor, Tensor, Tensor]], lidar2global: list[Tensor]
+) -> Detect3DOut:
+    """Convert BEVFormer detection results to Detect3DOut.
+
+    Args:
+        bbox_list (list[tuple[Tensor, Tensor, Tensor]): List of bounding boxes,
+            scores and labels.
+        lidar2global (list[Tensor]): Lidar to global transformation (B, 4, 4).
+
+    Returns:
+        Detect3DOut: Detection results.
+    """
+    boxes_3d = []
+    velocities = []
+    class_ids = []
+    scores_3d = []
+    for i, (bboxes, scores, labels) in enumerate(bbox_list):
+        # move boxes from lidar to global coordinate system
+        yaw = bboxes.new_zeros(bboxes.shape[0], 3)
+        yaw[:, 2] = bboxes[:, 6]
+        orientation = matrix_to_quaternion(euler_angles_to_matrix(yaw))
+
+        boxes3d_lidar = torch.cat([bboxes[:, :6], orientation], dim=1)
+        boxes_3d.append(
+            transform_boxes3d(
+                boxes3d_lidar, lidar2global[i], AxisMode.LIDAR, AxisMode.ROS
+            )
+        )
+
+        _velocities = bboxes.new_zeros(bboxes.shape[0], 3)
+        _velocities[:, :2] = bboxes[:, -2:]
+        velocities.append(rotate_velocities(_velocities, lidar2global[i]))
+
+        class_ids.append(labels)
+        scores_3d.append(scores)
+
+    return Detect3DOut(boxes_3d, velocities, class_ids, scores_3d)
+
+
 class BEVFormerHead(nn.Module):
-    """Head of Detr3D."""
+    """BEVFormer 3D detection head."""
 
     def __init__(
         self,
@@ -23,9 +73,14 @@ class BEVFormerHead(nn.Module):
         embed_dims: int = 256,
         num_query: int = 900,
         num_reg_fcs: int = 2,
-        point_cloud_range: list[float] = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0],
-        with_box_refine: bool = True,
-        as_two_stage: bool = False,
+        point_cloud_range: Sequence[float] = (
+            -51.2,
+            -51.2,
+            -5.0,
+            51.2,
+            51.2,
+            3.0,
+        ),
         num_cls_fcs: int = 2,
         bev_h: int = 200,
         bev_w: int = 200,
@@ -33,13 +88,17 @@ class BEVFormerHead(nn.Module):
         """Initialize BEVFormerHead.
 
         Args:
-            with_box_refine (bool): Whether to refine the reference points
-                in the decoder. Defaults to False.
-            as_two_stage (bool) : Whether to generate the proposal from
-                the outputs of encoder.
-            transformer (obj:`ConfigDict`): ConfigDict is used for building
-                the Encoder and Decoder.
-            bev_h, bev_w (int): spatial shape of BEV queries.
+            num_classes (int, optional): Number of classes. Defaults to 10.
+            embed_dims (int, optional): Embedding dimensions. Defaults to 256.
+            num_query (int, optional): Number of queries. Defaults to 900.
+            num_reg_fcs (int, optional): Number of fully connected layers in
+                regression branch. Defaults to 2.
+            point_cloud_range (Sequence[float], optional): Point cloud range.
+                Defaults to (-51.2, -51.2, -5.0, 51.2, 51.2, 3.0).
+            num_cls_fcs (int, optional): Number of fully connected layers in
+                classification branch. Defaults to 2.
+            bev_h (int, optional): BEV height. Defaults to 200.
+            bev_w (int, optional): BEV width. Defaults to 200.
         """
         super().__init__()
         self.embed_dims = embed_dims
@@ -53,25 +112,17 @@ class BEVFormerHead(nn.Module):
 
         self.cls_out_channels = num_classes
 
-        self.transformer = PerceptionTransformer(
-            rotate_prev_bev=True,
-            use_shift=True,
-            use_can_bus=True,
-            embed_dims=embed_dims,
-        )
-
-        self.with_box_refine = with_box_refine
-        self.as_two_stage = as_two_stage
+        self.transformer = PerceptionTransformer(embed_dims=embed_dims)
 
         self.code_size = 10
         self.num_query = num_query
 
-        self.bbox_coder = NMSFreeDecoder(
+        self.box_decoder = NMSFreeDecoder(
             num_classes=num_classes,
             post_center_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
             max_num=300,
         )
-        self.pc_range = point_cloud_range
+        self.pc_range = list(point_cloud_range)
         self.real_w = self.pc_range[3] - self.pc_range[0]
         self.real_h = self.pc_range[4] - self.pc_range[1]
         self.num_cls_fcs = num_cls_fcs - 1
@@ -85,8 +136,9 @@ class BEVFormerHead(nn.Module):
         )
 
         self._init_layers()
+        self._init_weights()
 
-    def _init_layers(self):
+    def _init_layers(self) -> None:
         """Initialize classification branch and regression branch of head."""
         cls_branch = []
         for _ in range(self.num_reg_fcs):
@@ -101,45 +153,25 @@ class BEVFormerHead(nn.Module):
             reg_branch.append(nn.Linear(self.embed_dims, self.embed_dims))
             reg_branch.append(nn.ReLU())
         reg_branch.append(nn.Linear(self.embed_dims, self.code_size))
-        reg_branch = nn.Sequential(*reg_branch)
+        fc_reg = nn.Sequential(*reg_branch)
 
-        def _get_clones(module, N):
-            return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
+        num_pred = self.transformer.decoder.num_layers
 
-        # last reg_branch is used to generate proposal from
-        # encode feature map when as_two_stage is True.
-        num_pred = (
-            (self.transformer.decoder.num_layers + 1)
-            if self.as_two_stage
-            else self.transformer.decoder.num_layers
+        self.cls_branches = _get_clones(fc_cls, num_pred)
+        self.reg_branches = _get_clones(fc_reg, num_pred)
+
+        self.bev_embedding = nn.Embedding(
+            self.bev_h * self.bev_w, self.embed_dims
+        )
+        self.query_embedding = nn.Embedding(
+            self.num_query, self.embed_dims * 2
         )
 
-        if self.with_box_refine:
-            self.cls_branches = _get_clones(fc_cls, num_pred)
-            self.reg_branches = _get_clones(reg_branch, num_pred)
-        else:
-            self.cls_branches = nn.ModuleList(
-                [fc_cls for _ in range(num_pred)]
-            )
-            self.reg_branches = nn.ModuleList(
-                [reg_branch for _ in range(num_pred)]
-            )
-
-        if not self.as_two_stage:
-            self.bev_embedding = nn.Embedding(
-                self.bev_h * self.bev_w, self.embed_dims
-            )
-            self.query_embedding = nn.Embedding(
-                self.num_query, self.embed_dims * 2
-            )
-
-    def init_weights(self):
-        """Initialize weights of the DeformDETR head."""
-        self.transformer.init_weights()
-        if self.loss_cls.use_sigmoid:
-            bias_init = bias_init_with_prob(0.01)
-            for m in self.cls_branches:
-                nn.init.constant_(m[-1].bias, bias_init)
+    def _init_weights(self) -> None:
+        """Initialize weights."""
+        bias_init = bias_init_with_prob(0.01)
+        for m in self.cls_branches:
+            nn.init.constant_(m[-1].bias, bias_init)
 
     def forward(
         self,
@@ -150,28 +182,29 @@ class BEVFormerHead(nn.Module):
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: list[Tensor],
         prev_bev: Tensor | None = None,
-    ):
+    ) -> tuple[Detect3DOut, Tensor]:
         """Forward function.
+
         Args:
-            mlvl_feats (tuple[Tensor]): Features from the upstream
-                network, each is a 5D-tensor with shape
-                (B, N, C, H, W).
-            prev_bev: previous bev featues
-            only_bev: only compute BEV features with encoder. 
+            mlvl_feats (list[Tensor]): Features from the upstream network, each
+                is with shape (B, N, C, H, W).
+            can_bus (Tensor): CAN bus data, with shape (B, 18).
+            images_hw (list[list[tuple[int, int]]]): Image height and width.
+            cam_intrinsics (list[Tensor]): Camera intrinsics.
+            cam_extrinsics (list[Tensor]): Camera extrinsics.
+            lidar_extrinsics (list[Tensor]): LiDAR extrinsics.
+            prev_bev (Tensor, optional): Previous BEV feature map, with shape
+                (B, C, H, W). Defaults to None.
+
         Returns:
-            all_cls_scores (Tensor): Outputs from the classification head, \
-                shape [nb_dec, bs, num_query, cls_out_channels]. Note \
-                cls_out_channels should includes background.
-            all_bbox_preds (Tensor): Sigmoid outputs from the regression \
-                head with normalized coordinate format (cx, cy, w, l, cz, h, theta, vx, vy). \
-                Shape [nb_dec, bs, num_query, 9].
+            tuple[Detect3DOut, Tensor]: Detection results and BEV feature map.
         """
-        B = mlvl_feats[0].shape[0]
+        batch_size = mlvl_feats[0].shape[0]
         dtype = mlvl_feats[0].dtype
         object_query_embeds = self.query_embedding.weight.to(dtype)
         bev_queries = self.bev_embedding.weight.to(dtype)
 
-        bev_mask = bev_queries.new_zeros((B, self.bev_h, self.bev_w))
+        bev_mask = bev_queries.new_zeros((batch_size, self.bev_h, self.bev_w))
         bev_pos = self.positional_encoding(bev_mask)
 
         bev_embed, hs, init_reference, inter_references = self.transformer(
@@ -187,10 +220,7 @@ class BEVFormerHead(nn.Module):
             lidar_extrinsics=lidar_extrinsics,
             grid_length=(self.real_h / self.bev_h, self.real_w / self.bev_w),
             bev_pos=bev_pos,
-            reg_branches=self.reg_branches
-            if self.with_box_refine
-            else None,  # noqa:E501
-            cls_branches=self.cls_branches if self.as_two_stage else None,
+            reg_branches=self.reg_branches,
             prev_bev=prev_bev,
         )
 
@@ -204,62 +234,64 @@ class BEVFormerHead(nn.Module):
                 reference = inter_references[lvl - 1]
             reference = inverse_sigmoid(reference)
             outputs_class = self.cls_branches[lvl](hs[lvl])
-            tmp = self.reg_branches[lvl](hs[lvl])
+            outputs_coord = self.reg_branches[lvl](hs[lvl])
 
-            # TODO: check the shape of reference
             assert reference.shape[-1] == 3
-            tmp[..., 0:2] += reference[..., 0:2]
-            tmp[..., 0:2] = tmp[..., 0:2].sigmoid()
-            tmp[..., 4:5] += reference[..., 2:3]
-            tmp[..., 4:5] = tmp[..., 4:5].sigmoid()
-            tmp[..., 0:1] = (
-                tmp[..., 0:1] * (self.pc_range[3] - self.pc_range[0])
+            outputs_coord[..., 0:2] += reference[..., 0:2]
+            outputs_coord[..., 0:2] = outputs_coord[..., 0:2].sigmoid()
+            outputs_coord[..., 4:5] += reference[..., 2:3]
+            outputs_coord[..., 4:5] = outputs_coord[..., 4:5].sigmoid()
+            outputs_coord[..., 0:1] = (
+                outputs_coord[..., 0:1] * (self.pc_range[3] - self.pc_range[0])
                 + self.pc_range[0]
             )
-            tmp[..., 1:2] = (
-                tmp[..., 1:2] * (self.pc_range[4] - self.pc_range[1])
+            outputs_coord[..., 1:2] = (
+                outputs_coord[..., 1:2] * (self.pc_range[4] - self.pc_range[1])
                 + self.pc_range[1]
             )
-            tmp[..., 4:5] = (
-                tmp[..., 4:5] * (self.pc_range[5] - self.pc_range[2])
+            outputs_coord[..., 4:5] = (
+                outputs_coord[..., 4:5] * (self.pc_range[5] - self.pc_range[2])
                 + self.pc_range[2]
             )
 
-            # TODO: check if using sigmoid
-            outputs_coord = tmp
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
 
-        outputs_classes = torch.stack(outputs_classes)
-        outputs_coords = torch.stack(outputs_coords)
+        ret_list: list[tuple[Tensor, Tensor, Tensor]] = []
+        for cls_scores, bbox_preds in zip(
+            outputs_classes[-1], outputs_coords[-1]
+        ):
+            bboxes, scores, labels = self.box_decoder(cls_scores, bbox_preds)
 
-        preds_dicts = {
-            "all_cls_scores": outputs_classes,
-            "all_bbox_preds": outputs_coords,
-            "enc_cls_scores": None,
-            "enc_bbox_preds": None,
-        }
+            # mapping MMDetection3D's coordinate to our LIDAR coordinate
+            bboxes[:, 6] = -(bboxes[:, 6] + np.pi / 2)
 
-        preds_dicts = self.bbox_coder.decode(preds_dicts)
+            ret_list.append((bboxes, scores, labels))
 
-        num_samples = len(preds_dicts)
-        ret_list = []
-        for i in range(num_samples):
-            preds = preds_dicts[i]
-            bboxes = preds["bboxes"]
+        return bbox3d2result(ret_list, lidar_extrinsics), bev_embed
 
-            # x,y,z,l,w,h,yaw,vx,vy
-            new_boxes = bboxes.clone()
-            new_boxes[:, 0] = -bboxes[:, 1]
-            new_boxes[:, 1] = bboxes[:, 0]
-            new_boxes[:, 3] = bboxes[:, 4]
-            new_boxes[:, 4] = bboxes[:, 3]
-            new_boxes[:, 7] = -bboxes[:, 8]
-            new_boxes[:, 8] = bboxes[:, 7]
+    def __call__(
+        self,
+        mlvl_feats: list[Tensor],
+        can_bus: Tensor,
+        images_hw: list[list[tuple[int, int]]],
+        cam_intrinsics: list[Tensor],
+        cam_extrinsics: list[Tensor],
+        lidar_extrinsics: list[Tensor],
+        prev_bev: Tensor | None = None,
+    ) -> tuple[Detect3DOut, Tensor]:
+        """Type definition."""
+        return self._call_impl(
+            mlvl_feats,
+            can_bus,
+            images_hw,
+            cam_intrinsics,
+            cam_extrinsics,
+            lidar_extrinsics,
+            prev_bev,
+        )
 
-            scores = preds["scores"]
-            labels = preds["labels"]
 
-            ret_list.append([bboxes, scores, labels])
-
-        return bev_embed, ret_list
+def _get_clones(module: nn.Module, num: int) -> nn.ModuleList:
+    """Create N identical layers."""
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(num)])

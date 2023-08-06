@@ -1,14 +1,9 @@
-# ---------------------------------------------
-# Copyright (c) OpenMMLab. All rights reserved.
-# ---------------------------------------------
-#  Modified by Zhiqi Li
-# ---------------------------------------------
+"""BEVFormer transformer."""
 from __future__ import annotations
 
 import numpy as np
 import torch
 from torch import Tensor, nn
-from torch.nn.init import normal_
 from torchvision.transforms.functional import rotate
 
 from vis4d.op.layer.weight_init import xavier_init
@@ -18,37 +13,24 @@ from .encoder import BEVFormerEncoder
 
 
 class PerceptionTransformer(nn.Module):
-    """Implements the Detr3D transformer."""
+    """Perception Transformer."""
 
     def __init__(
         self,
-        num_feature_levels: int = 4,
         num_cams: int = 6,
-        two_stage_num_proposals: int = 300,
         embed_dims: int = 256,
-        rotate_prev_bev: bool = True,
-        use_shift: bool = True,
-        use_can_bus: bool = True,
-        can_bus_norm: bool = True,
-        use_cams_embeds: bool = True,
+        num_feature_levels: int = 4,
         rotate_center: tuple[int, int] = (100, 100),
     ) -> None:
         """Init."""
         super().__init__()
-        self.encoder = BEVFormerEncoder()
-        self.decoder = BEVFormerDecoder()
+        self.num_cams = num_cams
         self.embed_dims = embed_dims
         self.num_feature_levels = num_feature_levels
-        self.num_cams = num_cams
-
-        self.rotate_prev_bev = rotate_prev_bev
-        self.use_shift = use_shift
-        self.use_can_bus = use_can_bus
-        self.can_bus_norm = can_bus_norm
-        self.use_cams_embeds = use_cams_embeds
-
-        self.two_stage_num_proposals = two_stage_num_proposals
         self.rotate_center = list(rotate_center)
+
+        self.encoder = BEVFormerEncoder()
+        self.decoder = BEVFormerDecoder()
 
         self._init_layers()
         self._init_weights()
@@ -62,111 +44,104 @@ class PerceptionTransformer(nn.Module):
             torch.Tensor(self.num_cams, self.embed_dims)
         )
         self.reference_points = nn.Linear(self.embed_dims, 3)
+
         self.can_bus_mlp = nn.Sequential(
             nn.Linear(18, self.embed_dims // 2),
             nn.ReLU(inplace=True),
             nn.Linear(self.embed_dims // 2, self.embed_dims),
             nn.ReLU(inplace=True),
         )
-        if self.can_bus_norm:
-            self.can_bus_mlp.add_module("norm", nn.LayerNorm(self.embed_dims))
+        self.can_bus_mlp.add_module("norm", nn.LayerNorm(self.embed_dims))
 
-    def _init_weights(self):
+    def _init_weights(self) -> None:
         """Initialize the transformer weights."""
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-        normal_(self.level_embeds)
-        normal_(self.cams_embeds)
+        nn.init.normal_(self.level_embeds)
+        nn.init.normal_(self.cams_embeds)
         xavier_init(self.reference_points, distribution="uniform", bias=0.0)
         xavier_init(self.can_bus_mlp, distribution="uniform", bias=0.0)
 
     def get_bev_features(
         self,
-        mlvl_feats,
+        mlvl_feats: list[Tensor],
         can_bus: Tensor,
-        bev_queries,
-        bev_h,
-        bev_w,
-        images_hw,
-        cam_intrinsics,
-        cam_extrinsics,
-        lidar_extrinsics,
+        bev_queries: Tensor,
+        bev_h: int,
+        bev_w: int,
+        images_hw: list[list[tuple[int, int]]],
+        cam_intrinsics: list[Tensor],
+        cam_extrinsics: list[Tensor],
+        lidar_extrinsics: Tensor,
         grid_length: tuple[int, int],
-        bev_pos=None,
-        prev_bev=None,
+        bev_pos: Tensor,
+        prev_bev: Tensor | None = None,
     ) -> Tensor:
         """Obtain bev features."""
-        B = mlvl_feats[0].shape[0]
-        bev_queries = bev_queries.unsqueeze(1).repeat(1, B, 1)
+        batch_size = mlvl_feats[0].shape[0]
+        bev_queries = bev_queries.unsqueeze(1).repeat(1, batch_size, 1)
         bev_pos = bev_pos.flatten(2).permute(2, 0, 1)
 
         # obtain rotation angle and shift with ego motion
         delta_x = can_bus[:, 0].unsqueeze(1)
         delta_y = can_bus[:, 1].unsqueeze(1)
         ego_angle = can_bus[:, -2] / np.pi * 180
-        grid_length_y = grid_length[0]
-        grid_length_x = grid_length[1]
+
         translation_length = torch.sqrt(delta_x**2 + delta_y**2)
         translation_angle = torch.arctan2(delta_y, delta_x) / np.pi * 180
         bev_angle = ego_angle - translation_angle
+
         shift_y = (
             translation_length
             * torch.cos(bev_angle / 180 * np.pi)
-            / grid_length_y
+            / grid_length[0]
             / bev_h
         )
         shift_x = (
             translation_length
             * torch.sin(bev_angle / 180 * np.pi)
-            / grid_length_x
+            / grid_length[1]
             / bev_w
         )
 
         # B, xy
-        if self.use_shift:
-            shift = torch.cat([shift_x, shift_y], dim=1)
-        else:
-            shift = torch.zeros(B, 2).to(shift_x.device)
+        shift = torch.cat([shift_x, shift_y], dim=1)
 
         if prev_bev is not None:
             if prev_bev.shape[1] == bev_h * bev_w:
                 prev_bev = prev_bev.permute(1, 0, 2)
 
-            if self.rotate_prev_bev:
-                for i in range(B):
-                    rotation_angle = float(can_bus[i][-1])
-                    tmp_prev_bev = (
-                        prev_bev[:, i]
-                        .reshape(bev_h, bev_w, -1)
-                        .permute(2, 0, 1)
-                    )
-                    tmp_prev_bev = rotate(
-                        tmp_prev_bev, rotation_angle, center=self.rotate_center
-                    )
-                    tmp_prev_bev = tmp_prev_bev.permute(1, 2, 0).reshape(
-                        bev_h * bev_w, 1, -1
-                    )
-                    prev_bev[:, i] = tmp_prev_bev[:, 0]
+            # rotate prev_bev
+            for i in range(batch_size):
+                rotation_angle = float(can_bus[i][-1])
+                tmp_prev_bev = (
+                    prev_bev[:, i].reshape(bev_h, bev_w, -1).permute(2, 0, 1)
+                )
+                tmp_prev_bev = rotate(
+                    tmp_prev_bev, rotation_angle, center=self.rotate_center
+                )
+                tmp_prev_bev = tmp_prev_bev.permute(1, 2, 0).reshape(
+                    bev_h * bev_w, 1, -1
+                )
+                prev_bev[:, i] = tmp_prev_bev[:, 0]
 
         # add can bus signals
-        can_bus = self.can_bus_mlp(can_bus)[None, :, :]
-
-        if self.use_can_bus:
-            bev_queries = bev_queries + can_bus
+        bev_queries = bev_queries + self.can_bus_mlp(can_bus)[None, :, :]
 
         feat_flatten = []
         spatial_shapes = []
         for lvl, feat in enumerate(mlvl_feats):
-            _, _, _, H, W = feat.shape
-            spatial_shape = (H, W)
+            spatial_shape = feat.shape[-2:]
             feat = feat.flatten(3).permute(1, 0, 3, 2)
-            if self.use_cams_embeds:
-                feat = feat + self.cams_embeds[:, None, None, :].to(feat.dtype)
-            feat = feat + self.level_embeds[None, None, lvl : lvl + 1, :].to(
+
+            # Add cams_embeds and level_embeds
+            feat += self.cams_embeds[:, None, None, :].to(feat.dtype)
+            feat += self.level_embeds[None, None, lvl : lvl + 1, :].to(
                 feat.dtype
             )
+
             spatial_shapes.append(spatial_shape)
             feat_flatten.append(feat)
 
@@ -212,50 +187,47 @@ class PerceptionTransformer(nn.Module):
         images_hw: list[list[tuple[int, int]]],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
-        lidar_extrinsics: list[Tensor],
+        lidar_extrinsics: Tensor,
         grid_length: tuple[float, float],
         bev_pos: Tensor,
-        reg_branches=None,
-        cls_branches=None,
+        reg_branches: nn.Module,
         prev_bev: Tensor | None = None,
     ):
-        """Forward function for `Detr3DTransformer`.
+        """Forward function for BEVFormer transformer.
+
         Args:
-            mlvl_feats (list(Tensor)): Input queries from
-                different level. Each element has shape
-                [bs, num_cams, embed_dims, h, w].
-            bev_queries (Tensor): (bev_h*bev_w, c)
-            bev_pos (Tensor): (bs, embed_dims, bev_h, bev_w)
+            mlvl_feats (list(Tensor)): Input queries from different level. Each
+                element has shape [bs, num_cams, embed_dims, h, w].
+            can_bus (Tensor): The can bus signals, has shape [bs, 18].
+            bev_queries (Tensor): (bev_h * bev_w, embed_dims).
             object_query_embed (Tensor): The query embedding for decoder,
-                with shape [num_query, c].
-            reg_branches (obj:`nn.ModuleList`): Regression heads for
-                feature maps from each decoder layer. Only would
-                be passed when `with_box_refine` is True. Default to None.
+                with shape [num_query, embed_dims * 2].
+            bev_h (int): The height of BEV feature map.
+            bev_w (int): The width of BEV feature map.
+            images_hw (list[list[tuple[int, int]]]): The height and width of
+                images.
+            cam_intrinsics (list[Tensor]): The camera intrinsics.
+            cam_extrinsics (list[Tensor]): The camera extrinsics.
+            lidar_extrinsics (Tensor): The lidar extrinsics.
+            grid_length (tuple[float, float]): The length of grid in x and y
+                direction.
+            bev_pos (Tensor): (bs, embed_dims, bev_h, bev_w)
+            reg_branches (nn.Module): Regression heads for feature maps from
+                each decoder layer.
+            prev_bev (Tensor, optional): The previous BEV feature map, has
+                shape [bev_h * bev_w, bs, embed_dims]. Defaults to None.
+
         Returns:
-            tuple[Tensor]: results of decoder containing the following tensor.
-                - bev_embed: BEV features
-                - inter_states: Outputs from decoder. If
-                    return_intermediate_dec is True output has shape \
-                      (num_dec_layers, bs, num_query, embed_dims), else has \
-                      shape (1, bs, num_query, embed_dims).
-                - init_reference_out: The initial value of reference \
-                    points, has shape (bs, num_queries, 4).
-                - inter_references_out: The internal value of reference \
-                    points in decoder, has shape \
-                    (num_dec_layers, bs,num_query, embed_dims)
-                - enc_outputs_class: The classification score of \
-                    proposals generated from \
-                    encoder's feature maps, has shape \
-                    (batch, h*w, num_classes). \
-                    Only would be returned when `as_two_stage` is True, \
-                    otherwise None.
-                - enc_outputs_coord_unact: The regression results \
-                    generated from encoder's feature maps., has shape \
-                    (batch, h*w, 4). Only would \
-                    be returned when `as_two_stage` is True, \
-                    otherwise None.
+            bev_embed (Tensor): BEV features has shape [bev_h *bev_w, bs,
+                embed_dims].
+            inter_states: Outputs from decoder has shape [1, bs, num_query,
+                embed_dims].
+            reference_points: As the initial reference has shape [bs,
+                num_queries, 4].
+            inter_references: The internal value of reference points in the
+                decoder, has shape [num_dec_layers, bs,num_query, embed_dims].
         """
-        # bev_embed shape: bs, bev_h*bev_w, embed_dims
+        # bs, bev_h*bev_w, embed_dims
         bev_embed = self.get_bev_features(
             mlvl_feats,
             can_bus,
@@ -279,7 +251,6 @@ class PerceptionTransformer(nn.Module):
         query = query.unsqueeze(0).expand(bs, -1, -1)
         reference_points = self.reference_points(query_pos)
         reference_points = reference_points.sigmoid()
-        init_reference_out = reference_points
 
         query = query.permute(1, 0, 2)
         query_pos = query_pos.permute(1, 0, 2)
@@ -295,11 +266,4 @@ class PerceptionTransformer(nn.Module):
             reg_branches=reg_branches,
         )
 
-        inter_references_out = inter_references
-
-        return (
-            bev_embed,
-            inter_states,
-            init_reference_out,
-            inter_references_out,
-        )
+        return bev_embed, inter_states, reference_points, inter_references

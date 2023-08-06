@@ -89,8 +89,11 @@ def bias_init_with_prob(prior_prob: float) -> float:
     return bias_init
 
 
-def uniform_init(module, a=0, b=1, bias=0):
+def uniform_init(
+    module, lower: float = 0.0, upper: float = 1.0, bias=0
+) -> None:
+    """Initialize module with uniform distribution."""
     if hasattr(module, "weight") and module.weight is not None:
-        nn.init.uniform_(module.weight, a, b)
+        nn.init.uniform_(module.weight, lower, upper)
     if hasattr(module, "bias") and module.bias is not None:
         nn.init.constant_(module.bias, bias)

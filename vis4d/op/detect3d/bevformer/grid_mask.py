@@ -1,8 +1,8 @@
 """Grid mask for BEVFormer."""
 import numpy as np
 import torch
-from torch import nn, Tensor
 from PIL import Image
+from torch import Tensor, nn
 
 
 class GridMask(nn.Module):
@@ -38,25 +38,25 @@ class GridMask(nn.Module):
         hh = int(1.5 * h)
         ww = int(1.5 * w)
         d = np.random.randint(2, h)
-        self.l = min(max(int(d * self.ratio + 0.5), 1), d - 1)
+        l = min(max(int(d * self.ratio + 0.5), 1), d - 1)
         mask = np.ones((hh, ww), np.float32)
         st_h = np.random.randint(d)
         st_w = np.random.randint(d)
         if self.use_h:
             for i in range(hh // d):
                 s = d * i + st_h
-                t = min(s + self.l, hh)
+                t = min(s + l, hh)
                 mask[s:t, :] *= 0
         if self.use_w:
             for i in range(ww // d):
                 s = d * i + st_w
-                t = min(s + self.l, ww)
+                t = min(s + l, ww)
                 mask[:, s:t] *= 0
 
         r = np.random.randint(self.rotate)
-        mask = Image.fromarray(np.uint8(mask))
-        mask = mask.rotate(r)
-        mask = np.asarray(mask)
+        mask_img = Image.fromarray(np.uint8(mask))
+        mask_img = mask_img.rotate(r)
+        mask = np.asarray(mask_img)
         mask = mask[
             (hh - h) // 2 : (hh - h) // 2 + h,
             (ww - w) // 2 : (ww - w) // 2 + w,

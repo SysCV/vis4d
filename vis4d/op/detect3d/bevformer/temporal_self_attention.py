@@ -20,7 +20,7 @@ class TemporalSelfAttention(nn.Module):
         self,
         embed_dims: int = 256,
         num_heads: int = 8,
-        num_levels: int = 1,
+        num_levels: int = 4,
         num_points: int = 4,
         num_bev_queue: int = 2,
         im2col_step: int = 64,
@@ -104,8 +104,8 @@ class TemporalSelfAttention(nn.Module):
         value: Tensor | None,
         spatial_shapes: Tensor,
         level_start_index: Tensor,
-        identity: Tensor | None = None,
         key_padding_mask: Tensor | None = None,
+        identity: Tensor | None = None,
         query_pos: Tensor | None = None,
     ) -> Tensor:
         """Forward Function of MultiScaleDeformAttention.
@@ -113,30 +113,25 @@ class TemporalSelfAttention(nn.Module):
         Args:
             query (Tensor): Query of Transformer with shape (num_query, bs,
                 embed_dims).
-            prev_bev (Tensor): The value tensor with shape (num_key, bs,
+            reference_points (Tensor):  The normalized reference points with
+                shape (bs, num_query, num_levels, 2), all elements is range in
+                [0, 1], top-left (0,0), bottom-right (1, 1), including padding
+                area. or (N, Length_{query}, num_levels, 4), add additional two
+                dimensions is (w, h) to form reference boxes.
+            value (Tensor): The value tensor with shape (num_key, bs,
                 embed_dims).
-            identity (Tensor): The tensor used for addition, with the
-                same shape as `query`. Default None. If None,
-                `query` will be used.
-            query_pos (Tensor): The positional encoding for `query`.
-                Default: None.
-            key_pos (Tensor): The positional encoding for `key`. Default
-                None.
-            reference_points (Tensor):  The normalized reference
-                points with shape (bs, num_query, num_levels, 2),
-                all elements is range in [0, 1], top-left (0,0),
-                bottom-right (1, 1), including padding area.
-                or (N, Length_{query}, num_levels, 4), add
-                additional two dimensions is (w, h) to
-                form reference boxes.
-            key_padding_mask (Tensor): ByteTensor for `query`, with
-                shape [bs, num_key].
-            spatial_shapes (Tensor): Spatial shape of features in
-                different levels. With shape (num_levels, 2),
-                last dimension represents (h, w).
+            spatial_shapes (Tensor): Spatial shape of features in different
+                levels. With shape (num_levels, 2), last dimension represents
+                (h, w).
             level_start_index (Tensor): The start index of each level.
                 A tensor has shape ``(num_levels, )`` and can be represented
                 as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
+            key_padding_mask (Tensor): ByteTensor for value, with shape [bs,
+                num_key].
+            identity (Tensor): The tensor used for addition, with the
+                same shape as query. Default None. If None, query will be used.
+            query_pos (Tensor, optional): The positional encoding for query.
+                Default: None.
 
         Returns:
             Tensor: forwarded results with shape [num_query, bs, embed_dims].
@@ -257,11 +252,13 @@ class TemporalSelfAttention(nn.Module):
         )
 
         # output shape (bs*num_bev_queue, num_query, embed_dims)
-        # (bs*num_bev_queue, num_query, embed_dims)-> (num_query, embed_dims, bs*num_bev_queue)
+        # (bs*num_bev_queue, num_query, embed_dims)
+        # -> (num_query, embed_dims, bs*num_bev_queue)
         output = output.permute(1, 2, 0)
 
         # fuse history value and current value
-        # (num_query, embed_dims, bs*num_bev_queue)-> (num_query, embed_dims, bs, num_bev_queue)
+        # (num_query, embed_dims, bs*num_bev_queue)
+        # -> (num_query, embed_dims, bs, num_bev_queue)
         output = output.view(num_query, embed_dims, bs, self.num_bev_queue)
         output = output.mean(-1)
 

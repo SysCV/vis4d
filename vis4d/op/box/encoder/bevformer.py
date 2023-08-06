@@ -1,39 +1,37 @@
-"""NMS-Free bounding box coder."""
+"""NMS-Free bounding box coder for BEVFormer."""
 from __future__ import annotations
 
 import torch
 from torch import Tensor
 
 
-# TODO: Add Encoder
 class NMSFreeDecoder:
     """BBox decoder for NMS-free detector."""
 
     def __init__(
         self,
-        num_classes: int = 10,
-        post_center_range: list[float] | None = None,
+        num_classes: int,
+        post_center_range: list[float],
         max_num: int = 100,
         score_threshold: float | None = None,
     ) -> None:
         """Initialize NMSFreeDecoder.
 
         Args:
+            num_classes (int): Number of classes.
             post_center_range (list[float]): Limit of the center.
-                Default: None.
             max_num (int): Max number to be kept. Default: 100.
             score_threshold (float): Threshold to filter boxes based on score.
                 Default: None.
-            code_size (int): Code size of bboxes. Default: 9
         """
+        self.num_classes = num_classes
         self.post_center_range = post_center_range
         self.max_num = max_num
         self.score_threshold = score_threshold
-        self.num_classes = num_classes
 
-    def _decode_single(
+    def __call__(
         self, cls_scores: Tensor, bbox_preds: Tensor
-    ) -> dict[str, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """Decode single batch bboxes.
 
         Args:
@@ -45,12 +43,11 @@ class NMSFreeDecoder:
                 rot_sine, rot_cosine, vx, vy). Shape [num_query, 9].
 
         Returns:
-            dict[str, Tensor]: Decoded boxes.
+            tuple[Tensor, Tensor, Tensor]: Decoded boxes (x, y, z, l, w, h,
+                yaw, vx, vy), scores and labels.
         """
-        max_num = self.max_num
-
         cls_scores = cls_scores.sigmoid()
-        scores, indexs = cls_scores.view(-1).topk(max_num)
+        scores, indexs = cls_scores.view(-1).topk(self.max_num)
         labels = indexs % self.num_classes
         bbox_index = indexs // self.num_classes
         bbox_preds = bbox_preds[bbox_index]
@@ -70,60 +67,21 @@ class NMSFreeDecoder:
                     break
                 thresh_mask = final_scores >= tmp_score
 
-        if self.post_center_range is not None:
-            post_center_range = torch.tensor(
-                self.post_center_range, device=scores.device
-            )
-            mask = (final_box_preds[..., :3] >= post_center_range[:3]).all(1)
-            mask &= (final_box_preds[..., :3] <= post_center_range[3:]).all(1)
+        post_center_range = torch.tensor(
+            self.post_center_range, device=scores.device
+        )
+        mask = (final_box_preds[..., :3] >= post_center_range[:3]).all(1)
+        mask &= (final_box_preds[..., :3] <= post_center_range[3:]).all(1)
 
-            if self.score_threshold:
-                mask &= thresh_mask
+        if self.score_threshold:
+            mask &= thresh_mask
 
-            boxes3d = final_box_preds[mask]
-            scores = final_scores[mask]
+        boxes3d = final_box_preds[mask]
+        scores = final_scores[mask]
 
-            labels = final_preds[mask]
-            predictions_dict = {
-                "bboxes": boxes3d,
-                "scores": scores,
-                "labels": labels,
-            }
+        labels = final_preds[mask]
 
-        else:
-            raise NotImplementedError(
-                "Need to reorganize output as a batch, only "
-                "support post_center_range is not None for now!"
-            )
-        return predictions_dict
-
-    def decode(
-        self, preds_dicts: dict[str, Tensor]
-    ) -> list[dict[str, Tensor]]:
-        """Decode bboxes.
-
-        Args:
-            all_cls_scores (Tensor): Outputs from the classification head,
-                shape [nb_dec, bs, num_query, cls_out_channels]. Note
-                cls_out_channels should includes background.
-            all_bbox_preds (Tensor): Sigmoid outputs from the regression
-                head with normalized coordinate format (cx, cy, w, l, cz, h,
-                rot_sine, rot_cosine, vx, vy). Shape [nb_dec, bs, num_query,
-                9].
-
-        Returns:
-            list[dict]: Decoded boxes.
-        """
-        all_cls_scores = preds_dicts["all_cls_scores"][-1]
-        all_bbox_preds = preds_dicts["all_bbox_preds"][-1]
-
-        batch_size = all_cls_scores.size()[0]
-        predictions_list = []
-        for i in range(batch_size):
-            predictions_list.append(
-                self._decode_single(all_cls_scores[i], all_bbox_preds[i])
-            )
-        return predictions_list
+        return boxes3d, scores, labels
 
 
 def _denormalize_bbox(normalized_bboxes: Tensor) -> Tensor:

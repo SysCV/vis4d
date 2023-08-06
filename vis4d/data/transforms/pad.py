@@ -11,7 +11,7 @@ from vis4d.data.const import CommonKeys as K
 from .base import Transform
 
 
-@Transform(K.images, K.images)
+@Transform(in_keys=[K.images, K.input_hw], out_keys=[K.images, K.input_hw])
 class PadImages:
     """Pad batch of images at the bottom right."""
 
@@ -22,6 +22,7 @@ class PadImages:
         value: float = 0.0,
         shape: tuple[int, int] | None = None,
         pad2square: bool = False,
+        update_shape: bool = False,
     ) -> None:
         """Creates an instance of PadImage.
 
@@ -35,6 +36,7 @@ class PadImages:
             shape (tuple[int, int], optional): Shape of the padded image
                 (H, W). Defaults to None.
             pad2square (bool, optional): Pad to square. Defaults to False.
+            update_shape (bool, optional): Update shape in the sample.
         """
         if pad2square:
             assert (
@@ -45,8 +47,11 @@ class PadImages:
         self.value = value
         self.shape = shape
         self.pad2square = pad2square
+        self.update_shape = update_shape
 
-    def __call__(self, images: list[NDArrayF32]) -> list[NDArrayF32]:
+    def __call__(
+        self, images: list[NDArrayF32], inputs_hw: list[tuple[int, int]]
+    ) -> tuple[list[NDArrayF32], list[tuple[int, int]]]:
         """Pad images to consistent size."""
         heights = [im.shape[1] for im in images]
         widths = [im.shape[2] for im in images]
@@ -60,7 +65,11 @@ class PadImages:
             image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
             image_ = F.pad(image_, pad_param, self.mode, self.value)
             images[i] = image_.permute(0, 2, 3, 1).numpy()
-        return images
+
+            if self.update_shape:
+                inputs_hw[i] = images[i].shape[1:3]
+
+        return images, inputs_hw
 
 
 @Transform(K.seg_masks, K.seg_masks)

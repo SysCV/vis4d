@@ -7,12 +7,11 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.op.layer.attention import MultiheadAttention
-from vis4d.op.layer.mlp import FFN
 from vis4d.op.layer.ms_deform_attn import (
     MSDeformAttentionFunction,
     is_power_of_2,
 )
-from vis4d.op.layer.transformer import inverse_sigmoid
+from vis4d.op.layer.transformer import FFN, inverse_sigmoid
 from vis4d.op.layer.weight_init import constant_init, xavier_init
 
 
@@ -20,15 +19,28 @@ class BEVFormerDecoder(nn.Module):
     """Implements the decoder in DETR3D transformer."""
 
     def __init__(
-        self, num_layers: int = 6, return_intermediate: bool = True
+        self,
+        num_layers: int = 6,
+        embed_dims: int = 256,
+        return_intermediate: bool = True,
     ) -> None:
-        """Init DetectionTransformerDecoder."""
+        """Init.
+
+        Args:
+            num_layers (int): The number of decoder layers. Default: 6.
+            embed_dims (int): The embedding dimension. Default: 256.
+            return_intermediate (bool): Whether to return intermediate
+                results. Default: True.
+        """
         super().__init__()
         self.num_layers = num_layers
         self.return_intermediate = return_intermediate
 
         self.layers = nn.ModuleList(
-            [DetrTransformerDecoderLayer() for _ in range(num_layers)]
+            [
+                (BEVFormerDecoderLayer(embed_dims=embed_dims))
+                for _ in range(num_layers)
+            ]
         )
 
     def forward(
@@ -38,22 +50,23 @@ class BEVFormerDecoder(nn.Module):
         reference_points: Tensor,
         spatial_shapes: Tensor,
         level_start_index: Tensor,
-        key_padding_mask: Tensor | None = None,
-        query_pos: Tensor | None = None,
-        reg_branches=None,
-    ):
-        """Forward function for `Detr3DTransformerDecoder`.
+        query_pos: Tensor,
+        reg_branches: nn.Module,
+    ) -> Tensor:
+        """Forward function.
+
         Args:
-            query (Tensor): Input query with shape
-                `(num_query, bs, embed_dims)`.
-            reference_points (Tensor): The reference
-                points of offset. has shape
-                (bs, num_query, 4) when as_two_stage,
-                otherwise has shape ((bs, num_query, 2).
-            reg_branch: (obj:`nn.ModuleList`): Used for
-                refining the regression results. Only would
-                be passed when with_box_refine is True,
-                otherwise would be passed a `None`.
+            query (Tensor): Input query with shape (num_query, bs, embed_dims).
+            value (Tensor): Input value with shape (bs, num_query, embed_dims).
+            reference_points (Tensor): The reference points of offset. In shape
+                (bs, num_query, 4) when as_two_stage, otherwise has shape (bs,
+                num_query, 2).
+            spatial_shapes (Tensor): The spatial shapes of feature maps.
+            level_start_index (Tensor): The start index of each level.
+            query_pos (Tensor): The query position embedding.
+            reg_branches: (nn.Module): Used for refining the regression
+                results.
+
         Returns:
             Tensor: Results with shape [1, num_query, bs, embed_dims] when
                 return_intermediate is `False`, otherwise it has shape
@@ -63,36 +76,32 @@ class BEVFormerDecoder(nn.Module):
         intermediate = []
         intermediate_reference_points = []
         for lid, layer in enumerate(self.layers):
-            reference_points_input = reference_points[..., :2].unsqueeze(
-                2
-            )  # BS NUM_QUERY NUM_LEVEL 2
+            # BS, NUM_QUERY, NUM_LEVEL, 2
+            reference_points_input = reference_points[..., :2].unsqueeze(2)
             output = layer(
                 output,
                 reference_points=reference_points_input,
                 value=value,
                 spatial_shapes=spatial_shapes,
                 level_start_index=level_start_index,
-                key_padding_mask=key_padding_mask,
                 query_pos=query_pos,
             )
             output = output.permute(1, 0, 2)
 
-            if reg_branches is not None:
-                tmp = reg_branches[lid](output)
+            tmp = reg_branches[lid](output)
 
-                assert reference_points.shape[-1] == 3
+            assert reference_points.shape[-1] == 3
+            new_reference_points = torch.zeros_like(reference_points)
+            new_reference_points[..., :2] = tmp[..., :2] + inverse_sigmoid(
+                reference_points[..., :2]
+            )
+            new_reference_points[..., 2:3] = tmp[..., 4:5] + inverse_sigmoid(
+                reference_points[..., 2:3]
+            )
 
-                new_reference_points = torch.zeros_like(reference_points)
-                new_reference_points[..., :2] = tmp[..., :2] + inverse_sigmoid(
-                    reference_points[..., :2]
-                )
-                new_reference_points[..., 2:3] = tmp[
-                    ..., 4:5
-                ] + inverse_sigmoid(reference_points[..., 2:3])
+            new_reference_points = new_reference_points.sigmoid()
 
-                new_reference_points = new_reference_points.sigmoid()
-
-                reference_points = new_reference_points.detach()
+            reference_points = new_reference_points.detach()
 
             output = output.permute(1, 0, 2)
             if self.return_intermediate:
@@ -107,59 +116,50 @@ class BEVFormerDecoder(nn.Module):
         return output, reference_points
 
 
-class DetrTransformerDecoderLayer(nn.Module):
+class BEVFormerDecoderLayer(nn.Module):
     """Implements decoder layer in DETR transformer."""
 
     def __init__(
         self,
         embed_dims: int = 256,
+        feedforward_channels: int = 512,
+        drop_out: float = 0.1,
     ) -> None:
         """Init.
 
         Args:
-            self_attn_cfg (:obj:`ConfigDict` or dict, optional): Config for self
-                attention.
-            cross_attn_cfg (:obj:`ConfigDict` or dict, optional): Config for cross
-                attention.
-            ffn_cfg (:obj:`ConfigDict` or dict, optional): Config for FFN.
-            norm_cfg (:obj:`ConfigDict` or dict, optional): Config for
-                normalization layers. All the layers will share the same
-                config. Defaults to `LN`.
-            init_cfg (:obj:`ConfigDict` or dict, optional): Config to control
-                the initialization. Defaults to None.
+            embed_dims (int): The embedding dimension.
         """
         super().__init__()
-
         self.attentions = nn.ModuleList()
-        self_attn = MultiheadAttention(
-            embed_dims=256,
-            num_heads=8,
-            attn_drop=0.1,
-            proj_drop=0.1,
+
+        self.attentions.append(
+            MultiheadAttention(
+                embed_dims=embed_dims,
+                num_heads=8,
+                attn_drop=0.1,
+                proj_drop=0.1,
+            )
         )
-        cross_attn = CustomMSDeformableAttention(embed_dims=256, num_levels=1)
-        self.attentions.append(self_attn)
-        self.attentions.append(cross_attn)
+        self.attentions.append(
+            DecoderCrossAttention(embed_dims=embed_dims, num_levels=1)
+        )
 
         self.embed_dims = embed_dims
 
-        # TODO: Try to use TransformerBlockMLP
-        layers = []
+        self.ffns = nn.ModuleList()
+
         layers = [
             nn.Sequential(
-                nn.Linear(256, 512),
+                nn.Linear(self.embed_dims, feedforward_channels),
                 nn.ReLU(inplace=True),
-                nn.Dropout(0.1),
+                nn.Dropout(drop_out),
             )
         ]
-        layers.append(nn.Linear(512, 256))
-        layers.append(nn.Dropout(0.1))
-        layers = nn.Sequential(*layers)
+        layers.append(nn.Linear(feedforward_channels, self.embed_dims))
+        layers.append(nn.Dropout(drop_out))
 
-        ffns = []
-        ffns.append(FFN(layers=layers))
-
-        self.ffns = nn.Sequential(*ffns)
+        self.ffns.append(FFN(layers=nn.Sequential(*layers)))
 
         self.norms = nn.ModuleList()
         for _ in range(3):
@@ -172,34 +172,22 @@ class DetrTransformerDecoderLayer(nn.Module):
         value: Tensor,
         spatial_shapes: Tensor,
         level_start_index: Tensor,
-        key_padding_mask: Tensor | None = None,
         query_pos: Tensor | None = None,
     ) -> Tensor:
-        """
+        """Forward.
+
         Args:
             query (Tensor): The input query, has shape (bs, num_queries, dim).
-            key (Tensor, optional): The input key, has shape (bs, num_keys,
-                dim). If `None`, the `query` will be used. Defaults to `None`.
-            value (Tensor, optional): The input value, has the same shape as
-                `key`, as in `nn.MultiheadAttention.forward`. If `None`, the
-                `key` will be used. Defaults to `None`.
+            reference_points (Tensor): The reference points of offset. In shape
+                (bs, num_query, 4) when as_two_stage, otherwise has shape (bs,
+                num_query, 2).
+            value (Tensor, optional): The input value, has shape (bs, num_keys,
+                dim).
+            spatial_shapes (Tensor): The spatial shapes of feature maps.
+            level_start_index (Tensor): The start index of each level.
             query_pos (Tensor, optional): The positional encoding for `query`,
                 has the same shape as `query`. If not `None`, it will be added
                 to `query` before forward function. Defaults to `None`.
-            key_pos (Tensor, optional): The positional encoding for `key`, has
-                the same shape as `key`. If not `None`, it will be added to
-                `key` before forward function. If None, and `query_pos` has the
-                same shape as `key`, then `query_pos` will be used for
-                `key_pos`. Defaults to None.
-            self_attn_mask (Tensor, optional): ByteTensor mask, has shape
-                (num_queries, num_keys), as in `nn.MultiheadAttention.forward`.
-                Defaults to None.
-            cross_attn_mask (Tensor, optional): ByteTensor mask, has shape
-                (num_queries, num_keys), as in `nn.MultiheadAttention.forward`.
-                Defaults to None.
-            key_padding_mask (Tensor, optional): The `key_padding_mask` of
-                `self_attn` input. ByteTensor, has shape (bs, num_value).
-                Defaults to None.
 
         Returns:
             Tensor: forwarded results, has shape (bs, num_queries, dim).
@@ -213,23 +201,26 @@ class DetrTransformerDecoderLayer(nn.Module):
         )
 
         query = self.norms[0](query)
+
         query = self.attentions[1](
             query=query,
             reference_points=reference_points,
             value=value,
             spatial_shapes=spatial_shapes,
             level_start_index=level_start_index,
-            key_padding_mask=key_padding_mask,
             query_pos=query_pos,
         )
+
         query = self.norms[1](query)
-        query = self.ffns(query)
+
+        query = self.ffns[0](query)
+
         query = self.norms[2](query)
 
         return query
 
 
-class CustomMSDeformableAttention(nn.Module):
+class DecoderCrossAttention(nn.Module):
     """Custom Multi-Scale Deformable Attention."""
 
     def __init__(
@@ -247,22 +238,17 @@ class CustomMSDeformableAttention(nn.Module):
         Args:
             embed_dims (int): The embedding dimension of Attention.
                 Default: 256.
-            num_heads (int): Parallel attention heads. Default: 64.
-            num_levels (int): The number of feature map used in
-                Attention. Default: 4.
-            num_points (int): The number of sampling points for
-                each query in each head. Default: 4.
+            num_heads (int): Parallel attention heads. Default: 8.
+            num_levels (int): The number of feature map used in Attention.
+                Default: 4.
+            num_points (int): The number of sampling points for each query in
+                each head. Default: 4.
             im2col_step (int): The step used in image_to_column.
                 Default: 64.
             dropout (float): A Dropout layer on `inp_identity`.
                 Default: 0.1.
-            batch_first (bool): Key, Query and Value are shape of
-                (batch, n, embed_dim)
-                or (n, batch, embed_dim). Default to False.
-            norm_cfg (dict): Config dict for normalization layer.
-                Default: None.
-            init_cfg (obj:`mmcv.ConfigDict`): The Config for initialization.
-                Default: None.
+            batch_first (bool): Key, Query and Value are shape of (batch, n,
+                embed_dim) or (n, batch, embed_dim). Default to False.
         """
         super().__init__()
         if embed_dims % num_heads != 0:
@@ -310,7 +296,7 @@ class CustomMSDeformableAttention(nn.Module):
         xavier_init(self.value_proj, distribution="uniform", bias=0.0)
         xavier_init(self.output_proj, distribution="uniform", bias=0.0)
 
-    def forward(
+    def forward(  # pylint: disable=duplicate-code
         self,
         query: Tensor,
         reference_points: Tensor,
@@ -321,35 +307,31 @@ class CustomMSDeformableAttention(nn.Module):
         query_pos: Tensor | None = None,
         identity: Tensor | None = None,
     ) -> Tensor:
-        """Forward Function of MultiScaleDeformAttention.
+        """Forward.
 
         Args:
-            query (Tensor): Query of Transformer with shape
-                (num_query, bs, embed_dims).
-            value (Tensor): The value tensor with shape
-                `(num_key, bs, embed_dims)`.
-            identity (Tensor): The tensor used for addition, with the
-                same shape as `query`. Default None. If None,
-                `query` will be used.
-            query_pos (Tensor): The positional encoding for `query`.
-                Default: None.
-            key_pos (Tensor): The positional encoding for `key`. Default
-                None.
-            reference_points (Tensor):  The normalized reference
-                points with shape (bs, num_query, num_levels, 2),
-                all elements is range in [0, 1], top-left (0,0),
-                bottom-right (1, 1), including padding area.
-                or (N, Length_{query}, num_levels, 4), add
-                additional two dimensions is (w, h) to
-                form reference boxes.
-            key_padding_mask (Tensor): ByteTensor for `query`, with
-                shape [bs, num_key].
+            query (Tensor): Query of Transformer with shape (num_query, bs,
+                embed_dims).
+            reference_points (Tensor):  The normalized reference points with
+                shape (bs, num_query, num_levels, 2), all elements is range in
+                [0, 1], top-left (0,0), bottom-right (1, 1), including padding
+                area. or (N, Length_{query}, num_levels, 4), add additional two
+                dimensions is (w, h) to form reference boxes.
+            value (Tensor): The value tensor with shape (num_key, bs,
+                embed_dims).
             spatial_shapes (Tensor): Spatial shape of features in
                 different levels. With shape (num_levels, 2),
                 last dimension represents (h, w).
             level_start_index (Tensor): The start index of each level.
                 A tensor has shape ``(num_levels, )`` and can be represented
                 as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
+            key_padding_mask (Tensor): ByteTensor for `query`, with
+                shape [bs, num_key].
+            query_pos (Tensor): The positional encoding for `query`.
+                Default: None.
+            identity (Tensor): The tensor used for addition, with the
+                same shape as `query`. Default None. If None,
+                `query` will be used.
 
         Returns:
              Tensor: forwarded results with shape [num_query, bs, embed_dims].
@@ -377,6 +359,7 @@ class CustomMSDeformableAttention(nn.Module):
         sampling_offsets = self.sampling_offsets(query).view(
             bs, num_query, self.num_heads, self.num_levels, self.num_points, 2
         )
+
         attention_weights = self.attention_weights(query).view(
             bs, num_query, self.num_heads, self.num_levels * self.num_points
         )
@@ -385,6 +368,7 @@ class CustomMSDeformableAttention(nn.Module):
         attention_weights = attention_weights.view(
             bs, num_query, self.num_heads, self.num_levels, self.num_points
         )
+
         if reference_points.shape[-1] == 2:
             offset_normalizer = torch.stack(
                 [spatial_shapes[..., 1], spatial_shapes[..., 0]], -1

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor
-from vis4d_cuda_ops import nms_rotated
+from vis4d_cuda_ops import nms_rotated  # pylint: disable=no-name-in-module
 
 
 def bev_3d_nms(

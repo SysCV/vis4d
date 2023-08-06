@@ -1,27 +1,27 @@
 """Transformer layer.
 
-Modified from timm (https://github.com/huggingface/pytorch-image-models).
+Modified from timm (https://github.com/huggingface/pytorch-image-models) and
+mmdetection (https://github.com/open-mmlab/mmdetection).
 """
 from __future__ import annotations
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from .attention import Attention
 from .drop import DropPath
 from .mlp import TransformerBlockMLP
 
 
-def inverse_sigmoid(x, eps=1e-5):
+def inverse_sigmoid(x: Tensor, eps: float = 1e-5) -> Tensor:
     """Inverse function of sigmoid.
+
     Args:
-        x (Tensor): The tensor to do the
-            inverse.
-        eps (float): EPS avoid numerical
-            overflow. Defaults 1e-5.
+        x (Tensor): The tensor to do the inverse.
+        eps (float): EPS avoid numerical overflow. Defaults 1e-5.
+
     Returns:
-        Tensor: The x has passed the inverse
-            function of sigmoid, has same
+        Tensor: The x has passed the inverse function of sigmoid, has same
             shape with input.
     """
     x = x.clamp(min=0, max=1)
@@ -30,32 +30,52 @@ def inverse_sigmoid(x, eps=1e-5):
     return torch.log(x1 / x2)
 
 
-class _LayerScale(nn.Module):
+class LayerScale(nn.Module):
     """Layer scaler."""
 
     def __init__(
-        self, dim: int, init_values: float = 1e-5, inplace: bool = False
+        self,
+        dim: int,
+        inplace: bool = False,
+        data_format: str = "channels_last",
+        init_values: float = 1e-5,
     ):
         """Init layer scaler.
 
         Args:
             dim (int): Input tensor's dimension.
+            inplace (bool): Whether performs operation in-place. Default:
+                False.
+            data_format (str): The input data format, could be 'channels_last'
+                or 'channels_first', representing (B, C, H, W) and (B, N, C)
+                format data respectively. Default: channels_last.
             init_values (float, optional): Initial values for layer scale.
                 Defaults to 1e-5.
-            inplace (bool, optional): If to do the operation in-place. Defaults
-                to False.
         """
         super().__init__()
+        assert data_format in {
+            "channels_last",
+            "channels_first",
+        }, "data_format could only be channels_last or channels_first."
         self.inplace = inplace
+        self.data_format = data_format
         self.gamma = nn.Parameter(init_values * torch.ones(dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
-        return x.mul_(self.gamma) if self.inplace else x * self.gamma
+        if self.data_format == "channels_first":
+            shape = tuple((1, -1, *(1 for _ in range(x.dim() - 2))))
+        else:
+            shape = tuple((*(1 for _ in range(x.dim() - 1)), -1))
+
+        if self.inplace:
+            return x.mul_(self.gamma.view(*shape))
+
+        return x * self.gamma.view(*shape)
 
 
 class TransformerBlock(nn.Module):
-    """Transformer block."""
+    """Transformer block for Vision Transformer."""
 
     def __init__(
         self,
@@ -104,7 +124,7 @@ class TransformerBlock(nn.Module):
             proj_drop=drop,
         )
         self.ls1 = (
-            _LayerScale(dim, init_values=init_values)
+            LayerScale(dim, init_values=init_values)
             if init_values
             else nn.Identity()
         )
@@ -122,7 +142,7 @@ class TransformerBlock(nn.Module):
             drop=drop,
         )
         self.ls2 = (
-            _LayerScale(dim, init_values=init_values)
+            LayerScale(dim, init_values=init_values)
             if init_values
             else nn.Identity()
         )
@@ -146,3 +166,55 @@ class TransformerBlock(nn.Module):
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
+
+
+class FFN(nn.Module):
+    """Implements feed-forward networks (FFNs) with identity connection."""
+
+    def __init__(
+        self,
+        layers: nn.Modele,
+        embed_dims: int = 256,
+        dropout_layer: nn.Module = nn.Identity(),
+        add_identity: bool = True,
+        layer_scale_init_value: float = 0.0,
+    ) -> None:
+        """Init FFN.
+
+        Args:
+            layers (nn.Module): The layers of the FFN.
+            embed_dims (int): The feature dimension. Same as
+                `MultiheadAttention`. Defaults: 256.
+            dropout_layer (nn.Module): The dropout_layer used when adding the
+                shortcut.
+            add_identity (bool, optional): Whether to add the identity
+                connection. Default: `True`.
+            layer_scale_init_value (float): Initial value of scale factor in
+                LayerScale. Default: 0.0
+        """
+        super().__init__()
+        self.layers = layers
+
+        self.dropout_layer = dropout_layer
+        self.add_identity = add_identity
+
+        if layer_scale_init_value > 0:
+            self.gamma2 = LayerScale(
+                embed_dims, init_values=layer_scale_init_value
+            )
+        else:
+            self.gamma2 = nn.Identity()
+
+    def forward(self, x: Tensor, identity: Tensor | None = None) -> None:
+        """Forward function for FFN.
+
+        The function would add x to the output tensor if residue is None.
+        """
+        out = self.layers(x)
+        out = self.gamma2(out)
+
+        if self.add_identity:
+            identity = x if identity is None else identity
+            return identity + self.dropout_layer(out)
+
+        return self.dropout_layer(out)
