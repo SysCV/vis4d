@@ -25,7 +25,7 @@ class FCNResNet(nn.Module):
     ) -> None:
         """FCN with ResNet basemodel, following torchvision implementation.
 
-        <https://github.com/pytorch/vision/blob/torchvision/models/
+        <https://github.com/pytorch/vision/blob/main/torchvision/models/
         segmentation/fcn.py>_.
 
         model: FCNResNet(base_model="resnet50")

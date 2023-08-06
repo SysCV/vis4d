@@ -104,16 +104,6 @@ class SinePositionalEncoding(nn.Module):
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
         return pos
 
-    def __repr__(self) -> str:
-        """str: a string that describes the module"""
-        repr_str = self.__class__.__name__
-        repr_str += f"(num_feats={self.num_feats}, "
-        repr_str += f"temperature={self.temperature}, "
-        repr_str += f"normalize={self.normalize}, "
-        repr_str += f"scale={self.scale}, "
-        repr_str += f"eps={self.eps})"
-        return repr_str
-
 
 class LearnedPositionalEncoding(nn.Module):
     """Position embedding with learnable embedding weights."""
@@ -176,14 +166,6 @@ class LearnedPositionalEncoding(nn.Module):
             .repeat(mask.shape[0], 1, 1, 1)
         )
         return pos
-
-    def __repr__(self) -> str:
-        """str: a string that describes the module"""
-        repr_str = self.__class__.__name__
-        repr_str += f"(num_feats={self.num_feats}, "
-        repr_str += f"row_num_embed={self.row_num_embed}, "
-        repr_str += f"col_num_embed={self.col_num_embed})"
-        return repr_str
 
 
 class SinePositionalEncoding3D(SinePositionalEncoding):

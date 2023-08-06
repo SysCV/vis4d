@@ -1,8 +1,7 @@
 """RetinaNet model implementation and runtime."""
 from __future__ import annotations
 
-import torch
-from torch import nn
+from torch import Tensor, nn
 
 from vis4d.common import LossesType
 from vis4d.common.ckpt import load_model_checkpoint
@@ -19,15 +18,15 @@ from vis4d.op.detect.retinanet import (
     RetinaNetHeadLoss,
     RetinaNetOut,
 )
-from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
+from vis4d.op.fpp.fpn import FPN, ExtraFPNBlock
 
 REV_KEYS = [
     (r"^backbone\.", "basemodel."),
     (r"^bbox_head\.", "retinanet_head."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
-    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6_conv."),
-    (r"^fpn.layer_blocks.4\.", "fpn.extra_blocks.p7_conv."),
+    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.convs.0."),
+    (r"^fpn.layer_blocks.4\.", "fpn.extra_blocks.convs.1."),
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
@@ -52,7 +51,7 @@ class RetinaNet(nn.Module):
         self.fpn = FPN(
             self.basemodel.out_channels[3:],
             256,
-            LastLevelP6P7(2048, 256),
+            ExtraFPNBlock(2, 2048, 256, add_extra_convs="on_input"),
             start_index=3,
         )
         self.retinanet_head = RetinaNetHead(
@@ -78,14 +77,14 @@ class RetinaNet(nn.Module):
 
     def forward(
         self,
-        images: torch.Tensor,
+        images: Tensor,
         input_hw: None | list[tuple[int, int]] = None,
         original_hw: None | list[tuple[int, int]] = None,
     ) -> RetinaNetOut | DetOut:
         """Forward pass.
 
         Args:
-            images (torch.Tensor): Input images.
+            images (Tensor): Input images.
             input_hw (None | list[tuple[int, int]], optional): Input image
                 resolutions. Defaults to None.
             original_hw (None | list[tuple[int, int]], optional): Original
@@ -101,11 +100,11 @@ class RetinaNet(nn.Module):
         assert input_hw is not None and original_hw is not None
         return self.forward_test(images, input_hw, original_hw)
 
-    def forward_train(self, images: torch.Tensor) -> RetinaNetOut:
+    def forward_train(self, images: Tensor) -> RetinaNetOut:
         """Forward training stage.
 
         Args:
-            images (torch.Tensor): Input images.
+            images (Tensor): Input images.
 
         Returns:
             RetinaNetOut: Raw model outputs.
@@ -115,14 +114,14 @@ class RetinaNet(nn.Module):
 
     def forward_test(
         self,
-        images: torch.Tensor,
+        images: Tensor,
         images_hw: list[tuple[int, int]],
         original_hw: list[tuple[int, int]],
     ) -> DetOut:
         """Forward testing stage.
 
         Args:
-            images (torch.Tensor): Input images.
+            images (Tensor): Input images.
             images_hw (list[tuple[int, int]]): Input image resolutions.
             original_hw (list[tuple[int, int]]): Original image resolutions
                 (before padding and resizing).
@@ -169,16 +168,16 @@ class RetinaNetLoss(nn.Module):
         self,
         outputs: RetinaNetOut,
         images_hw: list[tuple[int, int]],
-        target_boxes: list[torch.Tensor],
-        target_classes: list[torch.Tensor],
+        target_boxes: list[Tensor],
+        target_classes: list[Tensor],
     ) -> LossesType:
         """Forward of loss function.
 
         Args:
             outputs (RetinaNetOut): Raw model outputs.
             images_hw (list[tuple[int, int]]): Input image resolutions.
-            target_boxes (list[torch.Tensor]): Bounding box labels.
-            target_classes (list[torch.Tensor]): Class labels.
+            target_boxes (list[Tensor]): Bounding box labels.
+            target_classes (list[Tensor]): Class labels.
 
         Returns:
             LossesType: Dictionary of model losses.

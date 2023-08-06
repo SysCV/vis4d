@@ -31,6 +31,7 @@ class MSDeformAttentionFunction(Function):
         attention_weights,
         im2col_step,
     ):
+        """Forward pass."""
         ctx.im2col_step = im2col_step
         output = ms_deform_attn_forward(
             value,
@@ -52,6 +53,7 @@ class MSDeformAttentionFunction(Function):
     @staticmethod
     @once_differentiable
     def backward(ctx, grad_output):
+        """Backward pass."""
         (
             value,
             value_spatial_shapes,
@@ -108,7 +110,7 @@ class MSDeformAttention(nn.Module):
         n_points: int = 4,
         im2col_step: int = 64,
     ) -> None:
-        """Multi-Scale Deformable Attention Module.
+        """Creates an instance of the class.
 
         Args:
             d_model (int): Hidden dimensions.

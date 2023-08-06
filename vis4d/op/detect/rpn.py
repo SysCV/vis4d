@@ -60,6 +60,7 @@ class RPNHead(nn.Module):
         num_convs: int = 1,
         in_channels: int = 256,
         feat_channels: int = 256,
+        start_level: int = 2,
     ) -> None:
         """Creates an instance of the class.
 
@@ -71,8 +72,12 @@ class RPNHead(nn.Module):
                 maps. Defaults to 256.
             feat_channels (int, optional): Feature channel size of conv layers.
                 Defaults to 256.
+            start_level (int, optional): starting level of feature maps.
+                Defaults to 2.
         """
         super().__init__()
+        self.start_level = start_level
+
         if num_convs > 1:
             rpn_convs = []
             for i in range(num_convs):
@@ -112,7 +117,7 @@ class RPNHead(nn.Module):
     def forward(self, features: list[torch.Tensor]) -> RPNOut:
         """Forward pass of RPN."""
         cls_outs, box_outs = [], []
-        for feat in features[2:]:  # Take stride 4 onwards
+        for feat in features[self.start_level :]:
             feat = self.rpn_conv(feat)
             cls_outs += [self.rpn_cls(feat)]
             box_outs += [self.rpn_box(feat)]

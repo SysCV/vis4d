@@ -73,11 +73,11 @@ def _make_res_layer(
     layers = []
     downsample: nn.Module | None = None
     if stride != 1 or inplanes != planes * block.expansion:
-        downsample = []
+        downsample_list = []
         conv_stride = stride
         if avg_down:
             conv_stride = 1
-            downsample.append(
+            downsample_list.append(
                 nn.AvgPool2d(
                     kernel_size=stride,
                     stride=stride,
@@ -85,7 +85,7 @@ def _make_res_layer(
                     count_include_pad=False,
                 )
             )
-        downsample.extend(
+        downsample_list.extend(
             [
                 build_conv_layer(
                     inplanes,
@@ -97,7 +97,7 @@ def _make_res_layer(
                 norm_layer(planes * block.expansion),
             ]
         )
-        downsample = nn.Sequential(*downsample)
+        downsample = nn.Sequential(*downsample_list)
 
     layers = []
     if downsample_first:
@@ -176,6 +176,7 @@ class BasicBlock(nn.Module):
         with_dcn: bool = False,
         norm_layer: Callable[..., nn.Module] | None = None,
     ) -> None:
+        """Creates an instance of the class."""
         super().__init__()
         assert style in {"pytorch", "caffe"}  # No effect for BasicBlock
         assert not with_dcn, "DCN is not supported for BasicBlock."
@@ -363,6 +364,7 @@ class ResNet(BaseModel):
         norm_layer: Callable[..., nn.Module] | None = None,
         norm_eval: bool = True,
         stages_with_dcn: Sequence[bool] = (False, False, False, False),
+        replace_stride_with_dilation: Sequence[bool] = (False, False, False),
         with_cp: bool = False,
         zero_init_residual: bool = True,
         pretrained: bool = False,
@@ -400,6 +402,8 @@ class ResNet(BaseModel):
                 and its variants only.
             stages_with_dcn (Sequence[bool]): Indices of stages with deformable
                 convolutions. Default: (False, False, False, False).
+            replace_stride_with_dilation (Sequence[bool]): Whether to replace
+                stride with dilation. Default: (False, False, False).
             with_cp (bool): Use checkpoint or not. Using checkpoint will save
                 some memory while slowing down the training speed. Default:
                 False.
@@ -440,8 +444,12 @@ class ResNet(BaseModel):
 
         self.res_layers = []
         for i, num_blocks in enumerate(self.stage_blocks):
-            stride = strides[i]
-            dilation = dilations[i]
+            if i > 0 and replace_stride_with_dilation[i]:
+                dilation = strides[i]
+                stride = 1
+            else:
+                stride = strides[i]
+                dilation = dilations[i]
             planes = base_channels * 2**i
             res_layer = _make_res_layer(
                 block=self.block,
@@ -656,7 +664,7 @@ class ResNetV1c(ResNet):
                 "resnet50_v1c",
                 "resnet101_v1c",
             }, "Only resnet50_v1c and resnet101_v1c have pretrained weights."
-            weights = self.model_urls(resnet_name)
+            weights = self.model_urls[resnet_name]
 
         super().__init__(
             resnet_name[:-4],

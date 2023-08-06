@@ -110,6 +110,8 @@ class MultiheadAttention(nn.Module):
                 Default: 0.0.
             proj_drop (float): A Dropout layer after `nn.MultiheadAttention`.
                 Default: 0.0.
+            dropout_layer (nn.Module | None, optional): The dropout_layer used
+                when adding the shortcut. Defaults to None.
             batch_first (bool): When it is True,  Key, Query and Value are
                 shape of (batch, n, embed_dim), otherwise (n, batch,
                 embed_dim). Default to False.

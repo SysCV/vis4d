@@ -10,13 +10,13 @@ from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.op.base import BaseModel
 from vis4d.op.detect3d.bevformer import BEVFormerHead, GridMask
 from vis4d.op.detect3d.common import Detect3DOut
-from vis4d.op.fpp.fpn import FPN, LastLevelP6
+from vis4d.op.fpp.fpn import FPN, ExtraFPNBlock
 
 REV_KEYS = [
     (r"^img_backbone\.", "basemodel."),
     (r"^img_neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^img_neck.fpn_convs\.", "fpn.layer_blocks."),
-    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6_conv."),
+    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.convs.0."),
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
@@ -37,7 +37,9 @@ class BEVFormer(nn.Module):
         self.fpn = FPN(
             self.basemodel.out_channels[3:],
             256,
-            extra_blocks=LastLevelP6(256, 256),
+            extra_blocks=ExtraFPNBlock(
+                extra_levels=1, in_channels=256, out_channels=256
+            ),
             start_index=fpn_start_index,
         )
 
@@ -72,10 +74,8 @@ class BEVFormer(nn.Module):
         images = self.grid_mask(images)
 
         features = self.basemodel(images)
-        # TODO: Refactor FPN to return only the features used starting from
-        # start_index.
         features = self.fpn(features)[self.fpn.start_index :]
-        
+
         img_feats = []
         for img_feat in features:
             _, c, h, w = img_feat.size()

@@ -350,6 +350,7 @@ class QDSimilarityHead(nn.Module):
         embedding_dim: int = 256,
         norm: str = "GroupNorm",
         num_groups: int = 32,
+        start_level: int = 2,
     ) -> None:
         """Creates an instance of the class.
 
@@ -373,6 +374,8 @@ class QDSimilarityHead(nn.Module):
                 One of BatchNorm2d, GroupNorm. Defaults to "GroupNorm".
             num_groups (int, optional): Number of groups for the GroupNorm
                 normalization. Defaults to 32.
+            start_level (int, optional): starting level of feature maps.
+                Defaults to 2.
         """
         super().__init__()
         self.in_dim = in_dim
@@ -390,6 +393,10 @@ class QDSimilarityHead(nn.Module):
             self.roi_pooler = MultiScaleRoIAlign(
                 resolution=[7, 7], strides=[4, 8, 16, 32], sampling_ratio=0
             )
+
+        # Used feature layers are [start_level, end_level)
+        self.start_level = start_level
+        self.end_level = start_level + len(self.roi_pooler.scales)
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
         self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
@@ -454,8 +461,7 @@ class QDSimilarityHead(nn.Module):
             list[Tensor]: An embedding vector per input box, .
         """
         # RoI pooling
-        num_strides = len(self.roi_pooler.scales)  # type: ignore
-        x = self.roi_pooler(features[2 : 2 + num_strides], boxes)
+        x = self.roi_pooler(features[self.start_level : self.end_level], boxes)
 
         # convs
         if self.num_convs > 0:

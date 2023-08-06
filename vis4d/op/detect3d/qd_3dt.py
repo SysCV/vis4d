@@ -126,6 +126,7 @@ class QD3DTBBox3DHead(nn.Module):
         norm: None | str = None,
         num_groups: int = 32,
         num_rotation_bins: int = 2,
+        start_level: int = 2,
     ):
         """Initialize the QD-3DT bounding box 3D head."""
         super().__init__()
@@ -152,6 +153,10 @@ class QD3DTBBox3DHead(nn.Module):
         self.num_rotation_bins = num_rotation_bins
         self.proposal_append_gt = proposal_append_gt
         self.cls_out_channels = num_classes
+
+        # Used feature layers are [start_level, end_level)
+        self.start_level = start_level
+        self.end_level = start_level + len(self.proposal_pooler.scales)
 
         # add shared convs and fcs
         (
@@ -408,7 +413,9 @@ class QD3DTBBox3DHead(nn.Module):
                 )
             ] * len(boxes_2d)
 
-        roi_feats = self.proposal_pooler(features[2:6], boxes_2d)
+        roi_feats = self.proposal_pooler(
+            features[self.start_level : self.end_level], boxes_2d
+        )
         x_dep, x_dim, x_rot, x_cen_2d = self.get_embeds(roi_feats)
 
         outputs: list[Tensor] = list(

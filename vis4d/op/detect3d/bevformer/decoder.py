@@ -129,6 +129,8 @@ class BEVFormerDecoderLayer(nn.Module):
 
         Args:
             embed_dims (int): The embedding dimension.
+            feedforward_channels (int): The hidden dimension of FFNs.
+            drop_out (float): The dropout rate of FFNs.
         """
         super().__init__()
         self.attentions = nn.ModuleList()
