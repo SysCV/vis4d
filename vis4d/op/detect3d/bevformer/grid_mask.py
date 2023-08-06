@@ -31,8 +31,10 @@ class GridMask(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward."""
-        if np.random.rand() > self.prob or not self.training:
+        if np.random.rand() > self.prob:
             return x
+
+        device = x.device
         n, c, h, w = x.size()
         x = x.view(-1, h, w)
         hh = int(1.5 * h)
@@ -62,18 +64,18 @@ class GridMask(nn.Module):
             (ww - w) // 2 : (ww - w) // 2 + w,
         ]
 
-        mask = torch.from_numpy(mask).to(x.dtype).cuda()
+        mask_tensor = torch.from_numpy(mask).to(x.dtype).to(device)
         if self.mode == 1:
-            mask = 1 - mask
-        mask = mask.expand_as(x)
+            mask_tensor = 1 - mask_tensor
+        mask_tensor = mask_tensor.expand_as(x)
         if self.offset:
             offset = (
                 torch.from_numpy(2 * (np.random.rand(h, w) - 0.5))
                 .to(x.dtype)
-                .cuda()
+                .to(device)
             )
-            x = x * mask + offset * (1 - mask)
+            x = x * mask_tensor + offset * (1 - mask_tensor)
         else:
-            x = x * mask
+            x = x * mask_tensor
 
         return x.view(n, c, h, w)

@@ -75,7 +75,7 @@ class PerceptionTransformer(nn.Module):
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,
-        grid_length: tuple[int, int],
+        grid_length: tuple[float, float],
         bev_pos: Tensor,
         prev_bev: Tensor | None = None,
     ) -> Tensor:
@@ -130,8 +130,8 @@ class PerceptionTransformer(nn.Module):
         # add can bus signals
         bev_queries = bev_queries + self.can_bus_mlp(can_bus)[None, :, :]
 
-        feat_flatten = []
-        spatial_shapes = []
+        feat_flatten_list = []
+        spatial_shapes_list = []
         for lvl, feat in enumerate(mlvl_feats):
             spatial_shape = feat.shape[-2:]
             feat = feat.flatten(3).permute(1, 0, 3, 2)
@@ -142,12 +142,12 @@ class PerceptionTransformer(nn.Module):
                 feat.dtype
             )
 
-            spatial_shapes.append(spatial_shape)
-            feat_flatten.append(feat)
+            spatial_shapes_list.append(spatial_shape)
+            feat_flatten_list.append(feat)
 
-        feat_flatten = torch.cat(feat_flatten, 2)
+        feat_flatten = torch.cat(feat_flatten_list, 2)
         spatial_shapes = torch.as_tensor(
-            spatial_shapes, dtype=torch.long, device=bev_pos.device
+            spatial_shapes_list, dtype=torch.long, device=bev_pos.device
         )
         level_start_index = torch.cat(
             (
@@ -190,9 +190,9 @@ class PerceptionTransformer(nn.Module):
         lidar_extrinsics: Tensor,
         grid_length: tuple[float, float],
         bev_pos: Tensor,
-        reg_branches: nn.Module,
+        reg_branches: list[nn.Module],
         prev_bev: Tensor | None = None,
-    ):
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Forward function for BEVFormer transformer.
 
         Args:
@@ -212,8 +212,8 @@ class PerceptionTransformer(nn.Module):
             grid_length (tuple[float, float]): The length of grid in x and y
                 direction.
             bev_pos (Tensor): (bs, embed_dims, bev_h, bev_w)
-            reg_branches (nn.Module): Regression heads for feature maps from
-                each decoder layer.
+            reg_branches (list[nn.Module]): Regression heads for feature maps
+                from each decoder layer.
             prev_bev (Tensor, optional): The previous BEV feature map, has
                 shape [bev_h * bev_w, bs, embed_dims]. Defaults to None.
 

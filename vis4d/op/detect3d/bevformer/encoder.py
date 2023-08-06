@@ -364,7 +364,7 @@ class BEVFormerEncoderLayer(nn.Module):
 
         self.ffns = nn.ModuleList()
 
-        layers = [
+        layers: list[nn.Module] = [
             nn.Sequential(
                 nn.Linear(self.embed_dims, feedforward_channels),
                 nn.ReLU(inplace=True),

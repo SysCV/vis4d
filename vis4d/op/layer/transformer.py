@@ -173,7 +173,7 @@ class FFN(nn.Module):
 
     def __init__(
         self,
-        layers: nn.Modele,
+        layers: nn.Module,
         embed_dims: int = 256,
         dropout_layer: nn.Module = nn.Identity(),
         add_identity: bool = True,
@@ -194,16 +194,14 @@ class FFN(nn.Module):
         """
         super().__init__()
         self.layers = layers
-
         self.dropout_layer = dropout_layer
         self.add_identity = add_identity
+        self.layer_scale_init_value = layer_scale_init_value
 
-        if layer_scale_init_value > 0:
+        if self.layer_scale_init_value > 0:
             self.gamma2 = LayerScale(
-                embed_dims, init_values=layer_scale_init_value
+                embed_dims, init_values=self.layer_scale_init_value
             )
-        else:
-            self.gamma2 = nn.Identity()
 
     def forward(self, x: Tensor, identity: Tensor | None = None) -> None:
         """Forward function for FFN.
@@ -211,7 +209,9 @@ class FFN(nn.Module):
         The function would add x to the output tensor if residue is None.
         """
         out = self.layers(x)
-        out = self.gamma2(out)
+
+        if self.layer_scale_init_value > 0:
+            out = self.gamma2(out)
 
         if self.add_identity:
             identity = x if identity is None else identity

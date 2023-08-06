@@ -70,7 +70,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
         return [*x[: self.start_index], *outs.values()]  # type: ignore
 
 
-class ExtraFPNBlock(_ExtraFPNBlock):
+class ExtraFPNBlock(_ExtraFPNBlock):  # type: ignore
     """Extra block in the FPN.
 
     This is a wrapper of the torchvision implementation.

@@ -432,7 +432,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 )
 
                 # obtain sweeps for a single key-frame
-                sweeps = []
+                sweeps: list[DictStrAny] = []
                 while len(sweeps) < self.max_sweeps:
                     if sd_rec["prev"] != "":
                         sweep = self._load_lidar_data(data, sd_rec["prev"])

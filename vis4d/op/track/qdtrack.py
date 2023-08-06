@@ -396,7 +396,8 @@ class QDSimilarityHead(nn.Module):
 
         # Used feature layers are [start_level, end_level)
         self.start_level = start_level
-        self.end_level = start_level + len(self.roi_pooler.scales)
+        num_strides = len(self.roi_pooler.scales)  # type: ignore
+        self.end_level = start_level + num_strides
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
         self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)

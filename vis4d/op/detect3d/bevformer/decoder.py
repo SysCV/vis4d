@@ -51,8 +51,8 @@ class BEVFormerDecoder(nn.Module):
         spatial_shapes: Tensor,
         level_start_index: Tensor,
         query_pos: Tensor,
-        reg_branches: nn.Module,
-    ) -> Tensor:
+        reg_branches: list[nn.Module],
+    ) -> tuple[Tensor, Tensor]:
         """Forward function.
 
         Args:
@@ -64,13 +64,13 @@ class BEVFormerDecoder(nn.Module):
             spatial_shapes (Tensor): The spatial shapes of feature maps.
             level_start_index (Tensor): The start index of each level.
             query_pos (Tensor): The query position embedding.
-            reg_branches: (nn.Module): Used for refining the regression
+            reg_branches: (list[nn.Module]): Used for refining the regression
                 results.
 
         Returns:
-            Tensor: Results with shape [1, num_query, bs, embed_dims] when
-                return_intermediate is `False`, otherwise it has shape
-                [num_layers, num_query, bs, embed_dims].
+            tuple[Tensor, Tensor]: The output of the decoder with reference
+                points. If return_intermediate is True, the output and
+                reference points of each layer will be stacked and return.
         """
         output = query
         intermediate = []
@@ -151,7 +151,7 @@ class BEVFormerDecoderLayer(nn.Module):
 
         self.ffns = nn.ModuleList()
 
-        layers = [
+        layers: list[nn.Module] = [
             nn.Sequential(
                 nn.Linear(self.embed_dims, feedforward_channels),
                 nn.ReLU(inplace=True),

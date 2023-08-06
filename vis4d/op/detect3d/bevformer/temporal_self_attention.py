@@ -159,6 +159,7 @@ class TemporalSelfAttention(nn.Module):
 
         query = torch.cat([value[:bs], query], -1)
         value = self.value_proj(value)
+        assert isinstance(value, Tensor)
 
         if key_padding_mask is not None:
             value = value.masked_fill(key_padding_mask[..., None], 0.0)

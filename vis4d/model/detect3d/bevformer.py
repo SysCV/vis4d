@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+from typing import TypedDict
 
 import torch
 from torch import Tensor, nn
@@ -20,6 +21,15 @@ REV_KEYS = [
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
+
+
+class PrevFrameInfo(TypedDict):
+    """Previous frame information."""
+
+    scene_name: str
+    prev_bev: Tensor | None
+    prev_pos: Tensor
+    prev_angle: Tensor
 
 
 class BEVFormer(nn.Module):
@@ -50,12 +60,12 @@ class BEVFormer(nn.Module):
         self.pts_bbox_head = bevformer_head or BEVFormerHead()
 
         # Temporal information
-        self.prev_frame_info = {
-            "scene_name": None,
-            "prev_bev": None,
-            "prev_pos": 0,
-            "prev_angle": 0,
-        }
+        self.prev_frame_info = PrevFrameInfo(
+            scene_name="",
+            prev_bev=None,
+            prev_pos=torch.zeros(3),
+            prev_angle=torch.zeros(1),
+        )
 
         load_model_checkpoint(
             self,
@@ -63,15 +73,16 @@ class BEVFormer(nn.Module):
             rev_keys=REV_KEYS,
         )
 
-    def extract_feat(self, images: list[Tensor]) -> list[Tensor]:
+    def extract_feat(self, images_list: list[Tensor]) -> list[Tensor]:
         """Extract features of images."""
-        n = len(images)  # N
-        b = images[0].shape[0]  # B
-        images = torch.stack(images, dim=1)  # [B, N, C, H, W]
+        n = len(images_list)  # N
+        b = images_list[0].shape[0]  # B
+        images = torch.stack(images_list, dim=1)  # [B, N, C, H, W]
         images = images.view(-1, *images.shape[2:])  # [B*N, C, H, W]
 
         # grid mask
-        images = self.grid_mask(images)
+        if self.training:
+            images = self.grid_mask(images)
 
         features = self.basemodel(images)
         features = self.fpn(features)[self.fpn.start_index :]
@@ -88,7 +99,7 @@ class BEVFormer(nn.Module):
         images: list[Tensor],
         images_hw: list[list[tuple[int, int]]],
         can_bus: list[list[float]],
-        scene_names: list[list[str]],
+        scene_names: list[str],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: list[Tensor],
@@ -117,7 +128,7 @@ class BEVFormer(nn.Module):
             can_bus_tensor[0][:3] = 0
             can_bus_tensor[0][-1] = 0
 
-        img_feats = self.extract_feat(images=images)
+        img_feats = self.extract_feat(images)
 
         out, bev_embed = self.pts_bbox_head(
             img_feats,

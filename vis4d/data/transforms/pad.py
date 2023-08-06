@@ -67,7 +67,7 @@ class PadImages:
             images[i] = image_.permute(0, 2, 3, 1).numpy()
 
             if self.update_shape:
-                inputs_hw[i] = images[i].shape[1:3]
+                inputs_hw[i] = images[i].shape[1:3]  # type: ignore
 
         return images, inputs_hw
 

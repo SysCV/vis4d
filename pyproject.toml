@@ -93,7 +93,8 @@ plugins = ["numpy.typing.mypy_plugin"]
         "detectron2.*",
         "absl.*",
         "terminaltables.*",
-        "timm.*"
+        "timm.*",
+        "vis4d_cuda_ops.*",
     ]
     ignore_missing_imports = true
 

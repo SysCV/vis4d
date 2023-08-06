@@ -47,7 +47,7 @@ class SpatialCrossAttention(nn.Module):
         self.output_proj = nn.Linear(embed_dims, embed_dims)
         self.init_weight()
 
-    def init_weight(self):
+    def init_weight(self) -> None:
         """Default initialization for Parameters of Module."""
         xavier_init(self.output_proj, distribution="uniform", bias=0.0)
 
@@ -240,7 +240,7 @@ class MSDeformableAttention3D(nn.Module):
         reference_points: Tensor,
         value: Tensor,
         spatial_shapes: Tensor,
-        level_start_index=Tensor,
+        level_start_index: Tensor,
         key_padding_mask: Tensor | None = None,
         query_pos: Tensor | None = None,
     ) -> Tensor:

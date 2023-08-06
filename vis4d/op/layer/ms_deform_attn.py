@@ -22,15 +22,15 @@ class MSDeformAttentionFunction(Function):
     """Multi-Scale Deformable Attention Function module."""
 
     @staticmethod
-    def forward(
+    def forward(  # type: ignore
         ctx,
-        value,
-        value_spatial_shapes,
-        value_level_start_index,
-        sampling_locations,
-        attention_weights,
-        im2col_step,
-    ):
+        value: Tensor,
+        value_spatial_shapes: Tensor,
+        value_level_start_index: Tensor,
+        sampling_locations: Tensor,
+        attention_weights: Tensor,
+        im2col_step: int,
+    ) -> Tensor:
         """Forward pass."""
         ctx.im2col_step = im2col_step
         output = ms_deform_attn_forward(
@@ -51,8 +51,10 @@ class MSDeformAttentionFunction(Function):
         return output
 
     @staticmethod
-    @once_differentiable
-    def backward(ctx, grad_output):
+    @once_differentiable  # type: ignore
+    def backward(
+        ctx, grad_output: Tensor
+    ) -> tuple[Tensor, None, None, Tensor, Tensor, None]:
         """Backward pass."""
         (
             value,

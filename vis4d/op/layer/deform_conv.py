@@ -8,7 +8,7 @@ from torchvision.ops import DeformConv2d
 from .weight_init import constant_init
 
 
-class DeformConv(DeformConv2d):
+class DeformConv(DeformConv2d):  # type: ignore
     """Wrapper around Deformable Convolution operator with norm/activation.
 
     If norm is specified, it is initialized with 1.0 and bias with 0.0.
@@ -72,7 +72,7 @@ class DeformConv(DeformConv2d):
     def init_weights(self) -> None:
         """Initialize weights of offset conv layer."""
         self.conv_offset.weight.data.zero_()
-        self.conv_offset.bias.data.zero_()
+        self.conv_offset.bias.data.zero_()  # type: ignore
         if self.norm is not None:
             constant_init(self.norm, 1.0, bias=0.0)
 

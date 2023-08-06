@@ -47,7 +47,7 @@ def bev_3d_nms(
     )
 
 
-@torch.jit.script_if_tracing
+@torch.jit.script_if_tracing  # type: ignore
 def batched_nms_rotated(
     boxes: Tensor,
     scores: Tensor,

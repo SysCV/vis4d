@@ -25,14 +25,14 @@ from .transformer import PerceptionTransformer
 
 
 def bbox3d2result(
-    bbox_list: list[tuple[Tensor, Tensor, Tensor]], lidar2global: list[Tensor]
+    bbox_list: list[tuple[Tensor, Tensor, Tensor]], lidar2global: Tensor
 ) -> Detect3DOut:
     """Convert BEVFormer detection results to Detect3DOut.
 
     Args:
         bbox_list (list[tuple[Tensor, Tensor, Tensor]): List of bounding boxes,
             scores and labels.
-        lidar2global (list[Tensor]): Lidar to global transformation (B, 4, 4).
+        lidar2global (Tensor): Lidar to global transformation (B, 4, 4).
 
     Returns:
         Detect3DOut: Detection results.
@@ -140,7 +140,7 @@ class BEVFormerHead(nn.Module):
 
     def _init_layers(self) -> None:
         """Initialize classification branch and regression branch of head."""
-        cls_branch = []
+        cls_branch: list[nn.Module] = []
         for _ in range(self.num_reg_fcs):
             cls_branch.append(nn.Linear(self.embed_dims, self.embed_dims))
             cls_branch.append(nn.LayerNorm(self.embed_dims))
@@ -148,7 +148,7 @@ class BEVFormerHead(nn.Module):
         cls_branch.append(nn.Linear(self.embed_dims, self.cls_out_channels))
         fc_cls = nn.Sequential(*cls_branch)
 
-        reg_branch = []
+        reg_branch: list[nn.Module] = []
         for _ in range(self.num_reg_fcs):
             reg_branch.append(nn.Linear(self.embed_dims, self.embed_dims))
             reg_branch.append(nn.ReLU())
@@ -180,7 +180,7 @@ class BEVFormerHead(nn.Module):
         images_hw: list[list[tuple[int, int]]],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
-        lidar_extrinsics: list[Tensor],
+        lidar_extrinsics: Tensor,
         prev_bev: Tensor | None = None,
     ) -> tuple[Detect3DOut, Tensor]:
         """Forward function.
@@ -277,7 +277,7 @@ class BEVFormerHead(nn.Module):
         images_hw: list[list[tuple[int, int]]],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
-        lidar_extrinsics: list[Tensor],
+        lidar_extrinsics: Tensor,
         prev_bev: Tensor | None = None,
     ) -> tuple[Detect3DOut, Tensor]:
         """Type definition."""
