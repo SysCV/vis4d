@@ -156,7 +156,7 @@ class QD3DTBBox3DHead(nn.Module):
 
         # Used feature layers are [start_level, end_level)
         self.start_level = start_level
-        num_strides = len(self.roi_pooler.scales)  # type: ignore
+        num_strides = len(self.proposal_pooler.scales)  # type: ignore
         self.end_level = start_level + num_strides
 
         # add shared convs and fcs

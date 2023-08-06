@@ -260,7 +260,7 @@ class ResNet(BaseModel):
         avg_down: bool = False,
         trainable_layers: int = 5,
         norm_layer: NormLayerType | None = None,
-        norm_eval: bool = True,
+        norm_freezed: bool = True,
         stages_with_dcn: Sequence[bool] = (False, False, False, False),
         replace_stride_with_dilation: Sequence[bool] = (False, False, False),
         with_cp: bool = False,
@@ -295,9 +295,9 @@ class ResNet(BaseModel):
                 to 5.
             norm_layer (Callable[..., nn.Module] | None): Normalization layer.
                 Default: None, which means using `nn.BatchNorm2d`.
-            norm_eval (bool): Whether to set norm layers to eval mode, namely,
-                freeze running stats (mean and var). Note: Effect on Batch Norm
-                and its variants only.
+            norm_freezed (bool): Whether to set norm layers to eval mode,
+                namely, freeze running stats (mean and var). Note: Effect on
+                Batch Norm and its variants only.
             stages_with_dcn (Sequence[bool]): Indices of stages with deformable
                 convolutions. Default: (False, False, False, False).
             replace_stride_with_dilation (Sequence[bool]): Whether to replace
@@ -322,10 +322,10 @@ class ResNet(BaseModel):
             raise KeyError(f"invalid architecture {resnet_name} for ResNet")
         self.name = resnet_name
         self.deep_stem = deep_stem
-        self.traniable_layers = trainable_layers
+        self.trainable_layers = trainable_layers
 
         self.with_cp = with_cp
-        self.norm_eval = norm_eval
+        self.norm_freezed = norm_freezed
 
         depth, self.block, stage_blocks = self.arch_settings[resnet_name]
         assert isinstance(depth, int)
@@ -450,7 +450,7 @@ class ResNet(BaseModel):
 
     def _freeze_stages(self) -> None:
         """Freeze stages param and norm stats."""
-        if self.traniable_layers < 5:
+        if self.trainable_layers < 5:
             if self.deep_stem:
                 self.stem.eval()
                 for param in self.stem.parameters():
@@ -461,7 +461,7 @@ class ResNet(BaseModel):
                     for param in m.parameters():
                         param.requires_grad = False
 
-            for i in range(1, 5 - self.traniable_layers):
+            for i in range(1, 5 - self.trainable_layers):
                 m = getattr(self, f"layer{i}")
                 m.eval()
                 for param in m.parameters():
@@ -472,7 +472,7 @@ class ResNet(BaseModel):
         super().train(mode)
         self._freeze_stages()
 
-        if mode and self.norm_eval:
+        if mode and self.norm_freezed:
             for m in self.modules():
                 # trick: eval have effect on BatchNorm only
                 if isinstance(m, _BatchNorm):
@@ -650,7 +650,11 @@ class ResNetV1c(ResNet):
     }
 
     def __init__(
-        self, resnet_name: str, pretrained: bool = False, **kwargs: ArgsType
+        self,
+        resnet_name: str,
+        pretrained: bool = False,
+        weights: str | None = None,
+        **kwargs: ArgsType,
     ):
         """Initialize ResNetV1c.
 
@@ -658,6 +662,7 @@ class ResNetV1c(ResNet):
             resnet_name (str): Name of the resnet model.
             pretrained (bool, optional): Whether to load ImageNet pre-trained
                 weights. Defaults to False.
+            weights (str, optional): Path to custom pretrained weights.
             **kwargs: Arguments for ResNet.
         """
         assert resnet_name in {
@@ -666,7 +671,7 @@ class ResNetV1c(ResNet):
             "resnet50_v1c",
             "resnet101_v1c",
         }
-        if pretrained:
+        if pretrained and weights is None:
             assert resnet_name in {
                 "resnet50_v1c",
                 "resnet101_v1c",
