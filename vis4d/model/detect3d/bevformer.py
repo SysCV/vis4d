@@ -1,4 +1,8 @@
-"""BEVFromer."""
+"""BEVFromer model implementation.
+
+This file composes the operations associated with BEVFormer
+`https://arxiv.org/abs/2203.17270` into the full model implementation.
+"""
 from __future__ import annotations
 
 import copy
@@ -33,7 +37,7 @@ class PrevFrameInfo(TypedDict):
 
 
 class BEVFormer(nn.Module):
-    """BEVFomer."""
+    """BEVFormer 3D Detector."""
 
     def __init__(
         self,
@@ -42,7 +46,17 @@ class BEVFormer(nn.Module):
         pts_bbox_head: BEVFormerHead | None = None,
         weights: str | None = None,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class.
+
+        Args:
+            basemodel (BaseModel): Base model network.
+            fpn (FPN, optional): Feature Pyramid Network. Defaults to None. If
+                None, a default FPN will be used.
+            pts_bbox_head (BEVFormerHead, optional): BEVFormer head. Defaults
+                to None. If None, a default BEVFormer head will be used.
+            weights (str, optional): Path to the checkpoint to load. Defaults
+                to None.
+        """
         super().__init__()
         self.basemodel = basemodel
         self.fpn = fpn or FPN(
