@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import os
 import pickle
 from collections.abc import Callable, Sequence
@@ -12,6 +13,8 @@ from typing import Any
 import numpy as np
 import plyfile
 from PIL import Image, ImageOps
+from tabulate import tabulate
+from termcolor import colored
 from torch.utils.data import Dataset
 
 from vis4d.common.distributed import broadcast, rank_zero_only
@@ -221,7 +224,7 @@ class CacheMappingMixin:
         filter_func: Callable[[ListAny], ListAny] = lambda x: x,
         cache_as_binary: bool = False,
         cached_file_path: str | None = None,
-    ) -> DatasetFromList:
+    ) -> tuple[DatasetFromList, int]:
         """Load cached mapping or generate if not exists.
 
         Args:
@@ -238,12 +241,15 @@ class CacheMappingMixin:
         dataset = self._load_mapping_data(
             generate_map_func, cache_as_binary, cached_file_path
         )
+        original_len = 0
         if dataset is not None:
+            original_len = len(dataset)
             dataset = filter_func(dataset)
             dataset = DatasetFromList(dataset)
         dataset = broadcast(dataset)
+        original_len = broadcast(original_len)
         rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
-        return dataset
+        return dataset, original_len
 
 
 # reference:
@@ -305,3 +311,47 @@ class DatasetFromList(Dataset):  # type: ignore
             return copy.deepcopy(self._lst[idx])
 
         return self._lst[idx]  # pragma: no cover
+
+
+def print_class_histogram(class_frequencies: dict[str, int]) -> None:
+    """Prints out given class frequencies."""
+    if len(class_frequencies) == 0:  # pragma: no cover
+        return
+
+    class_names = list(class_frequencies.keys())
+    frequencies = list(class_frequencies.values())
+    num_classes = len(class_names)
+
+    n_cols = min(6, len(class_names) * 2)
+
+    def short_name(name: str) -> str:
+        """Make long class names shorter."""
+        if len(name) > 13:
+            return name[:11] + ".."  # pragma: no cover
+        return name
+
+    data = list(
+        itertools.chain(
+            *[
+                [short_name(class_names[i]), int(v)]
+                for i, v in enumerate(frequencies)
+            ]
+        )
+    )
+    total_num_instances = sum(data[1::2])  # type: ignore
+    data.extend([None] * (n_cols - (len(data) % n_cols)))
+    if num_classes > 1:
+        data.extend(["total", total_num_instances])
+
+    table = tabulate(
+        itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)]),
+        headers=["category", "#instances"] * (n_cols // 2),
+        tablefmt="pipe",
+        numalign="left",
+        stralign="center",
+    )
+
+    rank_zero_info(
+        f"Distribution of instances among all {num_classes} categories:\n"
+        + colored(table, "cyan")
+    )

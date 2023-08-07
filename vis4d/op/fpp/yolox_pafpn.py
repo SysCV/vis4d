@@ -111,7 +111,7 @@ class YOLOXPAFPN(FeaturePyramidProcessing):
     def _init_weights(self) -> None:
         """Initialize weights."""
         for m in self.modules():
-            if isinstance(m, Conv2d):
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_uniform_(
                     m.weight,
                     a=math.sqrt(5),

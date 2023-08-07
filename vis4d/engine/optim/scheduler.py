@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from torch.optim.optimizer import Optimizer
 
 from vis4d.common.typing import DictStrAny
 from vis4d.config import instantiate_classes
@@ -41,7 +41,7 @@ class LRSchedulerWrapper(LRScheduler):
         """Instantiate LR schedulers."""
         # OneCycleLR needs max_lr to be set
         if "max_lr" in lr_scheduler_cfg["scheduler"]["init_args"]:
-            lr_scheduler_cfg["init_args"]["max_lrs"] = [
+            lr_scheduler_cfg["scheduler"]["init_args"]["max_lr"] = [
                 pg["lr"] for pg in self.optimizer.param_groups
             ]
 
@@ -115,17 +115,67 @@ class LRSchedulerWrapper(LRScheduler):
                 self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
 
+class ConstantLR(LRScheduler):
+    """Constant learning rate scheduler.
+
+    Args:
+        optimizer (Optimizer): Wrapped optimizer.
+        max_steps (int): Maximum number of steps.
+        factor (float): Scale factor. Default: 1.0 / 3.0.
+        last_epoch (int): The index of last epoch. Default: -1.
+        verbose (bool): If ``True``, prints a message to stdout for each
+            update. Default: ``False``.
+    """
+
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        max_steps: int,
+        factor: float = 1.0 / 3.0,
+        last_epoch: int = -1,
+        verbose: bool = False,
+    ):
+        """Initialize ConstantLR."""
+        self.max_steps = max_steps
+        self.factor = factor
+        super().__init__(optimizer, last_epoch, verbose)
+
+    def get_lr(self) -> list[float]:  # type: ignore
+        """Compute current learning rate."""
+        step_count = self._step_count - 1  # type: ignore
+        if step_count == 0:
+            return [
+                group["lr"] * self.factor
+                for group in self.optimizer.param_groups
+            ]
+        if step_count == self.max_steps:
+            return [
+                group["lr"] * (1.0 / self.factor)
+                for group in self.optimizer.param_groups
+            ]
+        return [group["lr"] for group in self.optimizer.param_groups]
+
+
 class PolyLR(LRScheduler):
     """Polynomial learning rate decay.
 
     Example:
-        Assuming lr = 0.001, max_steps = 4, and min_lr = 0.0, the learning rate
-        will be:
+        Assuming lr = 0.001, max_steps = 4, min_lr = 0.0, and power = 1.0, the
+        learning rate will be:
         lr = 0.001     if step == 0
         lr = 0.00075   if step == 1
         lr = 0.00050   if step == 2
         lr = 0.00025   if step == 3
         lr = 0.0       if step >= 4
+
+    Args:
+        optimizer (Optimizer): Wrapped optimizer.
+        max_steps (int): Maximum number of steps.
+        power (float, optional): Power factor. Default: 1.0.
+        min_lr (float): Minimum learning rate. Default: 0.0.
+        last_epoch (int): The index of last epoch. Default: -1.
+        verbose (bool): If ``True``, prints a message to stdout for each
+            update. Default: ``False``.
     """
 
     def __init__(
@@ -145,11 +195,53 @@ class PolyLR(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count  # type: ignore
-        if step_count > self.max_steps:
-            return [self.min_lr for _ in self.base_lrs]
-        coeff = (1 - (step_count - 1) / self.max_steps) ** self.power
+        step_count = self._step_count - 1  # type: ignore
+        if step_count == 0 or step_count > self.max_steps:
+            return [group["lr"] for group in self.optimizer.param_groups]
+        decay_factor = (
+            (1.0 - step_count / self.max_steps)
+            / (1.0 - (step_count - 1) / self.max_steps)
+        ) ** self.power
         return [
-            (base_lr - self.min_lr) * coeff + self.min_lr
+            (group["lr"] - self.min_lr) * decay_factor + self.min_lr
+            for group in self.optimizer.param_groups
+        ]
+
+
+class QuadraticLRWarmup(LRScheduler):
+    """Quadratic learning rate warmup.
+
+    Args:
+        optimizer (Optimizer): Wrapped optimizer.
+        max_steps (int): Maximum number of steps.
+        last_epoch (int): The index of last epoch. Default: -1.
+        verbose (bool): If ``True``, prints a message to stdout for each
+            update. Default: ``False``.
+    """
+
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        max_steps: int,
+        last_epoch: int = -1,
+        verbose: bool = False,
+    ):
+        """Initialize QuadraticLRWarmup."""
+        self.max_steps = max_steps
+        super().__init__(optimizer, last_epoch, verbose)
+
+    def get_lr(self) -> list[float]:  # type: ignore
+        """Compute current learning rate."""
+        step_count = self._step_count - 1  # type: ignore
+        if step_count >= self.max_steps:
+            return self.base_lrs
+        factors = [
+            base_lr * (2 * step_count + 1) / self.max_steps**2
             for base_lr in self.base_lrs
+        ]
+        if step_count == 0:
+            return factors
+        return [
+            group["lr"] + factor
+            for factor, group in zip(factors, self.optimizer.param_groups)
         ]

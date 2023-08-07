@@ -7,6 +7,7 @@ import lightning.pytorch as pl
 from torch import nn
 
 from vis4d.engine.callbacks import Callback, TrainerState
+from vis4d.engine.loss_module import LossModule
 from vis4d.pl.training_module import TrainingModule
 
 
@@ -49,6 +50,8 @@ def get_trainer_state(
         num_train_batches=num_train_batches,
         test_dataloader=test_dataloader,
         num_test_batches=num_test_batches,
+        train_module=trainer,
+        train_engine="pl",
     )
 
 
@@ -57,6 +60,14 @@ def get_model(model: pl.LightningModule) -> nn.Module:
     if isinstance(model, TrainingModule):
         return model.model
     return model
+
+
+def get_loss_module(loss_module: pl.LightningModule) -> LossModule:
+    """Get loss_module from pl module."""
+    if isinstance(loss_module, TrainingModule):
+        assert loss_module.loss_module is not None
+        return loss_module.loss_module
+    return loss_module  # type: ignore
 
 
 class CallbackWrapper(pl.Callback):
@@ -85,6 +96,7 @@ class CallbackWrapper(pl.Callback):
         self.callback.on_train_batch_start(
             trainer_state=trainer_state,
             model=get_model(pl_module),
+            loss_module=get_loss_module(pl_module),
             batch=batch,
             batch_idx=batch_idx,
         )
@@ -94,7 +106,9 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Hook to run at the start of a training epoch."""
         self.callback.on_train_epoch_start(
-            get_trainer_state(trainer, pl_module), get_model(pl_module)
+            get_trainer_state(trainer, pl_module),
+            get_model(pl_module),
+            get_loss_module(pl_module),
         )
 
     def on_train_batch_end(  # type: ignore
@@ -112,6 +126,7 @@ class CallbackWrapper(pl.Callback):
         log_dict = self.callback.on_train_batch_end(
             trainer_state=trainer_state,
             model=get_model(pl_module),
+            loss_module=get_loss_module(pl_module),
             outputs=outputs["predictions"],
             batch=batch,
             batch_idx=batch_idx,
@@ -126,7 +141,9 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Hook to run at the end of a training epoch."""
         self.callback.on_train_epoch_end(
-            get_trainer_state(trainer, pl_module), get_model(pl_module)
+            get_trainer_state(trainer, pl_module),
+            get_model(pl_module),
+            get_loss_module(pl_module),
         )
 
     def on_validation_epoch_start(

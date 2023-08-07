@@ -19,11 +19,22 @@ from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.post_process import PostProcessBoxes2D
 from vis4d.data.transforms.resize import (
-    GenerateResizeParameters,
+    GenResizeParameters,
     ResizeBoxes2D,
     ResizeImages,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.engine.connectors import data_key, pred_key
+
+CONN_BDD100K_TRACK_EVAL = {
+    "frame_ids": data_key("frame_ids"),
+    "sample_names": data_key(K.sample_names),
+    "sequence_names": data_key(K.sequence_names),
+    "pred_boxes": pred_key("boxes"),
+    "pred_classes": pred_key("class_ids"),
+    "pred_scores": pred_key("scores"),
+    "pred_track_ids": pred_key("track_ids"),
+}
 
 
 def get_train_dataloader(
@@ -77,7 +88,7 @@ def get_train_dataloader(
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(720, 1280),
             keep_ratio=True,
         ),
@@ -138,14 +149,13 @@ def get_test_dataloader(
 
     preprocess_transforms = [
         class_config(
-            GenerateResizeParameters,
+            GenResizeParameters,
             shape=(720, 1280),
             keep_ratio=True,
         ),
         class_config(ResizeImages),
+        class_config(NormalizeImages),
     ]
-
-    preprocess_transforms.append(class_config(NormalizeImages))
 
     test_preprocess_cfg = class_config(
         compose,

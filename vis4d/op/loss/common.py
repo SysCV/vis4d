@@ -1,31 +1,32 @@
 """Common loss functions."""
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 
 from vis4d.op.loss.reducer import LossReducer, identity_loss
 
 
 def smooth_l1_loss(
-    pred: torch.Tensor,
-    target: torch.Tensor,
+    pred: Tensor,
+    target: Tensor,
     reducer: LossReducer = identity_loss,
     beta: float = 1.0,
-) -> torch.Tensor:
+) -> Tensor:
     """Smooth L1 loss.
 
     L1 loss that uses a squared term if the absolute element-wise error
     falls below beta.
 
     Args:
-        pred (torch.Tensor): Model predictions
-        target (torch.Tensor): Ground truth value
+        pred (Tensor): Model predictions
+        target (Tensor): Ground truth value
         reducer (LossReducer): Reducer to reduce the loss value. Defaults to
             identy_loss, which is no reduction.
         beta (float): Specifies the threshold at which to change between L1
             and L2 loss. The value must be non-negative. Default: 1.0
 
     Returns:
-        torch.Tensor : The reduced smooth l1 loss:
+        Tensor : The reduced smooth l1 loss:
             |pred - target| - 0.5*beta if |pred - target| < 0.5*beta
             (pred - target)^2 * 0.5/beta else
     """
@@ -39,20 +40,18 @@ def smooth_l1_loss(
 
 
 def l1_loss(
-    pred: torch.Tensor,
-    target: torch.Tensor,
-    reducer: LossReducer = identity_loss,
-) -> torch.Tensor:
+    pred: Tensor, target: Tensor, reducer: LossReducer = identity_loss
+) -> Tensor:
     """L1 loss.
 
     Args:
-        pred (torch.Tensor): Model predictions
-        target (torch.Tensor): Ground truth value
+        pred (Tensor): Model predictions
+        target (Tensor): Ground truth value
         reducer (LossReducer): Reducer to reduce the loss value. Defaults to
             identy_loss, which is no reduction.
 
     Returns:
-        torch.Tensor : The reduced L1 loss (reduce(|pred - target|))
+        Tensor : The reduced L1 loss (reduce(|pred - target|))
     """
     assert pred.size() == target.size() and target.numel() > 0
     loss = torch.abs(pred - target)
@@ -60,20 +59,18 @@ def l1_loss(
 
 
 def l2_loss(
-    pred: torch.Tensor,
-    target: torch.Tensor,
-    reducer: LossReducer = identity_loss,
-) -> torch.Tensor:
+    pred: Tensor, target: Tensor, reducer: LossReducer = identity_loss
+) -> Tensor:
     """L2 loss.
 
     Args:
-        pred (torch.Tensor): Model predictions
-        target (torch.Tensor): Ground truth value
+        pred (Tensor): Model predictions
+        target (Tensor): Ground truth value
         reducer (LossReducer): Reducer to reduce the loss value. Defaults to
             identy_loss, which is no reduction.
 
     Returns:
-        torch.Tensor : The reduced L2 loss (reduce((pred - target)**2))
+        Tensor : The reduced L2 loss (reduce((pred - target)**2))
     """
     assert pred.size() == target.size() and target.numel() > 0
     loss = (pred - target) ** 2
@@ -81,27 +78,27 @@ def l2_loss(
 
 
 def rotation_loss(
-    pred: torch.Tensor,
-    target_bin: torch.Tensor,
-    target_res: torch.Tensor,
+    pred: Tensor,
+    target_bin: Tensor,
+    target_res: Tensor,
     num_bins: int,
     reducer: LossReducer = identity_loss,
-) -> torch.Tensor:
+) -> Tensor:
     """Rotation loss.
 
     Consists of bin-based classification loss and residual-based regression
     loss.
 
     Args:
-        pred (torch.Tensor): Prediction shape [B, num_bins * 3]
-        target_bin (torch.Tensor): Target bins shape [B, num_bin]
-        target_res (torch.Tensor): Target residual shape [B, num_bin]
+        pred (Tensor): Prediction shape [B, num_bins * 3]
+        target_bin (Tensor): Target bins shape [B, num_bin]
+        target_res (Tensor): Target residual shape [B, num_bin]
         num_bins (int): Number of bins
         reducer (LossReducer, optional): Loss Reducer.
             Defaults to identity_loss.
 
     Returns:
-        torch.Tensor: The reduced loss value
+        Tensor: The reduced loss value
     """
     loss_bins = (
         F.binary_cross_entropy_with_logits(

@@ -44,16 +44,15 @@ def get_default_cfg(
         path_component = "/"
 
     config.output_dir = (
-        config.get_ref("work_dir")
+        config.work_dir
         + path_component
-        + config.get_ref("experiment_name")
+        + config.experiment_name
         + path_component
-        + config.get_ref("version")
+        + config.version
     )
 
     # Set default value for the following fields
     config.seed = -1
-    config.use_ema = True
     config.log_every_n_steps = 50
     config.use_tf32 = False
     config.benchmark = False

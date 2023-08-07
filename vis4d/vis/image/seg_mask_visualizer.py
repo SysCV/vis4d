@@ -45,7 +45,7 @@ class SegMaskVisualizer(Visualizer):
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
         file_type: str = "png",
-        image_mode: str = "RGB",
+        color_palette: list[tuple[int, int, int]] | None = None,
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
         **kwargs: ArgsType,
@@ -53,23 +53,27 @@ class SegMaskVisualizer(Visualizer):
         """Creates a new Visualizer for Image and Bounding Boxes.
 
         Args:
-            n_colors (int): How many colors should be used for the internal
-                            color map
+            n_colors (int): How many colors should be used for the color map.
             class_id_mapping (dict[int, str]): Mapping from class id to
-                                                      human readable name
+                human readable name.
             file_type (str): Desired file type
-            image_mode (str): Image channel mode (RGB or BGR)
+            color_palette (list[tuple[int, int, int]]): Color palette for each
+                class, in RGB format (0-255). If None, a random color palette
+                with n_colors is generated automatically. Defaults to None.
             canvas (CanvasBackend): Backend that is used to draw on images
             viewer (ImageViewerBackend): Backend that is used show images
         """
         super().__init__(*args, **kwargs)
         self._samples: list[ImageWithSegMask] = []
-        self.color_palette = generate_color_map(n_colors)
+        self.color_palette = (
+            generate_color_map(n_colors)
+            if color_palette is None
+            else color_palette
+        )
         self.class_id_mapping = (
             class_id_mapping if class_id_mapping is not None else {}
         )
         self.file_type = file_type
-        self.image_mode = image_mode
         self.canvas = canvas
         self.viewer = viewer
 
@@ -87,7 +91,7 @@ class SegMaskVisualizer(Visualizer):
 
         Args:
             data_sample (ImageWithSegMask): Data sample to add mask to.
-            masks (ArrayLikeUInt): Binary masks shape [N, H, W].
+            masks (ArrayLikeUInt): Binary masks shape [N, H, W] or [H, W].
             class_ids (NDArrayInt, optional): Class ids for each mask, with
                 shape [N]. Defaults to None.
         """
@@ -130,9 +134,15 @@ class SegMaskVisualizer(Visualizer):
             images (list[ArrayLikeFloat]): Images to show.
             image_names (list[str]): Image names.
             masks (list[ArrayLikeUInt]): Segmentation masks to show, each
-                with shape [H, W] or [N, H, W].
+                with shape [H, W] or [N, H, W]. If the shape is [H, W], the
+                mask is assumed to be a semantic segmentation mask with each
+                pixel being the class id. If the shape is [N, H, W], each mask
+                is assumed to be a binary mask with each pixel being either 0
+                or 1.
             class_ids (list[ArrayLikeInt], optional): Class ids for each mask,
-                with shape [N]. Defaults to None.
+                with shape [N]. If set, the masks are assumed to be binary
+                masks and the length of class_ids must match the amount of
+                masks. Defaults to None.
         """
         if not self._run_on_batch(cur_iter):
             return
@@ -158,9 +168,9 @@ class SegMaskVisualizer(Visualizer):
             image (ArrayLikeFloat): Images to show.
             image_name (str): Name of the image.
             masks (ArrayLikeUInt): Binary masks to show, each with shape
-                [N, H, W].
-            class_ids (ArrayLikeInt, optional): Binary masks to show
-                each mask of shape [H, W]. Defaults to None.
+                [N, H, W] or [H, W].
+            class_ids (ArrayLikeInt, optional): Class ids for each mask, with
+                shape [N]. Defaults to None.
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
         data_sample = ImageWithSegMask(img_normalized, image_name, [])

@@ -117,7 +117,12 @@ class Transform:
                             if key != "data"
                             else data
                         ]
-                    in_batch.append(key_data)
+                    if any(d is None for d in key_data):
+                        # If any of the data in the batch is None, replace
+                        # the input of the key with None.
+                        in_batch.append(None)
+                    else:
+                        in_batch.append(key_data)
 
                 result = self_(*in_batch)
 
@@ -127,6 +132,8 @@ class Transform:
                     result = [result]
 
                 for key, values in zip(self_.out_keys, result):
+                    if values is None:
+                        continue
                     for data, value in zip(batch, values):
                         if value is not None:
                             set_dict_nested(data, key.split("."), value)
@@ -149,8 +156,8 @@ class Transform:
             elif self_.same_on_batch:
                 input_batch = _transform_fn(input_batch)
             else:
-                for i, data in input_batch:
-                    input_batch[i] = _transform_fn(data)
+                for i, data in enumerate(input_batch):
+                    input_batch[i] = _transform_fn([data])[0]
 
             return input_batch
 

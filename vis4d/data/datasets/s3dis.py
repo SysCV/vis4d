@@ -153,7 +153,7 @@ class S3DIS(CacheMappingMixin, Dataset):
         else:
             raise ValueError("Unknown split: ", self.split)
 
-        self.data = self._load_mapping(
+        self.data, _ = self._load_mapping(
             self._generate_data_mapping,
             cache_as_binary=cache_as_binary,
             cached_file_path=cached_file_path,

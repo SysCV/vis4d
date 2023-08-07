@@ -124,9 +124,63 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     area2 = bbox_area(boxes2)
     inter = bbox_intersection(boxes1, boxes2)
 
+    union = area1[:, None] + area2 - inter
+
+    inter = torch.where(
+        union > 0,
+        inter,
+        torch.zeros(1, dtype=inter.dtype, device=inter.device),
+    )
+
     iou = torch.where(
         inter > 0,
         inter / (area1[:, None] + area2 - inter),
+        torch.zeros(1, dtype=inter.dtype, device=inter.device),
+    )
+    return iou
+
+
+@torch.jit.script  # type: ignore
+def bbox_intersection_aligned(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
+    """Given two lists of boxes both of size N, compute N intersection.
+
+    Args:
+        boxes1: N 2D boxes in format (x1, y1, x2, y2)
+        boxes2: N 2D boxes in format (x1, y1, x2, y2)
+
+    Returns:
+        Tensor: intersection (N).
+    """
+    width_height = torch.min(boxes1[:, 2:], boxes2[:, 2:]) - torch.max(
+        boxes1[:, :2], boxes2[:, :2]
+    )
+    width_height.clamp_(min=0)
+    intersection = width_height.prod(dim=1)
+    return intersection
+
+
+@torch.jit.script  # type: ignore
+def bbox_iou_aligned(
+    boxes1: torch.Tensor, boxes2: torch.Tensor
+) -> torch.Tensor:
+    """Compute IoU between aligned pairs of boxes.
+
+    The number of boxes in both inputs must be the same.
+
+    Args:
+        boxes1: N 2D boxes in format (x1, y1, x2, y2)
+        boxes2: N 2D boxes in format (x1, y1, x2, y2)
+
+    Returns:
+        Tensor: IoU (N).
+    """
+    area1 = bbox_area(boxes1)
+    area2 = bbox_area(boxes2)
+    inter = bbox_intersection_aligned(boxes1, boxes2)
+
+    iou = torch.where(
+        inter > 0,
+        inter / (area1 + area2 - inter),
         torch.zeros(1, dtype=inter.dtype, device=inter.device),
     )
     return iou
@@ -265,6 +319,61 @@ def filter_boxes_by_area(
         if not valid_mask.all():
             return boxes[valid_mask], valid_mask
     return boxes, boxes.new_ones((len(boxes),), dtype=torch.bool)
+
+
+def hbox2corner(boxes: Tensor) -> Tensor:
+    """Convert box coordinates from boxes to corners.
+
+    Boxes are represented as (x1, y1, x2, y2).
+    Corners are represented as ((x1, y1), (x2, y1), (x1, y2), (x2, y2)).
+
+    Args:
+        boxes (Tensor): Horizontal box tensor with shape of (..., 4).
+
+    Returns:
+        Tensor: Corner tensor with shape of (..., 4, 2).
+    """
+    x1, y1, x2, y2 = torch.split(boxes, 1, dim=-1)
+    corners = torch.cat([x1, y1, x2, y1, x1, y2, x2, y2], dim=-1)
+    return corners.reshape(*corners.shape[:-1], 4, 2)
+
+
+def corner2hbox(corners: Tensor) -> Tensor:
+    """Convert box coordinates from corners to boxes.
+
+    Boxes are represented as (x1, y1, x2, y2).
+    Corners are represented as ((x1, y1), (x2, y1), (x1, y2), (x2, y2)).
+
+    Args:
+        corners (Tensor): Corner tensor with shape of (..., 4, 2).
+
+    Returns:
+        Tensor: Horizontal box tensor with shape of (..., 4).
+    """
+    if corners.numel() == 0:
+        return corners.new_zeros((0, 4))
+    min_xy = corners.min(dim=-2)[0]
+    max_xy = corners.max(dim=-2)[0]
+    return torch.cat([min_xy, max_xy], dim=-1)
+
+
+def bbox_project(boxes: Tensor, homography_matrix: Tensor) -> Tensor:
+    """Apply geometric transform to boxes in-place.
+
+    Args:
+        boxes (Tensor): Horizontal box tensor with shape of (..., 4).
+        homography_matrix (Tensor): Shape (3, 3) for geometric transformation.
+    """
+    corners = hbox2corner(boxes)
+    corners = torch.cat(
+        [corners, corners.new_ones(*corners.shape[:-1], 1)], dim=-1
+    )
+    corners_t = torch.transpose(corners, -1, -2)
+    corners_t = torch.matmul(homography_matrix, corners_t)
+    corners = torch.transpose(corners_t, -1, -2)
+    # Convert to homogeneous coordinates by normalization
+    corners = corners[..., :2] / corners[..., 2:3]
+    return corner2hbox(corners)
 
 
 def multiclass_nms(

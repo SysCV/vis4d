@@ -27,6 +27,7 @@ def get_dataloader(
             workers_per_gpu=0,
             batchprocess_fn=compose([ToTensor(sensors=sensors)]),  # type: ignore # pylint: disable=line-too-long
             collate_fn=multi_sensor_collate,
+            sensors=sensors,
         )[0]
 
     return build_inference_dataloaders(

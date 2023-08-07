@@ -133,6 +133,78 @@ class FlipSegMasks:
         return masks
 
 
+@Transform(K.depth_maps, K.depth_maps)
+class FlipDepthMaps:
+    """Flip depth map."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipDepth.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError(f"Direction {self.direction} not known!")
+
+    def __call__(self, depths: list[NDArrayF32]) -> list[NDArrayF32]:
+        """Execute flipping op.
+
+        Args:
+            depths (list[NDArrayF32]): Each is a [H, W] array of depth.
+
+        Returns:
+            list[NDArrayF32]: Each is a [H, W] array of flipped depth.
+        """
+        for i, depth in enumerate(depths):
+            depth_ = torch.from_numpy(depth)
+            if self.direction == "horizontal":
+                depths[i] = depth_.flip(1).numpy()
+            if self.direction == "vertical":
+                depths[i] = depth_.flip(0).numpy()
+
+        return depths
+
+
+@Transform(K.optical_flows, K.optical_flows)
+class FlipOpticalFlows:
+    """Flip optical flow map."""
+
+    def __init__(self, direction: str = "horizontal"):
+        """Creates an instance of FlipOpticalFlow.
+
+        Args:
+            direction (str, optional): Either vertical or horizontal.
+                Defaults to "horizontal".
+        """
+        self.direction = direction
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError(f"Direction {self.direction} not known!")
+
+    def __call__(self, flows: list[NDArrayF32]) -> list[NDArrayF32]:
+        """Execute flipping op.
+
+        Args:
+            flows (NDArrayF32): Each is a [H, W, 2] array of optical flow.
+
+        Returns:
+            list[NDArrayF32]: Each is a [H, W, 2] array of flipped optical
+                flow.
+        """
+        for i, flow in enumerate(flows):
+            flow_ = torch.from_numpy(flow)
+            if self.direction == "horizontal":
+                image_flipped = flow_.flip(1).numpy()
+                image_flipped[..., 0] *= -1
+                flows[i] = image_flipped
+            if self.direction == "vertical":
+                image_flipped = flow_.flip(0).numpy()
+                image_flipped[..., 1] *= -1
+                flows[i] = image_flipped
+        return flows
+
+
 @Transform(K.instance_masks, K.instance_masks)
 class FlipInstanceMasks:
     """Flip instance masks."""

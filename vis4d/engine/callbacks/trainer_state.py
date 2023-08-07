@@ -7,6 +7,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from typing_extensions import NotRequired
 
+from vis4d.common import TrainingModule
 from vis4d.data.typing import DictData
 from vis4d.engine.optim import LRSchedulerWrapper
 
@@ -39,3 +40,5 @@ class TrainerState(TypedDict):
     optimizers: NotRequired[list[Optimizer]]
     lr_schedulers: NotRequired[list[LRSchedulerWrapper]]
     metrics: NotRequired[dict[str, float]]
+    train_module: NotRequired[TrainingModule]
+    train_engine: NotRequired[str]

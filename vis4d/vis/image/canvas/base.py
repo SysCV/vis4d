@@ -1,7 +1,7 @@
 """Base class of canvas for image based visualization."""
 from __future__ import annotations
 
-from vis4d.common.typing import NDArrayBool, NDArrayUI8
+from vis4d.common.typing import NDArrayBool, NDArrayF32, NDArrayUI8
 
 
 class CanvasBackend:
@@ -79,6 +79,21 @@ class CanvasBackend:
         """
         raise NotImplementedError
 
+    def draw_circle(
+        self,
+        center: tuple[float, float],
+        color: tuple[int, int, int],
+        radius: int = 2,
+    ) -> None:
+        """Draw a circle onto canvas.
+
+        Args:
+            center (tuple[float, float]): Center of the circle.
+            color (tuple[int, int, int]): Color of the circle.
+            radius (int, optional): Radius of the circle. Defaults to 2.
+        """
+        raise NotImplementedError
+
     def draw_box(
         self,
         corners: tuple[float, float, float, float],
@@ -98,7 +113,7 @@ class CanvasBackend:
 
     def draw_rotated_box(
         self,
-        corners: tuple[tuple[float, float], ...],
+        corners: list[tuple[float, float]],
         color: tuple[int, int, int],
         width: int = 0,
     ) -> None:
@@ -113,8 +128,8 @@ class CanvasBackend:
         (0) +---------+ (1)
 
         Args:
-            corners (tuple[tuple[float, float], ...]): Containing the four
-                corners of the box.
+            corners (list[tuple[float, float]]): Containing the four corners of
+                the box.
             color (tuple[int, int, int]): Color of the box [0,255].
             width (int, optional): Line width. Defaults to 0.
         """
@@ -124,6 +139,7 @@ class CanvasBackend:
         self,
         corners: list[tuple[float, float, float]],
         color: tuple[int, int, int],
+        intrinsics: NDArrayF32,
         width: int = 0,
         camera_near_clip: float = 0.15,
     ) -> None:
@@ -133,6 +149,7 @@ class CanvasBackend:
             corners (list[tuple[float, float, float]]): Containing the eight
                 corners of the box.
             color (tuple[int, int, int]): Color of the line.
+            intrinsics (NDArrayF32): Camera intrinsics matrix.
             width (int, optional): The width of the line. Defaults to 0.
             camera_near_clip (float, optional): The near clipping plane of the
                 camera. Defaults to 0.15.

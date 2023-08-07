@@ -46,7 +46,6 @@ class BoundingBoxVisualizer(Visualizer):
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
         file_type: str = "png",
-        image_mode: str = "RGB",
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
         **kwargs: ArgsType,
@@ -59,7 +58,6 @@ class BoundingBoxVisualizer(Visualizer):
             class_id_mapping (dict[int, str]): Mapping from class id to
                                                       human readable name
             file_type (str): Desired file type
-            image_mode (str): Image channel mode (RGB or BGR)
             canvas (CanvasBackend): Backend that is used to draw on images
             viewer (ImageViewerBackend): Backend that is used show images
         """
@@ -70,7 +68,6 @@ class BoundingBoxVisualizer(Visualizer):
             class_id_mapping if class_id_mapping is not None else {}
         )
         self.file_type = file_type
-        self.image_mode = image_mode
         self.canvas = canvas
         self.viewer = viewer
 

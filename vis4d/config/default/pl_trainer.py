@@ -31,6 +31,7 @@ def get_default_pl_trainer_cfg(config: ExperimentConfig) -> ExperimentConfig:
     pl_trainer.version = config.version
     pl_trainer.find_unused_parameters = False
     pl_trainer.checkpoint_period = 1
+    pl_trainer.save_top_k = 1
     pl_trainer.wandb = False
 
     return pl_trainer

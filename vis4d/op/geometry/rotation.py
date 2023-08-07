@@ -4,24 +4,25 @@ import functools
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 
 from vis4d.data.const import AxisMode
 
 
-def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
+def normalize_angle(input_angles: Tensor) -> Tensor:
     """Normalize content of input_angles to range [-pi, pi].
 
     Args:
-        input_angles: (torch.Tensor) tensor of any shape containing
+        input_angles: (Tensor) tensor of any shape containing
                        unnormalized angles.
 
     Returns:
-        torch.Tensor with angles normalized to +/- pi
+        Tensor with angles normalized to +/- pi
     """
     return (input_angles + torch.pi) % (2 * torch.pi) - torch.pi
 
 
-def acute_angle(theta_1: torch.Tensor, theta_2: torch.Tensor) -> torch.Tensor:
+def acute_angle(theta_1: Tensor, theta_2: Tensor) -> Tensor:
     """Update theta_1 to mkae the agnle between two thetas is acute."""
     # Make sure the angle between two thetas is acute
     if np.pi / 2.0 < abs(theta_2 - theta_1) < np.pi * 3 / 2.0:
@@ -40,7 +41,7 @@ def acute_angle(theta_1: torch.Tensor, theta_2: torch.Tensor) -> torch.Tensor:
     return theta_1
 
 
-def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
+def yaw2alpha(rot_y: Tensor, center: Tensor) -> Tensor:
     """Get alpha by vertical rotation - theta.
 
     Args:
@@ -54,7 +55,7 @@ def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     return normalize_angle(alpha)
 
 
-def alpha2yaw(alpha: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
+def alpha2yaw(alpha: Tensor, center: Tensor) -> Tensor:
     """Get vertical rotation by alpha + theta.
 
     Args:
@@ -68,9 +69,7 @@ def alpha2yaw(alpha: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     return normalize_angle(rot_y)
 
 
-def rotation_output_to_alpha(
-    output: torch.Tensor, num_bins: int = 2
-) -> torch.Tensor:
+def rotation_output_to_alpha(output: Tensor, num_bins: int = 2) -> Tensor:
     """Get alpha from bin-based regression output.
 
     Uses method described in (with two bins):
@@ -78,11 +77,11 @@ def rotation_output_to_alpha(
     Mousavian et al., CVPR'17
 
     Args:
-        output: (torch.Tensor) bin based regressed output.
+        output: (Tensor) bin based regressed output.
         num_bins: (int) number of bins to use
 
     Returns:
-        torch.Tensor containing the angle from the bin-based regression output
+        Tensor containing the angle from the bin-based regression output
     """
     out_range = torch.tensor(list(range(len(output))), device=output.device)
     bin_idx = output[:, :num_bins].argmax(dim=-1)
@@ -98,9 +97,7 @@ def rotation_output_to_alpha(
     return alpha
 
 
-def generate_rotation_output(
-    pred: torch.Tensor, num_bins: int = 2
-) -> torch.Tensor:
+def generate_rotation_output(pred: Tensor, num_bins: int = 2) -> Tensor:
     """Convert output to bin confidence and cos / sin of residual.
 
     The viewpoint (alpha) prediction (N, num_bins + 2 * num_bins) consists of:
@@ -132,7 +129,7 @@ def generate_rotation_output(
 
 # Rotation conversion functions adapted from:
 # https://github.com/facebookresearch/pytorch3d/blob/main/pytorch3d/transforms/rotation_conversions.py
-def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
+def _axis_angle_rotation(axis: str, angle: Tensor) -> Tensor:
     """Get rotation matrix for an angle around an axis.
 
     Args:
@@ -158,8 +155,8 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
 
 
 def euler_angles_to_matrix(
-    euler_angles: torch.Tensor, convention: str = "XYZ"
-) -> torch.Tensor:
+    euler_angles: Tensor, convention: str = "XYZ"
+) -> Tensor:
     """Convert rotations given as Euler angles in radians to rotation matrices.
 
     Args:
@@ -213,10 +210,10 @@ def _index_from_letter(letter: str) -> int:  # pragma: no cover
 def _angle_from_tan(
     axis: str,
     other_axis: str,
-    data: torch.Tensor,
+    data: Tensor,
     horizontal: bool,
     tait_bryan: bool,
-) -> torch.Tensor:
+) -> Tensor:
     """Helper function for matrix_to_euler_angles.
 
     Extracts the first or third Euler angle from the two members of
@@ -247,9 +244,7 @@ def _angle_from_tan(
     return torch.atan2(data[..., i2], -data[..., i1])
 
 
-def matrix_to_euler_angles(
-    matrix: torch.Tensor, convention: str = "XYZ"
-) -> torch.Tensor:
+def matrix_to_euler_angles(matrix: Tensor, convention: str = "XYZ") -> Tensor:
     """Convert rotations given as rotation matrices to Euler angles in radians.
 
     Args:
@@ -299,7 +294,7 @@ def matrix_to_euler_angles(
     return torch.stack(o, -1)
 
 
-def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
+def quaternion_to_matrix(quaternions: Tensor) -> Tensor:
     """Convert rotations given as quaternions to rotation matrices.
 
     Args:
@@ -329,7 +324,7 @@ def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
     return o.reshape(quaternions.shape[:-1] + (3, 3))
 
 
-def _sqrt_positive_part(quat: torch.Tensor) -> torch.Tensor:
+def _sqrt_positive_part(quat: Tensor) -> Tensor:
     """Returns sqrt(max(0, x)) but with a zero subgradient where x is 0."""
     ret = torch.zeros_like(quat)
     positive_mask = quat > 0
@@ -337,7 +332,7 @@ def _sqrt_positive_part(quat: torch.Tensor) -> torch.Tensor:
     return ret
 
 
-def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
+def matrix_to_quaternion(matrix: Tensor) -> Tensor:
     """Convert rotations given as rotation matrices to quaternions.
 
     Args:
@@ -404,7 +399,7 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
     ].reshape(*batch_dim, 4)
 
 
-def standardize_quaternion(quaternions: torch.Tensor) -> torch.Tensor:
+def standardize_quaternion(quaternions: Tensor) -> Tensor:
     """Convert a unit quaternion to a standard form.
 
     Standard form: One in which the real part is non negative.
@@ -419,9 +414,7 @@ def standardize_quaternion(quaternions: torch.Tensor) -> torch.Tensor:
     return torch.where(quaternions[..., 0:1] < 0, -quaternions, quaternions)
 
 
-def quaternion_raw_multiply(
-    quat1: torch.Tensor, quat2: torch.Tensor
-) -> torch.Tensor:
+def quaternion_raw_multiply(quat1: Tensor, quat2: Tensor) -> Tensor:
     """Multiply two quaternions.
 
     Usual torch rules for broadcasting apply.
@@ -442,9 +435,7 @@ def quaternion_raw_multiply(
     return torch.stack((ow, ox, oy, oz), -1)
 
 
-def quaternion_multiply(
-    quat1: torch.Tensor, quat2: torch.Tensor
-) -> torch.Tensor:
+def quaternion_multiply(quat1: Tensor, quat2: Tensor) -> Tensor:
     """Multiply two quaternions representing rotations.
 
     Returns the quaternion representing their composition, i.e. the version
@@ -460,7 +451,7 @@ def quaternion_multiply(
     return standardize_quaternion(quaternion_raw_multiply(quat1, quat2))
 
 
-def quaternion_invert(quaternion: torch.Tensor) -> torch.Tensor:
+def quaternion_invert(quaternion: Tensor) -> Tensor:
     """Return quaternion that represents inverse rotation.
 
     Args:
@@ -473,9 +464,7 @@ def quaternion_invert(quaternion: torch.Tensor) -> torch.Tensor:
     return quaternion * quaternion.new_tensor([1, -1, -1, -1])
 
 
-def quaternion_apply(
-    quaternion: torch.Tensor, points: torch.Tensor
-) -> torch.Tensor:
+def quaternion_apply(quaternion: Tensor, points: Tensor) -> Tensor:
     """Apply the rotation given by a quaternion to a 3D point.
 
     Usual torch rules for broadcasting apply.
@@ -501,25 +490,46 @@ def quaternion_apply(
     return out[..., 1:]
 
 
-def rotate_orientation(
-    orientation: torch.Tensor,
-    extrinsics: torch.Tensor,
-    axis_mode: AxisMode = AxisMode.ROS,
-) -> torch.Tensor:
-    """Rotate the orientation of the object in different coordinate."""
-    rot = extrinsics[:3, :3] @ euler_angles_to_matrix(orientation)
+def rotation_matrix_yaw(
+    rotation_matrix: Tensor, axis_mode: AxisMode
+) -> Tensor:
+    """Get yaw of 3D boxes in euler angle under given axis mode.
 
-    new_orientation = rot.new_zeros(orientation.shape[0], 3)
+    Args:
+        rotation_matrix (Tensor): [N, 3, 3] Rotation matrix of the object.
+        axis_mode (AxisMode): Coordinate system convention.
+
+    Returns:
+        orientation (Tensor): [N, 3] Yaw in euler angle.
+    """
+    orientation = rotation_matrix.new_zeros(rotation_matrix.shape[0], 3)
+
     if axis_mode == AxisMode.OPENCV:
-        new_orientation[:, 1] = matrix_to_euler_angles(rot, "YZX")[:, 0]
+        orientation[:, 1] = matrix_to_euler_angles(rotation_matrix, "YZX")[
+            :, 0
+        ]
     else:
-        new_orientation[:, 2] = matrix_to_euler_angles(rot, "ZYX")[:, 0]
-    return new_orientation
+        orientation[:, 2] = matrix_to_euler_angles(rotation_matrix, "ZYX")[
+            :, 0
+        ]
+    return orientation
 
 
-def rotate_velocities(
-    velocities: torch.Tensor,
-    extrinsics: torch.Tensor,
-) -> torch.Tensor:
+def rotate_orientation(
+    orientation: Tensor, extrinsics: Tensor, axis_mode: AxisMode = AxisMode.ROS
+) -> Tensor:
+    """Rotate the orientation of the object in different coordinate.
+
+    Args:
+        orientation (Tensor): [N, 3] Orientation of the object in euler angles.
+        extrinsics (Tensor): [4, 4] Extrinsic matrix of the object.
+        axis_mode (AxisMode): Coordinate system convention. Default:
+            AxisMode.ROS
+    """
+    rot = extrinsics[:3, :3] @ euler_angles_to_matrix(orientation)
+    return rotation_matrix_yaw(rot, axis_mode)
+
+
+def rotate_velocities(velocities: Tensor, extrinsics: Tensor) -> Tensor:
     """Rotate the velocities of the object in different coordinate."""
     return (extrinsics[:3, :3] @ velocities.unsqueeze(-1)).squeeze(-1)

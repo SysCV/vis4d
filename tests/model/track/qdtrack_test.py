@@ -12,7 +12,7 @@ from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.track.qdtrack import (
     REV_KEYS,
@@ -47,7 +47,7 @@ class QDTrackTest(unittest.TestCase):
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         preprocess_fn = compose(
             [
-                GenerateResizeParameters((224, 384), keep_ratio=True),
+                GenResizeParameters((224, 384), keep_ratio=True),
                 ResizeImages(),
                 NormalizeImages(),
             ]
@@ -61,7 +61,7 @@ class QDTrackTest(unittest.TestCase):
         test_loader = build_inference_dataloaders(
             test_data,
             samples_per_gpu=batch_size,
-            workers_per_gpu=0,
+            workers_per_gpu=1,
             batchprocess_fn=batch_fn,
         )[0]
 
@@ -72,9 +72,7 @@ class QDTrackTest(unittest.TestCase):
         frame_ids = data[K.frame_ids]
 
         with torch.no_grad():
-            tracks = qdtrack(  # pylint: disable=unused-variable
-                images, inputs_hw, frame_ids
-            )
+            tracks = qdtrack(images, inputs_hw, frame_ids)
         assert isinstance(tracks, TrackOut)
         print("Testcase file:", get_test_file("qdtrack.pt"))
         testcase_gt = torch.load(get_test_file("qdtrack.pt"))
@@ -99,7 +97,7 @@ class QDTrackTest(unittest.TestCase):
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
         preprocess_fn = compose(
             [
-                GenerateResizeParameters(
+                GenResizeParameters(
                     (224, 384), keep_ratio=False, align_long_edge=True
                 ),
                 ResizeImages(),
@@ -114,7 +112,7 @@ class QDTrackTest(unittest.TestCase):
         test_loader = build_inference_dataloaders(
             test_data,
             samples_per_gpu=batch_size,
-            workers_per_gpu=0,
+            workers_per_gpu=1,
             batchprocess_fn=batch_fn,
         )[0]
 
@@ -126,9 +124,7 @@ class QDTrackTest(unittest.TestCase):
         frame_ids = data[K.frame_ids]
 
         with torch.no_grad():
-            tracks = qdtrack(  # pylint: disable=unused-variable
-                images, inputs_hw, original_hw, frame_ids
-            )
+            tracks = qdtrack(images, inputs_hw, original_hw, frame_ids)
         assert isinstance(tracks, TrackOut)
         print("Testcase file:", get_test_file("qdtrack-yolox.pt"))
         testcase_gt = torch.load(get_test_file("qdtrack-yolox.pt"))
@@ -137,14 +133,3 @@ class QDTrackTest(unittest.TestCase):
                 print("PREDICTION:", pred.shape, pred)
                 print("EXPECTED:", expected.shape, expected)
                 assert torch.isclose(pred, expected, atol=1e-4).all().item()
-
-    # def test_train(self): # TODO: Fix test
-    #     """Training test."""
-    #     pass
-
-    # def test_torchscript(self): # TODO: Fix test
-    #     """Test torchscipt export."""
-    #     sample_images = torch.rand((2, 3, 512, 512))
-    #     qdtrack = FasterRCNNQDTrack(num_classes=8)
-    #     qdtrack_scripted = torch.jit.script(qdtrack)
-    #     qdtrack_scripted(sample_images)

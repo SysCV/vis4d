@@ -12,7 +12,7 @@ from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.pad import PadImages
-from vis4d.data.transforms.resize import GenerateResizeParameters, ResizeImages
+from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.model.detect.yolox import YOLOX
 from vis4d.op.detect.common import DetOut
@@ -24,9 +24,7 @@ def get_test_dataloader(
     """Get data loader for testing."""
     preprocess_fn = compose(
         [
-            GenerateResizeParameters(
-                im_hw, keep_ratio=True, align_long_edge=True
-            ),
+            GenResizeParameters(im_hw, keep_ratio=True, align_long_edge=True),
             ResizeImages(),
         ]
     )
@@ -55,7 +53,11 @@ class YOLOXTest(unittest.TestCase):
         batch = next(iter(test_loader))
         inputs, images_hw = (batch[K.images], batch[K.input_hw])
 
-        yolox = YOLOX(num_classes=80, weights="mmdet")
+        weights = (
+            "mmdet://yolox/yolox_s_8x8_300e_coco/"
+            "yolox_s_8x8_300e_coco_20211121_095711-4592a793.pth"
+        )
+        yolox = YOLOX(num_classes=80, weights=weights)
 
         yolox.eval()
         with torch.no_grad():

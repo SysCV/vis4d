@@ -7,15 +7,18 @@ import os
 import pickle
 import shutil
 import tempfile
+from collections import OrderedDict
 from functools import wraps
 from typing import Any
 
 import cloudpickle
 import torch
 import torch.distributed as dist
+from torch import nn
 from torch.distributed import broadcast_object_list
+from torch.nn.parallel import DataParallel, DistributedDataParallel
 
-from vis4d.common import ArgsType, GenericFunc
+from vis4d.common import ArgsType, DictStrAny, GenericFunc
 
 
 class PicklableWrapper:  #  mypy: disable=line-too-long
@@ -89,7 +92,8 @@ def get_rank() -> int:  # pragma: no cover
     if os.environ.get("SLURM_PROCID", None):
         return int(os.environ["SLURM_PROCID"])
 
-    return 0
+    # Return local rank
+    return get_local_rank()
 
 
 def get_local_rank() -> int:  # pragma: no cover
@@ -324,3 +328,110 @@ def all_gather_object_cpu(  # type: ignore
         shutil.rmtree(tmpdir)
 
     return data_list
+
+
+def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
+    """Obtain the mean of tensor on different GPUs."""
+    if not (dist.is_available() and dist.is_initialized()):
+        return tensor
+    tensor = tensor.clone()
+    dist.all_reduce(tensor.div_(dist.get_world_size()), op=dist.ReduceOp.SUM)
+    return tensor
+
+
+def obj2tensor(
+    pyobj: Any, device: torch.device = torch.device("cuda")
+) -> torch.Tensor:
+    """Serialize picklable python object to tensor.
+
+    Args:
+        pyobj (Any): Any picklable python object.
+        device (torch.device): Device to put on. Defaults to "cuda".
+    """
+    storage = torch.ByteStorage.from_buffer(pickle.dumps(pyobj))
+    return torch.ByteTensor(storage).to(device=device)
+
+
+def tensor2obj(tensor: torch.Tensor) -> Any:
+    """Deserialize tensor to picklable python object.
+
+    Args:
+        tensor (torch.Tensor): Tensor to be deserialized.
+    """
+    return pickle.loads(tensor.cpu().numpy().tobytes())
+
+
+def all_reduce_dict(
+    py_dict: DictStrAny, reduce_op: str = "sum", to_float: bool = True
+) -> DictStrAny:  # pragma: no cover
+    """Apply all reduce function for python dict object.
+
+    The code is modified from
+    https://github.com/Megvii-BaseDetection/YOLOX/blob/main/yolox/utils/allreduce_norm.py.
+
+    NOTE: make sure that py_dict in different ranks has the same keys and
+    the values should be in the same shape. Currently only supports
+    NCCL backend.
+
+    Args:
+        py_dict (DictStrAny): Dict to be applied all reduce op.
+        reduce_op (str): Operator, could be 'sum' or 'mean'. Default: 'sum'.
+        to_float (bool): Whether to convert all values of dict to float.
+            Default: True.
+
+    Returns:
+        DictStrAny: reduced python dict object.
+    """
+    world_size = get_world_size()
+    if world_size == 1:
+        return py_dict
+
+    # all reduce logic across different devices.
+    py_key = list(py_dict.keys())
+    if not isinstance(py_dict, OrderedDict):
+        py_key_tensor = obj2tensor(py_key)
+        dist.broadcast(py_key_tensor, src=0)
+        py_key = tensor2obj(py_key_tensor)
+
+    tensor_shapes = [py_dict[k].shape for k in py_key]
+    tensor_numels = [py_dict[k].numel() for k in py_key]
+
+    if to_float:
+        flatten_tensor = torch.cat(
+            [py_dict[k].flatten().float() for k in py_key]
+        )
+    else:
+        flatten_tensor = torch.cat([py_dict[k].flatten() for k in py_key])
+
+    dist.all_reduce(flatten_tensor, op=dist.ReduceOp.SUM)
+    if reduce_op == "mean":
+        flatten_tensor /= world_size
+
+    split_tensors = [
+        x.reshape(shape)
+        for x, shape in zip(
+            torch.split(flatten_tensor, tensor_numels), tensor_shapes
+        )
+    ]
+    out_dict: DictStrAny = dict(zip(py_key, split_tensors))
+    if isinstance(py_dict, OrderedDict):
+        out_dict = OrderedDict(out_dict)
+    return out_dict
+
+
+def is_module_wrapper(module: nn.Module) -> bool:
+    """Checks recursively if a module is wrapped.
+
+    Two modules are regarded as wrapper: DataParallel, DistributedDataParallel.
+
+    Args:
+        module (nn.Module): The module to be checked.
+
+    Returns:
+        bool: True if the input module is a module wrapper.
+    """
+    if isinstance(module, (DataParallel, DistributedDataParallel)):
+        return True
+    if any(is_module_wrapper(child) for child in module.children()):
+        return True
+    return False

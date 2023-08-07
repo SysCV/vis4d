@@ -1,1 +1,1 @@
-"""Vis4D Tests."""
+"""NuScenes Evaluation Tests."""

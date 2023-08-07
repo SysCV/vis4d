@@ -23,7 +23,11 @@ class DataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> DataLoader[DictData]:
         """Return dataloader for training."""
-        return instantiate_classes(self.data_cfg.train_dataloader)
+        if self.trainer is not None and hasattr(self.trainer, "seed"):
+            seed = self.trainer.seed
+        else:
+            seed = None
+        return instantiate_classes(self.data_cfg.train_dataloader, seed=seed)
 
     def test_dataloader(self) -> list[DataLoader[DictData]]:
         """Return dataloaders for testing."""

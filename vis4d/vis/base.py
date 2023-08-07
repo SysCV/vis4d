@@ -5,13 +5,16 @@ from vis4d.common.typing import ArgsType
 class Visualizer:
     """Base visualizer class."""
 
-    def __init__(self, vis_freq: int = 50) -> None:
+    def __init__(self, vis_freq: int = 50, image_mode: str = "RGB") -> None:
         """Initialize the visualizer.
 
         Args:
             vis_freq (int): Visualization frequency. Defaults to 0.
+            image_mode (str): Image channel mode (RGB or BGR).
         """
         self.vis_freq = vis_freq
+        self.image_mode = image_mode
+        assert image_mode in {"RGB", "BGR"}
 
     def _run_on_batch(self, cur_iter: int) -> bool:
         """Return whether to run on current iteration.

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os.path as osp
 
-import lightning.pytorch as pl
+from lightning.pytorch import Callback, Trainer
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import Logger, TensorBoardLogger
 from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
@@ -13,7 +14,7 @@ from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 
 
-class PLTrainer(pl.Trainer):
+class PLTrainer(Trainer):
     """Trainer for PyTorch Lightning."""
 
     def __init__(
@@ -24,8 +25,11 @@ class PLTrainer(pl.Trainer):
         version: str,
         epoch_based: bool = True,
         find_unused_parameters: bool = False,
+        save_top_k: int = 1,
         checkpoint_period: int = 1,
+        checkpoint_callback: ModelCheckpoint | None = None,
         wandb: bool = False,
+        seed: int = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -40,14 +44,20 @@ class PLTrainer(pl.Trainer):
             find_unused_parameters: Activates PyTorch checking for unused
                 parameters in DDP setting. Default: False, for better
                 performance.
+            save_top_k: Save top k checkpoints. Default: 1 (save last).
             checkpoint_period: After N epochs / stpes, save out checkpoints.
-                Default: 1
+                Default: 1.
+            checkpoint_callback: Custom PL checkpoint callback. Default: None.
             wandb: Use weights and biases logging instead of tensorboard.
-                Default: False
+                Default: False.
+            seed (int, optional): The integer value seed for global random
+                state. Defaults to -1. If -1, a random seed will be generated.
+                This will be set by TrainingModule.
         """
         self.work_dir = work_dir
         self.exp_name = exp_name
         self.version = version
+        self.seed = seed
 
         self.output_dir = osp.join(work_dir, exp_name, version)
 
@@ -77,32 +87,33 @@ class PLTrainer(pl.Trainer):
                 )
             kwargs["logger"] = exp_logger
 
-        callbacks: list[pl.callbacks.Callback] = []
+        callbacks: list[Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
         if TENSORBOARD_AVAILABLE or wandb:
-            callbacks += [
-                pl.callbacks.LearningRateMonitor(logging_interval="step")
-            ]
+            callbacks += [LearningRateMonitor(logging_interval="step")]
 
         # Model checkpointer
-        if epoch_based:
-            checkpoint_cb = pl.callbacks.ModelCheckpoint(
-                dirpath=osp.join(self.output_dir, "checkpoints"),
-                verbose=True,
-                save_last=True,
-                save_top_k=-1,
-                every_n_epochs=checkpoint_period,
-                save_on_train_epoch_end=True,
-            )
-
+        if checkpoint_callback is None:
+            if epoch_based:
+                checkpoint_cb = ModelCheckpoint(
+                    dirpath=osp.join(self.output_dir, "checkpoints"),
+                    verbose=True,
+                    save_last=True,
+                    save_top_k=save_top_k,
+                    every_n_epochs=checkpoint_period,
+                    save_on_train_epoch_end=True,
+                )
+            else:
+                checkpoint_cb = ModelCheckpoint(
+                    dirpath=osp.join(self.output_dir, "checkpoints"),
+                    verbose=True,
+                    save_last=True,
+                    save_top_k=save_top_k,
+                    every_n_train_steps=checkpoint_period,
+                )
         else:
-            checkpoint_cb = pl.callbacks.ModelCheckpoint(
-                dirpath=osp.join(self.output_dir, "checkpoints"),
-                verbose=True,
-                save_last=True,
-                every_n_train_steps=checkpoint_period,
-            )
+            checkpoint_cb = checkpoint_callback
         callbacks += [checkpoint_cb]
 
         kwargs["callbacks"] += callbacks
