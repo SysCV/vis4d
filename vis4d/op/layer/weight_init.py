@@ -85,8 +85,7 @@ def normal_init(
 
 def bias_init_with_prob(prior_prob: float) -> float:
     """Initialize conv/fc bias value according to a given probability value."""
-    bias_init = float(-np.log((1 - prior_prob) / prior_prob))
-    return bias_init
+    return float(-np.log((1 - prior_prob) / prior_prob))
 
 
 def uniform_init(

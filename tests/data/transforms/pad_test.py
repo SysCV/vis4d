@@ -16,9 +16,8 @@ class TestPad(unittest.TestCase):
             np.random.rand(1, 10, 10, 3).astype(np.float32),
             np.random.rand(1, 15, 15, 3).astype(np.float32),
         ]
-        inputs_hw = [(10, 10), (15, 15)]
         pad_images = PadImages(stride=4)
-        images, _ = pad_images(images, inputs_hw)
+        images = pad_images(images)
         self.assertEqual(images[0].shape, (1, 16, 16, 3))
         self.assertEqual(images[1].shape, (1, 16, 16, 3))
         self.assertTrue((images[0][0, 10:, 10:] == 0).all())
@@ -28,24 +27,12 @@ class TestPad(unittest.TestCase):
             np.random.rand(1, 10, 10, 3).astype(np.float32),
             np.random.rand(1, 15, 15, 3).astype(np.float32),
         ]
-        inputs_hw = [(10, 10), (15, 15)]
         pad_images = PadImages(shape=(17, 17))
-        images, _ = pad_images(images, inputs_hw)
+        images = pad_images(images)
         self.assertEqual(images[0].shape, (1, 17, 17, 3))
         self.assertEqual(images[1].shape, (1, 17, 17, 3))
         self.assertTrue((images[0][0, 10:, 10:] == 0).all())
         self.assertTrue((images[1][0, 15:, 15:] == 0).all())
-
-        # Test change inputs_hw
-        images = [
-            np.random.rand(1, 10, 10, 3).astype(np.float32),
-            np.random.rand(1, 15, 15, 3).astype(np.float32),
-        ]
-        inputs_hw = [(10, 10), (15, 15)]
-        pad_images = PadImages(shape=(17, 17), update_shape=True)
-        images, inputs_hw = pad_images(images, inputs_hw)
-        self.assertEqual(inputs_hw[0], (17, 17))
-        self.assertEqual(inputs_hw[1], (17, 17))
 
     def test_pad_seg_masks(self) -> None:
         """Test PadSegMasks."""

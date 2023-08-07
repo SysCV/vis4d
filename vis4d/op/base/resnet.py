@@ -13,48 +13,12 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import ArgsType
-from vis4d.op.layer.deform_conv import DeformConv
+from vis4d.op.layer.util import build_conv_layer
 from vis4d.op.layer.weight_init import constant_init, kaiming_init
 
 from .base import BaseModel
 
 NormLayerType = Callable[..., nn.Module]  # type: ignore
-
-
-def build_conv_layer(
-    in_planes: int,
-    out_planes: int,
-    kernel_size: int = 3,
-    stride: int = 1,
-    padding: int = 0,
-    dilation: int = 1,
-    groups: int = 1,
-    bias: bool = False,
-    use_dcn: bool = False,
-) -> nn.Module:
-    """Build a convolution layer."""
-    if use_dcn:
-        return DeformConv(
-            in_planes,
-            out_planes,
-            kernel_size=3,
-            stride=stride,
-            padding=padding,
-            dilation=dilation,
-            groups=groups,
-            bias=bias,
-        )
-
-    return nn.Conv2d(
-        in_planes,
-        out_planes,
-        kernel_size=kernel_size,
-        stride=stride,
-        padding=padding,
-        dilation=dilation,
-        groups=groups,
-        bias=bias,
-    )
 
 
 class BasicBlock(nn.Module):
@@ -350,7 +314,7 @@ class ResNet(BaseModel):
                 stride = strides[i]
                 dilation = dilations[i]
             planes = base_channels * 2**i
-            res_layer = _make_res_layer(
+            res_layer = self._make_res_layer(
                 block=self.block,  # type: ignore
                 inplanes=self.inplanes,
                 planes=planes,
@@ -361,7 +325,6 @@ class ResNet(BaseModel):
                 avg_down=avg_down,
                 with_cp=with_cp,
                 with_dcn=stages_with_dcn[i],
-                norm_layer=self._norm_layer,
             )
             self.inplanes = planes * self.block.expansion  # type: ignore
             layer_name = f"layer{i + 1}"
@@ -448,6 +411,79 @@ class ResNet(BaseModel):
             self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
+    def _make_res_layer(
+        self,
+        block: BasicBlock | Bottleneck,
+        inplanes: int,
+        planes: int,
+        num_blocks: int,
+        stride: int,
+        dilation: int,
+        style: str,
+        avg_down: bool,
+        with_cp: bool,
+        with_dcn: bool,
+    ) -> nn.Sequential:
+        """Pack all blocks in a stage into a ``ResLayer``."""
+        layers: list[BasicBlock | Bottleneck] = []
+        downsample: nn.Module | None = None
+        if stride != 1 or inplanes != planes * block.expansion:
+            downsample_list: list[nn.AvgPool2d | nn.Module] = []
+            conv_stride = stride
+            if avg_down:
+                conv_stride = 1
+                downsample_list.append(
+                    nn.AvgPool2d(
+                        kernel_size=stride,
+                        stride=stride,
+                        ceil_mode=True,
+                        count_include_pad=False,
+                    )
+                )
+            downsample_list.extend(
+                [
+                    build_conv_layer(
+                        inplanes,
+                        planes * block.expansion,
+                        kernel_size=1,
+                        stride=conv_stride,
+                        bias=False,
+                    ),
+                    self._norm_layer(planes * block.expansion),
+                ]
+            )
+            downsample = nn.Sequential(*downsample_list)
+
+        layers = []
+        layers.append(
+            block(
+                inplanes=inplanes,
+                planes=planes,
+                stride=stride,
+                dilation=dilation,
+                downsample=downsample,
+                style=style,
+                with_cp=with_cp,
+                with_dcn=with_dcn,
+                norm_layer=self._norm_layer,
+            )
+        )
+        inplanes = planes * block.expansion
+        for _ in range(1, num_blocks):
+            layers.append(
+                block(
+                    inplanes=inplanes,
+                    planes=planes,
+                    stride=1,
+                    dilation=dilation,
+                    style=style,
+                    with_cp=with_cp,
+                    with_dcn=with_dcn,
+                    norm_layer=self._norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
     def _freeze_stages(self) -> None:
         """Freeze stages param and norm stats."""
         if self.trainable_layers < 5:
@@ -523,110 +559,6 @@ class ResNet(BaseModel):
             x = res_layer(x)
             outs.append(x)
         return outs
-
-
-def _make_res_layer(
-    block: BasicBlock | Bottleneck,
-    inplanes: int,
-    planes: int,
-    num_blocks: int,
-    stride: int,
-    dilation: int,
-    style: str,
-    avg_down: bool,
-    with_cp: bool,
-    with_dcn: bool,
-    norm_layer: NormLayerType,
-    downsample_first: bool = True,
-) -> nn.Sequential:
-    """Pack all blocks in a stage into a ``ResLayer``."""
-    layers: list[BasicBlock | Bottleneck] = []
-    downsample: nn.Module | None = None
-    if stride != 1 or inplanes != planes * block.expansion:
-        downsample_list: list[nn.AvgPool2d | nn.Module] = []
-        conv_stride = stride
-        if avg_down:
-            conv_stride = 1
-            downsample_list.append(
-                nn.AvgPool2d(
-                    kernel_size=stride,
-                    stride=stride,
-                    ceil_mode=True,
-                    count_include_pad=False,
-                )
-            )
-        downsample_list.extend(
-            [
-                build_conv_layer(
-                    inplanes,
-                    planes * block.expansion,
-                    kernel_size=1,
-                    stride=conv_stride,
-                    bias=False,
-                ),
-                norm_layer(planes * block.expansion),
-            ]
-        )
-        downsample = nn.Sequential(*downsample_list)
-
-    layers = []
-    if downsample_first:
-        layers.append(
-            block(
-                inplanes=inplanes,
-                planes=planes,
-                stride=stride,
-                dilation=dilation,
-                downsample=downsample,
-                style=style,
-                with_cp=with_cp,
-                with_dcn=with_dcn,
-                norm_layer=norm_layer,
-            )
-        )
-        inplanes = planes * block.expansion
-        for _ in range(1, num_blocks):
-            layers.append(
-                block(
-                    inplanes=inplanes,
-                    planes=planes,
-                    stride=1,
-                    dilation=dilation,
-                    style=style,
-                    with_cp=with_cp,
-                    with_dcn=with_dcn,
-                    norm_layer=norm_layer,
-                )
-            )
-
-    else:  # downsample_first=False is for HourglassModule
-        for _ in range(num_blocks - 1):
-            layers.append(
-                block(
-                    inplanes=inplanes,
-                    planes=planes,
-                    stride=1,
-                    dilation=dilation,
-                    style=style,
-                    with_cp=with_cp,
-                    with_dcn=with_dcn,
-                    norm_layer=norm_layer,
-                )
-            )
-        layers.append(
-            block(
-                inplanes=inplanes,
-                planes=planes,
-                stride=stride,
-                dilation=dilation,
-                downsample=downsample,
-                style=style,
-                with_cp=with_cp,
-                with_dcn=with_dcn,
-                norm_layer=norm_layer,
-            )
-        )
-    return nn.Sequential(*layers)
 
 
 class ResNetV1c(ResNet):

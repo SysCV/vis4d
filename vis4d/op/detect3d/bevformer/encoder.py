@@ -136,7 +136,7 @@ class BEVFormerEncoder(nn.Module):
     def point_sampling(
         self,
         reference_points: Tensor,
-        images_hw: list[list[tuple[int, int]]],
+        images_hw: tuple[int, int],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,
@@ -200,8 +200,8 @@ class BEVFormerEncoder(nn.Module):
             torch.ones_like(reference_points_cam[..., 2:3]) * self.eps,
         )
 
-        reference_points_cam[..., 0] /= images_hw[0][0][1]
-        reference_points_cam[..., 1] /= images_hw[0][0][0]
+        reference_points_cam[..., 0] /= images_hw[1]
+        reference_points_cam[..., 1] /= images_hw[0]
 
         bev_mask = (
             bev_mask
@@ -227,7 +227,7 @@ class BEVFormerEncoder(nn.Module):
         level_start_index: Tensor,
         prev_bev: Tensor | None,
         shift: Tensor,
-        images_hw: list[list[tuple[int, int]]],
+        images_hw: tuple[int, int],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,
@@ -250,8 +250,7 @@ class BEVFormerEncoder(nn.Module):
             prev_bev (Tensor | None): Previous BEV features with shape
                 (batch_size, embed_dims).
             shift (Tensor): Shift of each level with shape (num_levels, 2).
-            images_hw (list[list[tuple[int, int]]]): List of image height and
-                width.
+            images_hw (tuple[int, int]): List of image height and width.
             cam_intrinsics (list[Tensor]): List of camera intrinsics. In shape
                 (num_cam, batch_size, 3, 3)
             cam_extrinsics (list[Tensor]): List of camera extrinsics. In shape

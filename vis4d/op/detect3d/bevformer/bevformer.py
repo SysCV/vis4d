@@ -182,7 +182,7 @@ class BEVFormerHead(nn.Module):
         self,
         mlvl_feats: list[Tensor],
         can_bus: Tensor,
-        images_hw: list[list[tuple[int, int]]],
+        images_hw: tuple[int, int],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,
@@ -194,7 +194,7 @@ class BEVFormerHead(nn.Module):
             mlvl_feats (list[Tensor]): Features from the upstream network, each
                 is with shape (B, N, C, H, W).
             can_bus (Tensor): CAN bus data, with shape (B, 18).
-            images_hw (list[list[tuple[int, int]]]): Image height and width.
+            images_hw (tuple[int, int]): Image height and width.
             cam_intrinsics (list[Tensor]): Camera intrinsics.
             cam_extrinsics (list[Tensor]): Camera extrinsics.
             lidar_extrinsics (list[Tensor]): LiDAR extrinsics.
@@ -279,7 +279,7 @@ class BEVFormerHead(nn.Module):
         self,
         mlvl_feats: list[Tensor],
         can_bus: Tensor,
-        images_hw: list[list[tuple[int, int]]],
+        images_hw: tuple[int, int],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,

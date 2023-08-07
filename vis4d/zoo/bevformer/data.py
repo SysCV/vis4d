@@ -58,7 +58,6 @@ NUSC_CAMERAS = [
 
 CONN_NUSC_BBOX_3D_TEST = {
     "images": data_key(K.images, sensors=NUSC_CAMERAS),
-    "images_hw": data_key(K.input_hw, sensors=NUSC_CAMERAS),
     "can_bus": "can_bus",
     "scene_names": K.sequence_names,
     "cam_intrinsics": data_key(K.intrinsics, sensors=NUSC_CAMERAS),
@@ -112,7 +111,7 @@ def get_test_dataloader(
     test_preprocess_cfg = class_config(compose, transforms=test_transforms)
 
     test_batch_transforms = [
-        class_config(PadImages, update_shape=True, sensors=NUSC_CAMERAS),
+        class_config(PadImages, sensors=NUSC_CAMERAS),
         class_config(ToTensor, sensors=NUSC_SENSORS),
     ]
 

@@ -95,7 +95,6 @@ class BEVFormer(nn.Module):
     def forward(
         self,
         images: list[Tensor],
-        images_hw: list[list[tuple[int, int]]],
         can_bus: list[list[float]],
         scene_names: list[str],
         cam_intrinsics: list[Tensor],
@@ -126,6 +125,7 @@ class BEVFormer(nn.Module):
             can_bus_tensor[0][:3] = 0
             can_bus_tensor[0][-1] = 0
 
+        images_hw = (int(images[0].shape[-2]), int(images[0].shape[-1]))
         img_feats = self.extract_feat(images)
 
         out, bev_embed = self.pts_bbox_head(

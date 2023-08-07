@@ -8,7 +8,6 @@ import math
 from collections.abc import Sequence
 from typing import NamedTuple
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -21,6 +20,7 @@ from vis4d.op.box.encoder import YOLOXBBoxDecoder
 from vis4d.op.box.matchers import SimOTAMatcher
 from vis4d.op.box.samplers import PseudoSampler
 from vis4d.op.layer import Conv2d
+from vis4d.op.layer.weight_init import bias_init_with_prob
 from vis4d.op.loss import IoULoss
 from vis4d.op.loss.reducer import SumWeightedLoss
 
@@ -165,7 +165,7 @@ class YOLOXHead(nn.Module):
                     mode="fan_in",
                     nonlinearity="leaky_relu",
                 )
-        bias_init = float(-np.log((1 - 0.01) / 0.01))
+        bias_init = bias_init_with_prob(0.01)
         for conv_cls, conv_obj in zip(
             self.multi_level_conv_cls, self.multi_level_conv_obj
         ):

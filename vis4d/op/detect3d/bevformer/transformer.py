@@ -73,7 +73,7 @@ class PerceptionTransformer(nn.Module):
         bev_queries: Tensor,
         bev_h: int,
         bev_w: int,
-        images_hw: list[list[tuple[int, int]]],
+        images_hw: tuple[int, int],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,
@@ -186,7 +186,7 @@ class PerceptionTransformer(nn.Module):
         object_query_embed: Tensor,
         bev_h: int,
         bev_w: int,
-        images_hw: list[list[tuple[int, int]]],
+        images_hw: tuple[int, int],
         cam_intrinsics: list[Tensor],
         cam_extrinsics: list[Tensor],
         lidar_extrinsics: Tensor,
@@ -206,8 +206,7 @@ class PerceptionTransformer(nn.Module):
                 with shape [num_query, embed_dims * 2].
             bev_h (int): The height of BEV feature map.
             bev_w (int): The width of BEV feature map.
-            images_hw (list[list[tuple[int, int]]]): The height and width of
-                images.
+            images_hw (tuple[int, int]): The height and width of images.
             cam_intrinsics (list[Tensor]): The camera intrinsics.
             cam_extrinsics (list[Tensor]): The camera extrinsics.
             lidar_extrinsics (Tensor): The lidar extrinsics.
