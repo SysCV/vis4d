@@ -303,8 +303,15 @@ class FasterRCNNCC3DT(nn.Module):
                 boxes_3d, class_ids, scores_3d, torch.zeros_like(class_ids)
             )
 
-        # 3D NMS
-        keep_indices = bev_3d_nms(boxes_3d, scores_2d * scores_3d, class_ids)
+        # 3D NMS in world coordinate
+        keep_indices = bev_3d_nms(
+            center_x=boxes_3d[:, 0].unsqueeze(1),
+            center_y=boxes_3d[:, 1].unsqueeze(1),
+            width=boxes_3d[:, 4].unsqueeze(1),
+            length=boxes_3d[:, 5].unsqueeze(1),
+            angle=180.0 / torch.pi * boxes_3d[:, 8].unsqueeze(1),
+            scores=scores_2d * scores_3d,
+        )
 
         boxes_2d = boxes_2d[keep_indices]
         scores_2d = scores_2d[keep_indices]

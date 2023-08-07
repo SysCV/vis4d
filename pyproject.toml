@@ -90,10 +90,10 @@ plugins = ["numpy.typing.mypy_plugin"]
         "open3d.*",
         "ml_collections.*",
         "lightning.*",
-        "detectron2.*",
         "absl.*",
         "terminaltables.*",
-        "timm.*"
+        "timm.*",
+        "vis4d_cuda_ops.*",
     ]
     ignore_missing_imports = true
 

@@ -24,13 +24,18 @@ from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 from vis4d.op.geometry.projection import generate_depth_map
-from vis4d.op.geometry.transform import inverse_rigid_transform
+from vis4d.op.geometry.transform import (
+    inverse_rigid_transform,
+    transform_points,
+)
 
 from .base import VideoDataset, VideoMapping
 from .util import CacheMappingMixin, im_decode, print_class_histogram
 
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
+    from nuscenes.can_bus.can_bus_api import NuScenesCanBus
+    from nuscenes.eval.common.utils import quaternion_yaw
     from nuscenes.eval.detection.utils import category_to_detection_name
     from nuscenes.scripts.export_2d_annotations_as_json import (
         post_process_coords,
@@ -166,7 +171,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         ),
         version: str = "v1.0-trainval",
         split: str = "train",
-        include_non_key: bool = False,
+        max_sweeps: int = 10,
         skip_empty_samples: bool = False,
         point_based_filter: bool = False,
         distance_based_filter: bool = False,
@@ -189,9 +194,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 "v1.0-trainval".
             split (str, optional): Split of the data to load. Defaults to
                 "train".
-            include_non_key (bool, optional): Whether to include non-key
-                samples. Note that Non-key samples do not have annotations.
-                Defaults to False.
+            max_sweeps (int, optional): Maximum number of sweeps for a single
+                key-frame to load. Defaults to 10.
             skip_empty_samples (bool, optional): Whether to skip samples
                 without annotations. Defaults to False.
             point_based_filter (bool, optional): Whether to filter out
@@ -211,7 +215,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         self.keys_to_load = keys_to_load
         self.sensors = sensors
         self._check_version_and_split(version, split)
-        self.include_non_key = include_non_key  # TODO: Add non-key frames
+        self.max_sweeps = max_sweeps
         self.skip_empty_samples = skip_empty_samples
 
         self.point_based_filter = point_based_filter
@@ -370,6 +374,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             version=self.version, dataroot=self.data_root, verbose=False
         )
 
+        can_bus_data = NuScenesCanBus(dataroot=self.data_root)
+
         frames = []
         instance_tokens: list[str] = []
 
@@ -393,6 +399,27 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 frame["token"] = sample["token"]
                 frame["frame_ids"] = frame_ids
 
+                sd_rec = data.get("sample_data", sample["data"]["LIDAR_TOP"])
+
+                # Can bus data
+                can_bus = self._load_can_bus_data(
+                    scene_name, can_bus_data, sample["timestamp"]
+                )
+
+                pose_record = data.get("ego_pose", sd_rec["ego_pose_token"])
+                rotation = Quaternion(pose_record["rotation"])
+                translation = pose_record["translation"]
+
+                can_bus[:3] = translation
+                can_bus[3:7] = rotation
+                patch_angle = quaternion_yaw(rotation) / np.pi * 180
+                patch_angle += 360 if patch_angle < 0 else 0
+                can_bus[-2] = patch_angle / 180 * np.pi
+                can_bus[-1] = patch_angle
+
+                frame["can_bus"] = can_bus
+
+                # LIDAR data
                 lidar_token = sample["data"]["LIDAR_TOP"]
 
                 frame["LIDAR_TOP"] = self._load_lidar_data(data, lidar_token)
@@ -403,6 +430,17 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     instance_tokens,
                     axis_mode=AxisMode.LIDAR,
                 )
+
+                # obtain sweeps for a single key-frame
+                sweeps: list[DictStrAny] = []
+                while len(sweeps) < self.max_sweeps:
+                    if sd_rec["prev"] != "":
+                        sweep = self._load_lidar_data(data, sd_rec["prev"])
+                        sweeps.append(sweep)
+                        sd_rec = data.get("sample_data", sd_rec["prev"])
+                    else:
+                        break
+                frame["LIDAR_TOP"]["sweeps"] = sweeps
 
                 # Get the sample data for each camera
                 for cam in self.CAMERAS:
@@ -420,7 +458,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                         image_hw=frame[cam]["image_hw"],
                     )
 
-                # TODO add RADAR, Map data
+                # TODO add RADAR, Map
 
                 frames.append(frame)
 
@@ -428,6 +466,41 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 frame_ids += 1
 
         return frames
+
+    def _load_can_bus_data(
+        self,
+        scene_name: str,
+        can_bus_data: NuScenesCanBus,
+        sample_timestamp: int,
+    ) -> list[float]:
+        """Load can bus data."""
+        try:
+            pose_list = can_bus_data.get_messages(scene_name, "pose")
+        except AssertionError:
+            # server scenes do not have can bus information.
+            return [0.0] * 18
+
+        # during each scene, the first timestamp of can_bus may be large than
+        # the first sample's timestamp
+        can_bus = []
+        last_pose = pose_list[0]
+        for pose in pose_list:
+            if pose["utime"] > sample_timestamp:
+                break
+            last_pose = pose
+
+        last_pose.pop("utime")
+        pos = last_pose.pop("pos")
+        rotation = last_pose.pop("orientation")
+        can_bus.extend(pos)
+        can_bus.extend(rotation)
+
+        # 16 elements
+        for key in last_pose.keys():
+            can_bus.extend(last_pose[key])
+        can_bus.extend([0.0, 0.0])
+
+        return can_bus
 
     def _load_lidar_data(
         self, data: NuScenesDevkit, lidar_token: str
@@ -683,6 +756,41 @@ class NuScenes(CacheMappingMixin, VideoDataset):
 
         return annotations
 
+    def _accumulate_sweeps(
+        self,
+        points: NDArrayF32,
+        lidar2global: NDArrayF32,
+        sweeps: list[DictStrAny],
+    ) -> NDArrayF32:
+        """Accumulate LiDAR sweeps."""
+        if len(sweeps) == 0:
+            return points
+
+        global2lidar = inverse_rigid_transform(torch.from_numpy(lidar2global))
+
+        points_sweeps = [torch.from_numpy(points)]
+        for sweep in sweeps:
+            points_bytes = self.data_backend.get(sweep["lidar_path"])
+            lidar_points = np.frombuffer(
+                bytearray(points_bytes), dtype=np.float32
+            )
+            lidar_points = lidar_points.reshape(-1, 5)[:, :3]
+
+            # Transform LiDAR points to global frame
+            global_lidar_points = transform_points(
+                torch.from_numpy(lidar_points),
+                torch.from_numpy(sweep["extrinsics"]),
+            )
+
+            # Transform LiDAR points to current LiDAR frame
+            current_lidar_points = transform_points(
+                global_lidar_points, global2lidar
+            )
+
+            points_sweeps.append(current_lidar_points)
+
+        return torch.cat(points_sweeps).numpy()
+
     def _load_depth_map(
         self,
         points_lidar: NDArrayF32,
@@ -773,6 +881,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         data_dict["token"] = sample["token"]
         data_dict[K.frame_ids] = sample["frame_ids"]
         data_dict[K.sequence_names] = sample["scene_name"]
+        data_dict["can_bus"] = sample["can_bus"]
 
         if "LIDAR_TOP" in self.sensors:
             lidar_data = sample["LIDAR_TOP"]
@@ -794,6 +903,12 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     bytearray(points_bytes), dtype=np.float32
                 )
                 lidar_points = lidar_points.reshape(-1, 5)[:, :3]
+
+                lidar_points = self._accumulate_sweeps(
+                    lidar_points,
+                    lidar_data["extrinsics"],
+                    lidar_data["sweeps"],
+                )
 
             if K.points3d in self.keys_to_load:
                 data_dict["LIDAR_TOP"][K.points3d] = lidar_points

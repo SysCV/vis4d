@@ -36,12 +36,12 @@ def get_track_3d_out(
     center = boxes_3d[:, :3]
     # HWL -> WLH
     dims = boxes_3d[:, [4, 5, 3]]
-    oritentation = matrix_to_quaternion(
+    orientation = matrix_to_quaternion(
         euler_angles_to_matrix(boxes_3d[:, 6:9])
     )
 
     return Track3DOut(
-        boxes_3d=[torch.cat([center, dims, oritentation], dim=1)],
+        boxes_3d=[torch.cat([center, dims, orientation], dim=1)],
         velocities=[boxes_3d[:, 9:12]],
         class_ids=[class_ids],
         scores_3d=[scores_3d],

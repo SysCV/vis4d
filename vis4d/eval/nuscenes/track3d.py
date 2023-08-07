@@ -1,7 +1,6 @@
 """NuScenes 3D tracking evaluation code."""
 from __future__ import annotations
 
-import itertools
 import json
 from collections.abc import Callable
 from typing import Any
@@ -67,8 +66,14 @@ class NuScenesTrack3DEvaluator(Evaluator):
         """
         tracks_3d_list = gather_func(self.tracks_3d)
         if tracks_3d_list is not None:
-            prediction_list = [p.items() for p in tracks_3d_list]
-            self.tracks_3d = dict(itertools.chain(*prediction_list))
+            collated_track_3d: DictStrAny = {}
+            for prediction in tracks_3d_list:
+                for k, v in prediction.items():
+                    if k not in collated_track_3d:
+                        collated_track_3d[k] = v
+                    else:
+                        collated_track_3d[k].extend(v)
+            self.tracks_3d = collated_track_3d
 
     def reset(self) -> None:
         """Reset evaluator."""

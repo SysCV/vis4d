@@ -42,8 +42,22 @@ class IDAUp(nn.Module):
             c = channels[i]
             f = int(up_f[i])
             if use_dc:
-                proj: Conv2d | DeformConv = DeformConv(c, o)
-                node: Conv2d | DeformConv = DeformConv(o, o)
+                proj: Conv2d | DeformConv = DeformConv(
+                    c,
+                    o,
+                    kernel_size=3,
+                    padding=1,
+                    norm=nn.BatchNorm2d(o),
+                    activation=nn.ReLU(inplace=True),
+                )
+                node: Conv2d | DeformConv = DeformConv(
+                    o,
+                    o,
+                    kernel_size=3,
+                    padding=1,
+                    norm=nn.BatchNorm2d(o),
+                    activation=nn.ReLU(inplace=True),
+                )
             else:
                 proj = Conv2d(
                     c,
