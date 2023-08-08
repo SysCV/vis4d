@@ -45,7 +45,8 @@ class SemanticFPN(nn.Module):
         num_classes (int): Number of classes.
         resize (bool): Resize output to input size.
         weights (None | str): Pre-trained weights.
-        basemodel (BaseModel): Base model.
+        basemodel (None | BaseModel): Base model to use. If None is passed,
+            this will default to ResNetV1c
     """
 
     def __init__(
@@ -53,16 +54,19 @@ class SemanticFPN(nn.Module):
         num_classes: int,
         resize: bool = True,
         weights: None | str = None,
-        basemodel: BaseModel = ResNetV1c(
-            "resnet50_v1c",
-            pretrained=True,
-            trainable_layers=5,
-            norm_freezed=False,
-        ),
+        basemodel: None | BaseModel = None,
     ):
         """Init."""
         super().__init__()
         self.resize = resize
+        if basemodel is None:
+            basemodel = ResNetV1c(
+                "resnet50_v1c",
+                pretrained=True,
+                trainable_layers=5,
+                norm_freezed=False,
+            )
+
         self.basemodel = basemodel
         self.fpn = FPN(self.basemodel.out_channels[2:], 256, extra_blocks=None)
         self.seg_head = SemanticFPNHead(num_classes, 256)
