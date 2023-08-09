@@ -23,6 +23,8 @@ jobs:
 
       - name: install
         run: |
+          eval `ssh-agent -s`
+          ssh-add - <<< '${{ secrets.CUDA_OPS_REPO_KEY }}'
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip freeze
@@ -76,6 +78,8 @@ jobs:
 
       - name: install dependencies
         run: |
+          eval `ssh-agent -s`
+          ssh-add - <<< '${{ secrets.CUDA_OPS_REPO_KEY }}'
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip install -e .

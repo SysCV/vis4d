@@ -5,7 +5,7 @@ from .util import compare_configs
 
 
 class TestCC3DTConfig(unittest.TestCase):
-    """Tests the content of the provided configs for Faster-RCNN."""
+    """Tests the content of the provided configs."""
 
     config_prefix = "cc_3dt"
     gt_config_path = "tests/vis4d-test-data/config_test/cc_3dt"

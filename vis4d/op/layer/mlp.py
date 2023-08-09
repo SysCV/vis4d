@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 
 class ResnetBlockFC(nn.Module):
@@ -106,7 +106,7 @@ class TransformerBlockMLP(nn.Module):
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias)
         self.drop2 = nn.Dropout(drop)
 
-    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+    def __call__(self, data: Tensor) -> Tensor:
         """Applies the layer.
 
         Args:
@@ -114,7 +114,7 @@ class TransformerBlockMLP(nn.Module):
         """
         return self._call_impl(data)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         """Forward pass.
 
         Args:
