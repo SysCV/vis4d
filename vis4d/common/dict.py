@@ -6,6 +6,35 @@ from typing import Any
 from vis4d.common import DictStrAny
 
 
+def flatten_dict(dictionary: DictStrAny, seperator: str) -> list[str]:
+    """Flatten a nested dictionary.
+
+    Args:
+        dictionary (DictStrAny): The dictionary to flatten.
+        seperator (str): The seperator to use between keys.
+
+    Returns:
+        List[str]: A list of flattened keys.
+
+    Examples:
+        >>> d = {'a': {'b': {'c': 10}}}
+        >>> flatten_dict(d, '.')
+        ['a.b.c']
+    """
+    flattened = []
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            flattened.extend(
+                [
+                    f"{key}{seperator}{subkey}"
+                    for subkey in flatten_dict(value, seperator)
+                ]
+            )
+        else:
+            flattened.append(key)
+    return flattened
+
+
 def get_dict_nested(  # type: ignore
     dictionary: DictStrAny, keys: list[str], allow_missing: bool = False
 ) -> Any:
