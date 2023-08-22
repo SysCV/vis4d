@@ -8,6 +8,7 @@ import yaml
 from ml_collections.config_flags.config_flags import _LoadConfigModule
 
 from vis4d.common.dict import flatten_dict, get_dict_nested
+from vis4d.common.typing import ArgsType
 from vis4d.common.util import create_did_you_mean_msg
 from vis4d.config.config_dict import ConfigDict, FieldConfigDict
 from vis4d.zoo import AVAILABLE_MODELS
@@ -94,7 +95,7 @@ def _load_yaml_config(name_or_path: str) -> FieldConfigDict:
 
 
 def _load_py_config(
-    name_or_path: str, method_name: str = "get_config"
+    name_or_path: str, *args: ArgsType, method_name: str = "get_config"
 ) -> ConfigDict:
     """Loads a .py configuration file.
 
@@ -102,6 +103,7 @@ def _load_py_config(
         name_or_path: Name or path of the config.
             If the config is not found at this location,
             the function will look for the config in the model zoo folder.
+        *args: Additional arguments to pass to the config.
         method_name: Name of the method to call from the file to get the
             config. Defaults to "get_config".
 
@@ -110,12 +112,15 @@ def _load_py_config(
     """
     path = _resolve_config_path(name_or_path)
     config_module = _LoadConfigModule(f"{os.path.basename(path)}_config", path)
-    cfg = getattr(config_module, method_name)()
+    print("args", args, *args)
+    cfg = getattr(config_module, method_name)(*args)
     assert isinstance(cfg, ConfigDict)
     return cfg
 
 
-def _get_registered_configs(config_name: str) -> list[str]:
+def _get_registered_configs(
+    config_name: str, *args: ArgsType, method_name: str = "get_config"
+) -> ConfigDict:
     """Get a model from the registered config locations.
 
     Args:
@@ -125,6 +130,9 @@ def _get_registered_configs(config_name: str) -> list[str]:
             If the config matches multiple configs (e.g. if there are two
             conflicting config a/cfg and b/cfg) or if it is not found,
             a ValueError is raised.
+        *args: Additional arguments to pass to the config.
+        method_name: Name of the method to call from the file to get the
+            config. Defaults to "get_config".
     Raises:
         ValueError: If the config is not found.
 
@@ -157,10 +165,13 @@ def _get_registered_configs(config_name: str) -> list[str]:
         )
         raise ValueError(msg)
 
-    return list(matches.values())[0]
+    module = list(matches.values())[0]
+    return getattr(module, method_name)(*args)
 
 
-def get_config_by_name(name_or_path: str) -> ConfigDict:
+def get_config_by_name(
+    name_or_path: str, *args: ArgsType, method_name: str = "get_config"
+) -> ConfigDict:
     """Get a config by name or path.
 
     Args:
@@ -170,7 +181,9 @@ def get_config_by_name(name_or_path: str) -> ConfigDict:
             Otherwise, the function will try to resolve the config from the
             registered config locations. You can specify a config by its full
             registered path (e.g. "a/b/cfg") or by its name (e.g. "cfg").
-
+        *args: Additional arguments to pass to the config.
+        method_name: Name of the method to call from the file to get the
+            config. Defaults to "get_config".
     Returns:
         The config.
 
@@ -180,5 +193,7 @@ def get_config_by_name(name_or_path: str) -> ConfigDict:
     if name_or_path.endswith(".yaml"):
         return _load_yaml_config(name_or_path)
     if name_or_path.endswith(".py"):
-        return _load_py_config(name_or_path)
-    return _get_registered_configs(name_or_path)
+        return _load_py_config(name_or_path, *args, method_name=method_name)
+    return _get_registered_configs(
+        name_or_path, *args, method_name=method_name
+    )

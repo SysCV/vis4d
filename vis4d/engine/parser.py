@@ -7,20 +7,19 @@ import sys
 import traceback
 from typing import Any
 
-import yaml
 from absl import flags
 from ml_collections import ConfigDict, FieldReference
 from ml_collections.config_flags.config_flags import (
     _ConfigFlag,
     _ErrorConfig,
-    _LoadConfigModule,
     _LockConfig,
 )
 
 from vis4d.config import copy_and_resolve_references
+from vis4d.config.util.registry import get_config_by_name
 
 
-class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
+class ConfigFileParser(flags.ArgumentParser):  # type: ignore
     """Parser for config files."""
 
     def __init__(
@@ -59,10 +58,11 @@ class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
         # present.
         split_path = path.split(":", 1)
         try:
-            config_module = _LoadConfigModule(
-                f"{self.name}_config", split_path[0]
+            config = get_config_by_name(
+                split_path[0],
+                *split_path[1:],
+                method_name=self.method_name,
             )
-            config = getattr(config_module, self.method_name)(*split_path[1:])
             if config is None:
                 logging.warning(
                     "%s:%s() returned None, did you forget a return "
@@ -89,48 +89,6 @@ class _ConfigFileParser(flags.ArgumentParser):  # type: ignore
         return config
 
     def flag_type(self) -> str:
-        return "config object"
-
-
-class ConfigFileParser(_ConfigFileParser):
-    """Parser for config files.
-
-    Note, this wraps internal functions of the ml_collections code and might
-    be fragile!
-    """
-
-    def parse(self, path: str) -> ConfigDict:
-        """Returns the config object for a given path.
-
-        If a colon is present in `path`, everything to the right of the first
-        colon is passed to `get_config` as an argument. This allows the
-        structure of what  is returned to be modified.
-
-        Works with .py file that contain a get_config() function and .yaml.
-
-        Args:
-          path (string): path pointing to the config file to execute. May also
-              contain a config_string argument, e.g. be of the form
-              "config.py:some_configuration" or "config.yaml".
-        Returns (ConfigDict):
-          ConfigDict located at 'path'
-        """
-        if path.split(".")[-1] == "yaml":
-            with open(path, "r", encoding="utf-8") as yaml_file:
-                data_dict = ConfigDict(yaml.safe_load(yaml_file))
-
-                if self._lock_config:
-                    data_dict.lock()
-                return data_dict
-        else:
-            return super().parse(path)
-
-    def flag_type(self) -> str:
-        """The flag type of this object.
-
-        Returns:
-            str: config object
-        """
         return "config object"
 
 
