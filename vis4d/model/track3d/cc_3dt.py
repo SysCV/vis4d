@@ -10,16 +10,33 @@ from typing import NamedTuple
 import torch
 from torch import Tensor, nn
 
+from vis4d.data.const import AxisMode
 from vis4d.model.track.qdtrack import FasterRCNNQDTrackOut
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+from vis4d.op.box.box2d import bbox_clip, bbox_area
+from vis4d.op.box.box3d import (
+    boxes3d_in_image,
+    boxes3d_to_corners,
+    transform_boxes3d,
+)
+from vis4d.op.geometry.projection import project_points
+from vis4d.op.geometry.rotation import (
+    quaternion_to_matrix,
+    rotation_matrix_yaw,
+)
+from vis4d.op.geometry.transform import inverse_rigid_transform
 from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
 from vis4d.op.detect3d.util import bev_3d_nms
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.fpp import FPN
-from vis4d.op.track3d.cc_3dt import cam_to_global, get_track_3d_out
+from vis4d.op.track3d.cc_3dt import (
+    cam_to_global,
+    get_track_3d_out,
+    CC3DTrackAssociation,
+)
 from vis4d.op.track3d.common import Track3DOut
 from vis4d.op.track.qdtrack import QDTrackHead
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
@@ -360,3 +377,185 @@ class FasterRCNNCC3DT(nn.Module):
             boxes3d_track_ids,
             keyframes,
         )
+
+
+class BEVCC3DT(nn.Module):
+    """CC-3DT with BEV detector."""
+
+    def __init__(
+        self,
+        basemodel: BaseModel | None = None,
+        qdtrack_head: QDTrackHead | None = None,
+        track_graph: CC3DTrackGraph | None = None,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            num_classes (int): Number of object categories.
+            basemodel (BaseModel, optional): Base model network. Defaults to
+                None. If None, will use ResNet50.
+            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
+                Defaults to None. if None, will use default FasterRCNNHead.
+            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
+                bounding boxes. Defaults to None.
+            qdtrack_head (QDTrack, optional): QDTrack head. Defaults to None.
+                If None, will use default QDTrackHead.
+            track_graph (CC3DTrackGraph, optional): Track graph. Defaults to
+                None. If None, will use default CC3DTrackGraph.
+            pure_det (bool, optional): Whether to use pure detection. Defaults
+                to False.
+        """
+        super().__init__()
+        self.basemodel = (
+            ResNet(resnet_name="resnet50", pretrained=True, trainable_layers=3)
+            if basemodel is None
+            else basemodel
+        )
+
+        self.fpn = FPN(self.basemodel.out_channels[2:], 256)
+
+        self.qdtrack_head = (
+            QDTrackHead() if qdtrack_head is None else qdtrack_head
+        )
+
+        self.track_graph = (
+            CC3DTrackGraph(
+                track=CC3DTrackAssociation(
+                    init_score_thr=0.1, obj_score_thr=0.05
+                ),
+                update_3d_score=False,
+                add_backdrops=False,
+            )
+            if track_graph is None
+            else track_graph
+        )
+
+    def forward(
+        self,
+        images_list: list[Tensor],
+        images_hw: list[list[tuple[int, int]]],
+        intrinsics_list: list[Tensor],
+        extrinsics_list: list[Tensor],
+        frame_ids: list[int],
+        pred_boxes3d,
+        pred_boxes3d_classes,
+        pred_boxes3d_scores,
+        pred_boxes3d_velocities,
+    ) -> Track3DOut:
+        """Forward inference stage.
+
+        Curretnly only work with single batch per gpu.
+        """
+        # (N, 1, 3, H, W) -> (N, 3, H, W)
+        images = torch.cat(images_list)
+        # (N, 1, 3, 3) -> (N, 3, 3)
+        intrinsics = torch.cat(intrinsics_list)
+        # (N, 1, 4, 4) -> (N, 4, 4)
+        extrinsics = torch.cat(extrinsics_list)
+        # (N, 1) -> (N,)
+        frame_id = frame_ids[0]
+        images_hw_list: list[tuple[int, int]] = sum(images_hw, [])
+
+        features = self.basemodel(images)
+        features = self.fpn(features)
+
+        boxes_3d = torch.from_numpy(pred_boxes3d[0]).to(images.device)
+        class_ids = torch.from_numpy(pred_boxes3d_classes[0]).to(images.device)
+        scores_3d = torch.from_numpy(pred_boxes3d_scores[0]).to(images.device)
+        velocities = torch.from_numpy(pred_boxes3d_velocities[0]).to(
+            images.device
+        )
+        global_to_cam = inverse_rigid_transform(extrinsics)
+
+        # Get 2D boxes and assign camera id
+        boxes_3d_list = []
+        boxes_2d_list = []
+        class_ids_list = []
+        scores_list = []
+        camera_ids_list = []
+        for i in range(len(global_to_cam)):
+            boxes3d_cam = transform_boxes3d(
+                boxes_3d,
+                global_to_cam[i],
+                source_axis_mode=AxisMode.ROS,
+                target_axis_mode=AxisMode.OPENCV,
+            )
+
+            corners = boxes3d_to_corners(
+                boxes3d_cam, axis_mode=AxisMode.OPENCV
+            )
+
+            mask = boxes3d_in_image(corners, intrinsics[i], images_hw_list[i])
+
+            corners_2d = project_points(corners[mask], intrinsics[i])
+
+            boxes_2d = self._to_boxes2d(corners_2d)
+            boxes_2d = bbox_clip(boxes_2d, images_hw_list[i])
+
+            cc_3dt_boxes_3d = boxes_3d.new_zeros(len(boxes_2d), 12)
+            cc_3dt_boxes_3d[:, :6] = boxes_3d[mask][:, :6]
+            cc_3dt_boxes_3d[:, 6:9] = rotation_matrix_yaw(
+                quaternion_to_matrix(boxes_3d[mask][:, 6:]), AxisMode.ROS
+            )
+            cc_3dt_boxes_3d[:, 9:] = velocities[mask]
+
+            boxes_3d_list.append(cc_3dt_boxes_3d)
+            boxes_2d_list.append(boxes_2d)
+            class_ids_list.append(class_ids[mask])
+            scores_list.append(scores_3d[mask])
+            camera_ids_list.append(
+                (torch.ones(len(boxes_2d)) * i).to(boxes_2d.device)
+            )
+
+        embeddings_list, _, _, _ = self.qdtrack_head(features, boxes_2d_list)
+
+        # Select project boxes2d according to bbox area
+        boxes_3d = torch.cat(boxes_3d_list)
+        boxes_2d = torch.cat(boxes_2d_list)
+        camera_ids = torch.cat(camera_ids_list)
+        scores = torch.cat(scores_list)
+        class_ids = torch.cat(class_ids_list)
+        embeddings = torch.cat(embeddings_list)
+
+        keep_indices = embeddings.new_ones(len(boxes_3d)).bool()
+        boxes_2d_area = bbox_area(boxes_2d)
+        for i, box3d in enumerate(boxes_3d):
+            for same_idx in (
+                (box3d[:3] == boxes_3d[:, :3]).all(dim=1).nonzero()
+            ):
+                if (
+                    same_idx != i
+                    and boxes_2d_area[same_idx] > boxes_2d_area[i]
+                ):
+                    keep_indices[i] = False
+                    break
+
+        # 3D NMS in world coordinate
+        boxes_3d = boxes_3d[keep_indices]
+        boxes_2d = boxes_2d[keep_indices]
+        camera_ids = camera_ids[keep_indices]
+        scores = scores[keep_indices]
+        class_ids = class_ids[keep_indices]
+        embeddings = embeddings[keep_indices]
+
+        outs = self.track_graph(
+            boxes_2d,
+            scores,
+            camera_ids,
+            boxes_3d,
+            scores,
+            class_ids,
+            embeddings,
+            frame_id,
+        )
+
+        return outs
+
+    def _to_boxes2d(self, corners_2d) -> Tensor:
+        """Project 3D boxes (Camera coordinates) to 2D boxes."""
+        min_x = torch.min(corners_2d[:, :, 0], 1).values.unsqueeze(-1)
+        min_y = torch.min(corners_2d[:, :, 1], 1).values.unsqueeze(-1)
+        max_x = torch.max(corners_2d[:, :, 0], 1).values.unsqueeze(-1)
+        max_y = torch.max(corners_2d[:, :, 1], 1).values.unsqueeze(-1)
+
+        return torch.cat([min_x, min_y, max_x, max_y], dim=1)
