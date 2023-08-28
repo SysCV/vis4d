@@ -45,6 +45,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.githubpages",
     "sphinx_design",
+    "sphinxcontrib.aafig",
     "myst_nb",
 ]
 
