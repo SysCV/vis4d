@@ -28,6 +28,14 @@ class ConfigFileParser(flags.ArgumentParser):  # type: ignore
         lock_config: bool = True,
         method_name: str = "get_config",
     ) -> None:
+        """Initializes the parser.
+
+        Args:
+            name (str): The name of the flag (e.g. config for --config flag)
+            lock_config (bool, optional): Whether or not to lock the config.
+                Defaults to True.
+            method_name (str, optional): Name of the method to call in the
+                config. Defaults to "get_config"."""
         self.name = name
         self._lock_config = lock_config
         self.method_name = method_name
@@ -89,6 +97,7 @@ class ConfigFileParser(flags.ArgumentParser):  # type: ignore
         return config
 
     def flag_type(self) -> str:
+        """Returns the type of the flag."""
         return "config object"
 
 
