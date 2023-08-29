@@ -133,13 +133,13 @@ def _get_registered_configs(
         *args: Additional arguments to pass to the config.
         method_name: Name of the method to call from the file to get the
             config. Defaults to "get_config".
+
     Raises:
         ValueError: If the config is not found.
 
     Returns:
         The Config.
     """
-
     models = flatten_dict(AVAILABLE_MODELS, os.path.sep)
     # check if there is an absolute match for the config
     if config_name in models:
@@ -184,6 +184,7 @@ def get_config_by_name(
         *args: Additional arguments to pass to the config.
         method_name: Name of the method to call from the file to get the
             config. Defaults to "get_config".
+
     Returns:
         The config.
 
