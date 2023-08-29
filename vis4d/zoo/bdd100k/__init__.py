@@ -12,7 +12,7 @@ from .semantic_fpn import (
 )
 
 # Lists of available models in BDD100K Model Zoo.
-AVIALABLE_MODELS = {
+AVAILABLE_MODELS = {
     "faster_rcnn_r50_1x_bdd100k": faster_rcnn_r50_1x_bdd100k,
     "faster_rcnn_r50_3x_bdd100k": faster_rcnn_r50_3x_bdd100k,
     "mask_rcnn_r50_1x_bdd100k": mask_rcnn_r50_1x_bdd100k,
