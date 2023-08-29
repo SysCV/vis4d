@@ -35,7 +35,8 @@ class ConfigFileParser(flags.ArgumentParser):  # type: ignore
             lock_config (bool, optional): Whether or not to lock the config.
                 Defaults to True.
             method_name (str, optional): Name of the method to call in the
-                config. Defaults to "get_config"."""
+                config. Defaults to "get_config".
+        """
         self.name = name
         self._lock_config = lock_config
         self.method_name = method_name
