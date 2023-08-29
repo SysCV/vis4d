@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor
-from vis4d_cuda_ops import nms_rotated  # pylint: disable=no-name-in-module
+
+from vis4d.common.imports import VIS4D_CUDA_OPS_AVAILABLE
+
+if VIS4D_CUDA_OPS_AVAILABLE:
+    from vis4d_cuda_ops import nms_rotated  # pylint: disable=no-name-in-module
 
 
 def bev_3d_nms(
@@ -102,5 +106,10 @@ def batched_nms_rotated(
         boxes.clone()
     )  # avoid modifying the original values in boxes
     boxes_for_nms[:, :2] += offsets[:, None]
+
+    if not VIS4D_CUDA_OPS_AVAILABLE:
+        raise RuntimeError(
+            "Please install vis4d_cuda_ops to use batched_nms_rotated"
+        )
     keep = nms_rotated(boxes_for_nms, scores, iou_threshold)
     return keep
