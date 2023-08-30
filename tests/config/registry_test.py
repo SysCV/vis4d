@@ -29,7 +29,6 @@ class TestRegistry(unittest.TestCase):
 
     def test_py(self) -> None:
         """Test reading a py config file from the model zoo."""
-
         file = "/bdd100k/faster_rcnn/faster_rcnn_r50_1x_bdd100k.py"
         cfg = get_config_by_name(file)
         self.assertTrue(cfg is not None)
