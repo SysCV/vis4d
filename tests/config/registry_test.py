@@ -7,6 +7,7 @@ import pytest
 
 from tests.util import get_test_data
 from vis4d.config.util.registry import get_config_by_name
+from vis4d.zoo import register_config
 
 
 class TestRegistry(unittest.TestCase):
@@ -57,3 +58,15 @@ class TestRegistry(unittest.TestCase):
         with pytest.raises(ValueError) as err:
             config = get_config_by_name("faster_rcnn_r90_1x_bdd100k")
         self.assertTrue("faster_rcnn_r50_1x_bdd100k" in str(err.value))
+
+    def test_decorator(self) -> None:
+        """Test registering a config."""
+
+        @register_config("cat", "test")  # type: ignore
+        def get_config() -> dict[str, str]:
+            """Test config."""
+            return {"test": "test"}
+
+        config = get_config_by_name("cat/test")
+        self.assertTrue(config is not None)
+        self.assertEqual(config["test"], "test")

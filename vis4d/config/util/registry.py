@@ -143,9 +143,10 @@ def _get_registered_configs(
     models = flatten_dict(AVAILABLE_MODELS, os.path.sep)
     # check if there is an absolute match for the config
     if config_name in models:
-        return get_dict_nested(
+        module = get_dict_nested(
             AVAILABLE_MODELS, config_name.split(os.path.sep)
         )
+        return getattr(module, method_name)(*args)
     # check if there is a partial match for the config
     matches = {}
     for model in models:
