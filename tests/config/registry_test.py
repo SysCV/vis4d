@@ -6,8 +6,7 @@ import unittest
 import pytest
 
 from tests.util import get_test_data
-from vis4d.config.util.registry import get_config_by_name
-from vis4d.zoo import register_config
+from vis4d.config.util.registry import get_config_by_name, register_config
 
 
 class TestRegistry(unittest.TestCase):

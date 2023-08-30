@@ -1,16 +1,20 @@
 """Utility function for registering config files."""
+from __future__ import annotations
+
 import glob
 import os
 import pathlib
 import warnings
+from typing import Callable, Union
 
 import yaml
+from ml_collections import ConfigDict
 from ml_collections.config_flags.config_flags import _LoadConfigModule
 
 from vis4d.common.dict import flatten_dict, get_dict_nested
 from vis4d.common.typing import ArgsType
 from vis4d.common.util import create_did_you_mean_msg
-from vis4d.config.config_dict import ConfigDict, FieldConfigDict
+from vis4d.config.config_dict import FieldConfigDict
 from vis4d.zoo import AVAILABLE_MODELS
 
 MODEL_ZOO_FOLDER = str(
@@ -19,6 +23,63 @@ MODEL_ZOO_FOLDER = str(
 
 # Paths that are used to search for config files.
 REGISTERED_CONFIG_PATHS = [MODEL_ZOO_FOLDER]
+
+
+TFunc = Callable[[ArgsType], ArgsType]
+TfuncConfDict = Union[Callable[[ArgsType], ConfigDict], type]
+
+
+def register_config(
+    category: str, name: str
+) -> Callable[[TfuncConfDict], None]:
+    """Register a config in the model zoo for the given name and category.
+
+    The config will then be available via `get_config_by_name` utilities and
+    located in the AVAILABLE_MODELS dictionary located at
+    [category][name].
+
+    Args:
+        category: Category of the config.
+        name: Name of the config.
+
+    Returns:
+        The decorator.
+    """
+
+    def decorator(fnc_or_clazz: TfuncConfDict) -> None:
+        """Decorator for registering a config.
+
+        Args:
+            fnc_or_clazz: Function or class to register. If a function is
+                passed, it will be wrapped in a class and the class will be
+                registered. If a class is passed, it will be registered
+                directly.
+        """
+        if callable(fnc_or_clazz):
+            # Directly annotated get_config function. Wrap it and register it.
+            class Wrapper:
+                """Wrapper class."""
+
+                def get_config(
+                    self, *args: ArgsType, **kwargs: ArgsType
+                ) -> ConfigDict:
+                    """Resolves the get_config function."""
+                    return fnc_or_clazz(*args, **kwargs)
+
+            module = Wrapper()
+        else:
+            # Directly annotated class. Register it.
+            module = fnc_or_clazz
+
+        # Register the config
+        if category not in AVAILABLE_MODELS:
+            AVAILABLE_MODELS[category] = {}
+
+        assert isinstance(AVAILABLE_MODELS[category], dict)
+
+        AVAILABLE_MODELS[category][name] = module
+
+    return decorator
 
 
 def _resolve_config_path(path: str) -> str:
