@@ -66,7 +66,7 @@ class ConfigFileParser(flags.ArgumentParser):  # type: ignore
         # This will be a 2 element list iff extra configuration args are
         # present.
         split_path = path.split(":", 1)
-        config: ConfigDict | _ErrorConfig
+
         try:
             config = get_config_by_name(
                 split_path[0],
@@ -83,7 +83,7 @@ class ConfigFileParser(flags.ArgumentParser):  # type: ignore
         except IOError as e:
             # Don't raise the error unless/until the config is
             # actually accessed.
-            config = _ErrorConfig(e)
+            return _ErrorConfig(e)
         # Third party flags library catches TypeError and ValueError
         # and rethrows,
         # removing useful information unless it is added here (b/63877430):
