@@ -37,6 +37,9 @@ DASH_AVAILABLE = package_available("dash")
 OPEN3D_AVAILABLE = package_available("open3d")
 PLOTLY_AVAILABLE = package_available("plotly")
 
+# vis4d cuda ops
+VIS4D_CUDA_OPS_AVAILABLE = package_available("vis4d_cuda_ops")
+
 # logging
 TENSORBOARD_AVAILABLE = package_available("tensorboardX") or package_available(
     "tensorboard"
