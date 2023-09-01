@@ -9,7 +9,6 @@ from .cc_3dt import AVAILABLE_MODELS as CC_3DT_MODELS
 from .faster_rcnn import AVAILABLE_MODELS as FASTER_RCNN_MODELS
 from .fcn_resnet import AVAILABLE_MODELS as FCN_RESNET_MODELS
 from .mask_rcnn import AVAILABLE_MODELS as MASK_RCNN_MODELS
-from .qdtrack import AVAILABLE_MODELS as QDTRACK_MODELS
 from .retinanet import AVAILABLE_MODELS as RETINANET_MODELS
 from .shift import AVAILABLE_MODELS as SHIFT_MODELS
 from .vit import AVAILABLE_MODELS as VIT_MODELS
@@ -22,7 +21,6 @@ AVAILABLE_MODELS: dict[str, dict[str, ArgsType]] = {
     "faster_rcnn": FASTER_RCNN_MODELS,
     "fcn_resnet": FCN_RESNET_MODELS,
     "mask_rcnn": MASK_RCNN_MODELS,
-    "qdtrack": QDTRACK_MODELS,
     "retinanet": RETINANET_MODELS,
     "shift": SHIFT_MODELS,
     "vit": VIT_MODELS,
