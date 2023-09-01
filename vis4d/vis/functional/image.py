@@ -103,6 +103,7 @@ def draw_bboxes(
     class_id_mapping: None | dict[int, str] = None,
     n_colors: int = 50,
     image_mode: str = "RGB",
+    box_width: int = 1,
     canvas: CanvasBackend = PillowCanvasBackend(),
 ) -> NDArrayUI8:
     """Draws the predicted bounding boxes into the given image.
@@ -121,6 +122,7 @@ def draw_bboxes(
         n_colors (int, optional): Number of colors to use for color palette.
             Defaults to 50.
         image_mode (str, optional): Image Mode. Defaults to "RGB".
+        box_width (int, optional): Width of the box border. Defaults to 1.
         canvas (CanvasBackend, optional): Canvas backend to use.
             Defaults to PillowCanvasBackend().
 
@@ -139,7 +141,7 @@ def draw_bboxes(
     canvas.create_canvas(image)
 
     for corners, label, color in zip(*box_data):
-        canvas.draw_box(corners, color)
+        canvas.draw_box(corners, color, box_width)
         canvas.draw_text((corners[0], corners[1]), label)
     return canvas.as_numpy_image()
 
@@ -153,6 +155,7 @@ def imshow_bboxes(
     class_id_mapping: None | dict[int, str] = None,
     n_colors: int = 50,
     image_mode: str = "RGB",
+    box_width: int = 1,
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
 ) -> None:
     """Shows the bounding boxes overlayed on the given image.
@@ -169,6 +172,7 @@ def imshow_bboxes(
         n_colors (int, optional): Number of distinct colors used to color the
                                   boxes. Defaults to 50.
         image_mode (str, optional): Image channel mode (RGB or BGR).
+        box_width (int, optional): Width of the box border. Defaults to 1.
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
     """
@@ -182,6 +186,7 @@ def imshow_bboxes(
         class_id_mapping,
         n_colors,
         image_mode,
+        box_width,
     )
     imshow(img, image_mode, image_viewer)
 
@@ -298,6 +303,7 @@ def imshow_topk_bboxes(
     class_id_mapping: None | dict[int, str] = None,
     n_colors: int = 50,
     image_mode: str = "RGB",
+    box_width: int = 1,
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
 ) -> None:
     """Visualize the 'topk' bounding boxes with highest score.
@@ -315,6 +321,7 @@ def imshow_topk_bboxes(
         n_colors (int, optional): Number of distinct colors used to color the
                                   boxes. Defaults to 50.
         image_mode (str, optional): Image channel mode (RGB or BGR).
+        box_width (int, optional): Width of the box border. Defaults to 1.
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
 
@@ -334,6 +341,7 @@ def imshow_topk_bboxes(
         class_id_mapping,
         n_colors,
         image_mode,
+        box_width,
         image_viewer,
     )
 

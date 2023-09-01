@@ -42,10 +42,10 @@ def mosaic_combine(
     if index == 0:
         # index0 to top left part of image
         x1, y1, x2, y2 = (
-            max(center[0] - im_hw[1], 0),
-            max(center[1] - im_hw[0], 0),
-            center[0],
+            max(center[1] - im_hw[1], 0),
+            max(center[0] - im_hw[0], 0),
             center[1],
+            center[0],
         )
         crop_coord = (
             im_hw[1] - (x2 - x1),
@@ -56,10 +56,10 @@ def mosaic_combine(
     elif index == 1:
         # index1 to top right part of image
         x1, y1, x2, y2 = (
-            center[0],
-            max(center[1] - im_hw[0], 0),
-            min(center[0] + im_hw[1], out_shape[1] * 2),
             center[1],
+            max(center[0] - im_hw[0], 0),
+            min(center[1] + im_hw[1], out_shape[1] * 2),
+            center[0],
         )
         crop_coord = (
             0,
@@ -70,10 +70,10 @@ def mosaic_combine(
     elif index == 2:
         # index2 to bottom left part of image
         x1, y1, x2, y2 = (
-            max(center[0] - im_hw[1], 0),
-            center[1],
+            max(center[1] - im_hw[1], 0),
             center[0],
-            min(out_shape[0] * 2, center[1] + im_hw[0]),
+            center[1],
+            min(out_shape[0] * 2, center[0] + im_hw[0]),
         )
         crop_coord = (
             im_hw[1] - (x2 - x1),
@@ -84,10 +84,10 @@ def mosaic_combine(
     else:
         # index3 to bottom right part of image
         x1, y1, x2, y2 = (
-            center[0],
             center[1],
-            min(center[0] + im_hw[1], out_shape[1] * 2),
-            min(out_shape[0] * 2, center[1] + im_hw[0]),
+            center[0],
+            min(center[1] + im_hw[1], out_shape[1] * 2),
+            min(out_shape[0] * 2, center[0] + im_hw[0]),
         )
         crop_coord = 0, 0, min(im_hw[1], x2 - x1), min(y2 - y1, im_hw[0])
 
@@ -158,8 +158,7 @@ class GenMosaicParameters:
         mosaic_params = []
         for i in range(0, len(input_hw), self.NUM_SAMPLES):
             paste_coords, crop_coords, im_scales, im_shapes = [], [], [], []
-            imgs = input_hw[i : i + self.NUM_SAMPLES]
-            for idx, ori_hw in enumerate(imgs):
+            for idx, ori_hw in enumerate(input_hw[i : i + self.NUM_SAMPLES]):
                 # compute the resize shape
                 scale_ratio_i = min(h / ori_hw[0], w / ori_hw[1])
                 h_i = int(ori_hw[0] * scale_ratio_i)
@@ -242,8 +241,7 @@ class MosaicImages:
             mosaic_img = np.full(
                 (1, h * 2, w * 2, c), self.pad_value, dtype=np.float32
             )
-            imgs = images[i : i + self.NUM_SAMPLES]
-            for idx, img in enumerate(imgs):
+            for idx, img in enumerate(images[i : i + self.NUM_SAMPLES]):
                 # resize current image
                 h_i, w_i = im_shapes[i][idx]
                 img_ = resize_image(
@@ -260,7 +258,7 @@ class MosaicImages:
                 mosaic_img[:, y1_p:y2_p, x1_p:x2_p, :] = img_[
                     :, y1_c:y2_c, x1_c:x2_c, :
                 ]
-            mosaic_imgs.append(mosaic_img)
+            mosaic_imgs += [mosaic_img for _ in range(self.NUM_SAMPLES)]
         return mosaic_imgs, [(m.shape[1], m.shape[2]) for m in mosaic_imgs]
 
 
@@ -276,18 +274,23 @@ class MosaicImages:
     out_keys=[K.boxes2d, K.boxes2d_classes, K.boxes2d_track_ids],
 )
 class MosaicBoxes2D:
-    """Apply Mosaic to a list of 2D bounding boxes.
-
-    Args:
-        clip_inside_image (bool): Whether to clip the boxes to be inside the
-            image. Defaults to True.
-    """
+    """Apply Mosaic to a list of 2D bounding boxes."""
 
     NUM_SAMPLES = 4
 
-    def __init__(self, clip_inside_image: bool = True) -> None:
-        """Creates an instance of the class."""
+    def __init__(
+        self, clip_inside_image: bool = True, max_track_ids: int = 1000
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            clip_inside_image (bool): Whether to clip the boxes to be inside
+                the image. Defaults to True.
+            max_track_ids (int): The maximum number of track ids. Defaults to
+                1000.
+        """
         self.clip_inside_image = clip_inside_image
+        self.max_track_ids = max_track_ids
 
     def __call__(
         self,
@@ -305,7 +308,7 @@ class MosaicBoxes2D:
         )
         for i in range(0, len(boxes), self.NUM_SAMPLES):
             for idx in range(self.NUM_SAMPLES):
-                j = i * self.NUM_SAMPLES + idx
+                j = i + idx
 
                 x1_p, y1_p, x2_p, y2_p = paste_coords[i][idx]
                 x1_c, y1_c, _, _ = crop_coords[i][idx]
@@ -319,25 +322,36 @@ class MosaicBoxes2D:
                     im_scales[i][idx][0] * boxes[j][:, [1, 3]] + ph
                 )
 
-                # TODO handle unique track_ids
                 keep_mask = _get_keep_mask(
                     boxes[j], np.array([x1_p, y1_p, x2_p, y2_p])
                 )
                 boxes[j] = boxes[j][keep_mask]
                 classes[j] = classes[j][keep_mask]
                 if track_ids is not None:
-                    track_ids[j] = track_ids[j][keep_mask]
+                    track_ids[j] = track_ids[j][keep_mask].copy()
+                    if len(track_ids[j]) > 0:
+                        if max(track_ids[j]) >= self.max_track_ids:
+                            raise ValueError(
+                                f"Track id exceeds maximum track id"
+                                f"{self.max_track_ids}!"
+                            )
+                        track_ids[j] += self.max_track_ids * idx
 
                 if self.clip_inside_image:
                     boxes[j][:, [0, 2]] = boxes[j][:, [0, 2]].clip(x1_p, x2_p)
                     boxes[j][:, [1, 3]] = boxes[j][:, [1, 3]].clip(y1_p, y2_p)
-            new_boxes.append(np.concatenate(boxes[i : i + self.NUM_SAMPLES]))
-            new_classes.append(
+            new_boxes += [
+                np.concatenate(boxes[i : i + self.NUM_SAMPLES])
+                for _ in range(self.NUM_SAMPLES)
+            ]
+            new_classes += [
                 np.concatenate(classes[i : i + self.NUM_SAMPLES])
-            )
+                for _ in range(self.NUM_SAMPLES)
+            ]
             if track_ids is not None:
                 assert new_track_ids is not None
-                new_track_ids.append(
+                new_track_ids += [
                     np.concatenate(track_ids[i : i + self.NUM_SAMPLES])
-                )
+                    for _ in range(self.NUM_SAMPLES)
+                ]
         return new_boxes, new_classes, new_track_ids

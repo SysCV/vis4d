@@ -34,7 +34,9 @@ class ParamGroup(TypedDict):
 # TODO: Add true support for multiple optimizers. This will need to
 # modify config to specify which optimizer to use for which module.
 def set_up_optimizers(
-    optimizers_cfg: list[OptimizerConfig], models: list[nn.Module]
+    optimizers_cfg: list[OptimizerConfig],
+    models: list[nn.Module],
+    steps_per_epoch: int = -1,
 ) -> tuple[list[Optimizer], list[LRSchedulerWrapper]]:
     """Set up optimizers."""
     optimizers = []
@@ -45,7 +47,9 @@ def set_up_optimizers(
 
         if optim_cfg.lr_schedulers is not None:
             lr_schedulers.append(
-                LRSchedulerWrapper(optim_cfg.lr_schedulers, optimizer)
+                LRSchedulerWrapper(
+                    optim_cfg.lr_schedulers, optimizer, steps_per_epoch
+                )
             )
 
     return optimizers, lr_schedulers

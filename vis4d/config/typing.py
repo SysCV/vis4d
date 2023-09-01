@@ -59,12 +59,20 @@ class LrSchedulerConfig(ConfigDict):  # type: ignore
         end (int): End epoch.
         epoch_based (bool): Whether the learning rate scheduler is epoch based
             or step based.
+        convert_epochs_to_steps (bool): Whether to convert the begin and end
+            for a step based scheduler to steps automatically based on length
+            of train dataloader. Enables users to set the iteration breakpoints
+            as epochs. Defaults to False.
+        convert_attributes (list[str] | None): List of attributes in the
+            scheduler that should be converted to steps. Defaults to None.
     """
 
     scheduler: ConfigDict
     begin: int
     end: int
     epoch_based: bool
+    convert_epochs_to_steps: bool = False
+    convert_attributes: list[str] | None = None
 
 
 class OptimizerConfig(ConfigDict):  # type: ignore

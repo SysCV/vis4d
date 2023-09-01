@@ -69,10 +69,11 @@ class QDTrackTest(unittest.TestCase):
         # assume: inputs are consecutive frames
         images = data[K.images]
         inputs_hw = data[K.input_hw]
+        original_hw = data[K.original_hw]
         frame_ids = data[K.frame_ids]
 
         with torch.no_grad():
-            tracks = qdtrack(images, inputs_hw, frame_ids)
+            tracks = qdtrack(images, inputs_hw, original_hw, frame_ids)
         assert isinstance(tracks, TrackOut)
         print("Testcase file:", get_test_file("qdtrack.pt"))
         testcase_gt = torch.load(get_test_file("qdtrack.pt"))
