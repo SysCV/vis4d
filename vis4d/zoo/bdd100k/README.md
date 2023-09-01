@@ -88,9 +88,9 @@ The BDD100K dataset contains MOT annotations for 2K videos (1.4K/200/400 for tra
 
 ### QDTrack
 
-[Quasi-Dense Similarity Learning for Multiple Object Tracking](https://arxiv.org/abs/2006.06664) [CVPR 2021 Oral]
+[QDTrack: Quasi-Dense Similarity Learning for Appearance-Only Multiple Object Tracking](https://arxiv.org/abs/2210.06984) [TPAMI, CVPR 2021 Oral]
 
-Authors: [Jiangmiao Pang](https://scholar.google.com/citations?user=ssSfKpAAAAAJ), [Linlu Qiu](https://linlu-qiu.github.io/), [Xia Li](https://xialipku.github.io/), [Haofeng Chen](https://www.haofeng.io/), Qi Li, [Trevor Darrell](https://people.eecs.berkeley.edu/~trevor/), [Fisher Yu](https://www.yf.io/)
+Authors: [Tobias Fischer](https://tobiasfshr.github.io/), [Thomas E Huang](https://www.thomasehuang.com/), [Jiangmiao Pang](https://scholar.google.com/citations?user=ssSfKpAAAAAJ), [Linlu Qiu](https://linlu-qiu.github.io/), [Haofeng Chen](https://www.haofeng.io/), Qi Li, [Trevor Darrell](https://people.eecs.berkeley.edu/~trevor/), [Fisher Yu](https://www.yf.io/)
 
 <details>
 <summary>Abstract</summary>
