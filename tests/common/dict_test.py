@@ -2,11 +2,19 @@
 
 import unittest
 
-from vis4d.common.dict import get_dict_nested, set_dict_nested
+from vis4d.common.dict import flatten_dict, get_dict_nested, set_dict_nested
 
 
 class TestDictUtils(unittest.TestCase):
     """Test cases for array conversion ops."""
+
+    def test_flatten_dict(self) -> None:
+        """Tests the flatten_dict function."""
+        d = {"a": {"b": {"c": 10}}}
+        self.assertEqual(flatten_dict(d, "."), ["a.b.c"])
+
+        d = {"a": {"b": {"c": 10, "d": 20}}}
+        self.assertEqual(flatten_dict(d, "/"), ["a/b/c", "a/b/d"])
 
     def test_set_dict_nested(self) -> None:
         """Tests the set_dict_nested function."""
