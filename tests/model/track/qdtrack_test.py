@@ -75,7 +75,7 @@ class QDTrackTest(unittest.TestCase):
         with torch.no_grad():
             tracks = qdtrack(images, inputs_hw, original_hw, frame_ids)
         assert isinstance(tracks, TrackOut)
-        torch.save(tracks, get_test_file("qdtrack.pt"))
+        print("Testcase file:", get_test_file("qdtrack.pt"))
         testcase_gt = torch.load(get_test_file("qdtrack.pt"))
         for pred_entry, expected_entry in zip(tracks, testcase_gt):
             for pred, expected in zip(pred_entry, expected_entry):
