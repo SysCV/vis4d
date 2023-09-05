@@ -30,6 +30,7 @@ class NuScenesTest(unittest.TestCase):
                 "token",
                 "frame_ids",
                 "sequence_names",
+                "can_bus",
                 "LIDAR_TOP",
                 "CAM_FRONT",
                 "CAM_FRONT_LEFT",

@@ -203,6 +203,7 @@ class CacheMappingMixin:
                     f"Did not find {cached_file_path}, generating it..."
                 )
                 data = generate_map_func()
+                os.makedirs(os.path.dirname(cached_file_path), exist_ok=True)
                 with open(cached_file_path, "wb") as file:
                     file.write(pickle.dumps(data))
             else:

@@ -1,4 +1,5 @@
 """Model weight initialization."""
+import numpy as np
 from torch import nn
 
 
@@ -78,5 +79,23 @@ def normal_init(
     """Initialize module with normal distribution."""
     if hasattr(module, "weight") and isinstance(module.weight, nn.Parameter):
         nn.init.normal_(module.weight, mean, std)
+    if hasattr(module, "bias") and isinstance(module.bias, nn.Parameter):
+        nn.init.constant_(module.bias, bias)
+
+
+def bias_init_with_prob(prior_prob: float) -> float:
+    """Initialize conv/fc bias value according to a given probability value."""
+    return float(-np.log((1 - prior_prob) / prior_prob))
+
+
+def uniform_init(
+    module: nn.Module,
+    lower: float = 0.0,
+    upper: float = 1.0,
+    bias: float = 0.0,
+) -> None:
+    """Initialize module with uniform distribution."""
+    if hasattr(module, "weight") and isinstance(module.weight, nn.Parameter):
+        nn.init.uniform_(module.weight, lower, upper)
     if hasattr(module, "bias") and isinstance(module.bias, nn.Parameter):
         nn.init.constant_(module.bias, bias)

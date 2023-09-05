@@ -7,21 +7,29 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
+from vis4d.common.typing import ArgsType
+
 from .weight_init import constant_init
 
 
 class Conv2d(nn.Conv2d):
     """Wrapper around Conv2d to support empty inputs and norm/activation."""
 
-    def __init__(self, *args, **kwargs) -> None:  # type: ignore
-        """Creates an instance of the class."""
-        norm = kwargs.pop("norm", None)
-        activation = kwargs.pop("activation", None)
+    def __init__(
+        self,
+        *args: ArgsType,
+        norm: nn.Module | None = None,
+        activation: nn.Module | None = None,
+        **kwargs: ArgsType,
+    ) -> None:
+        """Creates an instance of the class.
+
+        If norm is specified, it is initialized with 1.0 and bias with 0.0.
+        """
         super().__init__(*args, **kwargs)
         self.norm = norm
         self.activation = activation
 
-        # TODO: Remove this once we have a better way to initialize
         if self.norm is not None:
             constant_init(self.norm, 1.0, bias=0.0)
 

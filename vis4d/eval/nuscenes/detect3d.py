@@ -1,7 +1,6 @@
 """NuScenes 3D detection evaluation code."""
 from __future__ import annotations
 
-import itertools
 import json
 import os
 from collections.abc import Callable
@@ -78,7 +77,6 @@ def _parse_per_class_metrics(
 class NuScenesDet3DEvaluator(Evaluator):
     """NuScenes 3D detection evaluation class."""
 
-    inv_nuscenes_class_map = {v: k for k, v in nuscenes_class_map.items()}
     inv_nuscenes_attribute_map = {
         v: k for k, v in nuscenes_attribute_map.items()
     }
@@ -102,6 +100,7 @@ class NuScenesDet3DEvaluator(Evaluator):
         version: str,
         split: str,
         save_only: bool = False,
+        class_map: dict[str, int] | None = None,
         metadata: tuple[str, ...] = ("use_camera",),
         use_default_attr: bool = False,
         velocity_thres: float = 1.0,
@@ -126,6 +125,9 @@ class NuScenesDet3DEvaluator(Evaluator):
         for m in metadata:
             self.meta_data[m] = True
 
+        class_map = class_map or nuscenes_class_map
+        self.inv_nuscenes_class_map = {v: k for k, v in class_map.items()}
+
         self.output_dir = ""
         self.detect_3d: DictStrAny = {}
         self.reset()
@@ -149,8 +151,14 @@ class NuScenesDet3DEvaluator(Evaluator):
         """
         detect_3d_list = gather_func(self.detect_3d)
         if detect_3d_list is not None:
-            prediction_list = [p.items() for p in detect_3d_list]
-            self.detect_3d = dict(itertools.chain(*prediction_list))
+            collated_detect_3d: DictStrAny = {}
+            for prediction in detect_3d_list:
+                for k, v in prediction.items():
+                    if k not in collated_detect_3d:
+                        collated_detect_3d[k] = v
+                    else:
+                        collated_detect_3d[k].extend(v)
+            self.detect_3d = collated_detect_3d
 
     def reset(self) -> None:
         """Reset evaluator."""
@@ -286,7 +294,6 @@ class NuScenesDet3DEvaluator(Evaluator):
                 result_path=f"{self.output_dir}/detect_3d_predictions.json",
                 eval_set=self.split,
                 output_dir=os.path.join(self.output_dir, "detection"),
-                verbose=False,
             )
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
 from vis4d.config.common.models.yolox import (
+    get_yolox_callbacks_cfg,
     get_yolox_cfg,
     get_yolox_optimizers_cfg,
 )
@@ -21,16 +23,7 @@ from vis4d.config.default.data_connectors import (
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import (
-    EMACallback,
-    EvaluatorCallback,
-    VisualizerCallback,
-    YOLOXModeSwitchCallback,
-    YOLOXSyncNormCallback,
-)
-from vis4d.engine.callbacks.yolox_callbacks import (
-    YOLOXSyncRandomResizeCallback,
-)
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.vis.image import BoundingBoxVisualizer
@@ -87,13 +80,9 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    steps_per_epoch, num_last_epochs, warmup_epochs = 1849, 15, 5
+    num_last_epochs, warmup_epochs = 15, 5
     config.optimizers = get_yolox_optimizers_cfg(
-        params.lr,
-        params.num_epochs,
-        steps_per_epoch,
-        warmup_epochs,
-        num_last_epochs,
+        params.lr, params.num_epochs, warmup_epochs, num_last_epochs
     )
 
     ######################################################
@@ -116,21 +105,9 @@ def get_config() -> ExperimentConfig:
     )
 
     # YOLOX callbacks
-    callbacks += [
-        class_config(
-            YOLOXSyncRandomResizeCallback,
-            size_list=[(480 + i, 480 + i) for i in range(0, 321, 32)],
-            interval=10,
-        ),
-        class_config(
-            YOLOXModeSwitchCallback,
-            switch_epoch=params.num_epochs - num_last_epochs,
-        ),
-        class_config(YOLOXSyncNormCallback),
-    ]
-
-    # EMA callback
-    callbacks.append(class_config(EMACallback))
+    callbacks += get_yolox_callbacks_cfg(
+        switch_epoch=params.num_epochs - num_last_epochs
+    )
 
     # Visualizer
     callbacks.append(
@@ -170,7 +147,7 @@ def get_config() -> ExperimentConfig:
     pl_trainer.max_epochs = params.num_epochs
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
     pl_trainer.checkpoint_callback = class_config(
-        pl.callbacks.ModelCheckpoint,
+        ModelCheckpoint,
         dirpath=config.get_ref("output_dir") + "/checkpoints",
         verbose=True,
         save_last=True,

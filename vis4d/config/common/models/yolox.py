@@ -9,6 +9,12 @@ from vis4d.config import class_config
 from vis4d.config.typing import OptimizerConfig
 from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
+from vis4d.engine.callbacks import (
+    EMACallback,
+    YOLOXModeSwitchCallback,
+    YOLOXSyncNormCallback,
+    YOLOXSyncRandomResizeCallback,
+)
 from vis4d.engine.connectors import LossConnector, data_key, pred_key
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim.scheduler import ConstantLR, QuadraticLRWarmup
@@ -32,7 +38,6 @@ CONN_YOLOX_LOSS_2D = {
 def get_yolox_optimizers_cfg(
     lr: float | FieldReference,
     num_epochs: int | FieldReference,
-    steps_per_epoch: int,
     warmup_epochs: int,
     num_last_epochs: int,
 ) -> list[OptimizerConfig]:
@@ -48,23 +53,23 @@ def get_yolox_optimizers_cfg(
             ),
             lr_schedulers=[
                 get_lr_scheduler_cfg(
-                    class_config(
-                        QuadraticLRWarmup,
-                        max_steps=steps_per_epoch * warmup_epochs,
-                    ),
-                    end=steps_per_epoch * warmup_epochs,
+                    class_config(QuadraticLRWarmup, max_steps=warmup_epochs),
+                    end=warmup_epochs,
                     epoch_based=False,
+                    convert_epochs_to_steps=True,
+                    convert_attributes=["max_steps"],
                 ),
                 get_lr_scheduler_cfg(
                     class_config(
                         CosineAnnealingLR,
-                        T_max=(num_epochs - num_last_epochs - warmup_epochs)
-                        * steps_per_epoch,
+                        T_max=num_epochs - num_last_epochs - warmup_epochs,
                         eta_min=lr * 0.05,
                     ),
-                    begin=steps_per_epoch * warmup_epochs,
-                    end=(num_epochs - num_last_epochs) * steps_per_epoch,
+                    begin=warmup_epochs,
+                    end=num_epochs - num_last_epochs,
                     epoch_based=False,
+                    convert_epochs_to_steps=True,
+                    convert_attributes=["T_max"],
                 ),
                 get_lr_scheduler_cfg(
                     class_config(
@@ -89,6 +94,83 @@ def get_yolox_optimizers_cfg(
     ]
 
 
+def get_yolox_callbacks_cfg(
+    switch_epoch: int,
+    shape: tuple[int, int] = (480, 480),
+    num_sizes: int = 11,
+    use_ema: bool = True,
+) -> list[ConfigDict]:
+    """Get YOLOX callbacks for training."""
+    callbacks = []
+    if num_sizes > 0:
+        callbacks.append(
+            class_config(
+                YOLOXSyncRandomResizeCallback,
+                size_list=[
+                    (shape[0] + i * 32, shape[1] + i * 32)
+                    for i in range(num_sizes)
+                ],
+                interval=10,
+            )
+        )
+    callbacks += [
+        class_config(YOLOXModeSwitchCallback, switch_epoch=switch_epoch),
+        class_config(YOLOXSyncNormCallback),
+    ]
+    if use_ema:
+        callbacks += [class_config(EMACallback)]
+    return callbacks
+
+
+def get_model_setting(model_type: str) -> tuple[float, float, int, list[int]]:
+    """Get YOLOX model setting."""
+    if model_type == "tiny":
+        deepen_factor, widen_factor, num_csp_blocks = 0.33, 0.375, 1
+        in_channels = [96, 192, 384]
+    elif model_type == "small":
+        deepen_factor, widen_factor, num_csp_blocks = 0.33, 0.5, 1
+        in_channels = [128, 256, 512]
+    elif model_type == "large":
+        deepen_factor, widen_factor, num_csp_blocks = 1.0, 1.0, 3
+        in_channels = [256, 512, 1024]
+    elif model_type == "xlarge":
+        deepen_factor, widen_factor, num_csp_blocks = 1.33, 1.25, 4
+        in_channels = [320, 640, 1280]
+    return deepen_factor, widen_factor, num_csp_blocks, in_channels
+
+
+def get_yolox_model_cfg(
+    num_classes: FieldReference | int, model_type: str
+) -> ConfigDict:
+    """Get YOLOX model."""
+    assert model_type in {"tiny", "small", "large", "xlarge"}, (
+        f"model_type must be one of 'tiny', 'small', 'large', 'xlarge', "
+        f"got {model_type}."
+    )
+    (
+        deepen_factor,
+        widen_factor,
+        num_csp_blocks,
+        in_channels,
+    ) = get_model_setting(model_type)
+    basemodel = class_config(
+        CSPDarknet, deepen_factor=deepen_factor, widen_factor=widen_factor
+    )
+    fpn = class_config(
+        YOLOXPAFPN,
+        in_channels=in_channels,
+        out_channels=in_channels[0],
+        num_csp_blocks=num_csp_blocks,
+    )
+    yolox_head = class_config(
+        YOLOXHead,
+        num_classes=num_classes,
+        in_channels=in_channels[0],
+        feat_channels=in_channels[0],
+    )
+    return basemodel, fpn, yolox_head
+
+
 def get_yolox_cfg(
     num_classes: FieldReference | int,
     model_type: str,
@@ -107,38 +189,8 @@ def get_yolox_cfg(
     ######################################################
     ##                        MODEL                     ##
     ######################################################
-    assert model_type in {"tiny", "small", "large", "xlarge"}, (
-        f"model_type must be one of 'tiny', 'small', 'large', 'xlarge', "
-        f"got {model_type}."
-    )
-    if model_type == "tiny":
-        deepen_factor, widen_factor, num_csp_blocks = 0.33, 0.375, 1
-        in_channels = [96, 192, 384]
-    elif model_type == "small":
-        deepen_factor, widen_factor, num_csp_blocks = 0.33, 0.5, 1
-        in_channels = [128, 256, 512]
-    elif model_type == "large":
-        deepen_factor, widen_factor, num_csp_blocks = 1.0, 1.0, 3
-        in_channels = [256, 512, 1024]
-    elif model_type == "xlarge":
-        deepen_factor, widen_factor, num_csp_blocks = 1.33, 1.25, 4
-        in_channels = [320, 640, 1280]
-    basemodel = class_config(
-        CSPDarknet, deepen_factor=deepen_factor, widen_factor=widen_factor
-    )
-    fpn = class_config(
-        YOLOXPAFPN,
-        in_channels=in_channels,
-        out_channels=in_channels[0],
-        num_csp_blocks=num_csp_blocks,
-    )
-    yolox_head = class_config(
-        YOLOXHead,
-        num_classes=num_classes,
-        in_channels=in_channels[0],
-        feat_channels=in_channels[0],
-    )
-    model = model = class_config(
+    basemodel, fpn, yolox_head = get_yolox_model_cfg(num_classes, model_type)
+    model = class_config(
         YOLOX,
         num_classes=num_classes,
         basemodel=basemodel,
@@ -147,7 +199,7 @@ def get_yolox_cfg(
         weights=weights,
     )
     if use_ema:
-        model = class_config(ModelExpEMAAdapter, model=model, decay=0.9999)
+        model = class_config(ModelExpEMAAdapter, model=model)
 
     ######################################################
     ##                      LOSS                        ##

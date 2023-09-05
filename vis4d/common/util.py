@@ -1,11 +1,36 @@
 """Utility functions for common usage."""
 import random
+from difflib import get_close_matches
 
 import numpy as np
 import torch
 
 from .imports import is_torch_tf32_available
 from .logging import rank_zero_warn
+
+
+def create_did_you_mean_msg(keys: list[str], query: str) -> str:
+    """Create a did you mean message.
+
+    Args:
+        keys (list[str]): List of available keys.
+        query (str): Query.
+
+    Returns:
+        str: Did you mean message.
+
+    Examples:
+        >>> keys = ["foo", "bar", "baz"]
+        >>> query = "fo"
+        >>> print(create_did_you_mean_msg(keys, query))
+        Did you mean:
+            foo
+    """
+    msg = ""
+    if len(keys) > 0:
+        msg = "Did you mean:\n\t"
+        msg += "\n\t".join(get_close_matches(query, keys, cutoff=0.75))
+    return msg
 
 
 def set_tf32(use_tf32: bool = False) -> None:  # pragma: no cover

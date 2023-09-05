@@ -98,6 +98,7 @@ class CanvasBackend:
         self,
         corners: tuple[float, float, float, float],
         color: tuple[int, int, int],
+        width: int = 1,
     ) -> None:
         """Draws a box onto the given canvas.
 
@@ -105,6 +106,7 @@ class CanvasBackend:
             corners (list[float]): Containing [x1,y1,x2,y2] the corners of
                 the box.
             color (tuple[int, int, int]): Color of the box [0,255].
+            width (int, optional): Line width. Defaults to 1.
 
         Raises:
             ValueError: If the canvas is not initialized.

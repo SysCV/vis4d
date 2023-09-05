@@ -26,7 +26,11 @@ class MultiSensorDataConnector(DataConnector):
 
         for k, v in key_mapping.items():
             if isinstance(v, dict):
-                multi_sensor_key_mapping[k] = v
+                sensors = v.get("sensors")
+                if sensors is not None:
+                    multi_sensor_key_mapping[k] = v
+                else:
+                    _key_mapping[k] = v["key"]
             else:
                 _key_mapping[k] = v
 

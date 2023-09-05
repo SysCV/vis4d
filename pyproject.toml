@@ -90,10 +90,10 @@ plugins = ["numpy.typing.mypy_plugin"]
         "open3d.*",
         "ml_collections.*",
         "lightning.*",
-        "detectron2.*",
         "absl.*",
         "terminaltables.*",
-        "timm.*"
+        "timm.*",
+        "vis4d_cuda_ops.*",
     ]
     ignore_missing_imports = true
 
@@ -140,3 +140,4 @@ include = ["vis4d*"]
 [project.scripts]
 vis4d = "vis4d.engine.run:entrypoint"
 vis4d-pl = "vis4d.pl.run:entrypoint"
+vis4d-zoo = "vis4d.zoo.run:entrypoint"

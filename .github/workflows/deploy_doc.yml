@@ -20,6 +20,8 @@ jobs:
           python-version: '3.10'
       - name: Install dependencies
         run: |
+          eval `ssh-agent -s`
+          ssh-add - <<< '${{ secrets.CUDA_OPS_REPO_KEY }}'
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip install -e .

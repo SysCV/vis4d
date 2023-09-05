@@ -1,138 +1,516 @@
-"""Residual networks base model."""
+"""Residual networks base model.
+
+Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
+"""
 from __future__ import annotations
 
-import torch
+from collections.abc import Callable, Sequence
+
+import torch.utils.checkpoint as cp
 import torchvision.models.resnet as _resnet
-from torch import nn
+from torch import Tensor, nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import ArgsType
+from vis4d.op.layer.util import build_conv_layer
+from vis4d.op.layer.weight_init import constant_init, kaiming_init
 
 from .base import BaseModel
 
-model_urls = {
-    "resnet50_v1c": (
-        "https://download.openmmlab.com/pretrain/third_party/"
-        "resnet50_v1c-2cccc1ad.pth"
-    ),
-    "resnet101_v1c": (
-        "https://download.openmmlab.com/pretrain/third_party/"
-        "resnet101_v1c-e67eebb6.pth"
-    ),
-}
+NormLayerType = Callable[..., nn.Module]  # type: ignore
+
+
+class BasicBlock(nn.Module):
+    """BasicBlock."""
+
+    expansion = 1
+
+    def __init__(
+        self,
+        inplanes: int,
+        planes: int,
+        stride: int = 1,
+        dilation: int = 1,
+        downsample: nn.Module | None = None,
+        style: str = "pytorch",
+        with_cp: bool = False,
+        with_dcn: bool = False,
+        norm_layer: NormLayerType | None = None,
+    ) -> None:
+        """Creates an instance of the class."""
+        super().__init__()
+        assert style in {"pytorch", "caffe"}  # No effect for BasicBlock
+        assert not with_dcn, "DCN is not supported for BasicBlock."
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+
+        self.conv1 = build_conv_layer(
+            inplanes,
+            planes,
+            3,
+            stride=stride,
+            dilation=dilation,
+            padding=dilation,
+            bias=False,
+        )
+        self.bn1 = norm_layer(planes)
+        self.conv2 = build_conv_layer(planes, planes, 3, padding=1, bias=False)
+        self.bn2 = norm_layer(planes)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        self.dilation = dilation
+        self.with_cp = with_cp
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward function."""
+
+        def _inner_forward(x: Tensor) -> Tensor:
+            identity = x
+
+            out = self.conv1(x)
+            out = self.bn1(out)
+            out = self.relu(out)
+
+            out = self.conv2(out)
+            out = self.bn2(out)
+
+            if self.downsample is not None:
+                identity = self.downsample(x)
+
+            out += identity
+
+            return out
+
+        if self.with_cp and x.requires_grad:
+            out = cp.checkpoint(_inner_forward, x)
+        else:
+            out = _inner_forward(x)
+
+        out = self.relu(out)
+
+        return out
+
+
+class Bottleneck(nn.Module):
+    """Bottleneck."""
+
+    expansion = 4
+
+    def __init__(
+        self,
+        inplanes: int,
+        planes: int,
+        stride: int = 1,
+        dilation: int = 1,
+        downsample: nn.Module | None = None,
+        style: str = "pytorch",
+        with_cp: bool = False,
+        with_dcn: bool = False,
+        norm_layer: NormLayerType | None = None,
+    ) -> None:
+        """Bottleneck block for ResNet.
+
+        If style is "pytorch", the stride-two layer is the 3x3 conv layer, if
+        it is "caffe", the stride-two layer is the first 1x1 conv layer.
+        """
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+
+        self.inplanes = inplanes
+        self.planes = planes
+        self.stride = stride
+        self.dilation = dilation
+        self.with_cp = with_cp
+
+        assert style in {"pytorch", "caffe"}
+        if style == "pytorch":
+            self.conv1_stride = 1
+            self.conv2_stride = stride
+        else:
+            self.conv1_stride = stride
+            self.conv2_stride = 1
+
+        self.conv1 = build_conv_layer(
+            inplanes,
+            planes,
+            kernel_size=1,
+            stride=self.conv1_stride,
+            bias=False,
+        )
+        self.bn1 = norm_layer(planes)
+
+        self.conv2 = build_conv_layer(
+            planes,
+            planes,
+            kernel_size=3,
+            stride=self.conv2_stride,
+            padding=dilation,
+            dilation=dilation,
+            bias=False,
+            use_dcn=with_dcn,
+        )
+        self.bn2 = norm_layer(planes)
+
+        self.conv3 = build_conv_layer(
+            planes,
+            planes * self.expansion,
+            kernel_size=1,
+            bias=False,
+        )
+        self.bn3 = norm_layer(planes * self.expansion)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward function."""
+
+        def _inner_forward(x: Tensor) -> Tensor:
+            identity = x
+            out = self.conv1(x)
+            out = self.bn1(out)
+            out = self.relu(out)
+
+            out = self.conv2(out)
+            out = self.bn2(out)
+            out = self.relu(out)
+
+            out = self.conv3(out)
+            out = self.bn3(out)
+
+            if self.downsample is not None:
+                identity = self.downsample(x)
+
+            out += identity
+
+            return out
+
+        if self.with_cp and x.requires_grad:
+            out = cp.checkpoint(_inner_forward, x)
+        else:
+            out = _inner_forward(x)
+
+        out = self.relu(out)
+
+        return out
 
 
 class ResNet(BaseModel):
-    """Wrapper for torchvision ResNet.
+    """ResNet BaseModel."""
 
-    Args:
-        resnet_name (str): Name of the ResNet variant.
-        trainable_layers (int, optional): Number layers for training or
-            fine-tuning. 5 means all the layers can be fine-tuned.
-            Defaults to 5.
-        norm_freezed (bool, optional): Whether to freeze batch norm.
-            Defaults to True.
-        pretrained (bool, optional): Whether to load ImageNet pre-trained
-            weights. Defaults to False.
-        replace_stride_with_dilation (None | list[bool], optional):
-            Whether to replace stride with dilation. Defaults to None.
-
-    Raises:
-        ValueError: trainable_layers should be between 0 and 5
-    """
+    arch_settings = {
+        "resnet18": (18, BasicBlock, (2, 2, 2, 2)),
+        "resnet34": (34, BasicBlock, (3, 4, 6, 3)),
+        "resnet50": (50, Bottleneck, (3, 4, 6, 3)),
+        "resnet101": (101, Bottleneck, (3, 4, 23, 3)),
+        "resnet152": (152, Bottleneck, (3, 8, 36, 3)),
+    }
 
     def __init__(
         self,
         resnet_name: str,
-        trainable_layers: int = 5,
-        norm_freezed: bool = True,
-        pretrained: bool = False,
-        replace_stride_with_dilation: None | list[bool] = None,
+        in_channels: int = 3,
+        stem_channels: int | None = None,
+        base_channels: int = 64,
+        num_stages: int = 4,
+        strides: Sequence[int] = (1, 2, 2, 2),
+        dilations: Sequence[int] = (1, 1, 1, 1),
+        style: str = "pytorch",
         deep_stem: bool = False,
-    ):
-        """Initialize the ResNet base model from torchvision."""
+        avg_down: bool = False,
+        trainable_layers: int = 5,
+        norm_layer: NormLayerType | None = None,
+        norm_freezed: bool = True,
+        stages_with_dcn: Sequence[bool] = (False, False, False, False),
+        replace_stride_with_dilation: Sequence[bool] = (False, False, False),
+        with_cp: bool = False,
+        zero_init_residual: bool = True,
+        pretrained: bool = False,
+        weights: None | str = None,
+    ) -> None:
+        """Create ResNet.
+
+        Args:
+            resnet_name (str): Name of the ResNet variant.
+            in_channels (int): Number of input image channels. Default: 3.
+            stem_channels (int | None): Number of stem channels. If not
+                specified, it will be the same as `base_channels`. Default:
+                None.
+            base_channels (int): Number of base channels of res layer. Default:
+                64.
+            num_stages (int): Resnet stages. Default: 4.
+            strides (Sequence[int]): Strides of the first block of each stage.
+                Default: (1, 2, 2, 2).
+            dilations (Sequence[int]): Dilation of each stage. Default: (1, 1,
+                1, 1)
+            style (str): `pytorch` or `caffe`. If set to "pytorch", the
+                stride-two layer is the 3x3 conv layer, otherwise the
+                stride-two layer is the first 1x1 conv layer. Default: pytorch.
+            deep_stem (bool): Replace 7x7 conv in input stem with 3 3x3 conv.
+                Default: False.
+            avg_down (bool): Use AvgPool instead of stride conv when
+                downsampling in the bottleneck. Default: False.
+            trainable_layers (int, optional): Number layers for training or
+                fine-tuning. 5 means all the layers can be fine-tuned. Defaults
+                to 5.
+            norm_layer (Callable[..., nn.Module] | None): Normalization layer.
+                Default: None, which means using `nn.BatchNorm2d`.
+            norm_freezed (bool): Whether to set norm layers to eval mode,
+                namely, freeze running stats (mean and var). Note: Effect on
+                Batch Norm and its variants only.
+            stages_with_dcn (Sequence[bool]): Indices of stages with deformable
+                convolutions. Default: (False, False, False, False).
+            replace_stride_with_dilation (Sequence[bool]): Whether to replace
+                stride with dilation. Default: (False, False, False).
+            with_cp (bool): Use checkpoint or not. Using checkpoint will save
+                some memory while slowing down the training speed. Default:
+                False.
+            zero_init_residual (bool): Whether to use zero init for last norm
+                layer in resblocks to let them behave as identity.
+                Default: True.
+            pretrained (bool): Whether to load pretrained weights. Default:
+                False.
+            weights (str, optional): model pretrained path. Default: None
+        """
         super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self._norm_layer = norm_layer
+
+        self.zero_init_residual = zero_init_residual
+        if resnet_name not in self.arch_settings:
+            raise KeyError(f"invalid architecture {resnet_name} for ResNet")
         self.name = resnet_name
-        self.norm_freezed = norm_freezed
         self.deep_stem = deep_stem
-
-        weights = "IMAGENET1K_V1" if pretrained else None
-        resnet = _resnet.__dict__[resnet_name](
-            weights=weights,
-            replace_stride_with_dilation=replace_stride_with_dilation,
-        )
-
-        # select layers that wont be frozen
-        if trainable_layers < 0 or trainable_layers > 5:  # pragma: no cover
-            raise ValueError(
-                f"Trainable layers should be in the range [0,5], "
-                f"got {trainable_layers}"
-            )
         self.trainable_layers = trainable_layers
 
-        returned_layers = [1, 2, 3, 4]
-        self.return_layers = {
-            f"layer{k}": str(v) for v, k in enumerate(returned_layers)
-        }
+        self.with_cp = with_cp
+        self.norm_freezed = norm_freezed
 
+        depth, self.block, stage_blocks = self.arch_settings[resnet_name]
+        assert isinstance(depth, int)
+
+        self.depth = depth
+        stem_channels = stem_channels or base_channels
+
+        assert 4 >= num_stages >= 1
+        assert len(strides) == len(dilations) == num_stages
+
+        self.stage_blocks = stage_blocks[:num_stages]
+        self.inplanes = stem_channels
+
+        self._make_stem_layer(in_channels, stem_channels)
+
+        self.res_layers = []
+        for i, num_blocks in enumerate(self.stage_blocks):
+            if i > 0 and replace_stride_with_dilation[i - 1]:
+                dilation = strides[i]
+                stride = 1
+            else:
+                stride = strides[i]
+                dilation = dilations[i]
+            planes = base_channels * 2**i
+            res_layer = self._make_res_layer(
+                block=self.block,  # type: ignore
+                inplanes=self.inplanes,
+                planes=planes,
+                num_blocks=num_blocks,
+                stride=stride,
+                dilation=dilation,
+                style=style,
+                avg_down=avg_down,
+                with_cp=with_cp,
+                with_dcn=stages_with_dcn[i],
+            )
+            self.inplanes = planes * self.block.expansion  # type: ignore
+            layer_name = f"layer{i + 1}"
+            self.add_module(layer_name, res_layer)
+            self.res_layers.append(layer_name)
+
+        self._freeze_stages()
+
+        if pretrained:
+            if weights is None:
+                # default loading the imagenet-1k v1 pre-trained model weights
+                weights = _resnet.__dict__[
+                    f"ResNet{depth}_Weights"
+                ].IMAGENET1K_V1.url
+
+            load_model_checkpoint(self, weights)
+        else:
+            self._init_weights()
+
+    def _init_weights(self) -> None:
+        """Initialize the weights of module."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                kaiming_init(m)
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                constant_init(m, 1)
+
+        if self.zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and isinstance(
+                    m.bn3.weight, nn.Parameter
+                ):
+                    nn.init.constant_(m.bn3.weight, 0)
+                elif isinstance(m, BasicBlock) and isinstance(
+                    m.bn2.weight, nn.Parameter
+                ):
+                    nn.init.constant_(m.bn2.weight, 0)
+
+    def _make_stem_layer(self, in_channels: int, stem_channels: int) -> None:
+        """Make stem layer for ResNet."""
         if self.deep_stem:
             self.stem = nn.Sequential(
-                nn.Conv2d(
-                    3, 32, kernel_size=3, stride=2, padding=1, bias=False
+                build_conv_layer(
+                    in_channels,
+                    stem_channels // 2,
+                    kernel_size=3,
+                    stride=2,
+                    padding=1,
+                    bias=False,
                 ),
-                nn.BatchNorm2d(32),
+                self._norm_layer(stem_channels // 2),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(
-                    32, 32, kernel_size=3, stride=1, padding=1, bias=False
+                build_conv_layer(
+                    stem_channels // 2,
+                    stem_channels // 2,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    bias=False,
                 ),
-                nn.BatchNorm2d(32),
+                self._norm_layer(stem_channels // 2),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(
-                    32, 64, kernel_size=3, stride=1, padding=1, bias=False
+                build_conv_layer(
+                    stem_channels // 2,
+                    stem_channels,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    bias=False,
                 ),
-                nn.BatchNorm2d(64),
+                self._norm_layer(stem_channels),
                 nn.ReLU(inplace=True),
             )
         else:
-            self.conv1 = resnet.conv1
-            self.bn1 = resnet.bn1
-            self.relu = resnet.relu
-        self.maxpool = resnet.maxpool
-        self.layer1 = resnet.layer1
-        self.layer2 = resnet.layer2
-        self.layer3 = resnet.layer3
-        self.layer4 = resnet.layer4
+            self.conv1 = build_conv_layer(
+                in_channels,
+                stem_channels,
+                kernel_size=7,
+                stride=2,
+                padding=3,
+                bias=False,
+            )
+            self.bn1 = self._norm_layer(stem_channels)
+            self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        if self.trainable_layers < 5:
-            self._freeze_stages()
+    def _make_res_layer(
+        self,
+        block: BasicBlock | Bottleneck,
+        inplanes: int,
+        planes: int,
+        num_blocks: int,
+        stride: int,
+        dilation: int,
+        style: str,
+        avg_down: bool,
+        with_cp: bool,
+        with_dcn: bool,
+    ) -> nn.Sequential:
+        """Pack all blocks in a stage into a ``ResLayer``."""
+        layers: list[BasicBlock | Bottleneck] = []
+        downsample: nn.Module | None = None
+        if stride != 1 or inplanes != planes * block.expansion:
+            downsample_list: list[nn.AvgPool2d | nn.Module] = []
+            conv_stride = stride
+            if avg_down:
+                conv_stride = 1
+                downsample_list.append(
+                    nn.AvgPool2d(
+                        kernel_size=stride,
+                        stride=stride,
+                        ceil_mode=True,
+                        count_include_pad=False,
+                    )
+                )
+            downsample_list.extend(
+                [
+                    build_conv_layer(
+                        inplanes,
+                        planes * block.expansion,
+                        kernel_size=1,
+                        stride=conv_stride,
+                        bias=False,
+                    ),
+                    self._norm_layer(planes * block.expansion),
+                ]
+            )
+            downsample = nn.Sequential(*downsample_list)
+
+        layers = []
+        layers.append(
+            block(
+                inplanes=inplanes,
+                planes=planes,
+                stride=stride,
+                dilation=dilation,
+                downsample=downsample,
+                style=style,
+                with_cp=with_cp,
+                with_dcn=with_dcn,
+                norm_layer=self._norm_layer,
+            )
+        )
+        inplanes = planes * block.expansion
+        for _ in range(1, num_blocks):
+            layers.append(
+                block(
+                    inplanes=inplanes,
+                    planes=planes,
+                    stride=1,
+                    dilation=dilation,
+                    style=style,
+                    with_cp=with_cp,
+                    with_dcn=with_dcn,
+                    norm_layer=self._norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
 
     def _freeze_stages(self) -> None:
-        """Freeze stages."""
-        if self.deep_stem:
-            self.stem.eval()
-            for param in self.stem.parameters():
-                param.requires_grad_(False)
-        else:
-            self.bn1.eval()
-            for m in (self.conv1, self.bn1):
-                for param in m.parameters():
-                    param.requires_grad_(False)
+        """Freeze stages param and norm stats."""
+        if self.trainable_layers < 5:
+            if self.deep_stem:
+                self.stem.eval()
+                for param in self.stem.parameters():
+                    param.requires_grad = False
+            else:
+                self.bn1.eval()
+                for m in (self.conv1, self.bn1):
+                    for param in m.parameters():
+                        param.requires_grad = False
 
-        if self.trainable_layers < 4:
             for i in range(1, 5 - self.trainable_layers):
                 m = getattr(self, f"layer{i}")
                 m.eval()
                 for param in m.parameters():
-                    param.requires_grad_(False)
+                    param.requires_grad = False
 
     def train(self, mode: bool = True) -> ResNet:
         """Override the train mode for the model."""
         super().train(mode)
-        if self.trainable_layers < 5:
-            self._freeze_stages()
+        self._freeze_stages()
 
         if mode and self.norm_freezed:
             for m in self.modules():
+                # trick: eval have effect on BatchNorm only
                 if isinstance(m, _BatchNorm):
                     m.eval()
         return self
@@ -153,8 +531,8 @@ class ResNet(BaseModel):
             channels = [3, 3, 256, 512, 1024, 2048]
         return channels
 
-    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
-        """Torchvision ResNet forward.
+    def forward(self, images: Tensor) -> list[Tensor]:
+        """Forward function.
 
         Args:
             images (Tensor[N, C, H, W]): Image input to process. Expected to
@@ -176,7 +554,7 @@ class ResNet(BaseModel):
             x = self.relu(x)
         x = self.maxpool(x)
         outs = [images, images]
-        for _, layer_name in enumerate(self.return_layers):
+        for _, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
             outs.append(x)
@@ -192,8 +570,23 @@ class ResNetV1c(ResNet):
     <https://arxiv.org/abs/1812.01187>`.
     """
 
+    model_urls = {
+        "resnet50_v1c": (
+            "https://download.openmmlab.com/pretrain/third_party/"
+            "resnet50_v1c-2cccc1ad.pth"
+        ),
+        "resnet101_v1c": (
+            "https://download.openmmlab.com/pretrain/third_party/"
+            "resnet101_v1c-e67eebb6.pth"
+        ),
+    }
+
     def __init__(
-        self, resnet_name: str, pretrained: bool = False, **kwargs: ArgsType
+        self,
+        resnet_name: str,
+        pretrained: bool = False,
+        weights: str | None = None,
+        **kwargs: ArgsType,
     ):
         """Initialize ResNetV1c.
 
@@ -201,6 +594,7 @@ class ResNetV1c(ResNet):
             resnet_name (str): Name of the resnet model.
             pretrained (bool, optional): Whether to load ImageNet pre-trained
                 weights. Defaults to False.
+            weights (str, optional): Path to custom pretrained weights.
             **kwargs: Arguments for ResNet.
         """
         assert resnet_name in {
@@ -209,15 +603,17 @@ class ResNetV1c(ResNet):
             "resnet50_v1c",
             "resnet101_v1c",
         }
-        super().__init__(
-            resnet_name[:-4], pretrained=pretrained, deep_stem=True, **kwargs
-        )
-        if pretrained:
+        if pretrained and weights is None:
             assert resnet_name in {
                 "resnet50_v1c",
                 "resnet101_v1c",
             }, "Only resnet50_v1c and resnet101_v1c have pretrained weights."
-            state_dict = torch.hub.load_state_dict_from_url(
-                model_urls[resnet_name]
-            )
-            self.load_state_dict(state_dict["state_dict"], strict=False)
+            weights = self.model_urls[resnet_name]
+
+        super().__init__(
+            resnet_name[:-4],
+            deep_stem=True,
+            pretrained=pretrained,
+            weights=weights,
+            **kwargs,
+        )

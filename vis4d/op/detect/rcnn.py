@@ -73,12 +73,17 @@ class RCNNHead(nn.Module):
         fc_out_channels: int = 1024,
         num_classes: int = 80,
         roi_size: tuple[int, int] = (7, 7),
+        start_level: int = 2,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
         self.roi_pooler = MultiScaleRoIAlign(
             sampling_ratio=0, resolution=roi_size, strides=[4, 8, 16, 32]
         )
+
+        # Used feature layers are [start_level, end_level)
+        self.start_level = start_level
+        self.end_level = start_level + len(self.roi_pooler.scales)
 
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
@@ -150,8 +155,9 @@ class RCNNHead(nn.Module):
         self, features: list[torch.Tensor], boxes: list[torch.Tensor]
     ) -> RCNNOut:
         """Forward pass during training stage."""
-        # Take stride 4, 8, 16, 32 features
-        bbox_feats = self.roi_pooler(features[2:6], boxes)
+        bbox_feats = self.roi_pooler(
+            features[self.start_level : self.end_level], boxes
+        )
         if self.num_shared_convs > 0:
             for conv in self.shared_convs:
                 bbox_feats = conv(bbox_feats)

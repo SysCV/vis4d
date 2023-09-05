@@ -66,6 +66,7 @@ def get_nusc_val_cfg(
     skip_empty_samples: bool = False,
     cache_as_binary: bool = True,
     cached_file_path: str | None = None,
+    image_channel_mode: str = "RGB",
     data_backend: None | ConfigDict = None,
 ) -> ConfigDict:
     """Get the nuScenes validation dataset config."""
@@ -75,6 +76,7 @@ def get_nusc_val_cfg(
     return class_config(
         NuScenes,
         data_root=data_root,
+        image_channel_mode=image_channel_mode,
         keys_to_load=keys_to_load,
         version="v1.0-trainval",
         split="val",
@@ -91,6 +93,7 @@ def get_nusc_mini_val_cfg(
     skip_empty_samples: bool = False,
     cache_as_binary: bool = True,
     cached_file_path: str | None = None,
+    image_channel_mode: str = "RGB",
     data_backend: None | ConfigDict = None,
 ) -> ConfigDict:
     """Get the nuScenes mini validation dataset config."""
@@ -100,6 +103,7 @@ def get_nusc_mini_val_cfg(
     return class_config(
         NuScenes,
         data_root=data_root,
+        image_channel_mode=image_channel_mode,
         keys_to_load=keys_to_load,
         version="v1.0-mini",
         split="mini_val",

@@ -1,34 +1,35 @@
 # pylint: disable=duplicate-code
-"""QDTrack-FasterRCNN BDD100K."""
+"""QDTrack-YOLOX BDD100K."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
-from torch.optim import SGD
-from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+import pytorch_lightning as pl
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.bdd100k import (
-    CONN_BDD100K_TRACK_EVAL,
-    get_bdd100k_track_cfg,
-)
+from vis4d.config.common.datasets.bdd100k import CONN_BDD100K_TRACK_EVAL
 from vis4d.config.common.models.qdtrack import (
     CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
-    get_qdtrack_cfg,
+    CONN_BBOX_2D_YOLOX_TRAIN,
+    get_qdtrack_yolox_cfg,
+)
+from vis4d.config.common.models.yolox import (
+    get_yolox_callbacks_cfg,
+    get_yolox_optimizers_cfg,
 )
 from vis4d.config.default import (
     get_default_callbacks_cfg,
     get_default_cfg,
     get_default_pl_trainer_cfg,
 )
+from vis4d.config.default.data_connectors import CONN_BBOX_2D_TRACK_VIS
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
-from vis4d.op.base import ResNet
+from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.zoo.bdd100k.qdtrack.data_yolox import get_bdd100k_track_cfg
 
 
 def get_config() -> ExperimentConfig:
@@ -40,14 +41,20 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="qdtrack_frcnn_r50_fpn_bdd100k")
+    config = get_default_cfg(exp_name="qdtrack_yolox_x_50e_bdd100k")
+    config.checkpoint_period = 5
+    config.check_val_every_n_epoch = 5
 
-    # High level hyper parameters
+    # ckpt_path = (
+    #     "vis4d-workspace/QDTrack/pretrained/qdtrack-yolox-ema_bdd100k.ckpt"
+    # )
+
+    # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
-    params.lr = 0.02
-    params.num_epochs = 12
+    params.samples_per_gpu = 5
+    params.workers_per_gpu = 4
+    params.lr = 0.000625
+    params.num_epochs = 50
     config.params = params
 
     ######################################################
@@ -65,42 +72,27 @@ def get_config() -> ExperimentConfig:
     ##                        MODEL                     ##
     ######################################################
     num_classes = len(bdd100k_track_map)
-    basemodel = class_config(
-        ResNet, resnet_name="resnet50", pretrained=True, trainable_layers=3
+    weights = (
+        "mmdet://yolox/yolox_x_8x8_300e_coco/"
+        "yolox_x_8x8_300e_coco_20211126_140254-1ef88d67.pth"
     )
-
-    config.model, config.loss = get_qdtrack_cfg(
-        num_classes=num_classes,
-        basemodel=basemodel,
-        # weights="https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt",  # pylint: disable=line-too-long
+    config.model, config.loss = get_qdtrack_yolox_cfg(
+        num_classes, "xlarge", weights=weights
     )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    config.optimizers = [
-        get_optimizer_cfg(
-            optimizer=class_config(
-                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0001
-            ),
-            lr_schedulers=[
-                get_lr_scheduler_cfg(
-                    class_config(LinearLR, start_factor=0.1, total_iters=1000),
-                    end=1000,
-                    epoch_based=False,
-                ),
-                get_lr_scheduler_cfg(
-                    class_config(MultiStepLR, milestones=[8, 11], gamma=0.1),
-                ),
-            ],
-        )
-    ]
+    num_last_epochs, warmup_epochs = 10, 1
+    config.optimizers = get_yolox_optimizers_cfg(
+        params.lr, params.num_epochs, warmup_epochs, num_last_epochs
+    )
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
     config.train_data_connector = class_config(
-        DataConnector, key_mapping=CONN_BBOX_2D_TRAIN
+        DataConnector, key_mapping=CONN_BBOX_2D_YOLOX_TRAIN
     )
 
     config.test_data_connector = class_config(
@@ -111,7 +103,26 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg(
+        config.output_dir, refresh_rate=config.log_every_n_steps
+    )
+
+    # YOLOX callbacks
+    callbacks += get_yolox_callbacks_cfg(
+        switch_epoch=params.num_epochs - num_last_epochs, num_sizes=0
+    )
+
+    # Visualizer
+    callbacks.append(
+        class_config(
+            VisualizerCallback,
+            visualizer=class_config(BoundingBoxVisualizer, vis_freq=500),
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                CallbackConnector, key_mapping=CONN_BBOX_2D_TRACK_VIS
+            ),
+        )
+    )
 
     # Evaluator
     callbacks.append(
@@ -135,9 +146,21 @@ def get_config() -> ExperimentConfig:
     # PL Trainer args
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
+    pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
+    pl_trainer.checkpoint_callback = class_config(
+        ModelCheckpoint,
+        dirpath=config.get_ref("output_dir") + "/checkpoints",
+        verbose=True,
+        save_last=True,
+        save_on_train_epoch_end=True,
+        every_n_epochs=config.checkpoint_period,
+        save_top_k=5,
+        mode="max",
+        monitor="step",
+    )
+    pl_trainer.wandb = True
+    pl_trainer.precision = "16-mixed"
     config.pl_trainer = pl_trainer
-
-    pl_trainer.gradient_clip_val = 35
 
     # PL Callbacks
     pl_callbacks: list[pl.callbacks.Callback] = []
