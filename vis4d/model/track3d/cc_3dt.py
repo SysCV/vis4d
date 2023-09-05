@@ -418,16 +418,10 @@ class BEVCC3DT(nn.Module):
             QDTrackHead() if qdtrack_head is None else qdtrack_head
         )
 
-        self.track_graph = (
-            CC3DTrackGraph(
-                track=CC3DTrackAssociation(
-                    init_score_thr=0.1, obj_score_thr=0.05
-                ),
-                update_3d_score=False,
-                add_backdrops=False,
-            )
-            if track_graph is None
-            else track_graph
+        self.track_graph = track_graph or CC3DTrackGraph(
+            track=CC3DTrackAssociation(init_score_thr=0.2, obj_score_thr=0.1),
+            update_3d_score=False,
+            add_backdrops=False,
         )
 
     def forward(
@@ -493,7 +487,9 @@ class BEVCC3DT(nn.Module):
             boxes_2d = bbox_clip(boxes_2d, images_hw_list[i])
 
             cc_3dt_boxes_3d = boxes_3d.new_zeros(len(boxes_2d), 12)
-            cc_3dt_boxes_3d[:, :6] = boxes_3d[mask][:, :6]
+            cc_3dt_boxes_3d[:, :3] = boxes_3d[mask][:, :3]
+            # WLH -> HWL
+            cc_3dt_boxes_3d[:, 3:6] = boxes_3d[mask][:, [5, 3, 4]]
             cc_3dt_boxes_3d[:, 6:9] = rotation_matrix_yaw(
                 quaternion_to_matrix(boxes_3d[mask][:, 6:]), AxisMode.ROS
             )

@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""CC-3DT VeloLSTM on nuScenes."""
+"""CC-3DT with BEV detector on nuScenes."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -16,7 +16,8 @@ from vis4d.config.typing import (
     ExperimentParameters,
 )
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
+from vis4d.data.datasets.nuscenes import NuScenes
+from vis4d.data.datasets.nuscenes_detection import NuScenesDetection
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -30,6 +31,8 @@ from vis4d.eval.nuscenes import (
 )
 from vis4d.model.track3d.cc_3dt import BEVCC3DT
 from vis4d.op.base import ResNet
+from vis4d.op.track3d.cc_3dt import CC3DTrackAssociation
+from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 from vis4d.zoo.cc_3dt.data import (
     CONN_NUSC_BBOX_3D_TEST,
     CONN_NUSC_DET3D_EVAL,
@@ -51,7 +54,7 @@ CONN_NUSC_BBOX_3D_TEST = {
 
 
 def get_config() -> ExperimentConfig:
-    """Returns the config dict for VeloLSTM on nuScenes.
+    """Returns the config dict for CC-3DT on nuScenes.
 
     Returns:
         ExperimentConfig: The configuration
@@ -59,7 +62,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="cc_3dt_bevdet_nusc")
+    config = get_default_cfg(exp_name="cc_3dt_bev_nusc")
 
     # Hyper Parameters
     params = ExperimentParameters()
@@ -79,14 +82,15 @@ def get_config() -> ExperimentConfig:
     data.train_dataloader = None
 
     test_dataset = class_config(
-        NuScenes,
+        NuScenesDetection,
         data_root=data_root,
         version=version,
         split=test_split,
         keys_to_load=[K.images, K.original_images, K.boxes3d],
         data_backend=class_config(HDF5Backend),
+        detection_result="vis4d-workspace/pure_det/results_nusc.json",
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/bevdet_only_track_val.pkl",
+        cached_file_path=f"data/nuscenes/{test_split}.pkl",
     )
 
     data.test_dataloader = get_test_dataloader(
@@ -104,7 +108,20 @@ def get_config() -> ExperimentConfig:
         ResNet, resnet_name="resnet101", pretrained=True, trainable_layers=3
     )
 
-    config.model = class_config(BEVCC3DT, basemodel=basemodel)
+    track_graph = class_config(
+        CC3DTrackGraph,
+        track=class_config(
+            CC3DTrackAssociation, init_score_thr=0.2, obj_score_thr=0.1
+        ),
+        update_3d_score=False,
+        add_backdrops=False,
+    )
+
+    config.model = class_config(
+        BEVCC3DT,
+        basemodel=basemodel,
+        track_graph=track_graph,
+    )
 
     config.loss = None
 
@@ -137,6 +154,7 @@ def get_config() -> ExperimentConfig:
                 data_root=data_root,
                 version=version,
                 split=test_split,
+                velocity_thres=0.2,
             ),
             save_predictions=True,
             save_prefix=config.output_dir,

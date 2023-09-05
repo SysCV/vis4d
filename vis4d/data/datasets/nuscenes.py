@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import json
 from collections import defaultdict
 from collections.abc import Sequence
 
@@ -61,16 +60,6 @@ nuscenes_class_map = {
     "traffic_cone": 8,
     "barrier": 9,
 }
-
-nusc_tracking_cats = [
-    "bicycle",
-    "motorcycle",
-    "pedestrian",
-    "bus",
-    "car",
-    "trailer",
-    "truck",
-]
 
 nuscenes_attribute_map = {
     "cycle.with_rider": 0,
@@ -398,9 +387,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
             if scene["name"] in scene_names_per_split[self.split]
         ]
 
-        with open("./vis4d-workspace/pure_det/results_nusc.json") as f:
-            predictions = json.load(f)
-
         for scene in tqdm(scenes):
             scene_name = scene["name"]
             frame_ids = 0
@@ -412,10 +398,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 frame["scene_name"] = scene_name
                 frame["token"] = sample["token"]
                 frame["frame_ids"] = frame_ids
-
-                preds = predictions["results"][sample_token]
-
-                frame["preds"] = self._load_pred(preds)
 
                 sd_rec = data.get("sample_data", sample["data"]["LIDAR_TOP"])
 
@@ -484,61 +466,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 frame_ids += 1
 
         return frames
-
-    def _load_pred(self, preds: list[DictStrAny]) -> DictStrAny:
-        """Load nuscenes format prediction."""
-        boxes3d = np.empty((1, 10), dtype=np.float32)[1:]
-        boxes3d_classes = np.empty((1,), dtype=np.int64)[1:]
-        boxes3d_scores = np.empty((1,), dtype=np.float32)[1:]
-        boxes3d_velocities = np.empty((1, 3), dtype=np.float32)[1:]
-
-        for pred in preds:
-            if pred["detection_name"] not in nusc_tracking_cats:
-                continue
-
-            boxes3d = np.concatenate(
-                [
-                    boxes3d,
-                    np.array(
-                        [
-                            [
-                                *pred["translation"],
-                                *pred["size"],
-                                *pred["rotation"],
-                            ]
-                        ],
-                        dtype=np.float32,
-                    ),
-                ]
-            )
-            boxes3d_classes = np.concatenate(
-                [
-                    boxes3d_classes,
-                    np.array(
-                        [nuscenes_class_map[pred["detection_name"]]],
-                        dtype=np.int64,
-                    ),
-                ]
-            )
-            boxes3d_scores = np.concatenate(
-                [
-                    boxes3d_scores,
-                    np.array([pred["detection_score"]], dtype=np.float32),
-                ]
-            )
-            boxes3d_velocities = np.concatenate(
-                [
-                    boxes3d_velocities,
-                    np.array([[*pred["velocity"], 0]], dtype=np.float32),
-                ]
-            )
-
-        return {
-            "boxes3d": boxes3d,
-            "boxes3d_classes": boxes3d_classes,
-            "boxes3d_scores": boxes3d_scores,
-            "boxes3d_velocities": boxes3d_velocities,
-        }
 
     def _load_can_bus_data(
         self,
@@ -1070,12 +997,5 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     )
 
                     data_dict[cam][K.depth_maps] = depth_maps
-
-        data_dict["pred_boxes3d"] = sample["preds"]["boxes3d"]
-        data_dict["pred_boxes3d_classes"] = sample["preds"]["boxes3d_classes"]
-        data_dict["pred_boxes3d_scores"] = sample["preds"]["boxes3d_scores"]
-        data_dict["pred_boxes3d_velocities"] = sample["preds"][
-            "boxes3d_velocities"
-        ]
 
         return data_dict
