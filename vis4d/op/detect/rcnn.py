@@ -187,17 +187,6 @@ class RoI2Det(nn.Module):
        parameters.
     4. Adjust the box sizes and offsets according the regression parameters.
     5. Return the final boxes.
-
-    Args:
-        box_decoder (DeltaXYWHBBoxDecoder, optional): Decodes regression
-            parameters to detected boxes. Defaults to None. If None, it will
-            use the default decoder.
-        score_threshold (float, optional): Minimum score of a detection.
-            Defaults to 0.05.
-        iou_threshold (float, optional): IoU threshold of NMS post-processing
-            step. Defaults to 0.5.
-        max_per_img (int, optional): Maximum number of detections per image.
-            Defaults to 100.
     """
 
     def __init__(
@@ -207,7 +196,18 @@ class RoI2Det(nn.Module):
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+        Args:
+            box_decoder (DeltaXYWHBBoxDecoder, optional): Decodes regression
+                parameters to detected boxes. Defaults to None. If None, it
+                will use the default decoder.
+            score_threshold (float, optional): Minimum score of a detection.
+                Defaults to 0.05.
+            iou_threshold (float, optional): IoU threshold of NMS
+                post-processing step. Defaults to 0.5.
+            max_per_img (int, optional): Maximum number of detections per
+                image. Defaults to 100.
+        """
         super().__init__()
         if box_decoder is None:
             _, self.box_decoder = get_default_rcnn_box_codec()
@@ -300,16 +300,6 @@ class RCNNLoss(nn.Module):
 
     This class computes the loss of RCNN given proposal boxes and their
     corresponding target boxes with the given box encoder.
-
-    Args:
-        box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression parameters
-            into detected boxes.
-        num_classes (int, optional): number of object categories. Defaults to
-            80.
-        loss_cls (TorchLossFunc, optional): Classification loss function.
-            Defaults to F.cross_entropy.
-        loss_bbox (TorchLossFunc, optional): Regression loss function.
-            Defaults to l1_loss.
     """
 
     def __init__(
@@ -319,7 +309,17 @@ class RCNNLoss(nn.Module):
         loss_cls: TorchLossFunc = F.cross_entropy,
         loss_bbox: TorchLossFunc = l1_loss,
     ) -> None:
-        """Creates an instance of the class."""
+        """Creates an instance of the class.
+        Args:
+            box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression
+                parameters into detected boxes.
+            num_classes (int, optional): number of object categories. Defaults
+                to 80.
+            loss_cls (TorchLossFunc, optional): Classification loss function.
+                Defaults to F.cross_entropy.
+            loss_bbox (TorchLossFunc, optional): Regression loss function.
+                Defaults to l1_loss.
+        """
         super().__init__()
         self.num_classes = num_classes
         self.box_encoder = box_encoder

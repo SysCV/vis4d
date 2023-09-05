@@ -2,40 +2,57 @@
 Welcome to Vis4D's documentation!
 #################################
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Tutorials
+Vis4D is a modular library for 4D scene understanding.
 
-   tutorials/install
-   tutorials/getting_started
-   tutorials/visualization
-   tutorials/3D_visualization
-   contribute
+It contains common operators and models, data pipelines and training recipes
+for a number of contemporary methods and provides a compositional framework
+for further research and development of 4D Vision algorithms.
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Extensions
+    :hidden:
+    :maxdepth: 1
+    :caption: User Guide
 
-   extensions
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Model Zoo
-
-   zoo
+    user_guide/install
+    user_guide/getting_started
+    user_guide/visualization
+    user_guide/3D_visualization
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Reference
+    :hidden:
+    :maxdepth: 1
+    :caption: Extensions
 
-   dev_guide/cli
-   dev_guide/config
-   dev_guide/data_connectors
-   API<api/vis4d>
+    extensions
 
 .. toctree::
-   :maxdepth: 1
-   :caption: FAQ
+    :hidden:
+    :maxdepth: 1
+    :caption: Model Zoo
 
-   faq/data
-   faq/trouble
+    zoo
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Developter Guide
+
+    dev_guide/cli
+    dev_guide/config
+    dev_guide/data_connectors
+    dev_guide/contribute
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Reference
+
+    API<api/vis4d>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: FAQ
+
+    faq/data
+    faq/trouble
