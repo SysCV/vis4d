@@ -1,16 +1,6 @@
-
-
+#################################
 Welcome to Vis4D's documentation!
-===============================================
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Developer Guide
-
-   dev_guide/cli
-   dev_guide/config
-   dev_guide/data_connectors
-
+#################################
 
 .. toctree::
    :maxdepth: 1
@@ -19,24 +9,33 @@ Welcome to Vis4D's documentation!
    tutorials/install
    tutorials/getting_started
    tutorials/visualization
-   tutorials/cli_interface
    tutorials/3D_visualization
-
+   contribute
 
 .. toctree::
    :maxdepth: 1
-   :caption: Tips and Tricks
+   :caption: Extensions
 
-   faq
-
-.. toctree::
-   :caption: Community
-
-   contribute
-
+   extensions
 
 .. toctree::
-   :maxdepth: 2
-   :caption: API Documentation
+   :maxdepth: 1
+   :caption: Model Zoo
 
-   api/vis4d
+   zoo
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
+   dev_guide/cli
+   dev_guide/config
+   dev_guide/data_connectors
+   API<api/vis4d>
+
+.. toctree::
+   :maxdepth: 1
+   :caption: FAQ
+
+   faq/data
+   faq/trouble

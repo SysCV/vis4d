@@ -1,5 +1,5 @@
 Config
-=====
+======
 
 We provide a simple and flexible config system that allows you to easily define experiments as well as create new models, datasets, and other components.
 For this, we build up on `ml_collections <https://github.com/google/ml_collections>`_ to provide a simple and flexible config system.

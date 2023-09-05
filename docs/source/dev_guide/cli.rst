@@ -1,6 +1,6 @@
-=====
+====
 CLI
-=====
+====
 We provide a command line interface for training and evaluating your models.
 Assuming you have installed the package using pip, you can use the command `vis4d` to access the CLI.
 
@@ -9,15 +9,17 @@ Alternatively, you can run the CLI using `python -m vis4d.engine.cli` or `python
 The CLI relies on a configuration file to specify each experiment. We use `ml_collections <https://github.com/google/ml_collections>`_ as underlying framework to define the configuration files.
 You can read up on our configuration files in the `Config System <configuration_files>`_ section.
 
+-------------
 CLI Interface
-------------------
+-------------
 The provided examples assume that the experiment configuration file is located at `path_to_experiment_cfg.py`.
 You can read up on our configuration files in the `Config System <configuration_files>`_ section.
 
 We support both, our own training engine as well as `PyTorch Lightning <https://www.pytorchlightning.ai/>`_.
 
+^^^^^^^^^^^^
 CLI Commands
-^^^^^^^^^^^^^
+^^^^^^^^^^^^
 .. code-block:: bash
 
   vis4d [train|test] --config path_to_experiment_cfg.py
@@ -67,8 +69,9 @@ Quick Start
 
    vis4d fit --config path_to_experiment_cfg --sweep path_to_sweep_cfg.py
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Overwrite Config Parameters
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We support overwriting config parameters via the CLI. Assuming you have a config parameter `params.lr` in your config file, you can overwrite it using the following command:
 
@@ -83,12 +86,13 @@ Note that misstyping a config parameter
    vis4d train --config path_to_experiment_cfg.py --config.params.lrs=0.01
 
 will result in the following error:
-::
+.. code-block:: bash
+
    AttributeError: Did you mean "lr" instead of "lrw"?'
 
 
 Callbacks and Trainer Arguments
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 We support custom Callbacks as well as Pytorch Lightning Trainer Arguments.
 Head over to the `Config System <configuration_files>`_ section to learn more about how to use them.
 

@@ -1,5 +1,6 @@
+************
 Installation
-===============================================
+************
 
 We currently support Python 3.9+.
 
@@ -14,20 +15,21 @@ Next, install the library and its dependencies:
 
 .. code:: bash
 
-    pip install --ignore-installed -r requirements.txt
-    python setup.py install
+    python3 -m pip install -r requirements/install.txt
+    python3 setup.py install
 
 If you want to install torch with gpu:
 
 .. code:: bash
 
-    pip install --ignore-installed -r requirements.txt -f https://download.pytorch.org/whl/cu113/torch_stable.html
-    python setup.py install
+    python3 -m pip install -r requirements/install.txt -f https://download.pytorch.org/whl/cu117/torch_stable.html
+    python3 -m pip install -r requirements/torch-lib.txt
+    python3 setup.py install
 
 More information about torch and pytorch-lightning installation
 
-- [Pytorch](https://pytorch.org/get-started/locally)
-- [PytorchLightning](https://www.pytorchlightning.ai/)
+- `PyTorch <https://pytorch.org/get-started/locally>`_
+- `PyTorch Lightning <https://www.pytorchlightning.ai/>`_
 
 The standard location for datasets used in the experiments is:
 
@@ -40,7 +42,7 @@ The standard location for datasets used in the experiments is:
 
 and the original folder structure of the data.
 
-If you don’t want to modify the package:
+If you do not want to modify the package:
 
 .. code:: bash
 
