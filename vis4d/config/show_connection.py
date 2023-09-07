@@ -14,8 +14,8 @@ from vis4d.engine.callbacks import (
     VisualizerCallback,
 )
 from vis4d.engine.connectors import CallbackConnector, DataConnector
-from vis4d.engine.loss_module import LossModule
 from vis4d.engine.flag import _CONFIG
+from vis4d.engine.loss_module import LossModule
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 

@@ -2,23 +2,26 @@
 Installation
 ############
 
-*******
+=======
 Package
-*******
-We currently support Python 3.9+.
+=======
+We currently support Python 3.9+ and PyTorch 1.10.0+.
 
-First, create a new virtual environment, e.g. with conda:
+We recommand to install in a new virtual environment, e.g. conda or virtualenv.
 
-.. code:: bash
+-----------------
+Install with PyPI
+-----------------
 
-    conda create --name vis4d python=3.10
-    conda activate vis4d
-
-Next, install the library:
+You can install the library as easy as
 
 .. code:: bash
 
     python3 -m pip install vis4d
+
+-----------------
+Build from source
+-----------------
 
 If you want to build the package from source and specify CUDA version, you can clone the repository and install it:
 
@@ -36,15 +39,15 @@ More information about torch and pytorch-lightning installation
 - `PyTorch <https://pytorch.org/get-started/locally>`_
 - `PyTorch Lightning <https://lightning.ai/docs/pytorch/latest/>`_
 
-****************
-Folder Structure
-****************
+================
+Directory Layout
+================
 You can use the library in different folder structures and codebase.
 But by default Vis4D will use the following directories by default:
 
-====
+----
 Data
-====
+----
 The default location for datasets used in the experiments is:
 
 .. code:: bash
@@ -54,10 +57,10 @@ The default location for datasets used in the experiments is:
             --dataset1
             --dataset2
 
-=========
+---------
 Workspace
-=========
-The default output folders used in the experiments to store logs, checkpoints, etc. is:
+---------
+The default output folder used in the experiments to store logs, checkpoints, etc. is:
 
 .. code:: bash
 

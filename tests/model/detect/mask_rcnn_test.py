@@ -21,13 +21,12 @@ from vis4d.model.detect.mask_rcnn import (
     MaskRCNN,
     MaskRCNNOut,
 )
-from vis4d.op.detect.rcnn import (
+from vis4d.op.detect.mask_rcnn import (
     MaskRCNNHeadLoss,
-    RCNNLoss,
     SampledMaskLoss,
-    get_default_rcnn_box_codec,
     positive_mask_sampler,
 )
+from vis4d.op.detect.rcnn import RCNNLoss, get_default_rcnn_box_codec
 from vis4d.op.detect.rpn import RPNLoss, get_default_rpn_box_codec
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
