@@ -26,7 +26,7 @@ from pytest_notebook.nb_regression import NBRegressionFixture
 #         exec_timeout=50, diff_ignore=ignores, diff_replace=replace
 #     )
 #     fixture.diff_color_words = False
-#     file = "docs/source/tutorials/3D_visualization.ipynb"
+#     file = "docs/source/user_guide/3D_visualization.ipynb"
 #     fixture.check(file)
 
 
@@ -52,7 +52,7 @@ def test_vis() -> None:
         exec_timeout=50, diff_ignore=ignores, diff_replace=replace
     )
     fixture.diff_color_words = False
-    file = "docs/source/tutorials/visualization.ipynb"
+    file = "docs/source/user_guide/visualization.ipynb"
     fixture.check(file)
 
 
@@ -60,40 +60,21 @@ def test_get_started() -> None:
     """Test get started notebooks."""
     ignores = (
         "/cells/*/metadata",
-        "/cells/1/outputs/",  # Suppress downloading checkpoint output
+        "/cells/3/outputs/",  # Suppress downloading checkpoint output
         "/metadata/widgets",
         "/cells/5/outputs/",  # Suppress downloading checkpoint output
+        "/cells/9/outputs/",  # Suppress downloading checkpoint output
+        "/cells/11/outputs/",  # Suppress downloading checkpoint output
         "/cells/*/execution_count",
         "/cells/*/outputs/*/data/image",
         "/metadata/language_info/version",
     )
     replace = (("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),)
 
-    fixture = (
-        NBRegressionFixture(  # Higher timeout for downloading checkpoints
-            exec_timeout=300, diff_ignore=ignores, diff_replace=replace
-        )
+    # Higher timeout for downloading checkpoints
+    fixture = NBRegressionFixture(
+        exec_timeout=300, diff_ignore=ignores, diff_replace=replace
     )
     fixture.diff_color_words = False
-    file = "docs/source/tutorials/getting_started.ipynb"
-    fixture.check(file)
-
-
-def test_cli() -> None:
-    """Test the cli notebook."""
-    # Lets for now ignore the output of the training cells. Cuda/Python version
-    # on the server are different and the training is slightly non-det.
-    ignores = (
-        "/cells/2/outputs/",
-        "/cells/4/outputs/",
-        "/cells/*/metadata",
-        "/metadata/language_info/version",
-    )
-    fixture = (
-        NBRegressionFixture(  # Higher timeout for downloading checkpoints
-            exec_timeout=300, diff_ignore=ignores
-        )
-    )
-    fixture.diff_color_words = False
-    file = "docs/source/tutorials/cli_interface.ipynb"
+    file = "docs/source/user_guide/getting_started.ipynb"
     fixture.check(file)

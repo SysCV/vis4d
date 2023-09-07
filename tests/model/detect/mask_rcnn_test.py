@@ -98,7 +98,9 @@ class MaskRCNNTest(unittest.TestCase):
         rcnn_box_encoder, _ = get_default_rcnn_box_codec()
         rcnn_loss = RCNNLoss(rcnn_box_encoder)
 
-        mask_loss = SampledMaskLoss(positive_mask_sampler, MaskRCNNHeadLoss())
+        mask_loss = SampledMaskLoss(
+            positive_mask_sampler, MaskRCNNHeadLoss(num_classes=80)
+        )
 
         mask_rcnn_loss = LossModule(
             [

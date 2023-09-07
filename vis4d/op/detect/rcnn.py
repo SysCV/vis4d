@@ -197,6 +197,7 @@ class RoI2Det(nn.Module):
         max_per_img: int = 100,
     ) -> None:
         """Creates an instance of the class.
+
         Args:
             box_decoder (DeltaXYWHBBoxDecoder, optional): Decodes regression
                 parameters to detected boxes. Defaults to None. If None, it
@@ -310,6 +311,7 @@ class RCNNLoss(nn.Module):
         loss_bbox: TorchLossFunc = l1_loss,
     ) -> None:
         """Creates an instance of the class.
+
         Args:
             box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression
                 parameters into detected boxes.
