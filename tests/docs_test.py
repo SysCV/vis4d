@@ -60,11 +60,12 @@ def test_get_started() -> None:
     """Test get started notebooks."""
     ignores = (
         "/cells/*/metadata",
-        "/cells/3/outputs/",  # Suppress downloading checkpoint output
+        "/cells/3/outputs/",
         "/metadata/widgets",
-        "/cells/5/outputs/",  # Suppress downloading checkpoint output
-        "/cells/9/outputs/",  # Suppress downloading checkpoint output
-        "/cells/11/outputs/",  # Suppress downloading checkpoint output
+        "/cells/5/outputs/",
+        "/cells/7/outputs/",
+        "/cells/9/outputs/",
+        "/cells/11/outputs/",
         "/cells/*/execution_count",
         "/cells/*/outputs/*/data/image",
         "/metadata/language_info/version",
