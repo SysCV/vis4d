@@ -1,5 +1,6 @@
+######
 Config
-======
+######
 
 We provide a simple and flexible config system that allows you to easily define experiments as well as create new models, datasets, and other components.
 For this, we build up on `ml_collections <https://github.com/google/ml_collections>`_ to provide a simple and flexible config system.
@@ -8,8 +9,9 @@ Using the python API allows you to use the IDE to autocomplete config fields and
 
 We use `FieldConfigDict <TODO>`_ as the base class for all configs. This class works similar to a python dictionary, but uses references instead of values to store the config values.
 
+=================
 Experiment Config
-------------------
+=================
 Each experiment is defined by a config that inherits from `ExperimentConfig <TODO>`_.
 A valid experiment config must define the following fields:
 
@@ -33,8 +35,9 @@ params
     Parameters for the experiment. This can be used to store arbitrary values which are often
     modified during training. Allowing for easy access to these values using the CLI.
 
+===================
 Instantiate Configs
------------------------------
+===================
 A key feature of the config system is the ability to instantiate configs from FieldConfigDict.
 By defining the config in python code, we can use the IDE to autocomplete config fields and use pythons import system.
 This allows us to resolve the full class and function names without having to explicitly specify the full path.
@@ -74,8 +77,9 @@ Or directly define the config structure ourselves:
     config.init_args.num_classes = 10
     model = instantiate_classes(config)
 
+=========================
 Referencing Config Fields
---------------------------
+=========================
 A key functionality of the config system is the ability to reference other config fields.
 This allows to easily reuse configs and to create complex configs that are easy to modify.
 
@@ -127,3 +131,64 @@ Once you are done building the config, you should call `confgi.value_mode()` to 
 .. code-block:: bash
 
     >>  <ml_collections.config_dict.config_dict.FieldReference object at 0x7f17e7507d60>
+
+===============================
+Callbacks and Trainer Arguments
+===============================
+We support custom Callbacks as well as Pytorch Lightning Trainer Arguments.
+
+--------------------
+Using the Python API
+--------------------
+While we provide a CLI for training and evaluating your models, you can also use the python API directly.
+
+-----------------------
+Using the Trainer class
+-----------------------
+The following example shows how to train a model using our own training engine.
+We provide a `Trainer` class that handles the training and evaluation loop for you.
+For more details, head over to the `Trainer <TODO>`_ class documentation.
+
+.. code-block:: python
+
+   from vis4d.engine.experiment import run_experiment
+   from vis4d.config import instantiate_classes
+   from vis4d.engine.optim import set_up_optimizers
+
+   # Load your Config here
+   # from your_config import get_config
+   config = get_config()
+   model = instantiate_classes(config.model)
+
+   # Callbacks
+   callbacks = [instantiate_classes(cb) for cb in config.callbacks]
+   mode = "fit|test" # Set to "fit" if you want to train a model, "test" if you want to evaluate a model
+
+    # Setup Dataloaders & seed
+    if mode == "fit":
+        train_dataloader = instantiate_classes(config.data.train_dataloader)
+        train_data_connector = instantiate_classes(config.train_data_connector)
+        optimizers, lr_schedulers = set_up_optimizers(config.optimizers, [model])
+        loss = instantiate_classes(config.loss)
+    else:
+        train_dataloader = None
+        train_data_connector = None
+
+    test_dataloader = instantiate_classes(config.data.test_dataloader)
+    test_data_connector = instantiate_classes(config.test_data_connector)
+
+    trainer = Trainer(
+        device=device,
+        output_dir=config.output_dir,
+        train_dataloader=train_dataloader,
+        test_dataloader=test_dataloader,
+        train_data_connector=train_data_connector,
+        test_data_connector=test_data_connector,
+        callbacks=callbacks,
+        num_epochs=config.params.get("num_epochs", -1),
+    )
+
+    if mode == "fit":
+        trainer.fit(model, optimizers, lr_schedulers, loss)
+    elif mode == "test":
+        trainer.test(model)
