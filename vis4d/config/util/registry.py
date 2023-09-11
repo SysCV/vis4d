@@ -173,7 +173,6 @@ def _load_py_config(
     """
     path = _resolve_config_path(name_or_path)
     config_module = _LoadConfigModule(f"{os.path.basename(path)}_config", path)
-    print("args", args, *args)
     cfg = getattr(config_module, method_name)(*args)
     assert isinstance(cfg, ConfigDict)
     return cfg
