@@ -45,6 +45,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.githubpages",
     "sphinx_design",
+    "sphinxcontrib.aafig",
     "myst_nb",
 ]
 
@@ -101,13 +102,13 @@ texinfo_documents = [
 # -- auto doc settings -------------------------------------------------------
 autosummary_generate = True
 autodoc_member_order = "groupwise"
-autoclass_content = "class"
+autoclass_content = "both"
 add_module_names = False  # Remove namespaces from class/method signatures
 autodoc_default_options = {
     "members": True,
     "methods": True,
-    "special-members": "__call__,__init__",
-    "exclude-members": "_abc_impl",
+    "special-members": "__call__",
+    "exclude-members": "_abc_impl,__init__",
 }
 
 # -- Napoleon settings -------------------------------------------------------
