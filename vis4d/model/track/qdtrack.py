@@ -14,6 +14,7 @@ from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead, FRCNNOut
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXOut, YOLOXPostprocess
+from vis4d.model.detect.yolox import REV_KEYS as YOLOX_REV_KEYS
 from vis4d.op.fpp import FPN, YOLOXPAFPN, FeaturePyramidProcessing
 from vis4d.op.track.common import TrackOut
 from vis4d.op.track.qdtrack import (
@@ -43,18 +44,6 @@ REV_KEYS = [
     (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
     (r"^backbone.body\.", "basemodel."),
     (r"^qdtrack\.", "qdtrack_head."),
-]
-
-# from old Vis4D checkpoint
-YOLOX_REV_KEYS = [
-    (r"^detector.backbone.mm_backbone\.", "basemodel."),
-    (r"^bbox_head\.", "yolox_head."),
-    (r"^detector.backbone.neck.mm_neck\.", "fpn."),
-    (r"^detector.bbox_head.mm_dense_head\.", "yolox_head."),
-    (r"^similarity_head\.", "qdtrack_head.similarity_head."),
-    (r"\.bn\.", ".norm."),
-    (r"\.conv.weight", ".weight"),
-    (r"\.conv.bias", ".bias"),
 ]
 
 

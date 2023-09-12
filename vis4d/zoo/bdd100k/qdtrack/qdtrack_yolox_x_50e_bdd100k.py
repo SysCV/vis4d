@@ -51,9 +51,9 @@ def get_config() -> ExperimentConfig:
 
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 5
-    params.workers_per_gpu = 4
-    params.lr = 0.000625
+    params.samples_per_gpu = 8
+    params.workers_per_gpu = 8
+    params.lr = 0.001
     params.num_epochs = 50
     config.params = params
 
@@ -116,7 +116,9 @@ def get_config() -> ExperimentConfig:
     callbacks.append(
         class_config(
             VisualizerCallback,
-            visualizer=class_config(BoundingBoxVisualizer, vis_freq=500),
+            visualizer=class_config(
+                BoundingBoxVisualizer, vis_freq=500, image_mode="BGR"
+            ),
             save_prefix=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_BBOX_2D_TRACK_VIS
