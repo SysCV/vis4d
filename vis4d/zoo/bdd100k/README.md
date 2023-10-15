@@ -101,5 +101,5 @@ Similarity learning has been recognized as a crucial step for object tracking. H
 
 | Detector  | Base Network | mMOTA-val | mIDF1-val | ID Sw.-val | Scores-val | Config | Weights | Preds | Visuals |
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| Faster R-CNN | R-50-FPN |  |  |  | [scores]() | [config]() | [model]() | [preds]() | [visuals]() |
+| Faster R-CNN | R-50-FPN | 36.1 | 51.8 | 6165 | [scores]() | [config]() | [model]() | [preds]() | [visuals]() |
 | YOLOX-x | CSPNet |  |  |  | [scores]() | [config]() | [model]() | [preds]() | [visuals]() |

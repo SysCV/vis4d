@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""QDTrack-FasterRCNN BDD100K."""
+"""QDTrack with Faster R-CNN on BDD100K."""
 from __future__ import annotations
 
 import lightning.pytorch as pl
@@ -44,8 +44,8 @@ def get_config() -> ExperimentConfig:
 
     # High level hyper parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 2
-    params.workers_per_gpu = 2
+    params.samples_per_gpu = 4  # batch size = 4 GPUs * 4 samples per GPU = 16
+    params.workers_per_gpu = 4
     params.lr = 0.02
     params.num_epochs = 12
     config.params = params
@@ -70,9 +70,7 @@ def get_config() -> ExperimentConfig:
     )
 
     config.model, config.loss = get_qdtrack_cfg(
-        num_classes=num_classes,
-        basemodel=basemodel,
-        # weights="https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt",  # pylint: disable=line-too-long
+        num_classes=num_classes, basemodel=basemodel
     )
 
     ######################################################

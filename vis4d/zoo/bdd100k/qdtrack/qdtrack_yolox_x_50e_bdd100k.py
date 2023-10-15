@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""QDTrack-YOLOX BDD100K."""
+"""QDTrack with YOLOX-x on BDD100K."""
 from __future__ import annotations
 
 import pytorch_lightning as pl
@@ -9,7 +9,7 @@ from vis4d.config import class_config
 from vis4d.config.common.datasets.bdd100k import CONN_BDD100K_TRACK_EVAL
 from vis4d.config.common.models.qdtrack import (
     CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_YOLOX_TRAIN,
+    CONN_BBOX_2D_TRAIN,
     get_qdtrack_yolox_cfg,
 )
 from vis4d.config.common.models.yolox import (
@@ -45,16 +45,12 @@ def get_config() -> ExperimentConfig:
     config.checkpoint_period = 5
     config.check_val_every_n_epoch = 5
 
-    # ckpt_path = (
-    #     "vis4d-workspace/QDTrack/pretrained/qdtrack-yolox-ema_bdd100k.ckpt"
-    # )
-
     # Hyper Parameters
     params = ExperimentParameters()
-    params.samples_per_gpu = 8
+    params.samples_per_gpu = 8  # batch size = 8 GPUs * 8 samples per GPU = 64
     params.workers_per_gpu = 8
     params.lr = 0.001
-    params.num_epochs = 50
+    params.num_epochs = 25
     config.params = params
 
     ######################################################
@@ -83,16 +79,16 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-    num_last_epochs, warmup_epochs = 10, 1
+    num_last_epochs = 10
     config.optimizers = get_yolox_optimizers_cfg(
-        params.lr, params.num_epochs, warmup_epochs, num_last_epochs
+        params.lr, 50, 1, num_last_epochs
     )
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
     config.train_data_connector = class_config(
-        DataConnector, key_mapping=CONN_BBOX_2D_YOLOX_TRAIN
+        DataConnector, key_mapping=CONN_BBOX_2D_TRAIN
     )
 
     config.test_data_connector = class_config(
