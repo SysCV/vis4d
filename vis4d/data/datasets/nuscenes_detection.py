@@ -7,7 +7,7 @@ import numpy as np
 
 from vis4d.common.typing import ArgsType, DictStrAny, NDArrayF32, NDArrayI64
 from vis4d.data.typing import DictData
-from .nuscenes import NuScenes, nuscenes_class_map, nusc_tracking_cats
+from .nuscenes import NuScenes, nuscenes_class_map
 
 
 class NuScenesDetection(NuScenes):
@@ -40,6 +40,9 @@ class NuScenesDetection(NuScenes):
 
         for pred in preds:
             if pred["detection_name"] not in nuscenes_class_map:
+                continue
+
+            if float(pred["detection_score"]) <= 0.05:
                 continue
 
             boxes3d = np.concatenate(

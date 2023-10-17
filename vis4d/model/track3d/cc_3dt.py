@@ -16,11 +16,7 @@ from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
 from vis4d.op.box.box2d import bbox_clip, bbox_area
-from vis4d.op.box.box3d import (
-    boxes3d_in_image,
-    boxes3d_to_corners,
-    transform_boxes3d,
-)
+from vis4d.op.box.box3d import boxes3d_to_corners, transform_boxes3d
 from vis4d.op.geometry.projection import project_points
 from vis4d.op.geometry.rotation import (
     quaternion_to_matrix,
@@ -40,6 +36,8 @@ from vis4d.op.track3d.cc_3dt import (
 from vis4d.op.track3d.common import Track3DOut
 from vis4d.op.track.qdtrack import QDTrackHead
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
+
+nuscenes_detection_range_map = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
 
 from ..track.util import split_key_ref_indices
 
@@ -479,14 +477,21 @@ class BEVCC3DT(nn.Module):
                 boxes3d_cam, axis_mode=AxisMode.OPENCV
             )
 
-            mask = boxes3d_in_image(corners, intrinsics[i], images_hw_list[i])
-
-            corners_2d = project_points(corners[mask], intrinsics[i])
+            corners_2d = project_points(corners, intrinsics[i])
 
             boxes_2d = self._to_boxes2d(corners_2d)
-            boxes_2d = bbox_clip(boxes_2d, images_hw_list[i])
+            boxes_2d = bbox_clip(boxes_2d, images_hw_list[i], 1)
 
-            cc_3dt_boxes_3d = boxes_3d.new_zeros(len(boxes_2d), 12)
+            mask = (
+                (boxes3d_cam[:, 2] > 0)
+                & (bbox_area(boxes_2d) > 0)
+                & (bbox_area(boxes_2d) < (1600 - 1) * (900 - 1))
+                & filter_distance(
+                    class_ids, boxes3d_cam, nuscenes_detection_range_map
+                )
+            )
+
+            cc_3dt_boxes_3d = boxes_3d.new_zeros(len(boxes_2d[mask]), 12)
             cc_3dt_boxes_3d[:, :3] = boxes_3d[mask][:, :3]
             # WLH -> HWL
             cc_3dt_boxes_3d[:, 3:6] = boxes_3d[mask][:, [5, 3, 4]]
@@ -496,16 +501,15 @@ class BEVCC3DT(nn.Module):
             cc_3dt_boxes_3d[:, 9:] = velocities[mask]
 
             boxes_3d_list.append(cc_3dt_boxes_3d)
-            boxes_2d_list.append(boxes_2d)
+            boxes_2d_list.append(boxes_2d[mask])
             class_ids_list.append(class_ids[mask])
             scores_list.append(scores_3d[mask])
             camera_ids_list.append(
-                (torch.ones(len(boxes_2d)) * i).to(boxes_2d.device)
+                (torch.ones(len(cc_3dt_boxes_3d)) * i).to(boxes_2d.device)
             )
 
         embeddings_list, _, _, _ = self.qdtrack_head(features, boxes_2d_list)
 
-        # Select project boxes2d according to bbox area
         boxes_3d = torch.cat(boxes_3d_list)
         boxes_2d = torch.cat(boxes_2d_list)
         camera_ids = torch.cat(camera_ids_list)
@@ -513,6 +517,7 @@ class BEVCC3DT(nn.Module):
         class_ids = torch.cat(class_ids_list)
         embeddings = torch.cat(embeddings_list)
 
+        # Select project boxes2d according to bbox area
         keep_indices = embeddings.new_ones(len(boxes_3d)).bool()
         boxes_2d_area = bbox_area(boxes_2d)
         for i, box3d in enumerate(boxes_3d):
@@ -526,7 +531,6 @@ class BEVCC3DT(nn.Module):
                     keep_indices[i] = False
                     break
 
-        # 3D NMS in world coordinate
         boxes_3d = boxes_3d[keep_indices]
         boxes_2d = boxes_2d[keep_indices]
         camera_ids = camera_ids[keep_indices]
@@ -555,3 +559,15 @@ class BEVCC3DT(nn.Module):
         max_y = torch.max(corners_2d[:, :, 1], 1).values.unsqueeze(-1)
 
         return torch.cat([min_x, min_y, max_x, max_y], dim=1)
+
+
+def filter_distance(
+    class_ids: Tensor,
+    boxes3d: Tensor,
+    detection_range: list[float],
+    tolerance: float = 2.0,
+) -> Tensor:
+    """Filter boxes3d on distance."""
+    return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= torch.tensor(
+        [detection_range[class_id] + tolerance for class_id in class_ids]
+    ).to(class_ids.device)

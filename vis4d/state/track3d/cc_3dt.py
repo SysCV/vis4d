@@ -297,9 +297,7 @@ class CC3DTrackGraph:
             camera_ids,
             scores_2d,
             obs_boxes_3d,
-            scores_3d
-            if self.update_3d_score
-            else scores_3d.new_ones(len(scores_3d)),
+            scores_3d,
             class_ids,
             embeddings,
             memory_boxes_3d,
@@ -308,6 +306,7 @@ class CC3DTrackGraph:
             memory_embeddings,
             memory_boxes_3d_predict,
             memory_velocities,
+            self.update_3d_score,
         )
 
         self.update(

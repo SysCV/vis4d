@@ -18,6 +18,7 @@ from vis4d.config.typing import (
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.nuscenes_detection import NuScenesDetection
+from vis4d.model.motion.velo_lstm import VeloLSTM
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
@@ -67,7 +68,7 @@ def get_config() -> ExperimentConfig:
     # Hyper Parameters
     params = ExperimentParameters()
     params.samples_per_gpu = 1
-    params.workers_per_gpu = 0
+    params.workers_per_gpu = 4
     config.params = params
 
     ######################################################
@@ -76,6 +77,16 @@ def get_config() -> ExperimentConfig:
     data_root = "data/nuscenes"
     version = "v1.0-trainval"
     test_split = "val"
+    config.detect = "./vis4d-workspace/detect_3d/detect_3d_predictions.json"
+
+    data_root = "data/nuscenes_mini"
+    version = "v1.0-mini"
+    test_split = "mini_val"
+    config.detect = (
+        "./vis4d-workspace/detect_3d/detect_3d_predictions_mini.json"
+    )
+
+    config.velo_lstm_ckpt = ""
 
     data = DataConfig()
 
@@ -87,10 +98,10 @@ def get_config() -> ExperimentConfig:
         version=version,
         split=test_split,
         keys_to_load=[K.images, K.original_images, K.boxes3d],
-        data_backend=class_config(HDF5Backend),
-        detection_result="vis4d-workspace/pure_det/results_nusc.json",
+        # data_backend=class_config(HDF5Backend),
+        detection_result=config.detect,
         cache_as_binary=True,
-        cached_file_path=f"data/nuscenes/{test_split}.pkl",
+        cached_file_path=f"{data_root}/{test_split}.pkl",
     )
 
     data.test_dataloader = get_test_dataloader(
@@ -113,6 +124,8 @@ def get_config() -> ExperimentConfig:
         track=class_config(
             CC3DTrackAssociation, init_score_thr=0.2, obj_score_thr=0.1
         ),
+        # motion_model="VeloLSTM",
+        # lstm_model=class_config(VeloLSTM, weights=config.velo_lstm_ckpt),
         update_3d_score=False,
         add_backdrops=False,
     )
@@ -154,7 +167,6 @@ def get_config() -> ExperimentConfig:
                 data_root=data_root,
                 version=version,
                 split=test_split,
-                velocity_thres=0.2,
             ),
             save_predictions=True,
             save_prefix=config.output_dir,
