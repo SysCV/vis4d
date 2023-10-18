@@ -111,6 +111,7 @@ class PillowCanvasBackend(CanvasBackend):
         self,
         corners: tuple[float, float, float, float],
         color: tuple[int, int, int],
+        width: int = 1,
     ) -> None:
         """Draws a box onto the given canvas.
 
@@ -118,6 +119,7 @@ class PillowCanvasBackend(CanvasBackend):
             corners (list[float]): Containing [x1,y2,x2,y2] the corners of
                 the box.
             color (tuple[int, int, int]): Color of the box [0,255].
+            width (int, optional): Line width. Defaults to 1.
 
         Raises:
             ValueError: If the canvas is not initialized.
@@ -127,7 +129,7 @@ class PillowCanvasBackend(CanvasBackend):
                 "No Image Draw initialized! Did you call 'create_canvas'?"
             )
 
-        self._image_draw.rectangle(corners, outline=color)
+        self._image_draw.rectangle(corners, outline=color, width=width)
 
     def draw_rotated_box(
         self,

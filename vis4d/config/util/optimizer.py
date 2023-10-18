@@ -15,6 +15,8 @@ def get_lr_scheduler_cfg(
     begin: int = 0,
     end: int = -1,
     epoch_based: bool = True,
+    convert_epochs_to_steps: bool = False,
+    convert_attributes: list[str] | None = None,
 ) -> LrSchedulerConfig:
     """Default learning rate scheduler configuration.
 
@@ -27,6 +29,12 @@ def get_lr_scheduler_cfg(
         end (int, optional): End epoch. Defaults to None. Defaults to -1.
         epoch_based (bool, optional): Whether the learning rate scheduler is
             epoch based or step based. Defaults to True.
+        convert_epochs_to_steps (bool): Whether to convert the begin and end
+            for a step based scheduler to steps automatically based on length
+            of train dataloader. Enables users to set the iteration breakpoints
+            as epochs. Defaults to False.
+        convert_attributes (list[str] | None): List of attributes in the
+            scheduler that should be converted to steps. Defaults to None.
 
     Returns:
         LrSchedulerConfig: Config dict that can be instantiated as LearningRate
@@ -38,6 +46,8 @@ def get_lr_scheduler_cfg(
     lr_scheduler.begin = begin
     lr_scheduler.end = end
     lr_scheduler.epoch_based = epoch_based
+    lr_scheduler.convert_epochs_to_steps = convert_epochs_to_steps
+    lr_scheduler.convert_attributes = convert_attributes
 
     return lr_scheduler
 

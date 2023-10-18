@@ -148,7 +148,11 @@ class TrainingModule(pl.LightningModule):
 
     def configure_optimizers(self) -> Any:  # type: ignore
         """Return the optimizer to use."""
-        return set_up_optimizers(self.optimizers_cfg, [self.model])
+        self.trainer.fit_loop.setup_data()
+        steps_per_epoch = len(self.trainer.train_dataloader)  # type: ignore
+        return set_up_optimizers(
+            self.optimizers_cfg, [self.model], steps_per_epoch
+        )
 
     def lr_scheduler_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, scheduler: LRSchedulerWrapper, metric: Any | None = None

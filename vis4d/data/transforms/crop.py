@@ -105,7 +105,7 @@ class GenCropParameters:
         """Creates an instance of the class.
 
         Args:
-            shape (CropShape): Image shape to be cropped to.
+            shape (CropShape): Image shape to be cropped to in [H, W].
             crop_func (CropFunc, optional): Function used to generate the size
                 of the crop. Defaults to absolute_crop.
             allow_empty_crops (bool, optional): Allow crops which result in

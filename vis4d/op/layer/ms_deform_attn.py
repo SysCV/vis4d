@@ -1,7 +1,7 @@
 # pylint: disable=no-name-in-module, abstract-method, arguments-differ
 """Multi-Scale Deformable Attention Module.
 
-Modified from Deformable DETR (https://github.com/fundamentalvision/Deformable-DETR/blob/main/models/ops/modules/ms_deform_attn.py) # pylint: disable=line-too-long 
+Modified from Deformable DETR (https://github.com/fundamentalvision/Deformable-DETR/blob/main/models/ops/modules/ms_deform_attn.py) # pylint: disable=line-too-long
 """
 from __future__ import annotations
 
@@ -13,9 +13,12 @@ from torch import Tensor, nn
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn.init import constant_, xavier_uniform_
-from vis4d_cuda_ops import ms_deform_attn_backward, ms_deform_attn_forward
 
+from vis4d.common.imports import VIS4D_CUDA_OPS_AVAILABLE
 from vis4d.common.logging import rank_zero_warn
+
+if VIS4D_CUDA_OPS_AVAILABLE:
+    from vis4d_cuda_ops import ms_deform_attn_backward, ms_deform_attn_forward
 
 
 class MSDeformAttentionFunction(Function):  # pragma: no cover
@@ -32,6 +35,10 @@ class MSDeformAttentionFunction(Function):  # pragma: no cover
         im2col_step: int,
     ) -> Tensor:
         """Forward pass."""
+        if not VIS4D_CUDA_OPS_AVAILABLE:
+            raise RuntimeError(
+                "MSDeformAttentionFunction requires vis4d cuda ops to run."
+            )
         ctx.im2col_step = im2col_step
         output = ms_deform_attn_forward(
             value,
@@ -56,6 +63,10 @@ class MSDeformAttentionFunction(Function):  # pragma: no cover
         ctx, grad_output: Tensor
     ) -> tuple[Tensor, None, None, Tensor, Tensor, None]:
         """Backward pass."""
+        if not VIS4D_CUDA_OPS_AVAILABLE:
+            raise RuntimeError(
+                "MSDeformAttentionFunction requires vis4d cuda ops to run."
+            )
         (
             value,
             value_spatial_shapes,
