@@ -5,6 +5,7 @@ This file composes the operations associated with CC-3DT
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import NamedTuple
 
 import torch
@@ -14,30 +15,28 @@ from vis4d.data.const import AxisMode
 from vis4d.model.track.qdtrack import FasterRCNNQDTrackOut
 from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.anchor import AnchorGenerator
-from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
-from vis4d.op.box.box2d import bbox_clip, bbox_area
+from vis4d.op.box.box2d import bbox_area, bbox_clip
 from vis4d.op.box.box3d import boxes3d_to_corners, transform_boxes3d
+from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
+from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
+from vis4d.op.detect3d.util import bev_3d_nms
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead
+from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
+from vis4d.op.fpp import FPN
 from vis4d.op.geometry.projection import project_points
 from vis4d.op.geometry.rotation import (
     quaternion_to_matrix,
     rotation_matrix_yaw,
 )
 from vis4d.op.geometry.transform import inverse_rigid_transform
-from vis4d.op.detect3d.qd_3dt import QD3DTBBox3DHead, RoI2Det3D
-from vis4d.op.detect3d.util import bev_3d_nms
-from vis4d.op.detect.faster_rcnn import FasterRCNNHead
-from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
-from vis4d.op.fpp import FPN
 from vis4d.op.track3d.cc_3dt import (
+    CC3DTrackAssociation,
     cam_to_global,
     get_track_3d_out,
-    CC3DTrackAssociation,
 )
 from vis4d.op.track3d.common import Track3DOut
 from vis4d.op.track.qdtrack import QDTrackHead
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
-
-nuscenes_detection_range_map = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
 
 from ..track.util import split_key_ref_indices
 
@@ -377,31 +376,27 @@ class FasterRCNNCC3DT(nn.Module):
         )
 
 
-class BEVCC3DT(nn.Module):
-    """CC-3DT with BEV detector."""
+class CC3DT(nn.Module):
+    """CC-3DT with custom detection results."""
 
     def __init__(
         self,
         basemodel: BaseModel | None = None,
         qdtrack_head: QDTrackHead | None = None,
         track_graph: CC3DTrackGraph | None = None,
+        detection_range: Sequence[float] | None = None,
     ) -> None:
         """Creates an instance of the class.
 
         Args:
-            num_classes (int): Number of object categories.
             basemodel (BaseModel, optional): Base model network. Defaults to
                 None. If None, will use ResNet50.
-            faster_rcnn_head (FasterRCNNHead, optional): Faster RCNN head.
-                Defaults to None. if None, will use default FasterRCNNHead.
-            rcnn_box_decoder (DeltaXYWHBBoxDecoder, optional): Decoder for RCNN
-                bounding boxes. Defaults to None.
             qdtrack_head (QDTrack, optional): QDTrack head. Defaults to None.
                 If None, will use default QDTrackHead.
             track_graph (CC3DTrackGraph, optional): Track graph. Defaults to
                 None. If None, will use default CC3DTrackGraph.
-            pure_det (bool, optional): Whether to use pure detection. Defaults
-                to False.
+            detection_range (Sequence[float], optional): Detection range for
+                each class. Defaults to None.
         """
         super().__init__()
         self.basemodel = (
@@ -422,6 +417,8 @@ class BEVCC3DT(nn.Module):
             add_backdrops=False,
         )
 
+        self.detection_range = detection_range
+
     def forward(
         self,
         images_list: list[Tensor],
@@ -429,10 +426,10 @@ class BEVCC3DT(nn.Module):
         intrinsics_list: list[Tensor],
         extrinsics_list: list[Tensor],
         frame_ids: list[int],
-        pred_boxes3d,
-        pred_boxes3d_classes,
-        pred_boxes3d_scores,
-        pred_boxes3d_velocities,
+        pred_boxes3d: list[list[Tensor]],
+        pred_boxes3d_classes: list[list[Tensor]],
+        pred_boxes3d_scores: list[list[Tensor]],
+        pred_boxes3d_velocities: list[list[Tensor]],
     ) -> Track3DOut:
         """Forward inference stage.
 
@@ -451,24 +448,24 @@ class BEVCC3DT(nn.Module):
         features = self.basemodel(images)
         features = self.fpn(features)
 
-        boxes_3d = torch.from_numpy(pred_boxes3d[0]).to(images.device)
-        class_ids = torch.from_numpy(pred_boxes3d_classes[0]).to(images.device)
-        scores_3d = torch.from_numpy(pred_boxes3d_scores[0]).to(images.device)
-        velocities = torch.from_numpy(pred_boxes3d_velocities[0]).to(
-            images.device
-        )
-        global_to_cam = inverse_rigid_transform(extrinsics)
+        # (1, 1, B,) -> (B,)
+        boxes_3d = pred_boxes3d[0][0]
+        class_ids = pred_boxes3d_classes[0][0]
+        scores_3d = pred_boxes3d_scores[0][0]
+        velocities = pred_boxes3d_velocities[0][0]
 
         # Get 2D boxes and assign camera id
+        global_to_cams = inverse_rigid_transform(extrinsics)
+
         boxes_3d_list = []
         boxes_2d_list = []
         class_ids_list = []
         scores_list = []
         camera_ids_list = []
-        for i in range(len(global_to_cam)):
+        for i, global_to_cam in enumerate(global_to_cams):
             boxes3d_cam = transform_boxes3d(
                 boxes_3d,
-                global_to_cam[i],
+                global_to_cam,
                 source_axis_mode=AxisMode.ROS,
                 target_axis_mode=AxisMode.OPENCV,
             )
@@ -485,10 +482,11 @@ class BEVCC3DT(nn.Module):
             mask = (
                 (boxes3d_cam[:, 2] > 0)
                 & (bbox_area(boxes_2d) > 0)
-                & (bbox_area(boxes_2d) < (1600 - 1) * (900 - 1))
-                & filter_distance(
-                    class_ids, boxes3d_cam, nuscenes_detection_range_map
+                & (
+                    bbox_area(boxes_2d)
+                    < (images_hw_list[i][0] - 1) * (images_hw_list[i][1] - 1)
                 )
+                & self._filter_distance(class_ids, boxes3d_cam)
             )
 
             cc_3dt_boxes_3d = boxes_3d.new_zeros(len(boxes_2d[mask]), 12)
@@ -551,7 +549,7 @@ class BEVCC3DT(nn.Module):
 
         return outs
 
-    def _to_boxes2d(self, corners_2d) -> Tensor:
+    def _to_boxes2d(self, corners_2d: Tensor) -> Tensor:
         """Project 3D boxes (Camera coordinates) to 2D boxes."""
         min_x = torch.min(corners_2d[:, :, 0], 1).values.unsqueeze(-1)
         min_y = torch.min(corners_2d[:, :, 1], 1).values.unsqueeze(-1)
@@ -560,14 +558,41 @@ class BEVCC3DT(nn.Module):
 
         return torch.cat([min_x, min_y, max_x, max_y], dim=1)
 
+    def _filter_distance(
+        self, class_ids: Tensor, boxes3d: Tensor, tolerance: float = 2.0
+    ) -> Tensor:
+        """Filter boxes3d on distance."""
+        if self.detection_range is None:
+            return torch.ones_like(class_ids, dtype=torch.bool)
 
-def filter_distance(
-    class_ids: Tensor,
-    boxes3d: Tensor,
-    detection_range: list[float],
-    tolerance: float = 2.0,
-) -> Tensor:
-    """Filter boxes3d on distance."""
-    return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= torch.tensor(
-        [detection_range[class_id] + tolerance for class_id in class_ids]
-    ).to(class_ids.device)
+        return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= torch.tensor(
+            [
+                self.detection_range[class_id] + tolerance
+                for class_id in class_ids
+            ]
+        ).to(class_ids.device)
+
+    def __call__(
+        self,
+        images_list: list[Tensor],
+        images_hw: list[list[tuple[int, int]]],
+        intrinsics_list: list[Tensor],
+        extrinsics_list: list[Tensor],
+        frame_ids: list[int],
+        pred_boxes3d: list[list[Tensor]],
+        pred_boxes3d_classes: list[list[Tensor]],
+        pred_boxes3d_scores: list[list[Tensor]],
+        pred_boxes3d_velocities: list[list[Tensor]],
+    ) -> Track3DOut:
+        """Type definition for call implementation."""
+        return self._call_impl(
+            images_list,
+            images_hw,
+            intrinsics_list,
+            extrinsics_list,
+            frame_ids,
+            pred_boxes3d,
+            pred_boxes3d_classes,
+            pred_boxes3d_scores,
+            pred_boxes3d_velocities,
+        )

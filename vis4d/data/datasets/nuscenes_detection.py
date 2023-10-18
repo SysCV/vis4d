@@ -7,17 +7,24 @@ import numpy as np
 
 from vis4d.common.typing import ArgsType, DictStrAny, NDArrayF32, NDArrayI64
 from vis4d.data.typing import DictData
+
 from .nuscenes import NuScenes, nuscenes_class_map
 
 
 class NuScenesDetection(NuScenes):
     """NuScenes detection dataset."""
 
-    def __init__(self, detection_result: str, **kwargs: ArgsType) -> None:
+    def __init__(
+        self,
+        pure_detection: str,
+        score_thres: float = 0.05,
+        **kwargs: ArgsType,
+    ) -> None:
         """Creates an instance of the class."""
-        self.detection_result = detection_result
+        self.pure_detection = pure_detection
+        self.score_thres = score_thres
 
-        with open(self.detection_result) as f:
+        with open(self.pure_detection, encoding="utf-8") as f:
             self.predictions = json.load(f)
 
         super().__init__(**kwargs)
@@ -26,7 +33,7 @@ class NuScenesDetection(NuScenes):
         """Concise representation of the dataset."""
         return (
             f"NuScenesDetection {self.version} {self.split} using "
-            + f"{self.detection_result}"
+            + f"{self.pure_detection}"
         )
 
     def _load_pred(
@@ -42,7 +49,7 @@ class NuScenesDetection(NuScenes):
             if pred["detection_name"] not in nuscenes_class_map:
                 continue
 
-            if float(pred["detection_score"]) <= 0.05:
+            if float(pred["detection_score"]) <= self.score_thres:
                 continue
 
             boxes3d = np.concatenate(
@@ -96,10 +103,10 @@ class NuScenesDetection(NuScenes):
         data_dict = super().__getitem__(idx)
 
         (
-            data_dict["pred_boxes3d"],
-            data_dict["pred_boxes3d_classes"],
-            data_dict["pred_boxes3d_scores"],
-            data_dict["pred_boxes3d_velocities"],
+            data_dict["LIDAR_TOP"]["pred_boxes3d"],
+            data_dict["LIDAR_TOP"]["pred_boxes3d_classes"],
+            data_dict["LIDAR_TOP"]["pred_boxes3d_scores"],
+            data_dict["LIDAR_TOP"]["pred_boxes3d_velocities"],
         ) = self._load_pred(self.predictions["results"][data_dict["token"]])
 
         return data_dict
