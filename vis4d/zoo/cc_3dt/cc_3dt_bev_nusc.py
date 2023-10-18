@@ -79,13 +79,6 @@ def get_config() -> ExperimentConfig:
     test_split = "val"
     config.detect = "./vis4d-workspace/detect_3d/detect_3d_predictions.json"
 
-    data_root = "data/nuscenes_mini"
-    version = "v1.0-mini"
-    test_split = "mini_val"
-    config.detect = (
-        "./vis4d-workspace/detect_3d/detect_3d_predictions_mini.json"
-    )
-
     config.velo_lstm_ckpt = ""
 
     data = DataConfig()
@@ -98,7 +91,7 @@ def get_config() -> ExperimentConfig:
         version=version,
         split=test_split,
         keys_to_load=[K.images, K.original_images, K.boxes3d],
-        # data_backend=class_config(HDF5Backend),
+        data_backend=class_config(HDF5Backend),
         detection_result=config.detect,
         cache_as_binary=True,
         cached_file_path=f"{data_root}/{test_split}.pkl",
@@ -124,8 +117,8 @@ def get_config() -> ExperimentConfig:
         track=class_config(
             CC3DTrackAssociation, init_score_thr=0.2, obj_score_thr=0.1
         ),
-        # motion_model="VeloLSTM",
-        # lstm_model=class_config(VeloLSTM, weights=config.velo_lstm_ckpt),
+        motion_model="VeloLSTM",
+        lstm_model=class_config(VeloLSTM, weights=config.velo_lstm_ckpt),
         update_3d_score=False,
         add_backdrops=False,
     )
