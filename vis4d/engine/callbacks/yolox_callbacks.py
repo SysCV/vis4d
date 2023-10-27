@@ -18,7 +18,7 @@ from vis4d.common.distributed import (
     get_world_size,
     synchronize,
 )
-from vis4d.common.logging import rank_zero_info
+from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
 from vis4d.data.typing import DictDataOrList
@@ -65,13 +65,15 @@ class YOLOXModeSwitchCallback(Callback):
                 found_loss = True
                 yolox_loss = loss["loss"]
                 break
-        assert found_loss, "YOLOXHeadLoss should be in LossModule."
         rank_zero_info(
             "Switching YOLOX training mode starting next training epoch "
             "(turning off strong augmentations, adding L1 loss, switching to "
             "validation every epoch)."
         )
-        yolox_loss.loss_l1 = l1_loss  # set L1 loss function
+        if found_loss:
+            yolox_loss.loss_l1 = l1_loss  # set L1 loss function
+        else:
+            rank_zero_warn("YOLOXHeadLoss should be in LossModule.")
         # Set data pipeline to default DataPipe to skip strong augs.
         # Switch to checking validation every epoch.
         dataloader = trainer_state["train_dataloader"]

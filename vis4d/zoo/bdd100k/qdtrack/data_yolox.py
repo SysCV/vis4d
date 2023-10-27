@@ -34,6 +34,7 @@ from vis4d.data.transforms.mosaic import (
     MosaicBoxes2D,
     MosaicImages,
 )
+from vis4d.data.transforms.normalize import NormalizeImages
 from vis4d.data.transforms.pad import PadImages
 from vis4d.data.transforms.photometric import RandomHSV
 from vis4d.data.transforms.post_process import (
@@ -51,6 +52,7 @@ from vis4d.data.transforms.to_tensor import ToTensor
 def get_train_dataloader(
     data_backend: None | ConfigDict,
     image_size: tuple[int, int],
+    normalize_image: bool,
     samples_per_gpu: int,
     workers_per_gpu: int,
 ) -> ConfigDict:
@@ -141,36 +143,36 @@ def get_train_dataloader(
         [class_config(PostProcessBoxes2D, min_area=1.0)]
     )
 
+    batch_transforms = [
+        class_config(RandomHSV, same_on_batch=False),
+        class_config(
+            RandomApply,
+            transforms=[class_config(FlipImages), class_config(FlipBoxes2D)],
+            probability=0.5,
+            same_on_batch=False,
+        ),
+        class_config(
+            GenResizeParameters,
+            shape=image_size,
+            keep_ratio=True,
+            scale_range=(0.5, 1.5),
+            same_on_batch=False,
+        ),
+        class_config(ResizeImages),
+        class_config(ResizeBoxes2D),
+        class_config(GenCropParameters, shape=image_size, same_on_batch=False),
+        class_config(CropImages),
+        class_config(CropBoxes2D),
+    ]
+    if normalize_image:
+        batch_transforms += [
+            class_config(NormalizeImages),
+            class_config(PadImages),
+        ]
+    else:
+        batch_transforms += [class_config(PadImages, value=114.0)]
     train_batchprocess_cfg = class_config(
-        compose,
-        transforms=[
-            class_config(RandomHSV, same_on_batch=False),
-            class_config(
-                RandomApply,
-                transforms=[
-                    class_config(FlipImages),
-                    class_config(FlipBoxes2D),
-                ],
-                probability=0.5,
-                same_on_batch=False,
-            ),
-            class_config(
-                GenResizeParameters,
-                shape=image_size,
-                keep_ratio=True,
-                scale_range=(0.5, 1.5),
-                same_on_batch=False,
-            ),
-            class_config(ResizeImages),
-            class_config(ResizeBoxes2D),
-            class_config(
-                GenCropParameters, shape=image_size, same_on_batch=False
-            ),
-            class_config(CropImages),
-            class_config(CropBoxes2D),
-            class_config(PadImages, value=114.0),
-            class_config(ToTensor),
-        ],
+        compose, transforms=batch_transforms + [class_config(ToTensor)]
     )
 
     return class_config(
@@ -192,6 +194,7 @@ def get_train_dataloader(
 def get_test_dataloader(
     data_backend: None | ConfigDict,
     image_size: tuple[int, int],
+    normalize_image: bool,
     samples_per_gpu: int,
     workers_per_gpu: int,
 ) -> ConfigDict:
@@ -218,12 +221,15 @@ def get_test_dataloader(
         compose, transforms=preprocess_transforms
     )
 
+    if normalize_image:
+        batch_transforms = [
+            class_config(NormalizeImages),
+            class_config(PadImages),
+        ]
+    else:
+        batch_transforms = [class_config(PadImages, value=114.0)]
     test_batchprocess_cfg = class_config(
-        compose,
-        transforms=[
-            class_config(PadImages, value=114.0),
-            class_config(ToTensor),
-        ],
+        compose, transforms=batch_transforms + [class_config(ToTensor)]
     )
 
     test_dataset_cfg = class_config(
@@ -242,6 +248,7 @@ def get_test_dataloader(
 def get_bdd100k_track_cfg(
     data_backend: None | ConfigDict = None,
     image_size: tuple[int, int] = (800, 1440),
+    normalize_image: bool = False,
     samples_per_gpu: int = 2,
     workers_per_gpu: int = 2,
 ) -> DataConfig:
@@ -251,6 +258,7 @@ def get_bdd100k_track_cfg(
     data.train_dataloader = get_train_dataloader(
         data_backend=data_backend,
         image_size=image_size,
+        normalize_image=normalize_image,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
     )
@@ -258,6 +266,7 @@ def get_bdd100k_track_cfg(
     data.test_dataloader = get_test_dataloader(
         data_backend=data_backend,
         image_size=image_size,
+        normalize_image=normalize_image,
         samples_per_gpu=1,
         workers_per_gpu=1,
     )
