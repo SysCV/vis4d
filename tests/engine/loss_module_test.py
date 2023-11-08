@@ -35,16 +35,23 @@ class LossModuleTest(unittest.TestCase):
                         }
                     ),
                 },
-            ]
+            ],
+            exclude_attributes=["dummy_attribute"],
         )
         x = torch.rand(2, 3, 4, 5)
         y = torch.rand(2, 3, 4, 5)
-        losses = loss({"input": x}, {"target": y})
-        total_loss = sum(losses.values())
+        total_loss, metrics = loss({"input": x}, {"target": y})
 
         self.assertAlmostEqual(
             total_loss.item(),
             0.7 * torch.nn.MSELoss()(x, y).item()
             + 0.3 * torch.nn.L1Loss()(x, y).item(),
+            places=3,
+        )
+
+        self.assertAlmostEqual(
+            metrics["loss"],
+            0.7 * torch.nn.MSELoss()(x, y).detach().cpu().item()
+            + 0.3 * torch.nn.L1Loss()(x, y).detach().cpu().item(),
             places=3,
         )
