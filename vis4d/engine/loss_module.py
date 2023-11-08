@@ -202,7 +202,7 @@ class LossModule(nn.Module):
         if isinstance(loss_dict, Tensor):
             total_loss = loss_dict
         elif isinstance(loss_dict, dict):
-            keep_loss_dict: dict[str, Tensor] = {}
+            keep_loss_dict: LossesType = {}
             for k, v in loss_dict.items():
                 metrics[k] = v.detach().cpu().item()
                 if (
@@ -213,7 +213,7 @@ class LossModule(nn.Module):
             total_loss = sum(keep_loss_dict.values())
         else:
             raise TypeError(
-                "Loss function must return a Tensor or a dict of " + "Tensor"
+                "Loss function must return a Tensor or a dict of Tensor"
             )
         metrics["loss"] = total_loss.detach().cpu().item()
 
