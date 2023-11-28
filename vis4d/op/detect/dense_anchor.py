@@ -87,8 +87,8 @@ def get_targets_per_image(
     labels = anchors.new_zeros((num_valid_anchors,))
     label_weights = anchors.new_zeros(num_valid_anchors)
 
-    positives = sampling_result.sampled_labels == 1
-    negatives = sampling_result.sampled_labels == 0
+    positives = torch.eq(sampling_result.sampled_labels, 1)
+    negatives = torch.eq(sampling_result.sampled_labels, 0)
     pos_inds = sampling_result.sampled_box_indices[positives]
     pos_target_inds = sampling_result.sampled_target_indices[positives]
     neg_inds = sampling_result.sampled_box_indices[negatives]
@@ -251,7 +251,7 @@ class DenseAnchorHeadLoss(nn.Module):
         label_weights = label_weights.reshape(-1)
         cls_score = cls_out.permute(0, 2, 3, 1).reshape(labels.size(0), -1)
         if cls_score.size(1) > 1:
-            labels = F.one_hot(
+            labels = F.one_hot(  # pylint: disable=not-callable
                 labels.long(), num_classes=cls_score.size(1) + 1
             )[:, : cls_score.size(1)].float()
             label_weights = label_weights.repeat(cls_score.size(1)).reshape(

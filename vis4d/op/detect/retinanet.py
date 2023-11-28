@@ -188,7 +188,7 @@ def get_params_per_level(
     )
     reg_out = reg_out.permute(1, 2, 0).reshape(-1, 4)
     cls_out = cls_out.permute(1, 2, 0).reshape(reg_out.size(0), -1).sigmoid()
-    valid_mask = cls_out > score_thr
+    valid_mask = torch.greater(cls_out, score_thr)
     valid_idxs = torch.nonzero(valid_mask)
     num_topk = min(num_pre_nms, valid_idxs.size(0))
     cls_out_filt = cls_out[valid_mask]
@@ -314,7 +314,7 @@ class Dense2Det(nn.Module):
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_outs]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device  # type: ignore
+            featmap_sizes, device=device
         )
         proposals, scores, labels = [], [], []
         for img_id, image_hw in enumerate(images_hw):

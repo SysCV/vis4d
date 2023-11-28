@@ -48,7 +48,7 @@ class Conv2d(nn.Conv2d):
                     "SyncBatchNorm does not support empty inputs!"
                 )
 
-        x = F.conv2d(
+        x = F.conv2d(  # pylint: disable=not-callable
             x,
             self.weight,
             self.bias,

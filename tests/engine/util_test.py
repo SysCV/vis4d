@@ -47,65 +47,69 @@ def test_apply_to_collection():
 
     # test with data as namedtuple or dataclass
     data_cls = Test(1, 2)
-    data = apply_to_collection(data_cls, int, lambda x: x * 2)
-    assert data == Test(2, 4)
+    data_cls = apply_to_collection(data_cls, int, lambda x: x * 2)
+    assert data_cls == Test(2, 4)
 
     data_cls = Test(1, 2)
-    data = apply_to_collection(data_cls, (int, str), lambda x: x * 2)
-    assert data == Test(2, 4)
+    data_cls = apply_to_collection(data_cls, (int, str), lambda x: x * 2)
+    assert data_cls == Test(2, 4)
 
     data_cls = Test(1, 2)
-    data = apply_to_collection(data_cls, int, lambda x: x * 2, wrong_dtype=str)
-    assert data == Test(2, 4)
+    data_cls = apply_to_collection(
+        data_cls, int, lambda x: x * 2, wrong_dtype=str
+    )
+    assert data_cls == Test(2, 4)
 
     data_cls = Test(1, 2)
-    data = apply_to_collection(
+    data_cls = apply_to_collection(
         data_cls,
         int,
         lambda x: x * 2,
         wrong_dtype=(str, int),
         include_none=False,
     )
-    assert data == Test(1, 2)
+    assert data_cls == Test(1, 2)
 
     data_cls = Test(1, 2)
-    data = apply_to_collection(
+    data_cls = apply_to_collection(
         data_cls,
         int,
         lambda x: x * 2,
         wrong_dtype=(str, int),
         include_none=True,
     )
-    assert data == Test(1, 2)
+    assert data_cls == Test(1, 2)
 
     data_tup = namedtuple("test", "aaa bbb")(1, 2)
-    data = apply_to_collection(data_tup, int, lambda x: x * 2)
-    assert data == namedtuple("test", "aaa bbb")(2, 4)
+    data_tup = apply_to_collection(data_tup, int, lambda x: x * 2)
+    assert data_tup == namedtuple("test", "aaa bbb")(2, 4)
 
     data_tup = namedtuple("test", "aaa bbb")(1, 2)
-    data = apply_to_collection(data_tup, (int, str), lambda x: x * 2)
-    assert data == namedtuple("test", "aaa bbb")(2, 4)
+    data_tup = apply_to_collection(data_tup, (int, str), lambda x: x * 2)
+    assert data_tup == namedtuple("test", "aaa bbb")(2, 4)
 
     data_tup = namedtuple("test", "aaa bbb")(1, 2)
-    data = apply_to_collection(data_tup, int, lambda x: x * 2, wrong_dtype=str)
-    assert data == namedtuple("test", "aaa bbb")(2, 4)
+    data_tup = apply_to_collection(
+        data_tup, int, lambda x: x * 2, wrong_dtype=str
+    )
+    assert data_tup == namedtuple("test", "aaa bbb")(2, 4)
 
     data_tup = namedtuple("test", "aaa bbb")(1, 2)
-    data = apply_to_collection(
+    data_tup = apply_to_collection(
         data_tup,
         int,
         lambda x: x * 2,
         wrong_dtype=(str, int),
         include_none=False,
     )
-    assert data == namedtuple("test", "aaa bbb")(1, 2)
+    assert data_tup == namedtuple("test", "aaa bbb")(1, 2)
 
     data_tup = namedtuple("test", "aaa bbb")(1, 2)
-    data = apply_to_collection(
+    data_tup = apply_to_collection(
         data_tup,
         int,
         lambda x: x * 2,
         wrong_dtype=(str, int),
         include_none=True,
     )
-    assert data == namedtuple("test", "aaa bbb")(1, 2)
+    assert data_tup == namedtuple("test", "aaa bbb")(1, 2)

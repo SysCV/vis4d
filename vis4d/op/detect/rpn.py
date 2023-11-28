@@ -304,7 +304,7 @@ class RPN2RoI(nn.Module):
         featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device  # type: ignore
+            featmap_sizes, device=device
         )
         proposals, scores = [], []
         for img_id, image_hw in enumerate(images_hw):

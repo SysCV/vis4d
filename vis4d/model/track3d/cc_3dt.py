@@ -297,7 +297,7 @@ class FasterRCNNCC3DT(nn.Module):
         camera_ids_list = []
         for i, boxes_2d in enumerate(boxes_2d_list):
             camera_ids_list.append(
-                (torch.ones(len(boxes_2d)) * i).to(boxes_2d.device)
+                (torch.mul(torch.ones(len(boxes_2d)), i)).to(boxes_2d.device)
             )
 
         # Move 3D boxes to world coordinate

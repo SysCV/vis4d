@@ -180,7 +180,7 @@ class MaskRCNN(nn.Module):
         assert outputs.sampled_proposals is not None
         assert outputs.sampled_targets is not None
         pos_proposals = apply_mask(
-            [label == 1 for label in outputs.sampled_targets.labels],
+            [torch.eq(label, 1) for label in outputs.sampled_targets.labels],
             outputs.sampled_proposals.boxes,
         )[0]
         mask_outs = self.mask_head(features, pos_proposals)

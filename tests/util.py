@@ -242,7 +242,7 @@ def generate_instance_masks(
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
     rand_mask = torch.randint(0, num_masks, (height, width))
     mask_tensor = torch.stack(
-        [(rand_mask == i).type(torch.uint8) for i in range(num_masks)]
+        [(torch.eq(rand_mask, i)).type(torch.uint8) for i in range(num_masks)]
     )
     torch.random.set_rng_state(state)
     return (

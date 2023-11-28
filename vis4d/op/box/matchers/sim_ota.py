@@ -105,7 +105,9 @@ class SimOTAMatcher(nn.Module):
         iou_cost = -torch.log(pairwise_ious + EPS)
 
         gt_onehot_label = (
-            F.one_hot(gt_labels.to(torch.int64), pred_scores.shape[-1])
+            F.one_hot(  # pylint: disable=not-callable
+                gt_labels.to(torch.int64), pred_scores.shape[-1]
+            )
             .float()
             .unsqueeze(0)
             .repeat(num_valid, 1, 1)
@@ -213,7 +215,7 @@ class SimOTAMatcher(nn.Module):
         for gt_idx in range(num_gt):
             _, pos_idx = torch.topk(
                 cost[:, gt_idx],
-                k=dynamic_ks[gt_idx].item(),  # type: ignore
+                k=dynamic_ks[gt_idx].item(),
                 largest=False,
             )
             matching_matrix[:, gt_idx][pos_idx] = 1

@@ -217,8 +217,9 @@ class MSDeformableAttention3D(nn.Module):
     def init_weights(self) -> None:
         """Default initialization for Parameters of Module."""
         constant_init(self.sampling_offsets, 0.0)
-        thetas = torch.arange(self.num_heads, dtype=torch.float32) * (
-            2.0 * math.pi / self.num_heads
+        thetas = torch.mul(
+            torch.arange(self.num_heads, dtype=torch.float32),
+            (2.0 * math.pi / self.num_heads),
         )
         grid_init = torch.stack([thetas.cos(), thetas.sin()], -1)
         grid_init = (

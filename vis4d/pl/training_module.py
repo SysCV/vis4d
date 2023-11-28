@@ -6,7 +6,7 @@ from typing import Any
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
 from ml_collections import ConfigDict
-from torch import Tensor, nn
+from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
@@ -112,17 +112,7 @@ class TrainingModule(pl.LightningModule):
         out = self.model(**self.train_data_connector(batch))
 
         assert self.loss_module is not None
-        losses = self.loss_module(out, batch)
-
-        metrics = {}
-        if isinstance(losses, Tensor):
-            total_loss = losses
-        else:
-            total_loss = sum(list(losses.values()))
-            for k, v in losses.items():
-                metrics[k] = v.detach().cpu().item()
-
-        metrics["loss"] = total_loss.detach().cpu().item()
+        total_loss, metrics = self.loss_module(out, batch)
 
         return {
             "loss": total_loss,

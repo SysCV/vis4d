@@ -28,6 +28,9 @@ __pycache__/
 # vscode sftp settings
 .vscode/sftp.json
 
+# vscode launch settings
+.vscode/launch.json
+
 # redis
 *.rdb
 

@@ -1,6 +1,7 @@
 """VeloLSTM operations."""
 from __future__ import annotations
 
+import torch
 import torch.nn.functional as F
 from torch import Tensor
 
@@ -50,5 +51,5 @@ class VeloLSTMLoss(Loss):
         return {
             "refine_loss": refine_loss,
             "pred_loss": pred_loss,
-            "linear_loss": self.smooth_weight * linear_loss,
+            "linear_loss": torch.mul(self.smooth_weight, linear_loss),
         }

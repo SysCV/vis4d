@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TypedDict, Union
 
+import torch
 from torch import Tensor, nn
 from typing_extensions import NotRequired
 
@@ -72,7 +73,11 @@ class LossModule(nn.Module):
     weighted by the corresponding weight and returned as a dictionary.
     """
 
-    def __init__(self, losses: list[LossDefinition] | LossDefinition) -> None:
+    def __init__(
+        self,
+        losses: list[LossDefinition] | LossDefinition,
+        exclude_attributes: list[str] | None = None,
+    ) -> None:
         """Creates an instance of the class.
 
         Each loss will be called with arguments matching the kwargs of the loss
@@ -80,6 +85,10 @@ class LossModule(nn.Module):
 
         Args:
             losses (list[LossDefinition]): List of loss definitions.
+            exclude_attributes (list[str] | None): List of attributes returned
+                by the losses that should be excluded from the total loss
+                computation. Use it to log metrics that should not be
+                optimised. Defaults to None.
 
         Example:
             >>> loss = LossModule(
@@ -127,7 +136,11 @@ class LossModule(nn.Module):
 
             self.losses.append(loss)
 
-    def forward(self, output: DictData, batch: DictData) -> LossesType:
+        self.exclude_attributes = exclude_attributes
+
+    def forward(
+        self, output: DictData, batch: DictData
+    ) -> tuple[Tensor, dict[str, float]]:
         """Forward of loss module.
 
         This function will call all loss functions and return a dictionary
@@ -142,7 +155,8 @@ class LossModule(nn.Module):
             batch (DictData): Batch data.
 
         Returns:
-            LossesType: The loss values.
+            total_loss: The total loss value.
+            metrics: The metrics disctionary.
         """
         loss_dict: LossesType = {}
 
@@ -182,6 +196,26 @@ class LossModule(nn.Module):
                 while key in loss_dict:
                     key = "__" + key
 
-                loss_dict[key] = loss_weight * value
+                loss_dict[key] = torch.mul(loss_weight, value)
 
-        return loss_dict
+        # Convert loss_dict to total loss and metrics dictionary
+        metrics: dict[str, float] = {}
+        if isinstance(loss_dict, Tensor):
+            total_loss = loss_dict
+        elif isinstance(loss_dict, dict):
+            keep_loss_dict: LossesType = {}
+            for k, v in loss_dict.items():
+                metrics[k] = v.detach().cpu().item()
+                if (
+                    self.exclude_attributes is None
+                    or k not in self.exclude_attributes
+                ):
+                    keep_loss_dict[k] = v
+            total_loss = sum(keep_loss_dict.values())  # type: ignore
+        else:
+            raise TypeError(
+                "Loss function must return a Tensor or a dict of Tensor"
+            )
+        metrics["loss"] = total_loss.detach().cpu().item()
+
+        return total_loss, metrics

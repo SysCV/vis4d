@@ -253,9 +253,7 @@ def preprocess_boxes3d(
                 boxes3d_np[idx][2].item(),
             )
         )
-        corners_proc.append(
-            [tuple(pts) for pts in corners_np[idx].tolist()]  # type: ignore
-        )
+        corners_proc.append([tuple(pts) for pts in corners_np[idx].tolist()])
         colors_proc.append(color)
         labels_proc.append(
             _get_box_label(class_id, score, track_id, class_id_mapping)
@@ -337,7 +335,7 @@ def preprocess_image(image: ArrayLike, mode: str = "RGB") -> NDArrayUI8:
 
     # Convert torch to numpy convention
     if not image_np.shape[-1] == 3:
-        image_np = np.transpose(image_np, (1, 2, 0))
+        image_np = np.transpose(image_np, (1, 2, 0))  # type: ignore
 
     # Convert image_np to [0, 255]
     min_val, max_val = (

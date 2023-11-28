@@ -1,7 +1,6 @@
 """Rotation utilities."""
 import functools
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -19,25 +18,25 @@ def normalize_angle(input_angles: Tensor) -> Tensor:
     Returns:
         Tensor with angles normalized to +/- pi
     """
-    return (input_angles + torch.pi) % (2 * torch.pi) - torch.pi
+    return torch.sub((input_angles + torch.pi) % (2 * torch.pi), torch.pi)
 
 
 def acute_angle(theta_1: Tensor, theta_2: Tensor) -> Tensor:
     """Update theta_1 to mkae the agnle between two thetas is acute."""
     # Make sure the angle between two thetas is acute
-    if np.pi / 2.0 < abs(theta_2 - theta_1) < np.pi * 3 / 2.0:
-        theta_1 += np.pi
-        if theta_1 > np.pi:
-            theta_1 -= np.pi * 2
-        if theta_1 < -np.pi:
-            theta_1 += np.pi * 2
+    if torch.pi / 2.0 < abs(theta_2 - theta_1) < torch.pi * 3 / 2.0:
+        theta_1 += torch.pi  # type: ignore
+        if theta_1 > torch.pi:
+            theta_1 -= torch.pi * 2  # type: ignore
+        if theta_1 < -torch.pi:
+            theta_1 += torch.pi * 2  # type: ignore
 
     # Convert the case of > 270 to < 90
-    if abs(theta_2 - theta_1) >= np.pi * 3 / 2.0:
+    if abs(theta_2 - theta_1) >= torch.pi * 3 / 2.0:
         if theta_2 > 0:
-            theta_1 += np.pi * 2
+            theta_1 += torch.pi * 2  # type: ignore
         else:
-            theta_1 -= np.pi * 2
+            theta_1 -= torch.pi * 2  # type: ignore
     return theta_1
 
 
@@ -89,7 +88,7 @@ def rotation_output_to_alpha(output: Tensor, num_bins: int = 2) -> Tensor:
     bin_centers = torch.arange(
         -torch.pi, torch.pi, 2 * torch.pi / num_bins, device=output.device
     )
-    bin_centers += torch.pi / num_bins
+    bin_centers += torch.pi / num_bins  # type: ignore
     alpha = (
         torch.atan(output[out_range, res_idx] / output[out_range, res_idx + 1])
         + bin_centers[bin_idx]
@@ -355,7 +354,7 @@ def matrix_to_quaternion(matrix: Tensor) -> Tensor:
     q_abs = _sqrt_positive_part(
         torch.stack(
             [
-                1.0 + m00 + m11 + m22,
+                1.0 + m00 + m11 + m22,  # type: ignore
                 1.0 + m00 - m11 - m22,
                 1.0 - m00 + m11 - m22,
                 1.0 - m00 - m11 + m22,
@@ -394,7 +393,10 @@ def matrix_to_quaternion(matrix: Tensor) -> Tensor:
     # (with the largest denominator)
 
     return quat_candidates[
-        F.one_hot(q_abs.argmax(dim=-1), num_classes=4) > 0.5,
+        F.one_hot(  # pylint: disable=not-callable
+            q_abs.argmax(dim=-1), num_classes=4
+        )
+        > 0.5,
         :,  # pyre-ignore[16]
     ].reshape(*batch_dim, 4)
 
