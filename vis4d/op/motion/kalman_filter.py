@@ -53,7 +53,9 @@ def update(
     )
 
     # K = PHT * S^-1
-    chol_factor = torch.linalg.cholesky(projected_cov)
+    chol_factor = torch.linalg.cholesky(  # pylint: disable=not-callable
+        projected_cov
+    )
     kalman_gain = torch.cholesky_solve(
         torch.matmul(covariance, update_mat.T).T,
         chol_factor,

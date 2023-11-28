@@ -119,7 +119,9 @@ class PerceptionTransformer(nn.Module):
             for i in range(batch_size):
                 rotation_angle = float(can_bus[i][-1])
                 tmp_prev_bev = (
-                    prev_bev[:, i].reshape(bev_h, bev_w, -1).permute(2, 0, 1)
+                    prev_bev[:, i]  # type: ignore
+                    .reshape(bev_h, bev_w, -1)
+                    .permute(2, 0, 1)
                 )
                 tmp_prev_bev = rotate(
                     tmp_prev_bev, rotation_angle, center=self.rotate_center
@@ -127,7 +129,7 @@ class PerceptionTransformer(nn.Module):
                 tmp_prev_bev = tmp_prev_bev.permute(1, 2, 0).reshape(
                     bev_h * bev_w, 1, -1
                 )
-                prev_bev[:, i] = tmp_prev_bev[:, 0]
+                prev_bev[:, i] = tmp_prev_bev[:, 0]  # type: ignore
 
         # add can bus signals
         bev_queries = bev_queries + self.can_bus_mlp(can_bus)[None, :, :]

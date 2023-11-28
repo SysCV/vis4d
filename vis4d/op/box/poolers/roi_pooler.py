@@ -130,7 +130,7 @@ class MultiScaleRoIPooler(RoIPooler):
         )
 
         for level, scale in enumerate(self.scales):
-            inds = (level_assignments == level).nonzero()[:, 0]
+            inds = torch.eq(level_assignments, level).nonzero()[:, 0]
             pooler_fmt_boxes_level = pooler_fmt_boxes[inds]
             pooled_features = self._pooling_op(
                 features[level], pooler_fmt_boxes_level, spatial_scale=scale

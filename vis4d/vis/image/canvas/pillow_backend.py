@@ -170,8 +170,8 @@ class PillowCanvasBackend(CanvasBackend):
         center_forward = np.mean(corners[:2], axis=0, dtype=np.float32)
         center = np.mean(corners, axis=0, dtype=np.float32)
         self.draw_line(
-            tuple(center.tolist()),  # type: ignore
-            tuple(center_forward.tolist()),  # type: ignore
+            tuple(center.tolist()),
+            tuple(center_forward.tolist()),
             color,
             width,
         )
@@ -320,8 +320,8 @@ class PillowCanvasBackend(CanvasBackend):
         center_bottom_forward = np.mean(corners[:2], axis=0, dtype=np.float32)
         center_bottom = np.mean(corners[:4], axis=0, dtype=np.float32)
         self._draw_box_3d_line(
-            tuple(center_bottom.tolist()),  # type: ignore
-            tuple(center_bottom_forward.tolist()),  # type: ignore
+            tuple(center_bottom.tolist()),
+            tuple(center_bottom_forward.tolist()),
             color,
             intrinsics,
             width,

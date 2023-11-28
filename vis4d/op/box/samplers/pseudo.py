@@ -29,6 +29,6 @@ class PseudoSampler(Sampler):
         labels: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Randomly sample indices from given labels."""
-        positive = ((labels != -1) & (labels != 0)).nonzero()[:, 0]
-        negative = (labels == 0).nonzero()[:, 0]
+        positive = ((labels != -1) & (labels != 0)).nonzero()[:, 0]  # type: ignore # pylint: disable=line-too-long
+        negative = torch.eq(labels, 0).nonzero()[:, 0]
         return positive, negative

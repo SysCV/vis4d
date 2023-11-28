@@ -65,6 +65,6 @@ class MultiLevelSegLoss(Loss):
         losses: LossesType = {}
         for i, idx in enumerate(self.feature_idx):
             loss = self.reducer(self.loss_fn(outputs[idx], target))
-            losses[f"loss_seg_level{idx}"] = self.weights[i] * loss
+            losses[f"loss_seg_level{idx}"] = torch.mul(self.weights[i], loss)
 
         return losses

@@ -357,7 +357,7 @@ def positive_mask_sampler(
     sampled_masks = apply_mask(sampled_target_indices, target_masks)[0]
 
     pos_proposals, pos_classes, pos_mask_targets = apply_mask(
-        [label == 1 for label in sampled_targets.labels],
+        [torch.eq(label, 1) for label in sampled_targets.labels],
         sampled_proposals.boxes,
         sampled_targets.classes,
         sampled_masks,

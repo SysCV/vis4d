@@ -78,8 +78,9 @@ class TemporalSelfAttention(nn.Module):
     def init_weights(self) -> None:
         """Default initialization for Parameters of Module."""
         constant_init(self.sampling_offsets, 0.0)
-        thetas = torch.arange(self.num_heads, dtype=torch.float32) * (
-            2.0 * math.pi / self.num_heads
+        thetas = torch.mul(
+            torch.arange(self.num_heads, dtype=torch.float32),
+            (2.0 * math.pi / self.num_heads),
         )
         grid_init = torch.stack([thetas.cos(), thetas.sin()], -1)
         grid_init = (
@@ -154,18 +155,18 @@ class TemporalSelfAttention(nn.Module):
             value = value.permute(1, 0, 2)
 
         bs, num_query, embed_dims = query.shape
-        _, num_value, _ = value.shape
+        _, num_value, _ = value.shape  # type: ignore
         assert (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() == num_value
         assert self.num_bev_queue == 2
 
-        query = torch.cat([value[:bs], query], -1)
+        query = torch.cat([value[:bs], query], -1)  # type: ignore
         value = self.value_proj(value)
         assert isinstance(value, Tensor)
 
         if key_padding_mask is not None:
             value = value.masked_fill(key_padding_mask[..., None], 0.0)
 
-        value = value.reshape(
+        value = value.reshape(  # type: ignore
             bs * self.num_bev_queue, num_value, self.num_heads, -1
         )
 
@@ -244,7 +245,7 @@ class TemporalSelfAttention(nn.Module):
                 f" 2 or 4, but get {reference_points.shape[-1]} instead."
             )
 
-        if torch.cuda.is_available() and value.is_cuda:
+        if torch.cuda.is_available() and value.is_cuda:  # type: ignore
             output = MSDeformAttentionFunction.apply(
                 value,
                 spatial_shapes,
@@ -255,7 +256,10 @@ class TemporalSelfAttention(nn.Module):
             )
         else:
             output = ms_deformable_attention_cpu(
-                value, spatial_shapes, sampling_locations, attention_weights
+                value,  # type: ignore
+                spatial_shapes,
+                sampling_locations,
+                attention_weights,
             )
 
         # output shape (bs*num_bev_queue, num_query, embed_dims)

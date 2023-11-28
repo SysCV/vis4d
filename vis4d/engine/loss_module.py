@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TypedDict, Union
 
+import torch
 from torch import Tensor, nn
 from typing_extensions import NotRequired
 
@@ -195,7 +196,7 @@ class LossModule(nn.Module):
                 while key in loss_dict:
                     key = "__" + key
 
-                loss_dict[key] = loss_weight * value
+                loss_dict[key] = torch.mul(loss_weight, value)
 
         # Convert loss_dict to total loss and metrics dictionary
         metrics: dict[str, float] = {}
@@ -210,7 +211,7 @@ class LossModule(nn.Module):
                     or k not in self.exclude_attributes
                 ):
                     keep_loss_dict[k] = v
-            total_loss = sum(keep_loss_dict.values())
+            total_loss = sum(keep_loss_dict.values())  # type: ignore
         else:
             raise TypeError(
                 "Loss function must return a Tensor or a dict of Tensor"

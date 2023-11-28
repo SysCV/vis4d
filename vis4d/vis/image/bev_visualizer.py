@@ -188,7 +188,7 @@ class BEVBBox3DVisualizer(Visualizer):
             if track_id is not None:
                 color = self.color_palette[track_id % len(self.color_palette)]
                 self.trajectories[track_id].append(
-                    tuple(boxes3d[i][:3].tolist())  # type: ignore
+                    tuple(boxes3d[i][:3].tolist())
                 )
             elif class_id is not None:
                 color = self.color_palette[class_id % len(self.color_palette)]
@@ -197,7 +197,7 @@ class BEVBBox3DVisualizer(Visualizer):
 
             data_sample.boxes.append(
                 BEVBox(
-                    [tuple(pts) for pts in corners[i, :4, :2]],  # type: ignore
+                    [tuple(pts) for pts in corners[i, :4, :2]],
                     color,
                     track_id=track_id,
                 )
