@@ -40,8 +40,8 @@ def multi_pos_cross_entropy(
     pred: Tensor, target: Tensor, reducer: LossReducer
 ) -> Tensor:
     """Calculate multi-positive cross-entropy loss."""
-    pos_inds = target == 1
-    neg_inds = target == 0
+    pos_inds = torch.eq(target, 1)
+    neg_inds = torch.eq(target, 0)
     pred_pos = pred * pos_inds.float()
     pred_neg = pred * neg_inds.float()
     # use -inf to mask out unwanted elements.
@@ -51,7 +51,7 @@ def multi_pos_cross_entropy(
     _pos_expand = torch.repeat_interleave(pred_pos, pred.shape[1], dim=1)
     _neg_expand = pred_neg.repeat(1, pred.shape[1])
 
-    x = torch.nn.functional.pad(
+    x = torch.nn.functional.pad(  # pylint: disable=not-callable
         (_neg_expand - _pos_expand), (0, 1), "constant", 0
     )
     loss = torch.logsumexp(x, dim=1)

@@ -255,9 +255,9 @@ class QDTrackGraph:
                 )
 
         # backdrops
-        backdrop_inds = torch.nonzero(track_ids == -1, as_tuple=False).squeeze(
-            1
-        )
+        backdrop_inds = torch.nonzero(
+            torch.eq(track_ids, -1), as_tuple=False
+        ).squeeze(1)
 
         ious = bbox_iou(boxes[backdrop_inds], boxes)
 
@@ -300,7 +300,7 @@ class QDTrackGraph:
         self.tracklets[track_id]["box"] = box
         self.tracklets[track_id]["score"] = score
         self.tracklets[track_id]["class_id"] = class_id
-        self.tracklets[track_id]["embed"] = (
+        self.tracklets[track_id]["embed"] = (  # type: ignore
             1 - self.memory_momentum
         ) * self.tracklets[track_id][
             "embed"

@@ -8,6 +8,8 @@ pydocstyle
 pylint
 pytest
 pytest-notebook
+jupyter
+nbdime==3.2.1
 types-PyYAML
 types-requests
 types-tabulate

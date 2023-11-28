@@ -104,7 +104,7 @@ def points_inside_image(
         h, w = images_hw
     else:
         h, w = images_hw[..., 0], images_hw[..., 1]
-    mask = torch.logical_and(mask, depths > 0)
+    mask = torch.logical_and(mask, torch.greater(depths, 0))
     mask = torch.logical_and(mask, points_coord[..., 0] > 0)
     mask = torch.logical_and(mask, points_coord[..., 0] < w - 1)
     mask = torch.logical_and(mask, points_coord[..., 1] > 0)

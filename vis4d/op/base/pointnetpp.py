@@ -12,7 +12,7 @@ from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import Tensor, nn
 
 
 class PointNetSetAbstractionOut(NamedTuple):
@@ -43,7 +43,7 @@ def square_distance(src: torch.Tensor, dst: torch.Tensor) -> torch.Tensor:
     dist = -2 * torch.matmul(src, dst.permute(0, 2, 1))
     dist += torch.sum(src**2, -1).view(bs, n_pts_in, 1)
     dist += torch.sum(dst**2, -1).view(bs, 1, n_pts_out)
-    return dist
+    return dist  # type: ignore
 
 
 def index_points(points: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
@@ -376,7 +376,7 @@ class PointNetFeaturePropagation(nn.Module):
             dists, idx = dists.sort(dim=-1)
             dists, idx = dists[:, :, :3], idx[:, :, :3]  # [B, N, 3]
 
-            dist_recip = 1.0 / (dists + 1e-8)
+            dist_recip: Tensor = 1.0 / (dists + 1e-8)  # type: ignore
             norm = torch.sum(dist_recip, dim=2, keepdim=True)
             weight = dist_recip / norm
             interpolated_points = torch.sum(
@@ -386,7 +386,9 @@ class PointNetFeaturePropagation(nn.Module):
 
         if points1 is not None:
             points1 = points1.permute(0, 2, 1)
-            new_points = torch.cat([points1, interpolated_points], dim=-1)
+            new_points = torch.cat(
+                [points1, interpolated_points], dim=-1  # type: ignore
+            )
         else:
             new_points = interpolated_points
 

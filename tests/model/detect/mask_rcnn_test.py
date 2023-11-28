@@ -143,15 +143,13 @@ class MaskRCNNTest(unittest.TestCase):
                 outputs = mask_rcnn(inputs, images_hw, gt_boxes, gt_class_ids)
                 assert isinstance(outputs, MaskRCNNOut)
 
-                mask_losses = mask_rcnn_loss(outputs, data)
+                total_loss, metrics = mask_rcnn_loss(outputs, data)
 
-                total_loss = sum(mask_losses.values())
                 total_loss.backward()
                 optimizer.step()
 
                 # print statistics
-                losses = {"loss": total_loss, **mask_losses}
-                for k, loss in losses.items():
+                for k, loss in metrics.items():
                     if k in running_losses:
                         running_losses[k] += loss
                     else:

@@ -287,7 +287,7 @@ def preprocess_outputs(
     num_imgs = len(images_hw)
     num_classes = cls_outs[0].shape[1]
     featmap_sizes: list[tuple[int, int]] = [
-        tuple(featmap.size()[-2:]) for featmap in cls_outs  # type: ignore
+        tuple(featmap.size()[-2:]) for featmap in cls_outs
     ]
     assert len(featmap_sizes) == point_generator.num_levels
     mlvl_points = point_generator.grid_priors(
@@ -560,7 +560,7 @@ class YOLOXHeadLoss(nn.Module):
 
         pos_ious = match_result.assigned_gt_iou[pos_inds]
         # IOU aware classification score
-        cls_target = F.one_hot(
+        cls_target = F.one_hot(  # pylint: disable=not-callable
             gt_labels[pos_tgt_inds], self.num_classes
         ) * pos_ious.unsqueeze(-1)
         obj_target = torch.zeros_like(objectness).unsqueeze(-1)
@@ -644,7 +644,9 @@ class YOLOXHeadLoss(nn.Module):
         num_pos = torch.tensor(
             sum(num_fg_imgs_list), dtype=torch.float, device=flatten_cls.device
         )
-        num_total_samples = max(reduce_mean(num_pos), 1.0)  # type: ignore
+        num_total_samples: Tensor | float = max(  # type: ignore
+            reduce_mean(num_pos), 1.0
+        )
 
         pos_masks = torch.cat(pos_masks_list, 0)
         cls_targets = torch.cat(cls_targets_list, 0)

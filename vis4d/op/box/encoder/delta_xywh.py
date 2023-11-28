@@ -99,7 +99,7 @@ class DeltaXYWHBBoxDecoder:
         return decoded_boxes
 
 
-@torch.jit.script  # type: ignore
+@torch.jit.script
 def bbox2delta(
     proposals: torch.Tensor,
     gt_boxes: torch.Tensor,
@@ -150,7 +150,7 @@ def bbox2delta(
     return deltas
 
 
-@torch.jit.script  # type: ignore
+@torch.jit.script
 def delta2bbox(
     rois: torch.Tensor,
     deltas: torch.Tensor,

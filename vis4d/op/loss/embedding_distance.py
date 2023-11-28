@@ -69,8 +69,8 @@ class EmbeddingDistanceLoss(Loss):
         """
         invalid_inds = weight <= 0
         target[invalid_inds] = -1
-        pos_inds = target == 1
-        neg_inds = target == 0
+        pos_inds = torch.eq(target, 1)
+        neg_inds = torch.eq(target, 0)
 
         if self.pos_margin > 0:
             pred[pos_inds] -= self.pos_margin
@@ -78,11 +78,11 @@ class EmbeddingDistanceLoss(Loss):
             pred[neg_inds] -= self.neg_margin
         pred = torch.clamp(pred, min=0, max=1)
 
-        num_pos = max(1, int((target == 1).sum()))
-        num_neg = int((target == 0).sum())
+        num_pos = max(1, int(torch.eq(target, 1).sum()))
+        num_neg = int(torch.eq(target, 0).sum())
         if self.neg_pos_ub > 0 and num_neg / num_pos > self.neg_pos_ub:
             num_neg = int(num_pos * self.neg_pos_ub)
-            neg_idx = torch.nonzero(target == 0, as_tuple=False)
+            neg_idx = torch.nonzero(torch.eq(target, 0), as_tuple=False)
 
             if self.hard_mining:
                 costs = l2_loss(pred, target)[
@@ -98,5 +98,5 @@ class EmbeddingDistanceLoss(Loss):
             invalid_neg_inds = torch.logical_xor(neg_inds, new_neg_inds)
             weight[invalid_neg_inds] = 0
 
-        avg_factor = (weight > 0).sum()
+        avg_factor = torch.greater(weight, 0).sum()
         return pred, weight, avg_factor

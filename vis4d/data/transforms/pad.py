@@ -58,7 +58,9 @@ class PadImages:
         for i, (image, h, w) in enumerate(zip(images, heights, widths)):
             pad_param = (0, max_hw[1] - w, 0, max_hw[0] - h)
             image_ = torch.from_numpy(image).permute(0, 3, 1, 2)
-            image_ = F.pad(image_, pad_param, self.mode, self.value)
+            image_ = F.pad(  # pylint: disable=not-callable
+                image_, pad_param, self.mode, self.value
+            )
             images[i] = image_.permute(0, 2, 3, 1).numpy()
         return images
 

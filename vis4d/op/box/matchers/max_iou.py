@@ -84,7 +84,7 @@ class MaxIoUMatcher(Matcher):
             )
             return default_matches, default_match_labels
 
-        assert torch.all(match_quality_matrix >= 0)
+        assert torch.all(torch.greater_equal(match_quality_matrix, 0))
 
         # Max over gt elements (dim 0) --> best gt for each prediction
         matched_vals, matches = match_quality_matrix.max(dim=0)
