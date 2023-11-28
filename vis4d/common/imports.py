@@ -55,8 +55,6 @@ def is_torch_tf32_available() -> bool:  # pragma: no cover
     return not (
         not torch.cuda.is_available()
         or torch.version.cuda is None
-        or torch.cuda.get_device_properties(torch.cuda.current_device()).major  # type: ignore # pylint: disable=line-too-long
-        < 8
         or int(torch.version.cuda.split(".", maxsplit=1)[0]) < 11
         or version.parse(torch.__version__) < version.parse("1.7")
     )
