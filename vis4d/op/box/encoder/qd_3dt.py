@@ -81,7 +81,7 @@ class QD3DTBox3DEncoder:
             2 * np.pi / self.num_rotation_bins,
             device=alpha.device,
         )
-        bin_centers += np.pi / self.num_rotation_bins
+        bin_centers += np.pi / self.num_rotation_bins  # type: ignore
         for i in range(alpha.shape[0]):
             overlap_value = (
                 np.pi * 2 / self.num_rotation_bins * self.bin_overlap

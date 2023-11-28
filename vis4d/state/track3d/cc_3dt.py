@@ -404,9 +404,9 @@ class CC3DTrackGraph:
                 track["box_3d"][8] = pd_box_3d[6]
 
         # Backdrops
-        backdrop_inds = torch.nonzero(track_ids == -1, as_tuple=False).squeeze(
-            1
-        )
+        backdrop_inds = torch.nonzero(
+            torch.eq(track_ids, -1), as_tuple=False
+        ).squeeze(1)
 
         valid_ious = torch.eq(
             camera_ids[backdrop_inds].unsqueeze(1),
@@ -487,7 +487,7 @@ class CC3DTrackGraph:
         self.tracklets[track_id]["score_3d"] = score_3d
         self.tracklets[track_id]["class_id"] = class_id
 
-        self.tracklets[track_id]["embed"] = (
+        self.tracklets[track_id]["embed"] = (  # type: ignore
             1 - self.memory_momentum
         ) * self.tracklets[track_id]["embed"] + self.memory_momentum * embed
 

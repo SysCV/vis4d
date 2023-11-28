@@ -18,7 +18,7 @@ def _init_weights_vit_timm(  # pylint: disable=unused-argument
         if module.bias is not None:
             nn.init.zeros_(module.bias)
     elif hasattr(module, "init_weights"):
-        module.init_weights()  # type: ignore[operator]
+        module.init_weights()
 
 
 ViT_PRESET = {  # pylint: disable=consider-using-namedtuple-or-dataclass

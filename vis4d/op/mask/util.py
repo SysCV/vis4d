@@ -61,11 +61,11 @@ def _do_paste_mask(
 
     num_masks = masks.shape[0]
 
-    img_y = (
-        torch.arange(y0_int, y1_int, device=device, dtype=torch.float32) + 0.5
+    img_y: Tensor = (
+        torch.arange(y0_int, y1_int, device=device, dtype=torch.float32) + 0.5  # type: ignore # pylint: disable=line-too-long
     )
-    img_x = (
-        torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5
+    img_x: Tensor = (
+        torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5  # type: ignore # pylint: disable=line-too-long
     )
     img_y = (img_y - y0) / (y1 - y0) * 2 - 1  # (N, h)
     img_x = (img_x - x0) / (x1 - x0) * 2 - 1  # (N, w)
@@ -167,7 +167,9 @@ def paste_masks_in_image(
             img_w,
             skip_empty=masks.device.type == "cpu",
         )
-        masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
+        masks_chunk = torch.greater_equal(masks_chunk, threshold).to(
+            dtype=torch.bool
+        )
         img_masks[(inds,) + spatial_inds] = masks_chunk
     return img_masks.type(torch.uint8)
 

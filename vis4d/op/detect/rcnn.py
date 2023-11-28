@@ -346,7 +346,7 @@ class RCNNLoss(nn.Module):
         Returns:
             RCNNTargets: Box / class label tensors and weights.
         """
-        pos_mask, neg_mask = labels == 1, labels == 0
+        pos_mask, neg_mask = torch.eq(labels, 1), torch.eq(labels, 0)
         num_pos, num_neg = int(pos_mask.sum()), int(neg_mask.sum())
         num_samples = num_pos + num_neg
 
@@ -416,7 +416,7 @@ class RCNNLoss(nn.Module):
         bbox_weights = torch.cat([tgt.bbox_weights for tgt in targets], 0)
 
         # compute losses
-        avg_factor = torch.sum(label_weights > 0).clamp(1.0)
+        avg_factor = torch.sum(torch.greater(label_weights, 0)).clamp(1.0)
         if class_outs.numel() > 0:
             loss_cls = SumWeightedLoss(label_weights, avg_factor)(
                 self.loss_cls(class_outs, labels, reduction="none")
@@ -426,7 +426,9 @@ class RCNNLoss(nn.Module):
 
         bg_class_ind = self.num_classes
         # 0~self.num_classes-1 are FG, self.num_classes is BG
-        pos_inds = (labels >= 0) & (labels < bg_class_ind)
+        pos_inds = torch.logical_and(
+            torch.greater_equal(labels, 0), torch.less(labels, bg_class_ind)
+        )
         # do not perform bounding box regression for BG anymore.
         if pos_inds.any():
             pos_reg_outs = regression_outs.view(

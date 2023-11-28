@@ -178,7 +178,7 @@ class GenFullCovBlockSamplingIndices:
                     selected_idxs = self._idx_sampler([coordinates])[0]
                     if selected_idxs.sum() >= self.min_pts:
                         sampled_idxs.append(selected_idxs)
-        return [np.stack(sampled_idxs)] * len(coordinates_list)
+        return [np.stack(sampled_idxs)] * len(coordinates_list)  # type: ignore
 
 
 @Transform([K.points3d, "transforms.sampling_idxs"], K.points3d)

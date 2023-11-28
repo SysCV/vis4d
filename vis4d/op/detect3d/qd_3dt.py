@@ -156,7 +156,7 @@ class QD3DTBBox3DHead(nn.Module):
 
         # Used feature layers are [start_level, end_level)
         self.start_level = start_level
-        num_strides = len(self.proposal_pooler.scales)  # type: ignore
+        num_strides = len(self.proposal_pooler.scales)
         self.end_level = start_level + num_strides
 
         # add shared convs and fcs
@@ -475,7 +475,7 @@ class QD3DTBBox3DHead(nn.Module):
             ) = match_and_sample_proposals(
                 self.box_matcher, self.box_sampler, det_boxes, target_boxes
             )
-            positives = [l == 1 for l in sampled_labels]
+            positives = [torch.eq(l, 1) for l in sampled_labels]
             pos_assigned_gt_inds = [
                 i[p] if len(p) != 0 else p
                 for i, p in zip(sampled_target_indices, positives)
@@ -674,9 +674,9 @@ class Box3DUncertaintyLoss(Loss):
 
         # uncertainty loss
         pos_depth_self_labels = torch.exp(
-            -torch.abs(pred[:, 2] - target[:, 2]) * 5.0
+            -torch.mul(torch.abs(pred[:, 2] - target[:, 2]), 5.0)
         )
-        pos_depth_self_weights = torch.where(
+        pos_depth_self_weights = torch.where(  # type: ignore
             pos_depth_self_labels > 0.8,
             pos_depth_self_labels.new_ones(1) * 5.0,
             pos_depth_self_labels.new_ones(1) * 0.1,
@@ -692,9 +692,9 @@ class Box3DUncertaintyLoss(Loss):
         )
 
         return {
-            "loss_ctr3d": self.center_loss_weight * loss_cen,
-            "loss_dep3d": self.depth_loss_weight * loss_dep,
-            "loss_dim3d": self.dimension_loss_weight * loss_dim,
-            "loss_rot3d": self.rotation_loss_weight * loss_rot,
-            "loss_unc3d": self.uncertainty_loss_weight * loss_unc3d,
+            "loss_ctr3d": torch.mul(self.center_loss_weight, loss_cen),
+            "loss_dep3d": torch.mul(self.depth_loss_weight, loss_dep),
+            "loss_dim3d": torch.mul(self.dimension_loss_weight, loss_dim),
+            "loss_rot3d": torch.mul(self.rotation_loss_weight, loss_rot),
+            "loss_unc3d": torch.mul(self.uncertainty_loss_weight, loss_unc3d),
         }

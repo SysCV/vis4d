@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import torch
+from torch import Tensor
 
 from vis4d.common import ArgsType
 
@@ -46,11 +47,11 @@ class CombinedSampler(Sampler):
 
     @staticmethod
     def instance_balanced_sampling(
-        idx_tensor: torch.Tensor,
-        assigned_gts: torch.Tensor,
-        assigned_gt_ious: torch.Tensor,  # pylint: disable=unused-argument
+        idx_tensor: Tensor,
+        assigned_gts: Tensor,
+        assigned_gt_ious: Tensor,  # pylint: disable=unused-argument
         sample_size: int,
-    ) -> torch.Tensor:
+    ) -> Tensor:
         """Sample indices with balancing according to matched GT instance."""
         if idx_tensor.numel() <= sample_size:
             return idx_tensor
@@ -79,11 +80,11 @@ class CombinedSampler(Sampler):
 
     def iou_balanced_sampling(
         self,
-        idx_tensor: torch.Tensor,
-        assigned_gts: torch.Tensor,  # pylint: disable=unused-argument
-        assigned_gt_ious: torch.Tensor,
+        idx_tensor: Tensor,
+        assigned_gts: Tensor,  # pylint: disable=unused-argument
+        assigned_gt_ious: Tensor,
         sample_size: int,
-    ) -> torch.Tensor:
+    ) -> Tensor:
         """Sample indices with balancing according to IoU with matched GT."""
         if idx_tensor.numel() <= sample_size:
             return idx_tensor
@@ -134,10 +135,10 @@ class CombinedSampler(Sampler):
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(self.batch_size * self.positive_fraction)
 
-        positive_mask = (matching.assigned_labels != -1) & (
-            matching.assigned_labels != self.bg_label
-        )
-        negative_mask = matching.assigned_labels == self.bg_label
+        positive_mask: Tensor = (  # type:ignore
+            matching.assigned_labels != -1
+        ) & (matching.assigned_labels != self.bg_label)
+        negative_mask = torch.eq(matching.assigned_labels, self.bg_label)
 
         positive = positive_mask.nonzero()[:, 0]
         negative = negative_mask.nonzero()[:, 0]
@@ -172,10 +173,10 @@ class CombinedSampler(Sampler):
 
     def sample_within_intervals(
         self,
-        idx_tensor: torch.Tensor,
-        assigned_gt_ious: torch.Tensor,
+        idx_tensor: Tensor,
+        assigned_gt_ious: Tensor,
         sample_size: int,
-    ) -> torch.Tensor:
+    ) -> Tensor:
         """Sample according to N iou intervals where N = num bins."""
         floor_thr = max(self.floor_thr, 0.0)
         max_iou = assigned_gt_ious.max()

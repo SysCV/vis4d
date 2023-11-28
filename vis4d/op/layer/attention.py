@@ -209,7 +209,7 @@ class MultiheadAttention(nn.Module):
         # from num_query_first to batch_first.
         if self.batch_first:
             query = query.transpose(0, 1)
-            key = key.transpose(0, 1)
+            key = key.transpose(0, 1)  # type: ignore
             value = value.transpose(0, 1)
 
         out = self.attn(

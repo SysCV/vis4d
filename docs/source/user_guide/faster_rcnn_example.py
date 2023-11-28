@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 import numpy as np
+import tempfile
 from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
@@ -52,7 +53,11 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="faster_rcnn_r50_fpn_coco")
+    tmpdir = tempfile.mkdtemp()
+
+    config = get_default_cfg(
+        exp_name="faster_rcnn_r50_fpn_coco", work_dir=tmpdir
+    )
 
     # High level hyper parameters
     params = ExperimentParameters()

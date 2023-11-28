@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import torch
-from torch import Tensor, nn
+from torch import nn
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -236,21 +236,7 @@ class Trainer:
                 # Forward + backward + optimize
                 output = model(**self.train_data_connector(data))
 
-                losses = loss_module(output, data)
-
-                metrics: dict[str, float] = {}
-                if isinstance(losses, Tensor):
-                    total_loss = losses
-                elif isinstance(losses, dict):
-                    total_loss = sum(losses.values())  # type: ignore
-                    for k, v in losses.items():
-                        metrics[k] = v.detach().cpu().item()
-                else:
-                    raise TypeError(
-                        "Loss function must return a Tensor or a dict of "
-                        + "Tensor"
-                    )
-                metrics["loss"] = total_loss.detach().cpu().item()
+                total_loss, metrics = loss_module(output, data)
 
                 total_loss.backward()
 

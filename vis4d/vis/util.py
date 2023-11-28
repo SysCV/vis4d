@@ -26,7 +26,7 @@ def generate_color_map(length: int) -> list[tuple[int, int, int]]:
     np.random.seed(0)
     result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
     np.random.set_state(s)
-    return result  # type: ignore
+    return result
 
 
 DEFAULT_COLOR_MAPPING = generate_color_map(50)
