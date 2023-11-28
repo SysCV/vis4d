@@ -503,7 +503,9 @@ class CC3DT(nn.Module):
             class_ids_list.append(class_ids[mask])
             scores_list.append(scores_3d[mask])
             camera_ids_list.append(
-                (torch.ones(len(cc_3dt_boxes_3d)) * i).to(boxes_2d.device)
+                (torch.mul(torch.ones(len(cc_3dt_boxes_3d)), i)).to(
+                    boxes_2d.device
+                )
             )
 
         embeddings_list, _, _, _ = self.qdtrack_head(features, boxes_2d_list)
@@ -565,12 +567,16 @@ class CC3DT(nn.Module):
         if self.detection_range is None:
             return torch.ones_like(class_ids, dtype=torch.bool)
 
-        return torch.linalg.norm(boxes3d[:, [0, 2]], dim=1) <= torch.tensor(
+        return torch.linalg.norm(  # pylint: disable=not-callable
+            boxes3d[:, [0, 2]], dim=1
+        ) <= torch.tensor(
             [
                 self.detection_range[class_id] + tolerance
                 for class_id in class_ids
             ]
-        ).to(class_ids.device)
+        ).to(
+            class_ids.device
+        )
 
     def __call__(
         self,
