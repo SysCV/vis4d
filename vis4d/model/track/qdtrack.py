@@ -7,6 +7,7 @@ import torch
 from torch import Tensor, nn
 
 from vis4d.common.ckpt import load_model_checkpoint
+from vis4d.model.detect.yolox import REV_KEYS as YOLOX_REV_KEYS
 from vis4d.op.base import BaseModel, CSPDarknet, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder
@@ -26,35 +27,9 @@ from vis4d.state.track.qdtrack import QDTrackGraph
 from .util import split_key_ref_indices
 
 REV_KEYS = [
-    # (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
-    # (r"\.rpn_reg\.", ".rpn_box."),
-    # (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
-    # (r"^detector.backbone.mm_backbone\.", "body."),
-    # (
-    #     r"^detector.backbone.neck.mm_neck.lateral_convs\.",
-    #     "inner_blocks.",
-    # ),
-    # (
-    #     r"^detector.backbone.neck.mm_neck.fpn_convs\.",
-    #     "layer_blocks.",
-    # ),
-    # (r"\.conv.weight", ".weigh2t"),
-    # (r"\.conv.bias", ".bias"),
     (r"^faster_rcnn_heads\.", "faster_rcnn_head."),
     (r"^backbone.body\.", "basemodel."),
     (r"^qdtrack\.", "qdtrack_head."),
-]
-
-# from old Vis4D checkpoint
-YOLOX_REV_KEYS = [
-    (r"^detector.backbone.mm_backbone\.", "basemodel."),
-    (r"^bbox_head\.", "yolox_head."),
-    (r"^detector.backbone.neck.mm_neck\.", "fpn."),
-    (r"^detector.bbox_head.mm_dense_head\.", "yolox_head."),
-    (r"^similarity_head\.", "qdtrack_head.similarity_head."),
-    (r"\.bn\.", ".norm."),
-    (r"\.conv.weight", ".weight"),
-    (r"\.conv.bias", ".bias"),
 ]
 
 
