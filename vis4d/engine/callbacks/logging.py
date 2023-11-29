@@ -28,6 +28,7 @@ class LoggingCallback(Callback):
         self._metrics: dict[str, list[float]] = defaultdict(list)
         self.train_timer = Timer()
         self.test_timer = Timer()
+        self.last_step = 0
 
     def on_train_batch_start(
         self,
@@ -82,7 +83,7 @@ class LoggingCallback(Callback):
             total_iters = trainer_state["num_steps"]
 
         log_dict: None | MetricLogs = None
-        if cur_iter % self._refresh_rate == 0:
+        if cur_iter % self._refresh_rate == 0 and cur_iter != self.last_step:
             prefix = (
                 f"Epoch {trainer_state['current_epoch'] + 1}"
                 if self.epoch_based
@@ -101,6 +102,7 @@ class LoggingCallback(Callback):
             )
 
             self._metrics.clear()
+            self.last_step = cur_iter
 
         return log_dict
 

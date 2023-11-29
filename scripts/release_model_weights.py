@@ -7,19 +7,6 @@ import os
 import torch
 
 
-def load_model_weight(filepath: str) -> dict[str, torch.Tensor]:
-    """Load a model weight from a checkpoint.
-
-    Args:
-        filepath (str): The path to the PyTorch Lightning checkpoint.
-
-    Returns:
-        checkpoint (dict[str, torch.Tensor]): The model weights.
-    """
-    checkpoint = torch.load(filepath, map_location=torch.device("cpu"))
-    return checkpoint
-
-
 def save_weights_with_hash(
     state_dict: dict[str, torch.Tensor],
     path: str,
@@ -63,17 +50,17 @@ def main() -> None:
         "--outdir",
         type=str,
         help="The path to output the model.",
-        default=".vis4d-workspace/release",
+        default="./vis4d-workspace/release",
     )
     parser.add_argument(
         "--name", type=str, help="The base name of the released file."
     )
     args = parser.parse_args()
 
-    state_dict = load_model_weight(args.path)
-    save_weights_with_hash(state_dict, args.outdir, args.name)
+    checkpoint = torch.load(args.path, map_location=torch.device("cpu"))
+    state_dict = {"state_dict": checkpoint["state_dict"]}
 
-    # TODO: Add support for pl's checkpoint.
+    save_weights_with_hash(state_dict, args.outdir, args.name)
 
 
 if __name__ == "__main__":
