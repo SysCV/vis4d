@@ -58,6 +58,8 @@ class CC3DTrackGraph:
         motion_dims: int = 7,
         num_frames: int = 5,
         fps: int = 2,
+        update_3d_score: bool = True,
+        add_backdrops: bool = True,
     ) -> None:
         """Creates an instance of the class."""
         assert memory_size >= 0
@@ -83,6 +85,8 @@ class CC3DTrackGraph:
         self.motion_dims = motion_dims
         self.num_frames = num_frames
         self.fps = fps
+        self.update_3d_score = update_3d_score
+        self.add_backdrops = add_backdrops
 
     def reset(self) -> None:
         """Empty the memory."""
@@ -254,7 +258,9 @@ class CC3DTrackGraph:
                 memo_embeds,
                 memo_motion_models,
                 memo_velocities,
-            ) = self.get_tracks(boxes_2d.device, add_backdrops=True)
+            ) = self.get_tracks(
+                boxes_2d.device, add_backdrops=self.add_backdrops
+            )
 
             memory_boxes_3d = torch.cat(
                 [memo_boxes_3d[:, :6], memo_boxes_3d[:, 8].unsqueeze(1)],
@@ -300,6 +306,7 @@ class CC3DTrackGraph:
             memory_embeddings,
             memory_boxes_3d_predict,
             memory_velocities,
+            self.update_3d_score,
         )
 
         self.update(
@@ -328,7 +335,10 @@ class CC3DTrackGraph:
         ) = self.get_tracks(boxes_2d.device, frame_id=frame_id)
 
         # update 3D score
-        track_scores_3d = scores_2d * scores_3d
+        if self.update_3d_score:
+            track_scores_3d = scores_2d * scores_3d
+        else:
+            track_scores_3d = scores_3d
 
         return get_track_3d_out(
             boxes_3d, class_ids, track_scores_3d, track_ids

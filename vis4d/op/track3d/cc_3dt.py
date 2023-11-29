@@ -248,6 +248,7 @@ class CC3DTrackAssociation:
         memory_embeddings: Tensor | None = None,
         memory_boxes_3d_predict: Tensor | None = None,
         memory_velocities: Tensor | None = None,
+        with_depth_confidence: bool = True,
     ) -> tuple[Tensor, Tensor]:
         """Process inputs, match detections with existing tracks.
 
@@ -289,6 +290,13 @@ class CC3DTrackAssociation:
             detection_class_ids,
             detection_embeddings,
         )
+
+        if with_depth_confidence:
+            depth_confidence = detection_scores_3d
+        else:
+            depth_confidence = detection_scores_3d.new_ones(
+                len(detection_scores_3d)
+            )
 
         # match if buffer is not empty
         if len(detections) > 0 and memory_boxes_3d is not None:
@@ -356,7 +364,7 @@ class CC3DTrackAssociation:
                 affinity_scores = torch.mul(affinity_scores, scores_cats)
 
             ids = greedy_assign(
-                detection_scores * detection_scores_3d,
+                detection_scores * depth_confidence,
                 memory_track_ids,
                 affinity_scores,
                 self.match_score_thr,

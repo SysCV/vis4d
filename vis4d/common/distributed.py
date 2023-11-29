@@ -125,7 +125,7 @@ def synchronize() -> None:  # pragma: no cover
         return
     if get_world_size() == 1:
         return
-    dist.barrier(group=dist.group.WORLD, device_ids=[get_rank()])
+    dist.barrier(group=dist.group.WORLD, device_ids=[get_local_rank()])
 
 
 def broadcast(obj: Any, src: int = 0) -> Any:  # pragma: no cover

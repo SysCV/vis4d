@@ -159,7 +159,7 @@ def get_nusc_cfg(
         std = [1.0, 1.0, 1.0]
         image_channel_mode = "BGR"
 
-    if version == "v1.0-mini":
+    if version == "v1.0-mini":  # pragma: no cover
         assert train_split == "mini_train"
         assert test_split == "mini_val"
         test_dataset = get_nusc_mini_val_cfg(

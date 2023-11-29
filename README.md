@@ -2,7 +2,7 @@
     <!-- pypi-strip -->
     <picture>
     <!-- /pypi-strip -->
-    <img alt="vis4d" src="https://raw.githubusercontent.com/SysCV/vis4d/main/docs/source/_static/vis4d_logo.svg?token=GHSAT0AAAAAABYDLNCVDF6MM3PS4DCJYSUAZE4OKSA" width="400">
+    <img alt="vis4d" src="https://dl.cv.ethz.ch/vis4d/vis4d_logo.svg" width="400">
     <!-- pypi-strip -->
     </picture>
     <!-- /pypi-strip -->
@@ -18,7 +18,7 @@ Installation is as easy as
 python3 -m pip install vis4d
 ```
 
-[For more detailed information, check out our installation guide](docs/source/tutorials/install.rst)
+[For more detailed information, check out our installation guide](docs/source/user_guide/install.rst)
 
 ## Basic CLI usage
 
