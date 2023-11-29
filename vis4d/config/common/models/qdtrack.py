@@ -37,6 +37,7 @@ PRED_PREFIX = "detector_out"
 CONN_BBOX_2D_TRAIN = {
     "images": K.images,
     "images_hw": K.input_hw,
+    "original_hw": K.original_hw,
     "frame_ids": K.frame_ids,
     "boxes2d": K.boxes2d,
     "boxes2d_classes": K.boxes2d_classes,
@@ -66,8 +67,6 @@ CONN_TRACK_LOSS_2D = {
     "key_track_ids": pred_key("key_track_ids"),
     "ref_track_ids": pred_key("ref_track_ids"),
 }
-
-CONN_BBOX_2D_YOLOX_TRAIN = {**CONN_BBOX_2D_TRAIN, "original_hw": K.original_hw}
 
 CONN_YOLOX_LOSS_2D = {
     "cls_outs": pred_key(f"{PRED_PREFIX}.cls_score"),
