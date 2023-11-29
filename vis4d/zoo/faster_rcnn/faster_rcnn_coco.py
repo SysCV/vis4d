@@ -180,7 +180,7 @@ def get_config() -> ExperimentConfig:
     return config.value_mode()
 
 
-def get_sweep() -> ParameterSweepConfig:
+def get_sweep() -> ParameterSweepConfig:  # pragma: no cover
     """Returns the config dict for a grid search over learning rate.
 
     The name of the experiments will also be updated to include the learning

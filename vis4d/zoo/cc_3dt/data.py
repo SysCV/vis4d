@@ -193,7 +193,7 @@ def get_nusc_cfg(
     """Get the default config for nuScenes tracking."""
     data = DataConfig()
 
-    if version == "v1.0-mini":
+    if version == "v1.0-mini":  # pragma: no cover
         assert train_split == "mini_train"
         assert test_split == "mini_val"
         train_dataset = get_nusc_mono_mini_train_cfg(
