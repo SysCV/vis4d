@@ -7,7 +7,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from vis4d.common.typing import DictStrAny
-from vis4d.config import instantiate_classes
+from vis4d.config import copy_and_resolve_references, instantiate_classes
 from vis4d.config.typing import LrSchedulerConfig
 
 
@@ -30,7 +30,9 @@ class LRSchedulerWrapper(LRScheduler):
         steps_per_epoch: int = -1,
     ) -> None:
         """Initialize LRSchedulerWrapper."""
-        self.lr_schedulers_cfg = lr_schedulers_cfg
+        self.lr_schedulers_cfg: list[
+            LrSchedulerConfig
+        ] = copy_and_resolve_references(lr_schedulers_cfg)
         self.lr_schedulers: dict[int, LRSchedulerDict] = {}
         super().__init__(optimizer)
         self.steps_per_epoch = steps_per_epoch

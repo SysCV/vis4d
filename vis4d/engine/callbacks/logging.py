@@ -51,6 +51,7 @@ class LoggingCallback(Callback):
         """Hook to run at the start of a training epoch."""
         if self.epoch_based:
             self.train_timer.reset()
+            self.last_step = 0
             self._metrics.clear()
         elif trainer_state["global_step"] == 0:
             self.train_timer.reset()
