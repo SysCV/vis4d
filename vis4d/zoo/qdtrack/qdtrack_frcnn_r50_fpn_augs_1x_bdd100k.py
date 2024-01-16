@@ -32,7 +32,7 @@ from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import BoundingBoxVisualizer
-from vis4d.zoo.bdd100k.qdtrack.data_yolox import get_bdd100k_track_cfg
+from vis4d.zoo.qdtrack.data_yolox import get_bdd100k_track_cfg
 
 
 def get_config() -> ExperimentConfig:
