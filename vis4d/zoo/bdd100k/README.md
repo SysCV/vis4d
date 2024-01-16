@@ -101,4 +101,4 @@ Similarity learning has been recognized as a crucial step for object tracking. H
 
 | Detector  | Base Network | mMOTA-val | mIDF1-val | ID Sw.-val | Scores-val | Config | Weights | Preds | Visuals |
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| Faster R-CNN | R-50-FPN |  | 36.1 | 51.8 | 6165 | [scores]() | [config](./qdtrack/qdtrack_frcnn_r50_fpn_1x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
+| Faster R-CNN | R-50-FPN | 36.1 | 51.8 | 6165 | | [scores]() | [config](./qdtrack/qdtrack_frcnn_r50_fpn_1x_bdd100k.py) | [model]() | [preds]() | [visuals]() |
