@@ -71,7 +71,7 @@ def im_decode(
                 "Please install opencv-python to use cv2 backend!"
             )
         img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
-        img = imdecode(
+        img = imdecode(  # type: ignore
             img_np, IMREAD_GRAYSCALE if mode == "L" else IMREAD_COLOR
         )
         if mode == "RGB":

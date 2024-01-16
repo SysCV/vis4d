@@ -327,9 +327,9 @@ class RandomHSV:
         for i, image in enumerate(images):
             image = image[0].astype(np.uint8)
             if self.image_channel_mode == "BGR":
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)  # type: ignore
             else:
-                image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)  # type: ignore
             image = image.astype(np.int16)
             hsv_gains = np.random.uniform(-1, 1, 3) * [
                 self.hue_delta,
