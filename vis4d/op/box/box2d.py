@@ -1,4 +1,5 @@
 """Utility functions for bounding boxes."""
+
 from __future__ import annotations
 
 import torch
@@ -74,7 +75,6 @@ def scale_and_clip_boxes(
     return boxes
 
 
-@torch.jit.script
 def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     """Compute bounding box areas.
 
@@ -90,7 +90,6 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     ).clamp(0)
 
 
-@torch.jit.script
 def bbox_intersection(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
@@ -109,7 +108,6 @@ def bbox_intersection(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
     return intersection
 
 
-@torch.jit.script
 def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
@@ -140,7 +138,6 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     return iou
 
 
-@torch.jit.script
 def bbox_intersection_aligned(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
     """Given two lists of boxes both of size N, compute N intersection.
 
@@ -159,7 +156,6 @@ def bbox_intersection_aligned(boxes1: Tensor, boxes2: Tensor) -> torch.Tensor:
     return intersection
 
 
-@torch.jit.script
 def bbox_iou_aligned(
     boxes1: torch.Tensor, boxes2: torch.Tensor
 ) -> torch.Tensor:

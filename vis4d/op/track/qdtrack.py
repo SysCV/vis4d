@@ -1,4 +1,5 @@
 """Quasi-dense embedding similarity based graph."""
+
 from __future__ import annotations
 
 import math
@@ -172,7 +173,6 @@ class QDTrackHead(nn.Module):
         )
 
 
-# @torch.jit.script TODO
 class QDTrackAssociation:
     """Data association relying on quasi-dense instance similarity.
 

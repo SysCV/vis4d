@@ -2,6 +2,7 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+
 from __future__ import annotations
 
 import math
@@ -99,7 +100,6 @@ class DeltaXYWHBBoxDecoder:
         return decoded_boxes
 
 
-@torch.jit.script
 def bbox2delta(
     proposals: torch.Tensor,
     gt_boxes: torch.Tensor,
@@ -150,7 +150,6 @@ def bbox2delta(
     return deltas
 
 
-@torch.jit.script
 def delta2bbox(
     rois: torch.Tensor,
     deltas: torch.Tensor,
