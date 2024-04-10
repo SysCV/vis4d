@@ -1,4 +1,5 @@
 """3D bounding box coder."""
+
 from __future__ import annotations
 
 import numpy as np

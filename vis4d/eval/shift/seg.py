@@ -1,4 +1,5 @@
 """SHIFT segmentation evaluator."""
+
 from __future__ import annotations
 
 from vis4d.common.typing import NDArrayI64, NDArrayNumber

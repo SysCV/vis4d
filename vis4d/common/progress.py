@@ -1,4 +1,5 @@
 """This module contains utilities for progress bar."""
+
 from __future__ import annotations
 
 import datetime

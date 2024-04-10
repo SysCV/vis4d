@@ -1,4 +1,5 @@
 """Vis4D LR schedulers."""
+
 from __future__ import annotations
 
 from typing import TypedDict
@@ -30,9 +31,9 @@ class LRSchedulerWrapper(LRScheduler):
         steps_per_epoch: int = -1,
     ) -> None:
         """Initialize LRSchedulerWrapper."""
-        self.lr_schedulers_cfg: list[
-            LrSchedulerConfig
-        ] = copy_and_resolve_references(lr_schedulers_cfg)
+        self.lr_schedulers_cfg: list[LrSchedulerConfig] = (
+            copy_and_resolve_references(lr_schedulers_cfg)
+        )
         self.lr_schedulers: dict[int, LRSchedulerDict] = {}
         super().__init__(optimizer)
         self.steps_per_epoch = steps_per_epoch

@@ -1,4 +1,5 @@
 """QD-3DT detector."""
+
 from __future__ import annotations
 
 from typing import NamedTuple

@@ -1,4 +1,5 @@
 """Tests for the bounding box visualizer."""
+
 import os
 import pickle
 import shutil

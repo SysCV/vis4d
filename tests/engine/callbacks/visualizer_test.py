@@ -1,4 +1,5 @@
 """Test cases for visualizer callback."""
+
 import shutil
 import tempfile
 import unittest

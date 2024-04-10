@@ -1,4 +1,5 @@
 """Show connected components in the config."""
+
 from __future__ import annotations
 
 import inspect

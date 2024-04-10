@@ -4,6 +4,7 @@ Code taken from
 https://github.com/timothylimyl/PointNet-Pytorch/blob/master/pointnet/model.py
 and modified to allow for modular configuration.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable

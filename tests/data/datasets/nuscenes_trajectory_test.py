@@ -1,4 +1,5 @@
 """NuScenes trajectory dataset tests."""
+
 import unittest
 
 from tests.util import get_test_data

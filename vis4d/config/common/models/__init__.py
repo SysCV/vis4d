@@ -1,4 +1,5 @@
 """Common models config."""
+
 from .faster_rcnn import get_faster_rcnn_cfg
 from .mask_rcnn import get_mask_rcnn_cfg
 

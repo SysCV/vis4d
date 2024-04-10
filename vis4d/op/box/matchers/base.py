@@ -1,4 +1,5 @@
 """Matchers."""
+
 import abc
 from typing import NamedTuple
 

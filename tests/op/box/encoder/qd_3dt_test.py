@@ -1,4 +1,5 @@
 """QD3DT Box3D encoder decoder test file."""
+
 import torch
 
 from vis4d.op.box.encoder.qd_3dt import QD3DTBox3DEncoder

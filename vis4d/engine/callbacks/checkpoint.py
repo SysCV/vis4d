@@ -1,4 +1,5 @@
 """This module contains utilities for callbacks."""
+
 from __future__ import annotations
 
 import os

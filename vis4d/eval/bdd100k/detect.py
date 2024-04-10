@@ -1,4 +1,5 @@
 """BDD100K detection evaluator."""
+
 from __future__ import annotations
 
 from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE

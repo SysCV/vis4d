@@ -1,4 +1,5 @@
 """Bounding box 3D visualizer."""
+
 from __future__ import annotations
 
 import os
@@ -97,9 +98,9 @@ class BoundingBox3DVisualizer(Visualizer):
         super().__init__(*args, **kwargs)
         self._samples: list[DataSample] = []
         self.axis_mode = axis_mode
-        self.trajectories: dict[
-            int, list[tuple[float, float, float]]
-        ] = defaultdict(list)
+        self.trajectories: dict[int, list[tuple[float, float, float]]] = (
+            defaultdict(list)
+        )
         self.trajectory_length = trajectory_length
         self.plot_trajectory = plot_trajectory
 
@@ -164,9 +165,9 @@ class BoundingBox3DVisualizer(Visualizer):
                     image_names[batch],
                     boxes3d[batch],
                     intrinsics[batch],  # type: ignore
-                    None
-                    if extrinsics is None
-                    else extrinsics[batch],  # type: ignore
+                    (
+                        None if extrinsics is None else extrinsics[batch]
+                    ),  # type: ignore
                     None if scores is None else scores[batch],
                     None if class_ids is None else class_ids[batch],
                     None if track_ids is None else track_ids[batch],
@@ -401,14 +402,18 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
                         image_names[idx][batch],
                         boxes3d[batch],
                         intrinsics[idx][batch],  # type: ignore
-                        None
-                        if extrinsics is None
-                        else extrinsics[idx][batch],  # type: ignore
+                        (
+                            None
+                            if extrinsics is None
+                            else extrinsics[idx][batch]
+                        ),  # type: ignore
                         None if scores is None else scores[batch],
                         None if class_ids is None else class_ids[batch],
                         None if track_ids is None else track_ids[batch],
-                        None
-                        if sequence_names is None
-                        else sequence_names[batch],
+                        (
+                            None
+                            if sequence_names is None
+                            else sequence_names[batch]
+                        ),
                         self.cameras[idx],
                     )

@@ -1,4 +1,5 @@
 """Tests for scalabel dataset."""
+
 import os
 
 import numpy as np

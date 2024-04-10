@@ -1,4 +1,5 @@
 """Wrapper for conv2d."""
+
 from __future__ import annotations
 
 from typing import NamedTuple

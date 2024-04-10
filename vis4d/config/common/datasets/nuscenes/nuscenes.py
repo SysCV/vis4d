@@ -1,4 +1,5 @@
 """NuScenes multi-sensor video dataset config."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

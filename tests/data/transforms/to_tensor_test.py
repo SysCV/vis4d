@@ -1,4 +1,5 @@
 """Test ToTensor transform."""
+
 import numpy as np
 import torch
 

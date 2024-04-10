@@ -1,4 +1,5 @@
 """QDTrack model test file."""
+
 import os.path as osp
 import unittest
 

@@ -1,4 +1,5 @@
 """Segmentation/Instance Mask Transform."""
+
 from __future__ import annotations
 
 import numpy as np

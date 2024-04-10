@@ -1,4 +1,5 @@
 """DeltaXYWHBBoxEncoder test file."""
+
 import torch
 
 from vis4d.op.box.encoder.delta_xywh import (

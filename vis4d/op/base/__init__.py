@@ -1,4 +1,5 @@
 """Base model module."""
+
 from .base import BaseModel
 from .csp_darknet import CSPDarknet
 from .dla import DLA

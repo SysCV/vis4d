@@ -1,4 +1,5 @@
 """Data connector for data connection."""
+
 from .base import CallbackConnector, DataConnector, LossConnector
 from .multi_sensor import (
     MultiSensorCallbackConnector,

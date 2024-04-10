@@ -1,4 +1,5 @@
 """Multi-positive cross entropy loss."""
+
 import torch
 from torch import Tensor
 

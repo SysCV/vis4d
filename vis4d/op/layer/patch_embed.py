@@ -3,6 +3,7 @@
 Modified from vision_transformer 
 (https://github.com/google-research/vision_transformer).
 """
+
 from __future__ import annotations
 
 import torch

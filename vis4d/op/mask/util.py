@@ -1,4 +1,5 @@
 """Utility functions for segmentation masks."""
+
 from __future__ import annotations
 
 import numpy as np

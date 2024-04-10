@@ -1,4 +1,5 @@
 """Resample index to recover the original dataset length."""
+
 from __future__ import annotations
 
 import numpy as np

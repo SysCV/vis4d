@@ -1,4 +1,5 @@
 """Testcases for YOLOXPAFPN."""
+
 import unittest
 
 import torch

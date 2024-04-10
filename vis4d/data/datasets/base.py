@@ -4,6 +4,7 @@ We implement a typed version of the PyTorch dataset class here. In addition, we
 provide a number of Mixin classes which a dataset can inherit from to implement
 additional functionality.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

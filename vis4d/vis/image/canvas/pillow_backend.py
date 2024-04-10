@@ -1,4 +1,5 @@
 """Pillow backend implementation to draw on images."""
+
 from __future__ import annotations
 
 import base64

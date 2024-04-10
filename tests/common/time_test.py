@@ -1,4 +1,5 @@
 """Test cases for time."""
+
 import time
 import unittest
 from io import StringIO

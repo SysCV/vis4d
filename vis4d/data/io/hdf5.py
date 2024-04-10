@@ -3,6 +3,7 @@
 This backend works with filepaths pointing to valid HDF5 files. We assume that
 the given HDF5 file contains the whole dataset associated to this backend.
 """
+
 from __future__ import annotations
 
 import argparse

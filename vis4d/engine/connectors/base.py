@@ -1,4 +1,5 @@
 """Base data connector to define data structures for data connection."""
+
 from __future__ import annotations
 
 from typing import NamedTuple

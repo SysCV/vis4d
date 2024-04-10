@@ -1,4 +1,5 @@
 """Box2D test file."""
+
 import torch
 
 from vis4d.op.box.box2d import (

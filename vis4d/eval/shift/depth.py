@@ -1,4 +1,5 @@
 """SHIFT depth estimation evaluator."""
+
 from __future__ import annotations
 
 from vis4d.common.typing import NDArrayNumber

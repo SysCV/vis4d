@@ -2,6 +2,7 @@
 
 Here we define commonly used types like specific numpy array and tensor types.
 """
+
 from collections.abc import Callable
 from typing import Any, Dict, Iterable, Union
 

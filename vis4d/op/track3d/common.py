@@ -1,4 +1,5 @@
 """Common classes and functions for 3D tracking."""
+
 from __future__ import annotations
 
 from typing import NamedTuple

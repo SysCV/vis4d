@@ -1,4 +1,5 @@
 """BDD100K tracking dataset configs."""
+
 from __future__ import annotations
 
 from ml_collections import ConfigDict

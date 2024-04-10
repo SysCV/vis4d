@@ -1,4 +1,5 @@
 """Loss module maps loss function input keys and controls loss weight."""
+
 from __future__ import annotations
 
 from typing import TypedDict, Union

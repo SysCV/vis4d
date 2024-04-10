@@ -1,4 +1,5 @@
 """EMA Tests."""
+
 import torch
 from torch import nn
 

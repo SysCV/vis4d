@@ -1,4 +1,5 @@
 """Test logging."""
+
 import logging
 import os
 import shutil

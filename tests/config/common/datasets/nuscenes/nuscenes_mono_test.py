@@ -1,4 +1,5 @@
 """Test NuScenes monocular dataset config."""
+
 from __future__ import annotations
 
 import unittest

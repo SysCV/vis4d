@@ -1,4 +1,5 @@
 """Testcases for VGG base model."""
+
 from __future__ import annotations
 
 import unittest

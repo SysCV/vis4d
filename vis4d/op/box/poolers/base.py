@@ -1,4 +1,5 @@
 """RoI Pooling module base."""
+
 from __future__ import annotations
 
 import abc

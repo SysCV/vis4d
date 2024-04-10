@@ -1,4 +1,5 @@
 """Test SegCrossEntropyLoss."""
+
 import torch
 
 from vis4d.op.loss import SegCrossEntropyLoss

@@ -1,4 +1,5 @@
 """Test cases for pretty printing."""
+
 import unittest
 from typing import Any
 

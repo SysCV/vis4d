@@ -1,4 +1,5 @@
 """Resample index to recover the original dataset length test."""
+
 from tests.util import get_test_data
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.resample import ResampleDataset

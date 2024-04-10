@@ -1,4 +1,5 @@
 """FCN tests."""
+
 from __future__ import annotations
 
 import unittest

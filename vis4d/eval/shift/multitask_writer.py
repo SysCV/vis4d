@@ -1,4 +1,5 @@
 """SHIFT result writer."""
+
 from __future__ import annotations
 
 import io
@@ -197,18 +198,24 @@ class SHIFTMultitaskWriter(Evaluator):
                     box2d = xyxy_to_box2d(*box.tolist())
                     label = Label(
                         box2d=box2d,
-                        category=self.inverse_cat_map[int(class_id)]
-                        if self.inverse_cat_map != {}
-                        else str(class_id),
+                        category=(
+                            self.inverse_cat_map[int(class_id)]
+                            if self.inverse_cat_map != {}
+                            else str(class_id)
+                        ),
                         score=float(score),
-                        rle=mask_to_rle(
-                            (masks[class_id] > 0.0).astype(np.uint8)
-                        )
-                        if pred_instance_masks
-                        else None,
-                        id=str(int(track_ids[0]))
-                        if pred_boxes2d_track_ids
-                        else None,
+                        rle=(
+                            mask_to_rle(
+                                (masks[class_id] > 0.0).astype(np.uint8)
+                            )
+                            if pred_instance_masks
+                            else None
+                        ),
+                        id=(
+                            str(int(track_ids[0]))
+                            if pred_boxes2d_track_ids
+                            else None
+                        ),
                     )
                     labels.append(label)
                 frame = Frame(

@@ -1,6 +1,5 @@
 """Image classification evaluator."""
 
-
 from __future__ import annotations
 
 import itertools

@@ -1,4 +1,5 @@
 """Exponential Moving Average (EMA) for PyTorch models."""
+
 from __future__ import annotations
 
 import math

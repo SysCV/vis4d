@@ -1,4 +1,5 @@
 """Utility functions for 3D bounding boxes."""
+
 from __future__ import annotations
 
 import torch

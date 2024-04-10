@@ -3,6 +3,7 @@
 Implementation of `Class-balanced Grouping and Sampling for Point Cloud 3D
 Object Detection <https://arxiv.org/abs/1908.09492>`_.
 """
+
 from __future__ import annotations
 
 import numpy as np

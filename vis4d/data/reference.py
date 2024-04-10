@@ -4,6 +4,7 @@ These Classes sample reference views from a dataset that contains videos.
 This is usually used when a model needs multiple samples of a video during
 training.
 """
+
 from __future__ import annotations
 
 from abc import abstractmethod

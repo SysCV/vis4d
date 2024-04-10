@@ -1,4 +1,5 @@
 """Generic classes to visualize and save pointcloud data."""
+
 from __future__ import annotations
 
 import numpy as np

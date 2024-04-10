@@ -1,4 +1,5 @@
 """SHIFT tracking evaluator."""
+
 from __future__ import annotations
 
 from vis4d.data.datasets.shift import shift_det_map

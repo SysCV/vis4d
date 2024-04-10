@@ -2,6 +2,7 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+
 from __future__ import annotations
 
 import torch

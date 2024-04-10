@@ -1,4 +1,5 @@
 """Check if optional packages required by some modules are available."""
+
 from functools import lru_cache
 from importlib.util import find_spec
 

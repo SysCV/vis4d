@@ -1,4 +1,5 @@
 """CC-3DT inference with Faster-RCNN ResNet-101 detector using VeloLSTM."""
+
 from __future__ import annotations
 
 from vis4d.config import class_config

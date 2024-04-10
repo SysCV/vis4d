@@ -1,4 +1,5 @@
 """BEVFormer Visualizaion for NuScenes Example."""
+
 from __future__ import annotations
 
 from vis4d.config import class_config

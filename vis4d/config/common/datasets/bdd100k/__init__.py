@@ -1,4 +1,5 @@
 """BDD100K dataset config."""
+
 from .detect import (
     CONN_BDD100K_DET_EVAL,
     CONN_BDD100K_INS_EVAL,

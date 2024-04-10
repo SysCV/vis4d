@@ -1,4 +1,5 @@
 """NuScenes multi-sensor video dataset."""
+
 from __future__ import annotations
 
 import os

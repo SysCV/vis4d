@@ -1,4 +1,5 @@
 """RetinaNet model implementation and runtime."""
+
 from __future__ import annotations
 
 from torch import Tensor, nn

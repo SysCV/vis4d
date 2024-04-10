@@ -1,4 +1,5 @@
 """Utility functions for image processing operations."""
+
 from __future__ import annotations
 
 import numpy as np

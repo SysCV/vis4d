@@ -1,4 +1,5 @@
 """Utility functions for track module."""
+
 from __future__ import annotations
 
 

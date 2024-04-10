@@ -1,4 +1,5 @@
 """Test cases for checkpoint callback."""
+
 import shutil
 import tempfile
 import unittest

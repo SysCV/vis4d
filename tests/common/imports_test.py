@@ -1,4 +1,5 @@
 """Test imports."""
+
 import unittest
 
 from vis4d.common.imports import package_available

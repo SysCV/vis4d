@@ -1,4 +1,5 @@
 """Callable objects for use in config files."""
+
 from ml_collections import ConfigDict
 
 from vis4d.common.typing import ArgsType, GenericFunc

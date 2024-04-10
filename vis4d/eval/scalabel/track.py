@@ -1,4 +1,5 @@
 """Scalabel tracking evaluator."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -89,18 +90,22 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 box2d = xyxy_to_box2d(*box.tolist())
                 label = Label(
                     box2d=box2d,
-                    category=self.inverse_cat_map[int(class_id)]
-                    if self.inverse_cat_map != {}
-                    else str(class_id),
+                    category=(
+                        self.inverse_cat_map[int(class_id)]
+                        if self.inverse_cat_map != {}
+                        else str(class_id)
+                    ),
                     score=float(score),
                     id=str(int(track_id)),
-                    rle=mask_to_rle(
-                        (masks[label_id] > self.mask_threshold).astype(
-                            np.uint8
+                    rle=(
+                        mask_to_rle(
+                            (masks[label_id] > self.mask_threshold).astype(
+                                np.uint8
+                            )
                         )
-                    )
-                    if pred_masks
-                    else None,
+                        if pred_masks
+                        else None
+                    ),
                 )
                 labels.append(label)
             frame = Frame(

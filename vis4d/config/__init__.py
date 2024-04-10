@@ -1,4 +1,5 @@
 """Config modules."""
+
 from .config_dict import (
     FieldConfigDict,
     class_config,

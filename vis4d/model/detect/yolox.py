@@ -1,4 +1,5 @@
 """YOLOX model implementation and runtime."""
+
 from __future__ import annotations
 
 import torch

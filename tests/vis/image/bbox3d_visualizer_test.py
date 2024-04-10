@@ -1,4 +1,5 @@
 """Tests for the 3D bounding box visualizer."""
+
 import os
 import shutil
 import tempfile

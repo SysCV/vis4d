@@ -1,4 +1,5 @@
 """Kalman Filter PyTorch implementation."""
+
 from __future__ import annotations
 
 import torch

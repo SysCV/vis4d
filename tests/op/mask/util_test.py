@@ -1,4 +1,5 @@
 """Test cases for mask utils."""
+
 import unittest
 
 import torch

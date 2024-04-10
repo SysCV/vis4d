@@ -1,4 +1,5 @@
 """Visualizer base class."""
+
 from vis4d.common.typing import ArgsType
 
 

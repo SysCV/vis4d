@@ -1,4 +1,5 @@
 """Test cases for random sampler."""
+
 import unittest
 
 import torch

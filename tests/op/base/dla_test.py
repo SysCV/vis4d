@@ -1,4 +1,5 @@
 """Testcases for DLA base model."""
+
 import unittest
 
 from tests.util import generate_features

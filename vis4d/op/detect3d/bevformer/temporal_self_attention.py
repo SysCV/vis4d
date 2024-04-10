@@ -1,4 +1,5 @@
 """An attention module used in BEVFormer based on Deformable-Detr."""
+
 from __future__ import annotations
 
 import math

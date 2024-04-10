@@ -1,4 +1,5 @@
 """Base model interface."""
+
 from __future__ import annotations
 
 import abc

@@ -3,6 +3,7 @@
 This file composes the operations associated with CC-3DT
 `https://arxiv.org/abs/2212.01247`_ into the full model implementation.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

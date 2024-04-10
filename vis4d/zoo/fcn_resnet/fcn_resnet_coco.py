@@ -1,4 +1,5 @@
 """FCN-ResNet COCO training example."""
+
 from __future__ import annotations
 
 import lightning.pytorch as pl

@@ -1,4 +1,5 @@
 """Utility function for registering config files."""
+
 from __future__ import annotations
 
 import glob

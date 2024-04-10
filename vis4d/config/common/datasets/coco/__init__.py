@@ -1,4 +1,5 @@
 """COCO dataset config."""
+
 from .detection import (
     CONN_COCO_BBOX_EVAL,
     CONN_COCO_MASK_EVAL,

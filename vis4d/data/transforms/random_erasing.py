@@ -1,4 +1,5 @@
 """Random erasing data augmentation."""
+
 import numpy as np
 
 from vis4d.common.typing import NDArrayNumber

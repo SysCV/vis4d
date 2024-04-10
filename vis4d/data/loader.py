@@ -1,4 +1,5 @@
 """Dataloader utility functions."""
+
 from __future__ import annotations
 
 import random
@@ -172,9 +173,9 @@ def build_train_dataloader(
         dataset,
         batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
-        collate_fn=_collate_fn_multi
-        if dataset.has_reference
-        else _collate_fn_single,
+        collate_fn=(
+            _collate_fn_multi if dataset.has_reference else _collate_fn_single
+        ),
         sampler=sampler,
         worker_init_fn=_worker_init_fn,
         persistent_workers=workers_per_gpu > 0,

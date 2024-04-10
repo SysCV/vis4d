@@ -1,4 +1,5 @@
 """Seg eval test cases."""
+
 from __future__ import annotations
 
 import unittest

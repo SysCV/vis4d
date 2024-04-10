@@ -3,6 +3,7 @@
 This backend works with filepaths pointing to valid Zip files. We assume that
 the given Zip file contains the whole dataset associated to this backend.
 """
+
 from __future__ import annotations
 
 import os

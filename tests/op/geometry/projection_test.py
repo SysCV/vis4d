@@ -1,4 +1,5 @@
 """Projection tests."""
+
 import unittest
 
 import torch

@@ -1,4 +1,5 @@
 """Default runtime configuration for PyTorch Lightning."""
+
 import inspect
 
 from lightning import Trainer

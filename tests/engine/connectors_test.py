@@ -1,4 +1,5 @@
 """Test data connector."""
+
 import torch
 
 from vis4d.engine.connectors import MultiSensorDataConnector, data_key

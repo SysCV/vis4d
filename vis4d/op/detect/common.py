@@ -1,4 +1,5 @@
 """Common classes and functions for detection."""
+
 from typing import NamedTuple
 
 from torch import Tensor

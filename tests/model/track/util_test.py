@@ -1,4 +1,5 @@
 """Utility functions for track module test."""
+
 from vis4d.model.track.util import split_key_ref_indices
 
 

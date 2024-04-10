@@ -1,4 +1,5 @@
 """SHIFT Semantic FPN configs tests."""
+
 import unittest
 
 from ..util import compare_configs

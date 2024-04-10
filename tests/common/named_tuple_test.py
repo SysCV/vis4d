@@ -1,4 +1,5 @@
 """Test named tuple."""
+
 import unittest
 from collections import namedtuple
 

@@ -1,4 +1,5 @@
 """Test cases for normalize transform."""
+
 import numpy as np
 
 from vis4d.data.transforms.random_erasing import RandomErasing

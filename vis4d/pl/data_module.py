@@ -1,4 +1,5 @@
 """Data module composing the data loading pipeline."""
+
 from __future__ import annotations
 
 import lightning.pytorch as pl

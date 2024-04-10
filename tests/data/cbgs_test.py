@@ -1,4 +1,5 @@
 """Class-balanced Grouping and Sampling for 3D Object Detection test."""
+
 from tests.util import get_test_data
 from vis4d.data.cbgs import CBGSDataset
 from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
