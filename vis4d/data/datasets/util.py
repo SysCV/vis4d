@@ -53,7 +53,7 @@ def im_decode(
     }, f"{mode} not supported for image decoding!"
     if backend == "PIL":
         pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-        pil_img = ImageOps.exif_transpose(pil_img)
+        pil_img = ImageOps.exif_transpose(pil_img)  # type: ignore
         if pil_img.mode == "L":  # pragma: no cover
             if mode == "L":
                 img: NDArrayUI8 = np.array(pil_img)[..., None]

@@ -302,7 +302,9 @@ class RPN2RoI(nn.Module):
         # since feature map sizes of all images are the same, we only compute
         # anchors for one time
         device = class_outs[0].device
-        featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
+        featmap_sizes: list[tuple[int, int]] = [
+            featmap.size()[-2:] for featmap in class_outs  # type: ignore
+        ]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         anchor_grids = self.anchor_generator.grid_priors(
             featmap_sizes, device=device

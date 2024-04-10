@@ -677,7 +677,7 @@ class Box3DUncertaintyLoss(Loss):
         pos_depth_self_labels = torch.exp(
             -torch.mul(torch.abs(pred[:, 2] - target[:, 2]), 5.0)
         )
-        pos_depth_self_weights = torch.where(  # type: ignore
+        pos_depth_self_weights = torch.where(
             pos_depth_self_labels > 0.8,
             pos_depth_self_labels.new_ones(1) * 5.0,
             pos_depth_self_labels.new_ones(1) * 0.1,

@@ -303,9 +303,9 @@ class BEVFormerEncoder(nn.Module):
         batch_size, len_bev, num_bev_level, _ = ref_2d.shape
         if prev_bev is not None:
             prev_bev = prev_bev.permute(1, 0, 2)
-            prev_bev = torch.stack(
-                [prev_bev, bev_query], 1  # type: ignore
-            ).reshape(batch_size * 2, len_bev, -1)
+            prev_bev = torch.stack([prev_bev, bev_query], 1).reshape(
+                batch_size * 2, len_bev, -1
+            )
             hybird_ref_2d = torch.stack([shift_ref_2d, ref_2d], 1).reshape(
                 batch_size * 2, len_bev, num_bev_level, 2
             )

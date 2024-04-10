@@ -301,7 +301,7 @@ class QDTrackGraph:
         self.tracklets[track_id]["box"] = box
         self.tracklets[track_id]["score"] = score
         self.tracklets[track_id]["class_id"] = class_id
-        self.tracklets[track_id]["embed"] = (  # type: ignore
+        self.tracklets[track_id]["embed"] = (
             1 - self.memory_momentum
         ) * self.tracklets[track_id][
             "embed"

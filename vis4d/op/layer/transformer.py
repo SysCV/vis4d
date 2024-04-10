@@ -67,9 +67,7 @@ class LayerScale(nn.Module):
         }, "data_format could only be channels_last or channels_first."
         self.inplace = inplace
         self.data_format = data_format
-        self.gamma = nn.Parameter(
-            init_values * torch.ones(dim)  # type: ignore
-        )
+        self.gamma = nn.Parameter(init_values * torch.ones(dim))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass."""

@@ -166,8 +166,8 @@ class BoundingBox3DVisualizer(Visualizer):
                     boxes3d[batch],
                     intrinsics[batch],  # type: ignore
                     (
-                        None if extrinsics is None else extrinsics[batch]
-                    ),  # type: ignore
+                        None if extrinsics is None else extrinsics[batch]  # type: ignore # pylint: disable=line-too-long
+                    ),
                     None if scores is None else scores[batch],
                     None if class_ids is None else class_ids[batch],
                     None if track_ids is None else track_ids[batch],
@@ -405,8 +405,8 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
                         (
                             None
                             if extrinsics is None
-                            else extrinsics[idx][batch]
-                        ),  # type: ignore
+                            else extrinsics[idx][batch]  # type: ignore
+                        ),
                         None if scores is None else scores[batch],
                         None if class_ids is None else class_ids[batch],
                         None if track_ids is None else track_ids[batch],

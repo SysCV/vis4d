@@ -201,22 +201,15 @@ class LossModule(nn.Module):
 
         # Convert loss_dict to total loss and metrics dictionary
         metrics: dict[str, float] = {}
-        if isinstance(loss_dict, Tensor):
-            total_loss = loss_dict
-        elif isinstance(loss_dict, dict):
-            keep_loss_dict: LossesType = {}
-            for k, v in loss_dict.items():
-                metrics[k] = v.detach().cpu().item()
-                if (
-                    self.exclude_attributes is None
-                    or k not in self.exclude_attributes
-                ):
-                    keep_loss_dict[k] = v
-            total_loss = sum(keep_loss_dict.values())  # type: ignore
-        else:
-            raise TypeError(
-                "Loss function must return a Tensor or a dict of Tensor"
-            )
+        keep_loss_dict: LossesType = {}
+        for k, v in loss_dict.items():
+            metrics[k] = v.detach().cpu().item()
+            if (
+                self.exclude_attributes is None
+                or k not in self.exclude_attributes
+            ):
+                keep_loss_dict[k] = v
+        total_loss: Tensor = sum(keep_loss_dict.values())  # type: ignore
         metrics["loss"] = total_loss.detach().cpu().item()
 
         return total_loss, metrics

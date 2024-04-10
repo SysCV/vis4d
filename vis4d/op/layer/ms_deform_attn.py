@@ -131,7 +131,7 @@ def ms_deformable_attention_cpu(
         _,
     ) = sampling_locations.shape
     value_list = value.split([h * w for h, w in value_spatial_shapes], dim=1)
-    sampling_grids: Tensor = 2 * sampling_locations - 1  # type: ignore
+    sampling_grids: Tensor = 2 * sampling_locations - 1
     sampling_value_list = []
     for level, (h, w) in enumerate(value_spatial_shapes):
         # bs, h*w, num_heads, embed_dims ->

@@ -40,7 +40,7 @@ class RandomSampler(Sampler):
         self, labels: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Randomly sample indices from given labels."""
-        positive = ((labels != -1) & (labels != self.bg_label)).nonzero()[:, 0]  # type: ignore # pylint: disable=line-too-long
+        positive = ((labels != -1) & (labels != self.bg_label)).nonzero()[:, 0]
         negative = torch.eq(labels, self.bg_label).nonzero()[:, 0]
 
         num_pos = int(self.batch_size * self.positive_fraction)

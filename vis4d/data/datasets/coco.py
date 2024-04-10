@@ -15,8 +15,6 @@ from vis4d.common import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
-from ..const import CommonKeys as K
-from ..typing import DictData
 from .base import Dataset
 from .util import CacheMappingMixin, im_decode
 

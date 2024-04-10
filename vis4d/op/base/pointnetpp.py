@@ -19,11 +19,11 @@ from torch import Tensor, nn
 class PointNetSetAbstractionOut(NamedTuple):
     """Ouput of PointNet set abstraction."""
 
-    coordinates: torch.Tensor  # [B, C, S]
-    features: torch.Tensor  # [B, D', S]
+    coordinates: Tensor  # [B, C, S]
+    features: Tensor  # [B, D', S]
 
 
-def square_distance(src: torch.Tensor, dst: torch.Tensor) -> torch.Tensor:
+def square_distance(src: Tensor, dst: Tensor) -> Tensor:
     """Calculate Euclid distance between each two points.
 
     src^T * dst = xn * xm + yn * ym + zn * zm;
@@ -44,10 +44,10 @@ def square_distance(src: torch.Tensor, dst: torch.Tensor) -> torch.Tensor:
     dist = -2 * torch.matmul(src, dst.permute(0, 2, 1))
     dist += torch.sum(src**2, -1).view(bs, n_pts_in, 1)
     dist += torch.sum(dst**2, -1).view(bs, 1, n_pts_out)
-    return dist  # type: ignore
+    return dist
 
 
-def index_points(points: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+def index_points(points: Tensor, idx: Tensor) -> Tensor:
     """Indexes points.
 
     Input:
@@ -73,7 +73,7 @@ def index_points(points: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
     return new_points
 
 
-def farthest_point_sample(xyz: torch.Tensor, npoint: int) -> torch.Tensor:
+def farthest_point_sample(xyz: Tensor, npoint: int) -> Tensor:
     """Farthest point sampling.
 
     Input:
@@ -100,8 +100,8 @@ def farthest_point_sample(xyz: torch.Tensor, npoint: int) -> torch.Tensor:
 
 
 def query_ball_point(
-    radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor
-) -> torch.Tensor:
+    radius: float, nsample: int, xyz: Tensor, new_xyz: Tensor
+) -> Tensor:
     """Query around a ball with given radius.
 
     Input:
@@ -137,9 +137,9 @@ def sample_and_group(
     npoint: int,
     radius: float,
     nsample: int,
-    xyz: torch.Tensor,
-    points: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
+    xyz: Tensor,
+    points: Tensor,
+) -> tuple[Tensor, Tensor]:
     """Samples and groups.
 
     Input:
@@ -170,9 +170,7 @@ def sample_and_group(
     return new_xyz, new_points
 
 
-def sample_and_group_all(
-    xyz: torch.Tensor, points: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+def sample_and_group_all(xyz: Tensor, points: Tensor) -> tuple[Tensor, Tensor]:
     """Sample and groups all.
 
     Input:
@@ -243,7 +241,7 @@ class PointNetSetAbstraction(nn.Module):
         self.group_all = group_all
 
     def __call__(
-        self, coordinates: torch.Tensor, features: torch.Tensor
+        self, coordinates: Tensor, features: Tensor
     ) -> PointNetSetAbstractionOut:
         """Call function.
 
@@ -259,7 +257,7 @@ class PointNetSetAbstraction(nn.Module):
         return self._call_impl(coordinates, features)
 
     def forward(
-        self, xyz: torch.Tensor, points: torch.Tensor
+        self, xyz: Tensor, points: Tensor
     ) -> PointNetSetAbstractionOut:
         """Pointnet++ set abstraction layer forward.
 
@@ -327,11 +325,11 @@ class PointNetFeaturePropagation(nn.Module):
 
     def __call__(
         self,
-        xyz1: torch.Tensor,
-        xyz2: torch.Tensor,
-        points1: torch.Tensor | None,
-        points2: torch.Tensor,
-    ) -> torch.Tensor:
+        xyz1: Tensor,
+        xyz2: Tensor,
+        points1: Tensor | None,
+        points2: Tensor,
+    ) -> Tensor:
         """Call function.
 
         Input:
@@ -347,11 +345,11 @@ class PointNetFeaturePropagation(nn.Module):
 
     def forward(
         self,
-        xyz1: torch.Tensor,
-        xyz2: torch.Tensor,
-        points1: torch.Tensor | None,
-        points2: torch.Tensor,
-    ) -> torch.Tensor:
+        xyz1: Tensor,
+        xyz2: Tensor,
+        points1: Tensor | None,
+        points2: Tensor,
+    ) -> Tensor:
         """Forward Implementation.
 
         Input:
@@ -377,7 +375,7 @@ class PointNetFeaturePropagation(nn.Module):
             dists, idx = dists.sort(dim=-1)
             dists, idx = dists[:, :, :3], idx[:, :, :3]  # [B, N, 3]
 
-            dist_recip: Tensor = 1.0 / (dists + 1e-8)  # type: ignore
+            dist_recip: Tensor = 1.0 / (dists + 1e-8)
             norm = torch.sum(dist_recip, dim=2, keepdim=True)
             weight = dist_recip / norm
             interpolated_points = torch.sum(
@@ -387,9 +385,7 @@ class PointNetFeaturePropagation(nn.Module):
 
         if points1 is not None:
             points1 = points1.permute(0, 2, 1)
-            new_points = torch.cat(
-                [points1, interpolated_points], dim=-1  # type: ignore
-            )
+            new_points = torch.cat([points1, interpolated_points], dim=-1)
         else:
             new_points = interpolated_points
 
@@ -403,7 +399,7 @@ class PointNetFeaturePropagation(nn.Module):
 class PointNet2SegmentationOut(NamedTuple):
     """Prediction for the pointnet++ semantic segmentation network."""
 
-    class_logits: torch.Tensor
+    class_logits: Tensor
 
 
 class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
@@ -445,7 +441,7 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
         self.conv2 = nn.Conv1d(128, num_classes, 1)
         self.in_channels = in_channels
 
-    def __call__(self, xyz: torch.Tensor) -> PointNet2SegmentationOut:
+    def __call__(self, xyz: Tensor) -> PointNet2SegmentationOut:
         """Call implementation.
 
         Args:
@@ -456,7 +452,7 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
         """
         return self._call_impl(xyz)
 
-    def forward(self, xyz: torch.Tensor) -> PointNet2SegmentationOut:
+    def forward(self, xyz: Tensor) -> PointNet2SegmentationOut:
         """Predicts the semantic class logits for each point.
 
         Args:
