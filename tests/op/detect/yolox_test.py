@@ -1,4 +1,5 @@
 """YOLOX tests."""
+
 from tests.util import generate_features_determ
 from vis4d.op.detect.yolox import YOLOXHead
 

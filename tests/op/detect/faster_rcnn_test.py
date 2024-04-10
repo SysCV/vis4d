@@ -1,4 +1,5 @@
 """Faster RCNN tests."""
+
 from tests.util import generate_boxes, generate_features
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 

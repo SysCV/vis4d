@@ -1,4 +1,5 @@
 """Test cases for logging callback."""
+
 import unittest
 
 from tests.util import MOCKLOSS, MockModel

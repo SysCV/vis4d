@@ -1,4 +1,5 @@
 """DataPipe wraps datasets to share the prepossessing pipeline."""
+
 from __future__ import annotations
 
 import random

@@ -3,6 +3,7 @@
 Code taken from https://github.com/jaxony/unet-pytorch/blob/master/model.py
 and modified to include typing and custom ops.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple

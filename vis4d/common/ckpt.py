@@ -2,6 +2,7 @@
 
 The code is based on https://github.com/open-mmlab/mmcv/
 """
+
 from __future__ import annotations
 
 import os.path as osp
@@ -379,8 +380,9 @@ def _load_checkpoint(
     filename: str,
     map_location: str | torch.device | None = None,
     strict: bool = False,
-    revise_keys: tuple[tuple[str, str]]
-    | list[tuple[str, str]] = ((r"^module\.", ""),),
+    revise_keys: tuple[tuple[str, str]] | list[tuple[str, str]] = (
+        (r"^module\.", ""),
+    ),
 ) -> TorchCheckpoint:
     """Load checkpoint from a file or URI.
 

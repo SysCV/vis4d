@@ -1,4 +1,5 @@
 """LightningModule that wraps around the models, losses and optims."""
+
 from __future__ import annotations
 
 from typing import Any

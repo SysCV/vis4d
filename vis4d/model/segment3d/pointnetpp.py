@@ -1,4 +1,5 @@
 """Pointnet++ Implementation."""
+
 from __future__ import annotations
 
 from typing import overload
@@ -41,14 +42,12 @@ class PointNet2SegmentationModel(nn.Module):
             load_model_checkpoint(self, weights)
 
     @overload
-    def forward(self, points3d: torch.Tensor) -> ModelOutput:
-        ...
+    def forward(self, points3d: torch.Tensor) -> ModelOutput: ...
 
     @overload
     def forward(
         self, points3d: torch.Tensor, semantics3d: torch.Tensor | None
-    ) -> PointNet2SegmentationOut:
-        ...
+    ) -> PointNet2SegmentationOut: ...
 
     def forward(
         self, points3d: torch.Tensor, semantics3d: torch.Tensor | None = None

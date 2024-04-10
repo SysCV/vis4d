@@ -2,6 +2,7 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+
 from __future__ import annotations
 
 import math
@@ -245,7 +246,7 @@ def bboxes_nms(
     max_scores, labels = torch.max(cls_scores, 1)
     valid_mask = objectness * max_scores >= score_thr
     valid_idxs = valid_mask.nonzero()[:, 0]
-    num_topk = min(nms_pre, valid_mask.sum())
+    num_topk = min(nms_pre, valid_mask.sum())  # type: ignore
 
     scores, idxs = (max_scores[valid_mask] * objectness[valid_mask]).sort(
         descending=True
@@ -287,7 +288,7 @@ def preprocess_outputs(
     num_imgs = len(images_hw)
     num_classes = cls_outs[0].shape[1]
     featmap_sizes: list[tuple[int, int]] = [
-        tuple(featmap.size()[-2:]) for featmap in cls_outs
+        tuple(featmap.size()[-2:]) for featmap in cls_outs  # type: ignore
     ]
     assert len(featmap_sizes) == point_generator.num_levels
     mlvl_points = point_generator.grid_priors(

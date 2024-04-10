@@ -1,4 +1,5 @@
 """COCO dataset testing class."""
+
 import unittest
 
 import torch

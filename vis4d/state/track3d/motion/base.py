@@ -1,4 +1,5 @@
 """Motion model base class."""
+
 from torch import Tensor
 
 

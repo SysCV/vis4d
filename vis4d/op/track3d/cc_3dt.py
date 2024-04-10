@@ -1,4 +1,5 @@
 """CC-3DT graph."""
+
 from __future__ import annotations
 
 import torch
@@ -49,7 +50,6 @@ def get_track_3d_out(
     )
 
 
-# @torch.jit.script TODO
 class CC3DTrackAssociation:
     """Data association relying on quasi-dense instance similarity and 3D clue.
 

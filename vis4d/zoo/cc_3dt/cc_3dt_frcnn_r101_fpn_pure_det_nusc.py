@@ -1,4 +1,5 @@
 """CC-3DT with Faster-RCNN ResNet-101 detector generating pure detection."""
+
 from __future__ import annotations
 
 from vis4d.config import class_config

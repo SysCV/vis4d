@@ -1,4 +1,5 @@
 """Memory for CC-3DT inference."""
+
 from __future__ import annotations
 
 from typing import TypedDict
@@ -497,7 +498,7 @@ class CC3DTrackGraph:
         self.tracklets[track_id]["score_3d"] = score_3d
         self.tracklets[track_id]["class_id"] = class_id
 
-        self.tracklets[track_id]["embed"] = (  # type: ignore
+        self.tracklets[track_id]["embed"] = (
             1 - self.memory_momentum
         ) * self.tracklets[track_id]["embed"] + self.memory_momentum * embed
 

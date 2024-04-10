@@ -1,4 +1,5 @@
 """Spatial Cross Attention Module for BEVFormer."""
+
 from __future__ import annotations
 
 import math
@@ -120,9 +121,9 @@ class SpatialCrossAttention(nn.Module):
                 queries_rebatch[j, i, : len(index_query_per_img)] = query[
                     j, index_query_per_img
                 ]
-                reference_points_rebatch[
-                    j, i, : len(index_query_per_img)
-                ] = _reference_points[j, index_query_per_img]
+                reference_points_rebatch[j, i, : len(index_query_per_img)] = (
+                    _reference_points[j, index_query_per_img]
+                )
 
         _, l, bs, _ = value.shape
 

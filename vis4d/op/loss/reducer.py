@@ -3,6 +3,7 @@
 Loss reducers are usually used as the last step in loss computation to average
 or sum the loss maps from dense predictions or object detections.
 """
+
 from __future__ import annotations
 
 from typing import Callable

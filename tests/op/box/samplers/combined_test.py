@@ -1,4 +1,5 @@
 """Testcases for combined sampler."""
+
 from __future__ import annotations
 
 import unittest

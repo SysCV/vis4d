@@ -1,4 +1,5 @@
 """Tests for pointcloud visualization."""
+
 import glob
 import shutil
 import tempfile

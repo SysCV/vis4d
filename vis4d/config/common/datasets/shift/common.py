@@ -1,4 +1,5 @@
 """SHIFT data loading config for data augmentation."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -322,9 +323,11 @@ def get_shift_dataloader_config(
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         shuffle=True,
-        collate_fn=multi_sensor_collate
-        if len(train_views_to_load) > 1
-        else default_collate,
+        collate_fn=(
+            multi_sensor_collate
+            if len(train_views_to_load) > 1
+            else default_collate
+        ),
     )
 
     # Test Dataset Config
@@ -336,9 +339,11 @@ def get_shift_dataloader_config(
         batchprocess_cfg=test_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        collate_fn=multi_sensor_collate
-        if len(test_views_to_load) > 1
-        else default_collate,
+        collate_fn=(
+            multi_sensor_collate
+            if len(test_views_to_load) > 1
+            else default_collate
+        ),
     )
     return data
 

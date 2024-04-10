@@ -1,4 +1,5 @@
 """ViT for classification tasks."""
+
 from __future__ import annotations
 
 import timm.models.vision_transformer as _vision_transformer

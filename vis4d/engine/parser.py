@@ -1,4 +1,5 @@
 """Parser for config files that can be used with absl flags."""
+
 from __future__ import annotations
 
 import logging

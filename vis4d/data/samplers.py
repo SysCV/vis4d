@@ -1,4 +1,5 @@
 """Vis4D data samplers."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator

@@ -1,4 +1,5 @@
 """Test cases for EMA callback."""
+
 import unittest
 
 import torch

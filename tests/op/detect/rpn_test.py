@@ -1,4 +1,5 @@
 """RPN tests."""
+
 import torch
 
 from tests.util import (

@@ -1,4 +1,5 @@
 """Base class of image viewer for image based visualization."""
+
 from __future__ import annotations
 
 from vis4d.common.typing import NDArrayUI8

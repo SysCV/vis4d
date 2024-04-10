@@ -1,4 +1,5 @@
 """Optimizer configuration."""
+
 from __future__ import annotations
 
 from ml_collections import ConfigDict

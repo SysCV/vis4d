@@ -3,6 +3,7 @@
 This file composes the operations associated with BEVFormer
 `https://arxiv.org/abs/2203.17270` into the full model implementation.
 """
+
 from __future__ import annotations
 
 import copy

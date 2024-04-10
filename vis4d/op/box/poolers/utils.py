@@ -1,4 +1,5 @@
 """Utility functions for RoI poolers."""
+
 from __future__ import annotations
 
 import torch
@@ -34,7 +35,7 @@ def assign_boxes_to_levels(
     )
     # Eqn.(1) in FPN paper
     level_assignments = torch.floor(
-        canonical_level + torch.log2(box_sizes / canonical_box_size + 1e-8)  # type: ignore # pylint: disable=line-too-long
+        canonical_level + torch.log2(box_sizes / canonical_box_size + 1e-8)
     )
     # clamp level to (min, max), in case the box size is too large or too small
     # for the available feature maps

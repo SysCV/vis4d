@@ -1,4 +1,5 @@
 """CC-3DT Model Zoo."""
+
 from . import (
     cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc,
     cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc,

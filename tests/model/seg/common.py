@@ -1,4 +1,5 @@
 """Common functionality for seg tests."""
+
 from torch.utils.data import DataLoader, Dataset
 
 from vis4d.data.data_pipe import DataPipe

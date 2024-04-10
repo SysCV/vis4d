@@ -1,4 +1,5 @@
 """Testcase for default data pipelines for detection."""
+
 import unittest
 
 from tests.util import get_test_data

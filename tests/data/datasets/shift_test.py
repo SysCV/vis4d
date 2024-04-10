@@ -1,4 +1,5 @@
 """S3DIS dataset testing class."""
+
 import unittest
 
 import numpy as np

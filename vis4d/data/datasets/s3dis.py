@@ -1,4 +1,5 @@
 """Stanford 3D indoor dataset."""
+
 from __future__ import annotations
 
 import copy

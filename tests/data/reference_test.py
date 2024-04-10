@@ -1,4 +1,5 @@
 """Testcases for reference view sampling."""
+
 import unittest
 
 from vis4d.data.reference import SequentialViewSampler, UniformViewSampler

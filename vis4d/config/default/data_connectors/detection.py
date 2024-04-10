@@ -1,4 +1,5 @@
 """Default data connectors for detection."""
+
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import data_key, pred_key
 

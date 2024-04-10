@@ -1,4 +1,5 @@
 """Function interface for point cloud visualization functions."""
+
 from __future__ import annotations
 
 from vis4d.common.typing import ArrayLikeFloat, ArrayLikeInt

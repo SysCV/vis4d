@@ -1,4 +1,5 @@
 """Test for the orthogonal transform loss."""
+
 import math
 import unittest
 

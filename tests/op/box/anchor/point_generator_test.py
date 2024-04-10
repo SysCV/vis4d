@@ -2,6 +2,7 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+
 import pytest
 
 from vis4d.op.box.anchor import MlvlPointGenerator

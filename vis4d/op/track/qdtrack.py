@@ -1,4 +1,5 @@
 """Quasi-dense embedding similarity based graph."""
+
 from __future__ import annotations
 
 import math
@@ -172,7 +173,6 @@ class QDTrackHead(nn.Module):
         )
 
 
-# @torch.jit.script TODO
 class QDTrackAssociation:
     """Data association relying on quasi-dense instance similarity.
 
@@ -548,7 +548,7 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         """
         if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
             dummy_loss = sum(e.sum() * 0.0 for e in key_embeddings)
-            return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)
+            return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)  # type: ignore # pylint: disable=line-too-long
 
         loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
         loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)

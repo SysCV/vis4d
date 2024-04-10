@@ -1,4 +1,5 @@
 """Vis4D op typing."""
+
 from __future__ import annotations
 
 from typing import NamedTuple

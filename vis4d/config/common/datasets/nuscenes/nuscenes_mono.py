@@ -1,4 +1,5 @@
 """NuScenes monocular dataset config."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

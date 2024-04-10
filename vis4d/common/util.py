@@ -1,4 +1,5 @@
 """Utility functions for common usage."""
+
 import random
 from difflib import get_close_matches
 

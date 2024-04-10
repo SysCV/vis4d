@@ -1,4 +1,5 @@
 """Interface for Vis4D bounding box samplers."""
+
 from __future__ import annotations
 
 import abc

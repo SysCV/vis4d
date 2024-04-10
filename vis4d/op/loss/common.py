@@ -1,4 +1,5 @@
 """Common loss functions."""
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -33,7 +34,7 @@ def smooth_l1_loss(
     assert beta > 0
     assert pred.size() == target.size() and target.numel() > 0
     diff = torch.abs(pred - target)
-    loss = torch.where(  # type: ignore
+    loss = torch.where(
         diff < beta, 0.5 * diff * diff / beta, diff - 0.5 * beta
     )
     return reducer(loss)

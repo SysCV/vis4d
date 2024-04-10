@@ -3,6 +3,7 @@
 This is based on `"Feature Pyramid Network for Object Detection"
 <https://arxiv.org/abs/1612.03144>`_.
 """
+
 from __future__ import annotations
 
 from collections import OrderedDict

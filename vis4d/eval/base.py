@@ -1,4 +1,5 @@
 """Vis4D base evaluation."""
+
 from __future__ import annotations
 
 from vis4d.common import ArgsType, GenericFunc, MetricLogs

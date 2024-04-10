@@ -1,4 +1,5 @@
 """RetinaNet configs tests."""
+
 import unittest
 
 from .util import compare_configs

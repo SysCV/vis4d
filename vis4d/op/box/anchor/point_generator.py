@@ -3,6 +3,7 @@
 Modified from:
 https://github.com/open-mmlab/mmdetection/blob/master/mmdet/core/anchor/point_generator.py
 """
+
 from __future__ import annotations
 
 import numpy as np

@@ -1,4 +1,5 @@
 """Test cases for progress bar."""
+
 import unittest
 
 import torch

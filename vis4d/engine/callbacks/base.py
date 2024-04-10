@@ -1,4 +1,5 @@
 """Base module for callbacks."""
+
 from __future__ import annotations
 
 from torch import Tensor, nn

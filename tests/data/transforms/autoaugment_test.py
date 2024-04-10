@@ -1,4 +1,5 @@
 """Test cases for auto-augment transform."""
+
 import numpy as np
 
 from vis4d.common.util import set_random_seed

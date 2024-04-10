@@ -1,4 +1,5 @@
 """Testcases for Semantic FPN Head."""
+
 import unittest
 
 from tests.util import generate_features

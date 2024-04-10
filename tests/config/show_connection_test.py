@@ -1,4 +1,5 @@
 """Show config connection tests."""
+
 import unittest
 
 from tests.zoo.util import content_equal, get_config_for_name
@@ -24,9 +25,7 @@ class TestShowConfig(unittest.TestCase):
         model = instantiate_classes(config.model)
 
         # Change the data root of evaluator callback to the test data
-        config.callbacks[
-            3
-        ].init_args.evaluator.init_args.data_root = (
+        config.callbacks[3].init_args.evaluator.init_args.data_root = (
             "tests/vis4d-test-data/coco_test"
         )
         config.callbacks[3].init_args.evaluator.init_args.split = "train"

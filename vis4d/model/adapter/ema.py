@@ -1,4 +1,5 @@
 """Exponential Moving Average (EMA) for PyTorch models."""
+
 from __future__ import annotations
 
 import math
@@ -61,7 +62,7 @@ class ModelEMAAdapter(nn.Module):
         """Update the internal EMA model."""
         self._update(
             self.model,
-            update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,  # type: ignore # pylint: disable=line-too-long
+            update_fn=lambda e, m: self.decay * e + (1.0 - self.decay) * m,
         )
 
     def set(self, model: nn.Module) -> None:
@@ -113,5 +114,5 @@ class ModelExpEMAAdapter(ModelEMAAdapter):
         )
         self._update(
             self.model,
-            update_fn=lambda e, m: decay * e + (1.0 - decay) * m,  # type: ignore # pylint: disable=line-too-long
+            update_fn=lambda e, m: decay * e + (1.0 - decay) * m,
         )

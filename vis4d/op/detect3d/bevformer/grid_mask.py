@@ -1,4 +1,5 @@
 """Grid mask for BEVFormer."""
+
 import numpy as np
 import torch
 from PIL import Image

@@ -1,4 +1,5 @@
 """Test MultiLevelSegLoss."""
+
 import torch
 
 from vis4d.op.loss import MultiLevelSegLoss

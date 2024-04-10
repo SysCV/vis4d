@@ -1,4 +1,5 @@
 """Vis4D Visualization tools for analysis and debugging."""
+
 from __future__ import annotations
 
 from vis4d.common.imports import OPEN3D_AVAILABLE
@@ -146,9 +147,11 @@ class PointCloudVisualizer(Visualizer):
                         semantics[idx, ...] if semantics is not None else None,
                         instances[idx, ...] if instances is not None else None,
                         colors[idx, ...] if colors is not None else None,
-                        scene_index[idx, ...]
-                        if scene_index is not None
-                        else None,
+                        (
+                            scene_index[idx, ...]
+                            if scene_index is not None
+                            else None
+                        ),
                     )
 
             else:

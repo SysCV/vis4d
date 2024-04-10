@@ -1,4 +1,5 @@
 """Utility functions for segmentation masks."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -62,10 +63,10 @@ def _do_paste_mask(
     num_masks = masks.shape[0]
 
     img_y: Tensor = (
-        torch.arange(y0_int, y1_int, device=device, dtype=torch.float32) + 0.5  # type: ignore # pylint: disable=line-too-long
+        torch.arange(y0_int, y1_int, device=device, dtype=torch.float32) + 0.5
     )
     img_x: Tensor = (
-        torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5  # type: ignore # pylint: disable=line-too-long
+        torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5
     )
     img_y = (img_y - y0) / (y1 - y0) * 2 - 1  # (N, h)
     img_x = (img_x - x0) / (x1 - x0) * 2 - 1  # (N, w)

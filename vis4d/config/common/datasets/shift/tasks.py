@@ -1,4 +1,5 @@
 """SHIFT data loading config for segmentation."""
+
 from __future__ import annotations
 
 from ml_collections.config_dict import ConfigDict

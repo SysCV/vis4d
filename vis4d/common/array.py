@@ -1,4 +1,5 @@
 """This module contains array utility functions."""
+
 from __future__ import annotations
 
 from typing import overload
@@ -23,76 +24,65 @@ from vis4d.common.typing import (
 @overload
 def array_to_numpy(
     data: ArrayLike, n_dims: int | None, dtype: type[NumpyBool]
-) -> NDArrayBool:
-    ...
+) -> NDArrayBool: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
-) -> NDArrayFloat:
-    ...
+) -> NDArrayFloat: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike, n_dims: int | None, dtype: type[NumpyInt]
-) -> NDArrayInt:
-    ...
+) -> NDArrayInt: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike, n_dims: int | None, dtype: type[NumpyUInt]
-) -> NDArrayUInt:
-    ...
+) -> NDArrayUInt: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyBool]
-) -> NDArrayBool | None:
-    ...
+) -> NDArrayBool | None: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyFloat]
-) -> NDArrayFloat | None:
-    ...
+) -> NDArrayFloat | None: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyInt]
-) -> NDArrayInt | None:
-    ...
+) -> NDArrayInt | None: ...
 
 
 @overload
 def array_to_numpy(
     data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyUInt]
-) -> NDArrayUInt | None:
-    ...
+) -> NDArrayUInt | None: ...
 
 
 @overload
-def array_to_numpy(data: ArrayLike, n_dims: int | None) -> NDArrayNumber:
-    ...
+def array_to_numpy(data: ArrayLike, n_dims: int | None) -> NDArrayNumber: ...
 
 
 @overload
-def array_to_numpy(data: None) -> None:
-    ...
+def array_to_numpy(data: None) -> None: ...
 
 
 def array_to_numpy(
     data: ArrayLike | None,
     n_dims: int | None = None,
-    dtype: type[NumpyBool]
-    | type[NumpyFloat]
-    | type[NumpyInt]
-    | type[NumpyUInt] = np.float32,
+    dtype: (
+        type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] | type[NumpyUInt]
+    ) = np.float32,
 ) -> NDArrayNumber | None:
     """Converts a given array like object to a numpy array.
 
@@ -168,38 +158,33 @@ def array_to_numpy(
 @overload
 def arrays_to_numpy(
     *args: ArrayLike, n_dims: int | None, dtype: type[NumpyBool]
-) -> tuple[NDArrayBool, ...]:
-    ...
+) -> tuple[NDArrayBool, ...]: ...
 
 
 @overload
 def arrays_to_numpy(
     *args: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
-) -> tuple[NDArrayFloat, ...]:
-    ...
+) -> tuple[NDArrayFloat, ...]: ...
 
 
 @overload
 def arrays_to_numpy(
     *args: ArrayLike, n_dims: int | None, dtype: type[NumpyInt]
-) -> tuple[NDArrayInt, ...]:
-    ...
+) -> tuple[NDArrayInt, ...]: ...
 
 
 @overload
 def arrays_to_numpy(
     *args: ArrayLike, n_dims: int | None, dtype: type[NumpyUInt]
-) -> tuple[NDArrayUInt, ...]:
-    ...
+) -> tuple[NDArrayUInt, ...]: ...
 
 
 def arrays_to_numpy(
     *args: ArrayLike | None,
     n_dims: int | None = None,
-    dtype: type[NumpyBool]
-    | type[NumpyFloat]
-    | type[NumpyInt]
-    | type[NumpyUInt] = np.float32,
+    dtype: (
+        type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] | type[NumpyUInt]
+    ) = np.float32,
 ) -> tuple[NDArrayNumber | None, ...]:
     """Converts a given sequence of optional ArrayLike objects to numpy.
 

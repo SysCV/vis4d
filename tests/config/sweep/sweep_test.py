@@ -1,6 +1,5 @@
 """Vis4d Sweep Config Tests."""
 
-
 import unittest
 
 import numpy as np

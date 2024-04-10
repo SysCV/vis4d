@@ -1,4 +1,5 @@
 """BDD100K data loading config for QDTrack YOLOX."""
+
 from __future__ import annotations
 
 from ml_collections import ConfigDict

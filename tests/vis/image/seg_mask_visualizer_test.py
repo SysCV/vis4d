@@ -1,4 +1,5 @@
 """Tests for the semantic mask visualizer."""
+
 import os
 import pickle
 import shutil

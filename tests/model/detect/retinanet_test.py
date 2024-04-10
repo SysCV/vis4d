@@ -1,4 +1,5 @@
 """RetinaNet tests."""
+
 import unittest
 
 import torch

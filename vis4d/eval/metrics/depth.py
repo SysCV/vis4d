@@ -126,8 +126,7 @@ def delta_p(
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
     return np.mean(
-        np.maximum((target / prediction), (prediction / target))
-        < 1.25**power
+        np.maximum((target / prediction), (prediction / target)) < 1.25**power
     ).item()
 
 

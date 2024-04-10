@@ -1,4 +1,5 @@
 """Attention layer."""
+
 from __future__ import annotations
 
 from torch import Tensor, nn
@@ -209,7 +210,7 @@ class MultiheadAttention(nn.Module):
         # from num_query_first to batch_first.
         if self.batch_first:
             query = query.transpose(0, 1)
-            key = key.transpose(0, 1)  # type: ignore
+            key = key.transpose(0, 1)
             value = value.transpose(0, 1)
 
         out = self.attn(

@@ -1,4 +1,5 @@
 """Scalabel type dataset."""
+
 from __future__ import annotations
 
 import os
@@ -107,10 +108,9 @@ def instance_ids_to_global(
                         for v in video_names[: video_names.index(video_name)]
                     )
                 )
-                label.attributes[
-                    "instance_id"
-                ] = sum_previous_vids + local_instance_ids[video_name].index(
-                    label.id
+                label.attributes["instance_id"] = (
+                    sum_previous_vids
+                    + local_instance_ids[video_name].index(label.id)
                 )
 
 

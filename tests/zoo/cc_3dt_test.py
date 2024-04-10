@@ -1,4 +1,5 @@
 """CC-3DT configs tests."""
+
 import unittest
 
 from .util import compare_configs

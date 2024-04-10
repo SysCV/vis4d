@@ -1,4 +1,5 @@
 """CLI interface."""
+
 from __future__ import annotations
 
 from absl import app

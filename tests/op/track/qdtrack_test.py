@@ -1,4 +1,5 @@
 """Test cases for quasi dense tracking graph construction."""
+
 import torch
 
 from tests.util import fill_weights, get_test_file

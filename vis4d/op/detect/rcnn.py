@@ -1,4 +1,5 @@
 """Faster R-CNN RoI head."""
+
 from __future__ import annotations
 
 from math import prod

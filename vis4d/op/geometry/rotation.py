@@ -1,4 +1,5 @@
 """Rotation utilities."""
+
 import functools
 
 import torch
@@ -25,18 +26,18 @@ def acute_angle(theta_1: Tensor, theta_2: Tensor) -> Tensor:
     """Update theta_1 to mkae the agnle between two thetas is acute."""
     # Make sure the angle between two thetas is acute
     if torch.pi / 2.0 < abs(theta_2 - theta_1) < torch.pi * 3 / 2.0:
-        theta_1 += torch.pi  # type: ignore
+        theta_1 += torch.pi
         if theta_1 > torch.pi:
-            theta_1 -= torch.pi * 2  # type: ignore
+            theta_1 -= torch.pi * 2
         if theta_1 < -torch.pi:
-            theta_1 += torch.pi * 2  # type: ignore
+            theta_1 += torch.pi * 2
 
     # Convert the case of > 270 to < 90
     if abs(theta_2 - theta_1) >= torch.pi * 3 / 2.0:
         if theta_2 > 0:
-            theta_1 += torch.pi * 2  # type: ignore
+            theta_1 += torch.pi * 2
         else:
-            theta_1 -= torch.pi * 2  # type: ignore
+            theta_1 -= torch.pi * 2
     return theta_1
 
 
@@ -88,7 +89,7 @@ def rotation_output_to_alpha(output: Tensor, num_bins: int = 2) -> Tensor:
     bin_centers = torch.arange(
         -torch.pi, torch.pi, 2 * torch.pi / num_bins, device=output.device
     )
-    bin_centers += torch.pi / num_bins  # type: ignore
+    bin_centers += torch.pi / num_bins
     alpha = (
         torch.atan(output[out_range, res_idx] / output[out_range, res_idx + 1])
         + bin_centers[bin_idx]
@@ -354,7 +355,7 @@ def matrix_to_quaternion(matrix: Tensor) -> Tensor:
     q_abs = _sqrt_positive_part(
         torch.stack(
             [
-                1.0 + m00 + m11 + m22,  # type: ignore
+                1.0 + m00 + m11 + m22,
                 1.0 + m00 - m11 - m22,
                 1.0 - m00 + m11 - m22,
                 1.0 - m00 - m11 + m22,

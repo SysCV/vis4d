@@ -1,4 +1,5 @@
 """Basic data augmentation class."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
@@ -111,11 +112,13 @@ class Transform:
                         # dict as aux input and set default value to None if
                         # key is not found
                         key_data += [
-                            get_dict_nested(
-                                data, key.split("."), allow_missing=True
+                            (
+                                get_dict_nested(
+                                    data, key.split("."), allow_missing=True
+                                )
+                                if key != "data"
+                                else data
                             )
-                            if key != "data"
-                            else data
                         ]
                     if any(d is None for d in key_data):
                         # If any of the data in the batch is None, replace

@@ -1,4 +1,5 @@
 """Function interface for image visualization functions."""
+
 from __future__ import annotations
 
 import numpy as np

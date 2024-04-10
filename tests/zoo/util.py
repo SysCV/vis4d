@@ -1,4 +1,5 @@
 """Utility functions for model zoo tests."""
+
 from __future__ import annotations
 
 import importlib

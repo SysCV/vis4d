@@ -1,4 +1,5 @@
 """BEV Bounding box 3D visualizer."""
+
 from __future__ import annotations
 
 import os
@@ -91,9 +92,9 @@ class BEVBBox3DVisualizer(Visualizer):
         super().__init__(*args, **kwargs)
         self._samples: list[DataSample] = []
         self.axis_mode = axis_mode
-        self.trajectories: dict[
-            int, list[tuple[float, float, float]]
-        ] = defaultdict(list)
+        self.trajectories: dict[int, list[tuple[float, float, float]]] = (
+            defaultdict(list)
+        )
         self.trajectory_length = trajectory_length
         self.plot_trajectory = plot_trajectory
 
@@ -142,9 +143,11 @@ class BEVBBox3DVisualizer(Visualizer):
                     extrinsics[batch],  # type: ignore
                     class_ids[batch] if class_ids is not None else None,
                     track_ids[batch] if track_ids is not None else None,
-                    sequence_names[batch]
-                    if sequence_names is not None
-                    else None,
+                    (
+                        sequence_names[batch]
+                        if sequence_names is not None
+                        else None
+                    ),
                 )
 
             for tid in self.trajectories:

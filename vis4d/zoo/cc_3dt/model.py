@@ -1,4 +1,5 @@
 """CC-3DT model config."""
+
 from __future__ import annotations
 
 from ml_collections import ConfigDict, FieldReference

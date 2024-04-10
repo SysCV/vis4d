@@ -1,4 +1,5 @@
 """FCN ResNet configs tests."""
+
 import unittest
 
 from .util import compare_configs

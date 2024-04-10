@@ -1,4 +1,5 @@
 """Provides functionalities to wrap torchvision datasets."""
+
 from __future__ import annotations
 
 from collections.abc import Callable

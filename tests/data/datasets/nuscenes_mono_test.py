@@ -1,4 +1,5 @@
 """NuScenes monocular dataset testing class."""
+
 import unittest
 
 from tests.util import get_test_data

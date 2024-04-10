@@ -1,4 +1,5 @@
 """Replication methods to perform different parameters sweeps."""
+
 from __future__ import annotations
 
 import re
@@ -29,8 +30,7 @@ def iterable_sampler(  # type: ignore
     """
 
     def _sampler() -> Generator[float, None, None]:
-        for s in samples:
-            yield s
+        yield from samples
 
     return _sampler
 
@@ -156,10 +156,8 @@ def replicate_config(  # type: ignore
     for key, value in sampling_args:
         # Convert Iterable to a callable generator
         if isinstance(value, Iterable):
-            generator: Callable[
-                [], Generator[ArgsType, None, None]
-            ] = lambda value=value: (  # type: ignore
-                i for i in value
+            generator: Callable[[], Generator[ArgsType, None, None]] = (
+                lambda value=value: (i for i in value)  # type: ignore
             )
             sampling_queue.put((key, generator))
         else:
@@ -257,8 +255,7 @@ def _replicate_config_grid(  # type: ignore
             configuration.update_from_flattened_dict({key_name: value})
 
         # Let the other samplers process the remaining keys
-        for config in _replicate_config_grid(configuration, sampling_queue):
-            yield config
+        yield from _replicate_config_grid(configuration, sampling_queue)
 
     # Add back this sampler for next round
     sampling_queue.put((key_name, sampler))
@@ -316,10 +313,9 @@ def _replicate_config_linear(  # type: ignore
             configuration.update_from_flattened_dict({key_name: value})
 
         # Let the other samplers process the remaining keys
-        for config in _replicate_config_linear(
+        yield from _replicate_config_linear(
             configuration, sampling_queue, current_position
-        ):
-            yield config
+        )
 
         if is_top_level:
             current_position += 1

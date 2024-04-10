@@ -1,4 +1,5 @@
 """Test checkpoint."""
+
 from vis4d.common.ckpt import get_torchvision_models, load_from_torchvision
 
 

@@ -1,4 +1,5 @@
 """3D bounding box coder."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -81,7 +82,7 @@ class QD3DTBox3DEncoder:
             2 * np.pi / self.num_rotation_bins,
             device=alpha.device,
         )
-        bin_centers += np.pi / self.num_rotation_bins  # type: ignore
+        bin_centers += np.pi / self.num_rotation_bins
         for i in range(alpha.shape[0]):
             overlap_value = (
                 np.pi * 2 / self.num_rotation_bins * self.bin_overlap

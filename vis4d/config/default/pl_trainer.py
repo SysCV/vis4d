@@ -1,7 +1,8 @@
 """Default runtime configuration for PyTorch Lightning."""
+
 import inspect
 
-import pytorch_lightning as pl
+from lightning import Trainer
 
 from vis4d.config import FieldConfigDict
 from vis4d.config.typing import ExperimentConfig
@@ -12,7 +13,7 @@ def get_default_pl_trainer_cfg(config: ExperimentConfig) -> ExperimentConfig:
     pl_trainer = FieldConfigDict()
 
     # PL Trainer arguments
-    for k, v in inspect.signature(pl.Trainer).parameters.items():
+    for k, v in inspect.signature(Trainer).parameters.items():
         if not k in {"callbacks", "devices", "logger", "strategy"}:
             pl_trainer[k] = v.default
 

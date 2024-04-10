@@ -1,4 +1,5 @@
 """Pillow backend implementation to draw on images."""
+
 from __future__ import annotations
 
 import base64
@@ -85,7 +86,9 @@ class PillowCanvasBackend(CanvasBackend):
         bitmap_pil = Image.fromarray(
             bitmap_with_alpha.astype(np.uint8), mode="RGBA"
         )
-        self._image_draw.bitmap(top_left_corner, bitmap_pil, fill=color)
+        self._image_draw.bitmap(
+            top_left_corner, bitmap_pil, fill=color  # type: ignore
+        )
 
     def draw_text(
         self,

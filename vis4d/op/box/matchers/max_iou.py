@@ -1,4 +1,5 @@
 """Match predictions and targets according to maximum 2D IoU."""
+
 from __future__ import annotations
 
 import torch

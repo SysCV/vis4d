@@ -1,4 +1,5 @@
 """SHIFT optical flow estimation evaluator."""
+
 from __future__ import annotations
 
 from ..common import OpticalFlowEvaluator

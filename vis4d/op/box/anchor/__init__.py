@@ -1,4 +1,5 @@
 """Anchor and point generators."""
+
 from .anchor_generator import AnchorGenerator, anchor_inside_image
 from .point_generator import MlvlPointGenerator
 

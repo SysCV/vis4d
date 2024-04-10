@@ -1,4 +1,5 @@
 """Data structures to store 3D data."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

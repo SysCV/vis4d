@@ -1,4 +1,5 @@
 """SHIFT dataset config."""
+
 from .tasks import (
     CONN_SHIFT_DET_EVAL,
     CONN_SHIFT_INS_EVAL,

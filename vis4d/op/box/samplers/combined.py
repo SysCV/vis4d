@@ -1,4 +1,5 @@
 """Combined Sampler."""
+
 from __future__ import annotations
 
 import torch
@@ -135,9 +136,9 @@ class CombinedSampler(Sampler):
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(self.batch_size * self.positive_fraction)
 
-        positive_mask: Tensor = (  # type:ignore
-            matching.assigned_labels != -1
-        ) & (matching.assigned_labels != self.bg_label)
+        positive_mask: Tensor = (matching.assigned_labels != -1) & (
+            matching.assigned_labels != self.bg_label
+        )
         negative_mask = torch.eq(matching.assigned_labels, self.bg_label)
 
         positive = positive_mask.nonzero()[:, 0]
