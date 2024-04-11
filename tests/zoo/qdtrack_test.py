@@ -9,7 +9,7 @@ class TestQDTrackConfig(unittest.TestCase):
     """Tests the content of the provided configs for QDTrack."""
 
     config_prefix = "qdtrack"
-    gt_config_path = "tests/vis4d-test-data/config_test/qdtrack"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/qdtrack"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_frcnn_r50_fpn_augs_1x_bdd100k(self) -> None:

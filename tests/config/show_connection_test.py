@@ -2,15 +2,14 @@
 
 import unittest
 
-from tests.zoo.util import content_equal, get_config_for_name
+from tests.util import content_equal, get_test_file
+from tests.zoo.util import get_config_for_name
 from vis4d.config import instantiate_classes
 from vis4d.config.show_connection import prints_datagraph_for_config
 
 
 class TestShowConfig(unittest.TestCase):
     """Tests the content of the provided configs for Show."""
-
-    gt_config_path = "tests/vis4d-test-data/config_test"
 
     def test_show_frcnn(self) -> None:
         """Test the config for faster_rcnn_coco.py.
@@ -36,11 +35,7 @@ class TestShowConfig(unittest.TestCase):
             model, train_data_connector, test_data_connector, loss, callbacks
         )
 
-        with open(
-            f"{self.gt_config_path}/connection.txt",
-            "r",
-            encoding="UTF-8",
-        ) as f:
+        with open(get_test_file("connection.txt"), "r", encoding="UTF-8") as f:
             gt_dg = f.read()
 
         self.assertTrue(content_equal(dg, gt_dg))

@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
 from vis4d.config import class_config
-from vis4d.config.util import get_optimizer_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_train_dataloader
@@ -38,6 +37,7 @@ from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
+from vis4d.zoo.base import get_optimizer_cfg
 
 
 def seg_pipeline(data: list[DictData]) -> DictData:

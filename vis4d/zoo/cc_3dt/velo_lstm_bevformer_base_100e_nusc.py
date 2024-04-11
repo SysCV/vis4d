@@ -7,21 +7,6 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import class_config
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.typing import (
-    DataConfig,
-    ExperimentConfig,
-    ExperimentParameters,
-)
-from vis4d.config.util import (
-    get_lr_scheduler_cfg,
-    get_optimizer_cfg,
-    get_train_dataloader_cfg,
-)
 from vis4d.data.datasets.nuscenes_trajectory import NuScenesTrajectory
 from vis4d.engine.connectors import (
     DataConnector,
@@ -32,6 +17,15 @@ from vis4d.engine.connectors import (
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.motion.velo_lstm import VeloLSTM
 from vis4d.op.motion.velo_lstm import VeloLSTMLoss
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+    get_train_dataloader_cfg,
+)
+from vis4d.zoo.typing import DataConfig, ExperimentConfig, ExperimentParameters
 
 TRAJ_TRAIN = {"pred_traj": "pred_traj"}
 TRAJ_LOSS = {

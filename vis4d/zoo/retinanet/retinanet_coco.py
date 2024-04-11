@@ -7,23 +7,6 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.coco import (
-    CONN_COCO_BBOX_EVAL,
-    get_coco_detection_cfg,
-)
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_VIS,
-    CONN_BOX_LOSS_2D,
-    CONN_IMAGES_TEST,
-    CONN_IMAGES_TRAIN,
-)
-from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
@@ -40,6 +23,24 @@ from vis4d.op.detect.retinanet import (
     get_default_anchor_generator,
 )
 from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
+from vis4d.zoo.base.data_connectors import (
+    CONN_BBOX_2D_VIS,
+    CONN_BOX_LOSS_2D,
+    CONN_IMAGES_TEST,
+    CONN_IMAGES_TRAIN,
+)
+from vis4d.zoo.base.datasets.coco import (
+    CONN_COCO_BBOX_EVAL,
+    get_coco_detection_cfg,
+)
+from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

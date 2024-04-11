@@ -9,7 +9,7 @@ class TestBEVFormerConfig(unittest.TestCase):
     """Tests the content of the provided configs."""
 
     config_prefix = "bevformer"
-    gt_config_path = "tests/vis4d-test-data/config_test/bevformer"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/bevformer"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_bevformer_base(self) -> None:

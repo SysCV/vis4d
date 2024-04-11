@@ -7,23 +7,6 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.bdd100k import (
-    CONN_BDD100K_SEG_EVAL,
-    get_bdd100k_sem_seg_cfg,
-)
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.default.data_connectors.seg import (
-    CONN_MASKS_TEST,
-    CONN_MASKS_TRAIN,
-    CONN_SEG_LOSS,
-    CONN_SEG_VIS,
-)
-from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import (
@@ -38,6 +21,24 @@ from vis4d.model.seg.semantic_fpn import SemanticFPN
 from vis4d.op.base import ResNetV1c
 from vis4d.op.loss import SegCrossEntropyLoss
 from vis4d.vis.image import SegMaskVisualizer
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
+from vis4d.zoo.base.data_connectors.seg import (
+    CONN_MASKS_TEST,
+    CONN_MASKS_TRAIN,
+    CONN_SEG_LOSS,
+    CONN_SEG_VIS,
+)
+from vis4d.zoo.base.datasets.bdd100k import (
+    CONN_BDD100K_SEG_EVAL,
+    get_bdd100k_sem_seg_cfg,
+)
+from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

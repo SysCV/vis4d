@@ -7,28 +7,29 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.bdd100k import (
-    CONN_BDD100K_TRACK_EVAL,
-    get_bdd100k_track_cfg,
-)
-from vis4d.config.common.models.qdtrack import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
-    get_qdtrack_cfg,
-)
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.datasets.bdd100k import bdd100k_track_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.bdd100k import BDD100KTrackEvaluator
 from vis4d.op.base import ResNet
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
+from vis4d.zoo.base.datasets.bdd100k import (
+    CONN_BDD100K_TRACK_EVAL,
+    get_bdd100k_track_cfg,
+)
+from vis4d.zoo.base.models.qdtrack import (
+    CONN_BBOX_2D_TEST,
+    CONN_BBOX_2D_TRAIN,
+    get_qdtrack_cfg,
+)
+from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

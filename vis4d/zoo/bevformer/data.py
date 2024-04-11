@@ -5,12 +5,6 @@ from __future__ import annotations
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.nuscenes import (
-    get_nusc_mini_val_cfg,
-    get_nusc_val_cfg,
-)
-from vis4d.config.typing import DataConfig
-from vis4d.config.util import get_inference_dataloaders_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
 from vis4d.data.loader import multi_sensor_collate
@@ -24,6 +18,12 @@ from vis4d.data.transforms.resize import (
 )
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
+from vis4d.zoo.base import get_inference_dataloaders_cfg
+from vis4d.zoo.base.datasets.nuscenes import (
+    get_nusc_mini_val_cfg,
+    get_nusc_val_cfg,
+)
+from vis4d.zoo.typing import DataConfig
 
 nuscenes_class_map = {
     "car": 0,

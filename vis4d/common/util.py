@@ -5,9 +5,10 @@ from difflib import get_close_matches
 
 import numpy as np
 import torch
+from packaging import version
 
 from .imports import is_torch_tf32_available
-from .logging import rank_zero_warn
+from .logging import rank_zero_info, rank_zero_warn
 
 
 def create_did_you_mean_msg(keys: list[str], query: str) -> str:
@@ -34,22 +35,40 @@ def create_did_you_mean_msg(keys: list[str], query: str) -> str:
     return msg
 
 
-def set_tf32(use_tf32: bool = False) -> None:  # pragma: no cover
+def set_tf32(use_tf32: bool, precision: str) -> None:  # pragma: no cover
     """Set torch TF32.
 
     Args:
-        use_tf32: Whether to use torch TF32.
+        use_tf32: Whether to use torch TF32. Details:
+            https://pytorch.org/docs/stable/notes/cuda.html#tf32-on-ampere
+        precision: Internal precision of float32 matrix multiplications.
+             Details: https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision # pylint: disable=line-too-long
     """
-    if is_torch_tf32_available():  # pragma: no cover
-        if use_tf32:
-            rank_zero_warn(
-                "Torch TF32 is available and turned on by default! "
-                + "It might harm the performance due to the precision. "
-                + "You can turn it off by setting trainer.use_tf32=False."
-            )
+    if use_tf32:  # pragma: no cover
+        rank_zero_info(
+            "Using Torch TF32. "
+            + "It might harm the performance due to the precision. "
+            + "You can turn it off by setting config.use_tf32=False."
+        )
+        if not is_torch_tf32_available():
+            rank_zero_warn("Torch TF32 is not available.")
+        elif (
+            version.parse("1.11")
+            >= version.parse(torch.__version__)
+            >= version.parse("1.7")
+        ):
+            rank_zero_info("Torch TF32 is turned on by default!")
         else:
-            torch.backends.cuda.matmul.allow_tf32 = False
-            torch.backends.cudnn.allow_tf32 = False
+            rank_zero_info("Turn on Torch TF32 on matmul.")
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+    else:
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+
+    # Control the precision of matmul operations.
+    # Equivalent to setting torch.backends.cuda.matmul.allow_tf32.
+    torch.set_float32_matmul_precision(precision)
 
 
 def init_random_seed() -> int:

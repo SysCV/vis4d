@@ -15,11 +15,11 @@ from vis4d.common.logging import rank_zero_info
 from vis4d.common.typing import DictStrAny
 from vis4d.common.util import init_random_seed
 from vis4d.config import instantiate_classes
-from vis4d.config.typing import OptimizerConfig
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import LRSchedulerWrapper, set_up_optimizers
+from vis4d.zoo.typing import OptimizerConfig
 
 
 class TrainingModule(pl.LightningModule):

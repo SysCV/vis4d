@@ -13,7 +13,7 @@ from typing_extensions import NotRequired
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.config import instantiate_classes
-from vis4d.config.typing import OptimizerConfig, ParamGroupCfg
+from vis4d.zoo.typing import OptimizerConfig, ParamGroupCfg
 
 from .scheduler import LRSchedulerWrapper
 

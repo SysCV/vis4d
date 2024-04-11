@@ -6,8 +6,8 @@ import lightning.pytorch as pl
 from torch.utils.data import DataLoader
 
 from vis4d.config import instantiate_classes
-from vis4d.config.typing import DataConfig
 from vis4d.data.typing import DictData
+from vis4d.zoo.typing import DataConfig
 
 
 class DataModule(pl.LightningDataModule):

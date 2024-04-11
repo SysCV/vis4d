@@ -31,7 +31,7 @@ from vis4d.common.logging import (
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.config.typing import ExperimentConfig
+from vis4d.zoo.typing import ExperimentConfig
 
 from .optim import set_up_optimizers
 from .parser import pprints_config
@@ -110,7 +110,8 @@ def run_experiment(
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
     # PyTorch Setting
-    set_tf32(config.use_tf32)
+    set_tf32(config.use_tf32, config.tf32_matmul_precision)
+    torch.hub.set_dir(f"{config.work_dir}/.cache/torch/hub")
     torch.backends.cudnn.benchmark = config.benchmark
 
     if show_config:

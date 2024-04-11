@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os.path as osp
 
+import torch
 from absl import app
 from lightning.fabric.utilities.exceptions import MisconfigurationException
 from lightning.pytorch import Callback
@@ -14,7 +15,6 @@ from vis4d.common import ArgsType
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.config.typing import ExperimentConfig
 from vis4d.engine.callbacks.checkpoint import CheckpointCallback
 from vis4d.engine.flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG
 from vis4d.engine.parser import pprints_config
@@ -22,6 +22,7 @@ from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import PLTrainer
 from vis4d.pl.training_module import TrainingModule
+from vis4d.zoo.typing import ExperimentConfig
 
 
 def main(argv: ArgsType) -> None:
@@ -46,7 +47,8 @@ def main(argv: ArgsType) -> None:
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
     # PyTorch Setting
-    set_tf32(config.use_tf32)
+    set_tf32(config.use_tf32, config.tf32_matmul_precision)
+    torch.hub.set_dir(f"{config.work_dir}/.cache/torch/hub")
 
     # Setup device
     if num_gpus > 0:

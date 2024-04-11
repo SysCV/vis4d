@@ -17,7 +17,7 @@ from ml_collections.config_flags.config_flags import (
 )
 
 from vis4d.config import copy_and_resolve_references
-from vis4d.config.util.registry import get_config_by_name
+from vis4d.config.registry import get_config_by_name
 
 
 class ConfigFileParser(flags.ArgumentParser):  # type: ignore

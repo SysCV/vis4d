@@ -7,11 +7,11 @@ import unittest
 import torch
 
 from tests.util import MOCKLOSS, MockModel
-from vis4d.config.default.data_connectors import CONN_BBOX_2D_VIS
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import TrainerState, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector
 from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.zoo.base.data_connectors import CONN_BBOX_2D_VIS
 
 
 class TestVisualizerCallback(unittest.TestCase):

@@ -9,7 +9,7 @@ class TestMaskRCNNConfig(unittest.TestCase):
     """Tests the content of the provided configs for Mask-RCNN."""
 
     config_prefix = "mask_rcnn"
-    gt_config_path = "tests/vis4d-test-data/config_test/mask_rcnn"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/mask_rcnn"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_r50_fpn_coco(self) -> None:

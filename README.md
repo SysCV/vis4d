@@ -92,4 +92,4 @@ srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.run test \
 
 ## Contribute
 
-[Check out our contribution guidelines for this project](docs/source/contribute.rst)
+[Check out our contribution guidelines for this project](docs/source/dev_guide/contribute.rst)

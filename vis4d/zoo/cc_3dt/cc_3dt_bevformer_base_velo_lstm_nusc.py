@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
-from vis4d.config.typing import DataConfig, ExperimentConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.nuscenes_detection import NuScenesDetection
@@ -18,6 +17,7 @@ from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc import (
     get_config as get_velo_lstm_cfg,
 )
 from vis4d.zoo.cc_3dt.data import CONN_NUSC_BBOX_3D_TEST, get_test_dataloader
+from vis4d.zoo.typing import DataConfig, ExperimentConfig
 
 CONN_NUSC_BBOX_3D_TEST = {
     "images_list": data_key(K.images, sensors=NuScenes.CAMERAS),

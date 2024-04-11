@@ -7,11 +7,11 @@ import unittest
 import torch
 
 from tests.util import MockModel, get_test_data
-from vis4d.config.common.datasets.coco import CONN_COCO_MASK_EVAL
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import EvaluatorCallback, TrainerState
 from vis4d.engine.connectors import CallbackConnector
 from vis4d.eval.coco import COCODetectEvaluator
+from vis4d.zoo.base.datasets.coco import CONN_COCO_MASK_EVAL
 
 
 class TestEvaluatorCallback(unittest.TestCase):

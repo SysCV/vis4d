@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import LRScheduler
 
 from vis4d.common.typing import DictStrAny
 from vis4d.config import copy_and_resolve_references, instantiate_classes
-from vis4d.config.typing import LrSchedulerConfig
+from vis4d.zoo.typing import LrSchedulerConfig
 
 
 class LRSchedulerDict(TypedDict):
