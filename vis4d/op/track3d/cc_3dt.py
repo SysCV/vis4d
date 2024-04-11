@@ -324,8 +324,8 @@ class CC3DTrackAssociation:
             # Depth Ordering
             scores_depth = self.depth_ordering(
                 detections_3d,
-                memory_boxes_3d,
                 memory_boxes_3d_predict,
+                memory_boxes_3d,
                 memory_velocities,
             )
 

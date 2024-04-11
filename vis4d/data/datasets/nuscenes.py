@@ -240,6 +240,9 @@ class NuScenes(CacheMappingMixin, VideoDataset):
 
     def _filter_data(self, data: list[DictStrAny]) -> list[DictStrAny]:
         """Remove empty samples."""
+        if self.split == "test":
+            return data
+
         samples = []
         frequencies = {cat: 0 for cat in nuscenes_class_map}
         inv_nuscenes_class_map = {v: k for k, v in nuscenes_class_map.items()}
@@ -424,13 +427,15 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                 lidar_token = sample["data"]["LIDAR_TOP"]
 
                 frame["LIDAR_TOP"] = self._load_lidar_data(data, lidar_token)
-                frame["LIDAR_TOP"]["annotations"] = self._load_annotations(
-                    data,
-                    frame["LIDAR_TOP"]["extrinsics"],
-                    sample["anns"],
-                    instance_tokens,
-                    axis_mode=AxisMode.LIDAR,
-                )
+
+                if self.split != "test":
+                    frame["LIDAR_TOP"]["annotations"] = self._load_annotations(
+                        data,
+                        frame["LIDAR_TOP"]["extrinsics"],
+                        sample["anns"],
+                        instance_tokens,
+                        axis_mode=AxisMode.LIDAR,
+                    )
 
                 # obtain sweeps for a single key-frame
                 sweeps: list[DictStrAny] = []
@@ -448,16 +453,18 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     cam_token = sample["data"][cam]
 
                     frame[cam] = self._load_cam_data(data, cam_token)
-                    frame[cam]["annotations"] = self._load_annotations(
-                        data,
-                        frame[cam]["extrinsics"],
-                        sample["anns"],
-                        instance_tokens,
-                        axis_mode=AxisMode.OPENCV,
-                        export_2d_annotations=True,
-                        intrinsics=frame[cam]["intrinsics"],
-                        image_hw=frame[cam]["image_hw"],
-                    )
+
+                    if self.split != "test":
+                        frame[cam]["annotations"] = self._load_annotations(
+                            data,
+                            frame[cam]["extrinsics"],
+                            sample["anns"],
+                            instance_tokens,
+                            axis_mode=AxisMode.OPENCV,
+                            export_2d_annotations=True,
+                            intrinsics=frame[cam]["intrinsics"],
+                            image_hw=frame[cam]["image_hw"],
+                        )
 
                 # TODO add RADAR, Map
 
