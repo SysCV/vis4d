@@ -95,6 +95,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "terminaltables.*",
         "timm.*",
         "vis4d_cuda_ops.*",
+        "fvcore.*",
     ]
     ignore_missing_imports = true
 

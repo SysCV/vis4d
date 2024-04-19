@@ -16,24 +16,28 @@ from torch import (  # pylint: disable=no-name-in-module
     Tensor,
 )
 
+NumpyBool = np.bool_
 NumpyFloat = Union[np.float32, np.float64]
 NumpyInt = Union[np.int32, np.int64]
-NumpyUInt = np.uint8  # pylint: disable=invalid-name
-NumpyBool = np.bool_
+NumpyUInt = Union[  # pylint: disable=invalid-name
+    np.uint8, np.uint16, np.uint32
+]
 
-NDArrayF64 = npt.NDArray[np.float64]
+NDArrayBool = npt.NDArray[np.bool_]
 NDArrayF32 = npt.NDArray[np.float32]
-NDArrayI64 = npt.NDArray[np.int64]
+NDArrayF64 = npt.NDArray[np.float64]
+NDArrayFloat = Union[NDArrayF32, NDArrayF64]
 NDArrayI32 = npt.NDArray[np.int32]
+NDArrayI64 = npt.NDArray[np.int64]
+NDArrayInt = Union[NDArrayI32, NDArrayI64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 NDArrayUI16 = npt.NDArray[np.uint16]
 NDArrayUI32 = npt.NDArray[np.uint32]
-NDArrayBool = npt.NDArray[np.bool_]
-NDArrayFloat = Union[NDArrayF32, NDArrayF64]
-NDArrayInt = Union[NDArrayI32, NDArrayI64]
-NDArrayUInt = NDArrayUI8
-
+NDArrayUInt = Union[  # pylint: disable=invalid-name
+    NDArrayUI8, NDArrayUI16, NDArrayUI32
+]
 NDArrayNumber = Union[NDArrayBool, NDArrayFloat, NDArrayInt, NDArrayUInt]
+
 MetricLogs = Dict[str, Union[float, int, Tensor]]
 DictStrAny = Dict[str, Any]  # type: ignore
 DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]

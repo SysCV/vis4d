@@ -119,6 +119,7 @@ class MultiheadAttention(nn.Module):
         """
         super().__init__()
         self.batch_first = batch_first
+        self.embed_dims = embed_dims
 
         self.attn = nn.MultiheadAttention(
             embed_dims, num_heads, dropout=attn_drop, **kwargs
@@ -206,7 +207,7 @@ class MultiheadAttention(nn.Module):
         # ``torch.nn.MultiheadAttention`` is (num_query, batch,
         # embed_dims), We should adjust the shape of dataflow from
         # batch_first (batch, num_query, embed_dims) to num_query_first
-        # (num_query ,batch, embed_dims), and recover ``attn_output``
+        # (num_query, batch, embed_dims), and recover ``attn_output``
         # from num_query_first to batch_first.
         if self.batch_first:
             query = query.transpose(0, 1)

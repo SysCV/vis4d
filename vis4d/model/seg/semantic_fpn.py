@@ -65,7 +65,7 @@ class SemanticFPN(nn.Module):
                 "resnet50_v1c",
                 pretrained=True,
                 trainable_layers=5,
-                norm_freezed=False,
+                norm_frozen=False,
             )
 
         self.basemodel = basemodel
@@ -92,7 +92,7 @@ class SemanticFPN(nn.Module):
         features = self.fpn(self.basemodel(images.contiguous()))
         out = self.seg_head(features)
         if self.resize:
-            out = SemanticFPNOut(
+            return SemanticFPNOut(
                 outputs=F.interpolate(
                     out.outputs,
                     scale_factor=4,

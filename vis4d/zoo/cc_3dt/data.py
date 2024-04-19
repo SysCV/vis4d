@@ -5,6 +5,7 @@ from __future__ import annotations
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
+from vis4d.config.typing import DataConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes import NuScenes
@@ -39,7 +40,6 @@ from vis4d.zoo.base.datasets.nuscenes import (
     get_nusc_train_cfg,
     get_nusc_val_cfg,
 )
-from vis4d.zoo.typing import DataConfig
 
 CONN_NUSC_DET3D_EVAL = {
     "tokens": data_key("token"),

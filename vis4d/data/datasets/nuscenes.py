@@ -484,7 +484,7 @@ class NuScenes(CacheMappingMixin, VideoDataset):
         """Load can bus data."""
         try:
             pose_list = can_bus_data.get_messages(scene_name, "pose")
-        except AssertionError:
+        except:  # pylint: disable=bare-except
             # server scenes do not have can bus information.
             return [0.0] * 18
 
@@ -956,6 +956,8 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                     data_dict[cam][K.input_hw] = cam_data["image_hw"]
                     data_dict[cam][K.sample_names] = cam_data["sample_name"]
                     data_dict[cam][K.intrinsics] = cam_data["intrinsics"]
+                    data_dict[cam][K.extrinsics] = cam_data["extrinsics"]
+                    data_dict[cam][K.axis_mode] = AxisMode.OPENCV
 
                 if K.original_images in self.keys_to_load:
                     data_dict[cam][K.original_images] = image
@@ -981,8 +983,6 @@ class NuScenes(CacheMappingMixin, VideoDataset):
                         data_dict[cam]["attributes"] = cam_data["annotations"][
                             "boxes3d_attributes"
                         ]
-                        data_dict[cam][K.extrinsics] = cam_data["extrinsics"]
-                        data_dict[cam][K.axis_mode] = AxisMode.OPENCV
 
                     if K.boxes2d in self.keys_to_load:
                         boxes2d = cam_data["annotations"]["boxes2d"]

@@ -11,15 +11,20 @@ from torch import nn
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
+from vis4d.common.imports import FVCORE_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.typing import DictStrAny
 from vis4d.common.util import init_random_seed
 from vis4d.config import instantiate_classes
+from vis4d.config.typing import OptimizerConfig
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.engine.optim import LRSchedulerWrapper, set_up_optimizers
-from vis4d.zoo.typing import OptimizerConfig
+from vis4d.model.adapter.flops import IGNORED_OPS, FlopsModelAdapter
+
+if FVCORE_AVAILABLE:
+    from fvcore.nn import FlopCountAnalysis
 
 
 class TrainingModule(pl.LightningModule):
@@ -39,6 +44,7 @@ class TrainingModule(pl.LightningModule):
         hyper_parameters: DictStrAny | None = None,
         seed: int = -1,
         ckpt_path: None | str = None,
+        compute_flops: bool = False,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -54,6 +60,9 @@ class TrainingModule(pl.LightningModule):
             seed (int, optional): The integer value seed for global random
                 state. Defaults to -1. If -1, a random seed will be generated.
             ckpt_path (str, optional): The path to the checkpoint to load.
+                Defaults to None.
+            compute_flops (bool, optional): If to compute the FLOPs of the
+                model. Defaults to False.
         """
         super().__init__()
         self.model_cfg = model_cfg
@@ -64,6 +73,7 @@ class TrainingModule(pl.LightningModule):
         self.hyper_parameters = hyper_parameters
         self.seed = seed
         self.ckpt_path = ckpt_path
+        self.compute_flops = compute_flops
 
         # Create model placeholder
         self.model: nn.Module
@@ -134,6 +144,25 @@ class TrainingModule(pl.LightningModule):
     ) -> DictData:
         """Perform a single test step."""
         assert self.test_data_connector is not None
+
+        if self.compute_flops:
+            flatten_inputs = [
+                self.test_data_connector(batch)[key]
+                for key in self.test_data_connector(batch)
+            ]
+
+            flops_model = FlopsModelAdapter(
+                self.model, self.test_data_connector
+            )
+
+            flop_analyzer = FlopCountAnalysis(flops_model, flatten_inputs)
+
+            flop_analyzer.set_op_handle(**{k: None for k in IGNORED_OPS})
+
+            flops = flop_analyzer.total() / 1e9
+
+            rank_zero_info(f"Flops: {flops:.2f} Gflops")
+
         out = self.model(**self.test_data_connector(batch))
         return out
 

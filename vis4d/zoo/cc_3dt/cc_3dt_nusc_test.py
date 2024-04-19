@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
+from vis4d.config.typing import DataConfig, ExperimentConfig
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets.nuscenes import NuScenes
+from vis4d.data.datasets.nuscenes_detection import NuScenesDetection
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
-from vis4d.engine.connectors import (
-    CallbackConnector,
-    MultiSensorCallbackConnector,
-)
+from vis4d.engine.connectors import CallbackConnector
 from vis4d.eval.nuscenes import (
     NuScenesDet3DEvaluator,
     NuScenesTrack3DEvaluator,
@@ -24,7 +22,6 @@ from vis4d.zoo.cc_3dt.data import (
     CONN_NUSC_TRACK3D_EVAL,
     get_test_dataloader,
 )
-from vis4d.zoo.typing import DataConfig, ExperimentConfig
 
 
 def get_config() -> ExperimentConfig:
@@ -50,12 +47,13 @@ def get_config() -> ExperimentConfig:
     data.train_dataloader = None
 
     test_dataset = class_config(
-        NuScenes,
+        NuScenesDetection,
         data_root="data/nuscenes",
         version="v1.0-test",
         split="test",
         keys_to_load=[K.images, K.original_images],
         data_backend=class_config(HDF5Backend),
+        pure_detection=config.pure_detection,
         cache_as_binary=True,
         cached_file_path="data/nuscenes/test.pkl",
     )
@@ -86,9 +84,7 @@ def get_config() -> ExperimentConfig:
             save_predictions=True,
             save_prefix=config.output_dir,
             test_connector=class_config(
-                MultiSensorCallbackConnector,
-                key_mapping=CONN_NUSC_DET3D_EVAL,
-                sensors=NuScenes.CAMERAS,
+                CallbackConnector, key_mapping=CONN_NUSC_DET3D_EVAL
             ),
         )
     )

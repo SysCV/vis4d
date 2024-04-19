@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig
 from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
@@ -15,7 +16,6 @@ from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc import (
 )
 from vis4d.zoo.cc_3dt.data import CONN_NUSC_DET3D_EVAL, get_nusc_cfg
 from vis4d.zoo.cc_3dt.model import get_cc_3dt_cfg
-from vis4d.zoo.typing import ExperimentConfig
 
 
 def get_config() -> ExperimentConfig:

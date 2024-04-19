@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from vis4d.common.typing import NDArrayI32, NDArrayUI8
+from vis4d.common.typing import NDArrayI64, NDArrayUI8
 from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
@@ -18,7 +18,7 @@ class ConvertInstanceMaskToSegMask:
     """Merge all instance masks into a single segmentation map."""
 
     def __call__(
-        self, classes_list: list[NDArrayI32], masks_list: list[NDArrayUI8]
+        self, classes_list: list[NDArrayI64], masks_list: list[NDArrayUI8]
     ) -> list[NDArrayUI8]:
         """Execute conversion.
 
@@ -58,7 +58,7 @@ class RemappingCategories:
         """
         self.mapping = mapping
 
-    def __call__(self, classes_list: list[NDArrayI32]) -> list[NDArrayI32]:
+    def __call__(self, classes_list: list[NDArrayI64]) -> list[NDArrayI64]:
         """Execute remapping.
 
         Args:

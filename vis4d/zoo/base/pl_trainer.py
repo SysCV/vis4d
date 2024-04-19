@@ -5,7 +5,7 @@ import inspect
 from lightning import Trainer
 
 from vis4d.config import FieldConfigDict
-from vis4d.zoo.typing import ExperimentConfig
+from vis4d.config.typing import ExperimentConfig
 
 
 def get_default_pl_trainer_cfg(config: ExperimentConfig) -> ExperimentConfig:

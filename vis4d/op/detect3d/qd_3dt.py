@@ -304,8 +304,6 @@ class QD3DTBBox3DHead(nn.Module):
         is_shared: bool = False,
     ) -> tuple[nn.ModuleList, nn.ModuleList, int]:
         """Init modules of head."""
-        last_layer_dim = in_channels
-        # add branch specific conv layers
         convs, last_layer_dim = add_conv_branch(
             num_branch_convs,
             in_channels,

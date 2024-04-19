@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import LRScheduler
 
 from vis4d.common.typing import DictStrAny
 from vis4d.config import copy_and_resolve_references, instantiate_classes
-from vis4d.zoo.typing import LrSchedulerConfig
+from vis4d.config.typing import LrSchedulerConfig
 
 
 class LRSchedulerDict(TypedDict):
@@ -146,8 +146,6 @@ class ConstantLR(LRScheduler):
         max_steps (int): Maximum number of steps.
         factor (float): Scale factor. Default: 1.0 / 3.0.
         last_epoch (int): The index of last epoch. Default: -1.
-        verbose (bool): If ``True``, prints a message to stdout for each
-            update. Default: ``False``.
     """
 
     def __init__(
@@ -156,12 +154,11 @@ class ConstantLR(LRScheduler):
         max_steps: int,
         factor: float = 1.0 / 3.0,
         last_epoch: int = -1,
-        verbose: bool = False,
     ):
         """Initialize ConstantLR."""
         self.max_steps = max_steps
         self.factor = factor
-        super().__init__(optimizer, last_epoch, verbose)
+        super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
@@ -197,8 +194,6 @@ class PolyLR(LRScheduler):
         power (float, optional): Power factor. Default: 1.0.
         min_lr (float): Minimum learning rate. Default: 0.0.
         last_epoch (int): The index of last epoch. Default: -1.
-        verbose (bool): If ``True``, prints a message to stdout for each
-            update. Default: ``False``.
     """
 
     def __init__(
@@ -208,13 +203,12 @@ class PolyLR(LRScheduler):
         power: float = 1.0,
         min_lr: float = 0.0,
         last_epoch: int = -1,
-        verbose: bool = False,
     ):
         """Initialize PolyLRScheduler."""
         self.max_steps = max_steps
         self.power = power
         self.min_lr = min_lr
-        super().__init__(optimizer, last_epoch, verbose)
+        super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
@@ -238,8 +232,6 @@ class QuadraticLRWarmup(LRScheduler):
         optimizer (Optimizer): Wrapped optimizer.
         max_steps (int): Maximum number of steps.
         last_epoch (int): The index of last epoch. Default: -1.
-        verbose (bool): If ``True``, prints a message to stdout for each
-            update. Default: ``False``.
     """
 
     def __init__(
@@ -247,11 +239,10 @@ class QuadraticLRWarmup(LRScheduler):
         optimizer: Optimizer,
         max_steps: int,
         last_epoch: int = -1,
-        verbose: bool = False,
     ):
         """Initialize QuadraticLRWarmup."""
         self.max_steps = max_steps
-        super().__init__(optimizer, last_epoch, verbose)
+        super().__init__(optimizer, last_epoch)
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""

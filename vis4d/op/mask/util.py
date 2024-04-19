@@ -255,3 +255,26 @@ def postprocess_segms(
             ).squeeze(1)
         )
     return torch.stack(post_segms).argmax(dim=1)
+
+
+def masks2boxes(masks: Tensor) -> Tensor:
+    """Obtain the tight bounding boxes of binary masks.
+
+    Args:
+        masks (Tensor): Binary mask of shape (N, H, W).
+
+    Returns:
+        Tensor: Boxes with shape (N, 4) of positive region in binary mask.
+    """
+    num_masks = masks.shape[0]
+    bboxes = masks.new_zeros((num_masks, 4), dtype=torch.float32)
+    x_any = torch.any(masks, dim=1)
+    y_any = torch.any(masks, dim=2)
+    for i in range(num_masks):
+        x = torch.where(x_any[i, :])[0]
+        y = torch.where(y_any[i, :])[0]
+        if len(x) > 0 and len(y) > 0:
+            bboxes[i, :] = bboxes.new_tensor(
+                [x[0], y[0], x[-1] + 1, y[-1] + 1]
+            )
+    return bboxes

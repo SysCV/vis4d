@@ -121,8 +121,6 @@ class RCNNHead(nn.Module):
         is_shared: bool = False,
     ) -> tuple[nn.ModuleList, nn.ModuleList, int]:
         """Add shared or separable branch."""
-        last_layer_dim = in_channels
-        # add branch specific conv layers
         convs, last_layer_dim = add_conv_branch(
             num_branch_convs,
             in_channels,
@@ -196,6 +194,7 @@ class RoI2Det(nn.Module):
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
+        class_agnostic_nms: bool = False,
     ) -> None:
         """Creates an instance of the class.
 
@@ -209,6 +208,8 @@ class RoI2Det(nn.Module):
                 post-processing step. Defaults to 0.5.
             max_per_img (int, optional): Maximum number of detections per
                 image. Defaults to 100.
+            class_agnostic_nms (bool, optional): Whether to use class agnostic
+                NMS. Defaults to False.
         """
         super().__init__()
         if box_decoder is None:
@@ -218,6 +219,7 @@ class RoI2Det(nn.Module):
         self.score_threshold = score_threshold
         self.max_per_img = max_per_img
         self.iou_threshold = iou_threshold
+        self.class_agnostic_nms = class_agnostic_nms
 
     def forward(
         self,
@@ -259,6 +261,7 @@ class RoI2Det(nn.Module):
                 self.score_threshold,
                 self.iou_threshold,
                 self.max_per_img,
+                self.class_agnostic_nms,
             )
             all_det_boxes.append(det_bbox)
             all_det_scores.append(det_scores)

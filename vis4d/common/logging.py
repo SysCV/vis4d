@@ -15,6 +15,7 @@ from termcolor import colored
 
 from vis4d.common.distributed import rank_zero_only
 from vis4d.common.typing import ArgsType
+from vis4d.config.typing import ExperimentConfig
 
 
 def _debug(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:
@@ -125,3 +126,14 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
+
+
+@rank_zero_only
+def dump_config(config: ExperimentConfig, config_file: str) -> None:
+    """Dump the configuration to a file.
+
+    Args:
+        config (ExperimentConfig): The configuration to dump.
+        config_file (str): The path to the file to dump the configuration to.
+    """
+    config.dump(config_file)

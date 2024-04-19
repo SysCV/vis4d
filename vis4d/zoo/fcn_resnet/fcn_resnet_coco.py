@@ -7,6 +7,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import DataConnector, LossConnector
 from vis4d.engine.loss_module import LossModule
@@ -26,7 +27,6 @@ from vis4d.zoo.base.data_connectors.seg import (
     CONN_MULTI_SEG_LOSS,
 )
 from vis4d.zoo.base.datasets.coco import get_coco_sem_seg_cfg
-from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

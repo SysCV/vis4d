@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from ml_collections import ConfigDict
 
 from vis4d.config import class_config
+from vis4d.config.typing import DataConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe, MultiSampleDataPipe
 from vis4d.data.datasets.coco import COCO
@@ -41,7 +42,6 @@ from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.zoo.base import get_inference_dataloaders_cfg
 from vis4d.zoo.base.callable import get_callable_cfg
-from vis4d.zoo.typing import DataConfig
 
 CONN_COCO_BBOX_EVAL = {
     "coco_image_id": data_key(K.sample_names),

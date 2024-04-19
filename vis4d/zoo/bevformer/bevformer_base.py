@@ -7,6 +7,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import CallbackConnector, MultiSensorDataConnector
@@ -26,7 +27,6 @@ from vis4d.zoo.bevformer.data import (
     get_nusc_cfg,
     nuscenes_class_map,
 )
-from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

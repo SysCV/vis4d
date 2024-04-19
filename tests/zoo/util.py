@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 
 from tests.util import content_equal
-from vis4d.zoo.typing import ExperimentConfig
+from vis4d.config.typing import ExperimentConfig
 
 
 def get_config_for_name(config_name: str) -> ExperimentConfig:

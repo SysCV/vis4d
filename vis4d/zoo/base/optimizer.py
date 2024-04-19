@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from ml_collections import ConfigDict
 
-from vis4d.zoo.typing import LrSchedulerConfig, OptimizerConfig, ParamGroupCfg
+from vis4d.config.typing import (
+    LrSchedulerConfig,
+    OptimizerConfig,
+    ParamGroupCfg,
+)
 
 
 def get_lr_scheduler_cfg(

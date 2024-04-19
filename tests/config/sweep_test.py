@@ -7,7 +7,7 @@ from ml_collections import ConfigDict
 
 from vis4d.config.replicator import replicate_config
 from vis4d.config.sweep import grid_search
-from vis4d.zoo.typing import ExperimentConfig
+from vis4d.config.typing import ExperimentConfig
 
 
 class TestSweep(unittest.TestCase):

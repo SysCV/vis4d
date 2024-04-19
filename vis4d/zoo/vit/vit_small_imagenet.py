@@ -8,6 +8,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.engine.callbacks import EMACallback, EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
@@ -34,7 +35,6 @@ from vis4d.zoo.base.datasets.imagenet import (
     CONN_IMAGENET_CLS_EVAL,
     get_imagenet_cls_cfg,
 )
-from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

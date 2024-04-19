@@ -221,6 +221,7 @@ class MSDeformAttention(nn.Module):
         is_power_of_2(d_model // n_heads)
 
         self.d_model = d_model
+        self.embed_dims = d_model
         self.n_levels = n_levels
         self.n_heads = n_heads
         self.n_points = n_points

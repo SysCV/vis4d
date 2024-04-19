@@ -46,6 +46,7 @@ class GenResizeParameters:
         multiscale_mode: str = "range",
         scale_range: tuple[float, float] = (1.0, 1.0),
         align_long_edge: bool = False,
+        resize_short_edge: bool = False,
         allow_overflow: bool = False,
     ) -> None:
         """Creates an instance of the class.
@@ -67,6 +68,10 @@ class GenResizeParameters:
                 long edge of the original image, e.g. original shape=(100, 80),
                 shape to be resized=(100, 200) will yield (125, 100) as new
                 shape. Defaults to False.
+            resize_short_edge (bool, optional): If keep_ratio=true, this option
+                scale the image according to the short edge. e.g. original
+                shape=(80, 100), shape to be resized=(100, 200) will yield
+                (100, 125) as new shape. Defaults to False.
             allow_overflow (bool, optional): If set to True, we scale the image
                 to the smallest size such that it is no smaller than shape.
                 Otherwise, we scale the image to the largest size such that it
@@ -77,6 +82,7 @@ class GenResizeParameters:
         self.multiscale_mode = multiscale_mode
         self.scale_range = scale_range
         self.align_long_edge = align_long_edge
+        self.resize_short_edge = resize_short_edge
         self.allow_overflow = allow_overflow
 
     def __call__(
@@ -93,6 +99,7 @@ class GenResizeParameters:
             self.multiscale_mode,
             self.scale_range,
             self.align_long_edge,
+            self.resize_short_edge,
             self.allow_overflow,
         )
         scale_factor = (
@@ -425,6 +432,7 @@ def get_resize_shape(
     new_shape: tuple[int, int],
     keep_ratio: bool = True,
     align_long_edge: bool = False,
+    resize_short_edge: bool = False,
     allow_overflow: bool = False,
 ) -> tuple[int, int]:
     """Get shape for resize, considering keep_ratio and align_long_edge.
@@ -437,6 +445,8 @@ def get_resize_shape(
         align_long_edge (bool, optional): Whether to align the long edge of
             the original shape with the long edge of the new shape.
             Defaults to False.
+        resize_short_edge (bool, optional): Whether to resize according to the
+            short edge. Defaults to False.
         allow_overflow (bool, optional): Whether to allow overflow.
             Defaults to False.
 
@@ -455,6 +465,10 @@ def get_resize_shape(
             scale_factor = comp_fn(
                 long_edge / max(h, w), short_edge / min(h, w)
             )
+        elif resize_short_edge:
+            short_edge = min(original_shape)
+            new_short_edge = min(new_shape)
+            scale_factor = new_short_edge / short_edge
         else:
             scale_factor = comp_fn(new_w / w, new_h / h)
         new_h = int(h * scale_factor + 0.5)
@@ -469,6 +483,7 @@ def get_target_shape(
     multiscale_mode: str = "range",
     scale_range: tuple[float, float] = (1.0, 1.0),
     align_long_edge: bool = False,
+    resize_short_edge: bool = False,
     allow_overflow: bool = False,
 ) -> tuple[int, int]:
     """Generate possibly random target shape."""
@@ -506,6 +521,11 @@ def get_target_shape(
         shape = random.choice(shape)
 
     shape = get_resize_shape(
-        input_shape, shape, keep_ratio, align_long_edge, allow_overflow
+        input_shape,
+        shape,
+        keep_ratio,
+        align_long_edge,
+        resize_short_edge,
+        allow_overflow,
     )
     return shape

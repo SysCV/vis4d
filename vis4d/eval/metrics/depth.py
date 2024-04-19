@@ -36,7 +36,7 @@ def squared_relative_error(prediction: ArrayLike, target: ArrayLike) -> float:
     """
     prediction, target = dense_inputs_to_numpy(prediction, target)
     check_shape_match(prediction, target)
-    return np.mean(np.square(prediction - target) / np.square(target)).item()
+    return np.mean(np.square(prediction - target) / target).item()
 
 
 def absolute_relative_error(prediction: ArrayLike, target: ArrayLike) -> float:

@@ -7,6 +7,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
@@ -31,7 +32,6 @@ from vis4d.zoo.base.datasets.bdd100k import (
     get_bdd100k_detection_config,
 )
 from vis4d.zoo.base.models.mask_rcnn import get_mask_rcnn_cfg
-from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

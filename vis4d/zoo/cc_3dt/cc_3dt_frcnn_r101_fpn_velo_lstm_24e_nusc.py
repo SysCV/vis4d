@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig
 from vis4d.data.datasets.nuscenes import nuscenes_class_map
 from vis4d.model.motion.velo_lstm import VeloLSTM
 from vis4d.op.base import ResNet
@@ -10,7 +11,6 @@ from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc import (
     get_config as get_kf3d_cfg,
 )
 from vis4d.zoo.cc_3dt.model import get_cc_3dt_cfg
-from vis4d.zoo.typing import ExperimentConfig
 
 
 def get_config() -> ExperimentConfig:

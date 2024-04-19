@@ -7,6 +7,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.datasets.nuscenes import nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
@@ -34,7 +35,6 @@ from vis4d.zoo.cc_3dt.data import (
     get_nusc_cfg,
 )
 from vis4d.zoo.cc_3dt.model import CONN_BBOX_3D_TRAIN, get_cc_3dt_cfg
-from vis4d.zoo.typing import ExperimentConfig, ExperimentParameters
 
 
 def get_config() -> ExperimentConfig:

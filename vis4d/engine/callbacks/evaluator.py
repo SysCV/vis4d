@@ -7,7 +7,12 @@ import os
 from torch import nn
 
 from vis4d.common import ArgsType, MetricLogs
-from vis4d.common.distributed import all_gather_object_cpu, broadcast, get_rank
+from vis4d.common.distributed import (
+    all_gather_object_cpu,
+    broadcast,
+    rank_zero_only,
+    synchronize,
+)
 from vis4d.common.logging import rank_zero_info
 from vis4d.data.typing import DictData
 from vis4d.eval.base import Evaluator
@@ -84,14 +89,13 @@ class EvaluatorCallback(Callback):
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)
 
-        if get_rank() == 0:
-            log_dict = self.evaluate()
-        else:  # pragma: no cover
-            log_dict = None
+        synchronize()
+        log_dict = self.evaluate()
         log_dict = broadcast(log_dict)
         self.evaluator.reset()
         return log_dict
 
+    @rank_zero_only
     def evaluate(self) -> MetricLogs:
         """Evaluate the performance after processing all input/output pairs.
 
@@ -117,7 +121,8 @@ class EvaluatorCallback(Callback):
             for k, v in metric_dict.items():
                 log_k = metric + "/" + k
                 rank_zero_info("%s: %.4f", log_k, v)
-                log_dict[log_k] = v
+                log_dict[f"{metric}/{k}"] = v
+
             rank_zero_info("Showing results for metric: %s", metric)
             rank_zero_info(metric_str)
 

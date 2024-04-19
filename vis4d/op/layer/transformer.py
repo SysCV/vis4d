@@ -14,6 +14,7 @@ from torch import Tensor, nn
 from .attention import Attention
 from .drop import DropPath
 from .mlp import TransformerBlockMLP
+from .util import build_activation_layer
 
 
 def inverse_sigmoid(x: Tensor, eps: float = 1e-5) -> Tensor:
@@ -181,28 +182,52 @@ class FFN(nn.Module):
 
     def __init__(
         self,
-        layers: nn.Module,
         embed_dims: int = 256,
-        dropout_layer: nn.Module = nn.Identity(),
+        feedforward_channels: int = 1024,
+        num_fcs: int = 2,
+        dropout: float = 0.0,
+        activation: str = "ReLU",
+        inplace: bool = True,
+        dropout_layer: nn.Module | None = None,
         add_identity: bool = True,
         layer_scale_init_value: float = 0.0,
     ) -> None:
         """Init FFN.
 
         Args:
-            layers (nn.Module): The layers of the FFN.
-            embed_dims (int): The feature dimension. Same as
-                `MultiheadAttention`. Defaults: 256.
-            dropout_layer (nn.Module): The dropout_layer used when adding the
-                shortcut.
+            embed_dims (int): The feature dimension. Defaults: 256.
+            feedforward_channels (int): The hidden dimension of FFNs.
+                Defaults: 1024.
+            num_fcs (int): The number of fully-connected layers in FFNs.
+                Defaults: 2.
+            dropout (float): The dropout rate of FFNs.
+            activation (str): The activation function of FFNs.
+            inplace (bool): Whether to set inplace for activation.
+            dropout_layer (nn.Module | None, optional): The dropout_layer used
+                when adding the shortcut. Defaults to None. If None, Identity
+                is used.
             add_identity (bool, optional): Whether to add the identity
-                connection. Default: `True`.
+                connection. Default: True.
             layer_scale_init_value (float): Initial value of scale factor in
                 LayerScale. Default: 0.0
         """
         super().__init__()
-        self.layers = layers
-        self.dropout_layer = dropout_layer
+        layers: list[nn.Module] = []
+        in_channels = embed_dims
+        for _ in range(num_fcs - 1):
+            layers.append(
+                nn.Sequential(
+                    nn.Linear(in_channels, feedforward_channels),
+                    build_activation_layer(activation, inplace),
+                    nn.Dropout(dropout),
+                )
+            )
+            in_channels = feedforward_channels
+        layers.append(nn.Linear(feedforward_channels, embed_dims))
+        layers.append(nn.Dropout(dropout))
+        self.layers = nn.Sequential(*layers)
+
+        self.dropout_layer = dropout_layer or nn.Identity()
         self.add_identity = add_identity
         self.layer_scale_init_value = layer_scale_init_value
 

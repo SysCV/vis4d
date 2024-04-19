@@ -7,6 +7,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from vis4d.config import class_config
+from vis4d.config.typing import OptimizerConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.callbacks import (
     EMACallback,
@@ -23,7 +24,6 @@ from vis4d.op.base import CSPDarknet
 from vis4d.op.detect.yolox import YOLOXHead, YOLOXHeadLoss
 from vis4d.op.fpp import YOLOXPAFPN
 from vis4d.zoo.base import get_lr_scheduler_cfg, get_optimizer_cfg
-from vis4d.zoo.typing import OptimizerConfig
 
 # Data connectors
 CONN_YOLOX_LOSS_2D = {

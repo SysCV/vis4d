@@ -24,6 +24,7 @@ from vis4d.common.distributed import (
 )
 from vis4d.common.logging import (
     _info,
+    dump_config,
     rank_zero_info,
     rank_zero_warn,
     setup_logger,
@@ -31,7 +32,7 @@ from vis4d.common.logging import (
 from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
-from vis4d.zoo.typing import ExperimentConfig
+from vis4d.config.typing import ExperimentConfig
 
 from .optim import set_up_optimizers
 from .parser import pprints_config
@@ -106,6 +107,12 @@ def run_experiment(
     logger_vis4d = logging.getLogger("vis4d")
     log_dir = os.path.join(config.output_dir, f"log_{config.timestamp}.txt")
     setup_logger(logger_vis4d, log_dir)
+
+    # Dump config
+    config_file = os.path.join(
+        config.output_dir, f"config_{config.timestamp}.yaml"
+    )
+    dump_config(config, config_file)
 
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 

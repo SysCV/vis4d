@@ -7,7 +7,7 @@ from typing import Any, TypedDict
 from ml_collections import ConfigDict, FieldReference
 from typing_extensions import NotRequired
 
-from vis4d.config.config_dict import FieldConfigDict
+from .config_dict import FieldConfigDict
 
 
 class ParamGroupCfg(TypedDict):

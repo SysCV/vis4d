@@ -47,7 +47,7 @@ class DepthEvaluator(Evaluator):
 
     def __init__(
         self,
-        min_depth: float = 0.01,
+        min_depth: float = 0.0,
         max_depth: float = 80.0,
         scale: float = 1.0,
         epsilon: float = 1e-3,
@@ -68,6 +68,10 @@ class DepthEvaluator(Evaluator):
         self.scale = scale
         self._metrics_list: list[dict[str, float]] = []
 
+    def __repr__(self) -> str:
+        """Concise representation of the evaluator."""
+        return "Common Depth Evaluator"
+
     @property
     def metrics(self) -> list[str]:
         """Supported metrics."""
@@ -87,7 +91,7 @@ class DepthEvaluator(Evaluator):
         self, prediction: NDArrayFloat, target: NDArrayFloat
     ) -> tuple[NDArrayFloat, NDArrayFloat]:
         """Apply mask to prediction and target."""
-        mask = (target > self.min_depth) & (target < self.max_depth)
+        mask = (target > self.min_depth) & (target <= self.max_depth)
         return prediction[mask], target[mask]
 
     def process_batch(  # type: ignore # pylint: disable=arguments-differ
@@ -147,14 +151,14 @@ class DepthEvaluator(Evaluator):
                    Register data using .process() first!"""
             )
         metric_data: MetricLogs = {}
-        short_description = ""
+        short_description = "\n"
 
         if metric == self.METRIC_DEPTH:
             abs_rel = np.mean(
                 [x[self.KEY_ABS_REL] for x in self._metrics_list]
             )
             metric_data[self.KEY_ABS_REL] = float(abs_rel)
-            short_description += f"Absolute relative error: {abs_rel:.3f} "
+            short_description += f"Absolute relative error: {abs_rel:.3f}\n"
 
             abs_err = np.mean(
                 [x[self.KEY_ABS_ERR] for x in self._metrics_list]

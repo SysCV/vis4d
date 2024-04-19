@@ -8,7 +8,7 @@ from typing import TypedDict
 import numpy as np
 import torch
 
-from vis4d.common.typing import NDArrayF32, NDArrayI32
+from vis4d.common.typing import NDArrayF32, NDArrayI64
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import bbox_intersection
 
@@ -286,10 +286,10 @@ class MixupBoxes2D:
     def __call__(
         self,
         boxes_list: list[NDArrayF32],
-        classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32] | None,
+        classes_list: list[NDArrayI64],
+        track_ids_list: list[NDArrayI64] | None,
         mixup_parameters: list[MixupParam],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI64], list[NDArrayI64] | None]:
         """Execute the boxes2d mixup operation."""
         batch_size = len(boxes_list)
         assert (
@@ -298,7 +298,7 @@ class MixupBoxes2D:
 
         mixup_boxes_list = []
         mixup_classes_list = []
-        mixup_track_ids_list: list[NDArrayI32] | None = (
+        mixup_track_ids_list: list[NDArrayI64] | None = (
             [] if track_ids_list is not None else None
         )
         for i in range(0, batch_size, self.NUM_SAMPLES):
@@ -350,7 +350,7 @@ class MixupBoxes2D:
                     )
                 other_track_ids += self.max_track_ids
                 other_track_ids = other_track_ids[is_overlap > 0]
-                mixup_track_ids: NDArrayI32 = np.concatenate(
+                mixup_track_ids: NDArrayI64 = np.concatenate(
                     (ori_track_ids, other_track_ids), 0
                 )
                 mixup_track_ids_list += [

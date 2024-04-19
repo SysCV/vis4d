@@ -5,21 +5,19 @@ Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
-import torch.utils.checkpoint as cp
 import torchvision.models.resnet as _resnet
 from torch import Tensor, nn
 from torch.nn.modules.batchnorm import _BatchNorm
+from torch.utils.checkpoint import checkpoint
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.typing import ArgsType
-from vis4d.op.layer.util import build_conv_layer
+from vis4d.op.layer.util import build_conv_layer, build_norm_layer
 from vis4d.op.layer.weight_init import constant_init, kaiming_init
 
 from .base import BaseModel
-
-NormLayerType = Callable[..., nn.Module]  # type: ignore
 
 
 class BasicBlock(nn.Module):
@@ -35,17 +33,14 @@ class BasicBlock(nn.Module):
         dilation: int = 1,
         downsample: nn.Module | None = None,
         style: str = "pytorch",
-        with_cp: bool = False,
+        use_checkpoint: bool = False,
         with_dcn: bool = False,
-        norm_layer: NormLayerType | None = None,
+        norm: str = "BatchNorm2d",
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
         assert style in {"pytorch", "caffe"}  # No effect for BasicBlock
         assert not with_dcn, "DCN is not supported for BasicBlock."
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
-
         self.conv1 = build_conv_layer(
             inplanes,
             planes,
@@ -55,15 +50,15 @@ class BasicBlock(nn.Module):
             padding=dilation,
             bias=False,
         )
-        self.bn1 = norm_layer(planes)
+        self.bn1 = build_norm_layer(norm, planes)
         self.conv2 = build_conv_layer(planes, planes, 3, padding=1, bias=False)
-        self.bn2 = norm_layer(planes)
+        self.bn2 = build_norm_layer(norm, planes)
 
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
         self.dilation = dilation
-        self.with_cp = with_cp
+        self.use_checkpoint = use_checkpoint
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward function."""
@@ -85,8 +80,8 @@ class BasicBlock(nn.Module):
 
             return out
 
-        if self.with_cp and x.requires_grad:
-            out = cp.checkpoint(_inner_forward, x)
+        if self.use_checkpoint and x.requires_grad:
+            out = checkpoint(_inner_forward, x)
         else:
             out = _inner_forward(x)
 
@@ -108,9 +103,9 @@ class Bottleneck(nn.Module):
         dilation: int = 1,
         downsample: nn.Module | None = None,
         style: str = "pytorch",
-        with_cp: bool = False,
+        use_checkpoint: bool = False,
         with_dcn: bool = False,
-        norm_layer: NormLayerType | None = None,
+        norm: str = "BatchNorm2d",
     ) -> None:
         """Bottleneck block for ResNet.
 
@@ -118,14 +113,11 @@ class Bottleneck(nn.Module):
         it is "caffe", the stride-two layer is the first 1x1 conv layer.
         """
         super().__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
-
         self.inplanes = inplanes
         self.planes = planes
         self.stride = stride
         self.dilation = dilation
-        self.with_cp = with_cp
+        self.use_checkpoint = use_checkpoint
 
         assert style in {"pytorch", "caffe"}
         if style == "pytorch":
@@ -142,7 +134,7 @@ class Bottleneck(nn.Module):
             stride=self.conv1_stride,
             bias=False,
         )
-        self.bn1 = norm_layer(planes)
+        self.bn1 = build_norm_layer(norm, planes)
 
         self.conv2 = build_conv_layer(
             planes,
@@ -154,7 +146,7 @@ class Bottleneck(nn.Module):
             bias=False,
             use_dcn=with_dcn,
         )
-        self.bn2 = norm_layer(planes)
+        self.bn2 = build_norm_layer(norm, planes)
 
         self.conv3 = build_conv_layer(
             planes,
@@ -162,7 +154,7 @@ class Bottleneck(nn.Module):
             kernel_size=1,
             bias=False,
         )
-        self.bn3 = norm_layer(planes * self.expansion)
+        self.bn3 = build_norm_layer(norm, planes * self.expansion)
 
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -190,8 +182,8 @@ class Bottleneck(nn.Module):
 
             return out
 
-        if self.with_cp and x.requires_grad:
-            out = cp.checkpoint(_inner_forward, x)
+        if self.use_checkpoint and x.requires_grad:
+            out = checkpoint(_inner_forward, x)
         else:
             out = _inner_forward(x)
 
@@ -224,11 +216,11 @@ class ResNet(BaseModel):
         deep_stem: bool = False,
         avg_down: bool = False,
         trainable_layers: int = 5,
-        norm_layer: NormLayerType | None = None,
-        norm_freezed: bool = True,
+        norm: str = "BatchNorm2d",
+        norm_frozen: bool = True,
         stages_with_dcn: Sequence[bool] = (False, False, False, False),
         replace_stride_with_dilation: Sequence[bool] = (False, False, False),
-        with_cp: bool = False,
+        use_checkpoint: bool = False,
         zero_init_residual: bool = True,
         pretrained: bool = False,
         weights: None | str = None,
@@ -258,18 +250,18 @@ class ResNet(BaseModel):
             trainable_layers (int, optional): Number layers for training or
                 fine-tuning. 5 means all the layers can be fine-tuned. Defaults
                 to 5.
-            norm_layer (Callable[..., nn.Module] | None): Normalization layer.
-                Default: None, which means using `nn.BatchNorm2d`.
-            norm_freezed (bool): Whether to set norm layers to eval mode,
-                namely, freeze running stats (mean and var). Note: Effect on
+            norm (str): Normalization layer str. Default: BatchNorm2d, which
+                means using `nn.BatchNorm2d`.
+            norm_frozen (bool): Whether to set norm layers to eval mode. It
+                freezes running stats (mean and var). Note: Effect on
                 Batch Norm and its variants only.
             stages_with_dcn (Sequence[bool]): Indices of stages with deformable
                 convolutions. Default: (False, False, False, False).
             replace_stride_with_dilation (Sequence[bool]): Whether to replace
                 stride with dilation. Default: (False, False, False).
-            with_cp (bool): Use checkpoint or not. Using checkpoint will save
-                some memory while slowing down the training speed. Default:
-                False.
+            use_checkpoint (bool): Use checkpoint or not. Using checkpoint will
+                save some memory while slowing down the training speed.
+                Default: False.
             zero_init_residual (bool): Whether to use zero init for last norm
                 layer in resblocks to let them behave as identity.
                 Default: True.
@@ -278,9 +270,7 @@ class ResNet(BaseModel):
             weights (str, optional): model pretrained path. Default: None
         """
         super().__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
-        self._norm_layer = norm_layer
+        self._norm = norm
 
         self.zero_init_residual = zero_init_residual
         if resnet_name not in self.arch_settings:
@@ -289,8 +279,8 @@ class ResNet(BaseModel):
         self.deep_stem = deep_stem
         self.trainable_layers = trainable_layers
 
-        self.with_cp = with_cp
-        self.norm_freezed = norm_freezed
+        self.use_checkpoint = use_checkpoint
+        self.norm_frozen = norm_frozen
 
         depth, self.block, stage_blocks = self.arch_settings[resnet_name]
         assert isinstance(depth, int)
@@ -324,15 +314,13 @@ class ResNet(BaseModel):
                 dilation=dilation,
                 style=style,
                 avg_down=avg_down,
-                with_cp=with_cp,
+                use_checkpoint=use_checkpoint,
                 with_dcn=stages_with_dcn[i],
             )
             self.inplanes = planes * self.block.expansion  # type: ignore
             layer_name = f"layer{i + 1}"
             self.add_module(layer_name, res_layer)
             self.res_layers.append(layer_name)
-
-        self._freeze_stages()
 
         if pretrained:
             if weights is None:
@@ -344,6 +332,8 @@ class ResNet(BaseModel):
             load_model_checkpoint(self, weights)
         else:
             self._init_weights()
+
+        self._freeze_stages()
 
     def _init_weights(self) -> None:
         """Initialize the weights of module."""
@@ -376,7 +366,7 @@ class ResNet(BaseModel):
                     padding=1,
                     bias=False,
                 ),
-                self._norm_layer(stem_channels // 2),
+                build_norm_layer(self._norm, stem_channels // 2),
                 nn.ReLU(inplace=True),
                 build_conv_layer(
                     stem_channels // 2,
@@ -386,7 +376,7 @@ class ResNet(BaseModel):
                     padding=1,
                     bias=False,
                 ),
-                self._norm_layer(stem_channels // 2),
+                build_norm_layer(self._norm, stem_channels // 2),
                 nn.ReLU(inplace=True),
                 build_conv_layer(
                     stem_channels // 2,
@@ -396,7 +386,7 @@ class ResNet(BaseModel):
                     padding=1,
                     bias=False,
                 ),
-                self._norm_layer(stem_channels),
+                build_norm_layer(self._norm, stem_channels),
                 nn.ReLU(inplace=True),
             )
         else:
@@ -408,7 +398,7 @@ class ResNet(BaseModel):
                 padding=3,
                 bias=False,
             )
-            self.bn1 = self._norm_layer(stem_channels)
+            self.bn1 = build_norm_layer(self._norm, stem_channels)
             self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -422,7 +412,7 @@ class ResNet(BaseModel):
         dilation: int,
         style: str,
         avg_down: bool,
-        with_cp: bool,
+        use_checkpoint: bool,
         with_dcn: bool,
     ) -> nn.Sequential:
         """Pack all blocks in a stage into a ``ResLayer``."""
@@ -450,7 +440,7 @@ class ResNet(BaseModel):
                         stride=conv_stride,
                         bias=False,
                     ),
-                    self._norm_layer(planes * block.expansion),
+                    build_norm_layer(self._norm, planes * block.expansion),
                 ]
             )
             downsample = nn.Sequential(*downsample_list)
@@ -464,9 +454,9 @@ class ResNet(BaseModel):
                 dilation=dilation,
                 downsample=downsample,
                 style=style,
-                with_cp=with_cp,
+                use_checkpoint=use_checkpoint,
                 with_dcn=with_dcn,
-                norm_layer=self._norm_layer,
+                norm=self._norm,
             )
         )
         inplanes = planes * block.expansion
@@ -478,9 +468,9 @@ class ResNet(BaseModel):
                     stride=1,
                     dilation=dilation,
                     style=style,
-                    with_cp=with_cp,
+                    use_checkpoint=use_checkpoint,
                     with_dcn=with_dcn,
-                    norm_layer=self._norm_layer,
+                    norm=self._norm,
                 )
             )
         return nn.Sequential(*layers)
@@ -509,7 +499,7 @@ class ResNet(BaseModel):
         super().train(mode)
         self._freeze_stages()
 
-        if mode and self.norm_freezed:
+        if mode and self.norm_frozen:
             for m in self.modules():
                 # trick: eval have effect on BatchNorm only
                 if isinstance(m, _BatchNorm):
@@ -523,7 +513,6 @@ class ResNet(BaseModel):
         Returns:
             list[int]: number of channels
         """
-        # use static value to be compatible with torch.jit
         if self.name in {"resnet18", "resnet34"}:
             # channels = [3, 3] + [64 * 2**i for i in range(4)]
             channels = [3, 3, 64, 128, 256, 512]
