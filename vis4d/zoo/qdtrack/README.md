@@ -15,7 +15,7 @@ Similarity learning has been recognized as a crucial step for object tracking. H
 | Detector  | Base Network | Strong Augs. | mMOTA-val | mIDF1-val | ID Sw.-val | Config | Weights | Visuals |
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | Faster R-CNN | R-50-FPN | ✓ | 37.7 | 52.7 | 7257| [config](./qdtrack/qdtrack_frcnn_r50_fpn_augs_1x_bdd100k.py) | [model](https://dl.cv.ethz.ch/vis4d/qdtrack/qdtrack_frcnn_r50_fpn_augs_1x_bdd100k_456b1e.pt) | [visuals](https://dl.cv.ethz.ch/vis4d/qdtrack/qdtrack_frcnn_r50_fpn_augs_1x_bdd100k_vis.zip) |
-| YOLOX-x | CSPNet | ✓ | 42.3 | 55.1 | 9164 | [config](./qdtrack/qdtrack_yolox_x_50e_bdd100k.py) | [model](https://dl.cv.ethz.ch/vis4d/qdtrack/qdtrack_yolox_x_25e_bdd100k_c14af2.pt) | [visuals](https://dl.cv.ethz.ch/vis4d/qdtrack/qdtrack_yolox_x_25e_bdd100k_vis.zip) |
+| YOLOX-x | CSPNet | ✓ | 42.3 | 55.1 | 9164 | [config](./qdtrack/qdtrack_yolox_x_25e_bdd100k.py) | [model](https://dl.cv.ethz.ch/vis4d/qdtrack/qdtrack_yolox_x_25e_bdd100k_c14af2.pt) | [visuals](https://dl.cv.ethz.ch/vis4d/qdtrack/qdtrack_yolox_x_25e_bdd100k_vis.zip) |
 
 ## Getting Started
 
@@ -25,7 +25,7 @@ Similarity learning has been recognized as a crucial step for object tracking. H
 python -m vis4d.pl fit --config vis4d/zoo/qdtrack/qdtrack_frcnn_r50_fpn_augs_1x_bdd100k.py --gpus 8
 
 # YOLOX
-python -m vis4d.pl fit --config vis4d/zoo/qdtrack/qdtrack_yolox_x_50e_bdd100k.py --gpus 8
+python -m vis4d.pl fit --config vis4d/zoo/qdtrack/qdtrack_yolox_x_25e_bdd100k.py --gpus 8
 ```
 
 ### Inference
@@ -34,7 +34,7 @@ python -m vis4d.pl fit --config vis4d/zoo/qdtrack/qdtrack_yolox_x_50e_bdd100k.py
 python -m vis4d.pl test --config vis4d/zoo/qdtrack/qdtrack_frcnn_r50_fpn_augs_1x_bdd100k.py --ckpt ${checkpoint_path} --gpus ${num_gpus}
 
 # YOLOX
-python -m vis4d.pl test --config vis4d/zoo/qdtrack/qdtrack_yolox_x_50e_bdd100k.py --ckpt ${checkpoint_path} --gpus ${num_gpus}
+python -m vis4d.pl test --config vis4d/zoo/qdtrack/qdtrack_yolox_x_25e_bdd100k.py --ckpt ${checkpoint_path} --gpus ${num_gpus}
 ```
 
 ## Citation

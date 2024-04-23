@@ -30,7 +30,7 @@ class TestQDTrackConfig(unittest.TestCase):
         This instantiates the config and compares it to a ground truth.
         """
         compare_configs(
-            f"{self.config_prefix}.qdtrack_yolox_x_50e_bdd100k",
-            f"{self.gt_config_path}/qdtrack_yolox_x_50e_bdd100k.yaml",
+            f"{self.config_prefix}.qdtrack_yolox_x_25e_bdd100k",
+            f"{self.gt_config_path}/qdtrack_yolox_x_25e_bdd100k.yaml",
             self.varying_keys,
         )
