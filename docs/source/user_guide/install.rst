@@ -5,7 +5,7 @@ Installation
 =======
 Package
 =======
-We currently support Python 3.9+ and PyTorch 1.10.0+.
+We currently support Python 3.10+ and PyTorch 2.0.0+.
 
 We recommand to install in a new virtual environment, e.g. conda or virtualenv.
 
@@ -30,7 +30,7 @@ If you want to build the package from source and specify CUDA version, you can c
     git clone https://github.com/SysCV/vis4d.git
     cd vis4d
 
-    python3 -m pip install -r requirements/install.txt -f https://download.pytorch.org/whl/cu117/torch_stable.html
+    python3 -m pip install -r requirements/install.txt -f https://download.pytorch.org/whl/cu118/torch_stable.html
     python3 -m pip install -r requirements/torch-lib.txt
     python3 -m pip install -e .
 

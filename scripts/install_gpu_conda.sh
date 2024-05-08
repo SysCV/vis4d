@@ -4,7 +4,7 @@ source $CONDA_PATH/etc/profile.d/conda.sh
 
 if [ -z "$1" ]
 then
-    CUDA_VERSION=11.7
+    CUDA_VERSION=11.8
 else
     CUDA_VERSION=$1
 fi
@@ -14,4 +14,4 @@ conda activate vis4d-dev
 conda install cudatoolkit=$CUDA_VERSION -c pytorch -c nvidia
 python3 -m pip install -r requirements/install.txt -f https://download.pytorch.org/whl/cu${CUDA_VERSION//.}/torch_stable.html
 python3 -m pip install -r requirements/torch-lib.txt
-python3 setup.py develop
+pip install -e .

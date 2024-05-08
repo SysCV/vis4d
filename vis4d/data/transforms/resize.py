@@ -209,6 +209,7 @@ class ResizeDepthMaps:
         self,
         interpolation: str = "nearest",
         rescale_depth_values: bool = False,
+        check_scale_factors: bool = False,
     ):
         """Initialize the transform.
 
@@ -219,9 +220,14 @@ class ResizeDepthMaps:
                 be rescaled according to the new scale factor. Defaults to
                 False. This is useful if we want to keep the intrinsic
                 parameters of the camera the same.
+            check_scale_factors (bool, optional): If the scale factors should
+                be checked to ensure they are the same. Defaults to False.
+                If False, the scale factor is assumed to be the same for both
+                dimensions and will just use the first scale factor.
         """
         self.interpolation = interpolation
         self.rescale_depth_values = rescale_depth_values
+        self.check_scale_factors = check_scale_factors
 
     def __call__(
         self,
@@ -245,9 +251,10 @@ class ResizeDepthMaps:
                 .squeeze(0)
             )
             if self.rescale_depth_values:
-                assert np.isclose(
-                    scale_factor[0], scale_factor[1], atol=1e-4
-                ), "Depth map scale factors must be the same"
+                if self.check_scale_factors:
+                    assert np.isclose(
+                        scale_factor[0], scale_factor[1], atol=1e-4
+                    ), "Depth map scale factors must be the same"
                 depth_map_ /= scale_factor[0]
             depth_maps[i] = depth_map_.numpy()
         return depth_maps

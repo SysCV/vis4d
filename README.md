@@ -10,6 +10,12 @@
     A modular library for 4D scene understanding
 </p>
 
+## Quickstart
+
+You can checkout our [documentation](https://docs.vis.xyz/4d/index.html).
+
+You can use the [template](https://github.com/SysCV/vis4d-template) here to start your own project with Vis4D.
+
 ## Installation
 
 Installation is as easy as
@@ -26,20 +32,20 @@ python3 -m pip install vis4d
 
 ```bash
 # vis4d.engine
-python -m vis4d fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
+vis4d fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
+vis4d-pl fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 - To test a model
 
 ```bash
 # vis4d.engine
-python -m vis4d test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
+vis4d test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 
 # vis4d.pl
-python -m vis4d.pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
+vis4d-pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 ## DDP
@@ -53,18 +59,17 @@ python -m vis4d.pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpu
 ./scripts/dist_train.sh <config-file> <num-gpus>
 
 # vis4d.pl
-python -m vis4d.pl fit --config <config-file> --gpus <num-gpus>
+vis4d-pl fit --config <config-file> --gpus <num-gpus>
 ```
 
-- SLURM batch job. Need to config the submission file.
+- SLURM
 
 ```bash
 # vis4d.engine
-sbatch scripts/slurm_train.sh
+srun vis4d fit --config <config-file> --gpus <num-gpus> --slurm True
 
 # vis4d.pl
-srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.run fit \
-    --config <config-file> --gpus <num-gpus>
+srun vis4d-pl fit --config <config-file> --gpus <num-gpus>
 ```
 
 ### Testing
@@ -76,20 +81,61 @@ srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.run fit \
 ./scripts/dist_test.sh <config-file> <num-gpus>
 
 # vis4d.pl
-python -m vis4d.pl test --config <config-file> --gpus <num-gpus>
+vis4d-pl test --config <config-file> --gpus <num-gpus>
 ```
 
-- SLURM batch job. Need to config the submission file.
+- SLURM
 
 ```bash
 # vis4d.engine
-sbatch scripts/slurm_test.sh
+srun vis4d test --config <config-file> --gpus <num-gpus> --slurm True
 
 # vis4d.pl
-srun --cpus-per-task=4 --gres=gpumem:20G python -m vis4d.pl.run test \
-    --config <config-file> --gpus <num-gpus>
+srun vis4d-pl test --config <config-file> --gpus <num-gpus>
 ```
 
-## Contribute
+## Acknowledgement
+Vis4D is a group effort by our team at ETH Zurich.
+[Yung-Hsu Yang](https://royyang0714.github.io/) built the current version and will be the main maintainer of the codebase.
+
+Vis4D was originally written by [Tobias Fischer](https://tobiasfshr.github.io/) during the first three years of his Ph.D. at ETH Zurich, [Thomas E. Huang](https://www.thomasehuang.com/) helped contribute many models, [Tao Sun](https://www.suniique.com/) implemented the ViT models and designed the evaluation pipeline, and[René Zurbrügg](https://github.com/renezurbruegg) designed the config system.
+
+
+## Contributors
+**Project Leads**
+- [Yung-Hsu Yang](https://royyang0714.github.io/)*
+- [Tobias Fischer](https://tobiasfshr.github.io/)*
+ 
+**Core Contributors**
+- [Thomas E. Huang](https://www.thomasehuang.com/)
+- [Tao Sun](https://www.suniique.com/)
+- [René Zurbrügg](https://github.com/renezurbruegg)
+ 
+**Advisors**
+- [Fisher Yu](https://www.yf.io/)
+ 
+`*` denotes equal contribution
+
+**We are open to contributions and suggestions, feel free to reach out to us.**
 
 [Check out our contribution guidelines for this project](docs/source/dev_guide/contribute.rst)
+
+**Community Contributors**
+ 
+<a href="https://github.com/SysCV/vis4d/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=SysCV/vis4d" />
+</a>
+
+
+## Citation
+
+If you find Vis4D is useful for your research, please consider citing the following BibTeX entry.
+
+```bibtex
+@misc{vis4d_2024,
+  author = {{Yung-Hsu Yang and Tobias Fischer and Thomas E. Huang} and René Zurbrügg and Tao Sun and Fisher Yu},
+  title = {Vis4D},
+  howpublished = {\url{https://github.com/SysCV/vis4d}},
+  year = {2024}
+}
+```
