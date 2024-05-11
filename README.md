@@ -109,7 +109,7 @@ Vis4D was originally written by [Tobias Fischer](https://tobiasfshr.github.io/) 
 **Core Contributors**
 - [Thomas E. Huang](https://www.thomasehuang.com/)
 - [Tao Sun](https://www.suniique.com/)
-- [René Zurbrügg](https://github.com/renezurbruegg)
+- [René Zurbrügg](https://renezurbruegg.github.io/)
  
 **Advisors**
 - [Fisher Yu](https://www.yf.io/)
