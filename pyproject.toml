@@ -112,11 +112,11 @@ plugins = ["numpy.typing.mypy_plugin"]
 
 [project]
 name = "vis4d"
-version = "0.1.1"
+version = "0.1.2"
 authors = [{name = "VIS @ ETH", email = "i@yf.io"}]
 description = "Vis4D Python package for Visual 4D scene understanding"
 readme = "README.md"
-license = { text="Apache 2.0"}
+license = {text = "Apache 2.0"}
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
