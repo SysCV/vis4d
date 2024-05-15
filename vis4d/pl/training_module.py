@@ -155,7 +155,14 @@ class TrainingModule(pl.LightningModule):
                 self.model, self.test_data_connector
             )
 
-            flop_analyzer = FlopCountAnalysis(flops_model, flatten_inputs)
+            if not FVCORE_AVAILABLE:
+                raise RuntimeError(
+                    "Please install fvcore to compute FLOPs of the model."
+                )
+
+            flop_analyzer = FlopCountAnalysis(  # pylint: disable=possibly-used-before-assignment, line-too-long
+                flops_model, flatten_inputs
+            )
 
             flop_analyzer.set_op_handle(**{k: None for k in IGNORED_OPS})
 

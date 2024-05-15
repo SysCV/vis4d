@@ -26,6 +26,8 @@ if OPENCV_AVAILABLE:
         INTER_LINEAR,
         INTER_NEAREST,
     )
+else:
+    raise ImportError("Please install opencv-python to use this module.")
 
 
 class ResizeParam(TypedDict):
@@ -407,7 +409,7 @@ def resize_image(
             "area": INTER_AREA,
             "lanczos": INTER_LANCZOS4,
         }
-        return cv2.resize(  # pylint: disable=no-member
+        return cv2.resize(  # pylint: disable=no-member, unsubscriptable-object
             inputs[0].astype(np.uint8),
             (shape[1], shape[0]),
             interpolation=cv2_interp_codes[interpolation],

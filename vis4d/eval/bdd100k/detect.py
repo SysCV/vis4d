@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
+from vis4d.common.imports import BDD100K_AVAILABLE
 from vis4d.eval.scalabel import ScalabelDetectEvaluator
 
-if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
+if BDD100K_AVAILABLE:
     from bdd100k.common.utils import load_bdd100k_config
+else:
+    raise ImportError("bdd100k is not installed.")
 
 
 class BDD100KDetectEvaluator(ScalabelDetectEvaluator):

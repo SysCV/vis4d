@@ -48,6 +48,8 @@ if NUSCENES_AVAILABLE:
         view_points,
     )
     from nuscenes.utils.splits import create_splits_scenes
+else:
+    raise ImportError("nusenes-devkit is not available.")
 
 nuscenes_class_map = {
     "bicycle": 0,

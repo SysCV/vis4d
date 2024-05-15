@@ -19,6 +19,8 @@ from vis4d.common.logging import rank_zero_warn
 
 if VIS4D_CUDA_OPS_AVAILABLE:
     from vis4d_cuda_ops import ms_deform_attn_backward, ms_deform_attn_forward
+else:
+    raise ImportError("vis4d_cuda_ops is not installed.")
 
 
 class MSDeformAttentionFunction(Function):  # pragma: no cover

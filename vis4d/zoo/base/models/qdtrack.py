@@ -173,6 +173,8 @@ def get_qdtrack_yolox_cfg(
         in_dim = 256
     elif model_type == "xlarge":
         in_dim = 320
+    else:
+        raise ValueError(f"Invalid model type: {model_type}")
     model = class_config(
         YOLOXQDTrack,
         num_classes=num_classes,

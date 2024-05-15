@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 from typing import Any, TypedDict, get_type_hints
 
-from absl import app
+from absl import app  # pylint: disable=no-name-in-module
 from torch import nn
 
 from vis4d.common.typing import ArgsType

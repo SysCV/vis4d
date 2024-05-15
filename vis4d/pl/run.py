@@ -6,7 +6,7 @@ import logging
 import os.path as osp
 
 import torch
-from absl import app
+from absl import app  # pylint: disable=no-name-in-module
 from lightning.fabric.utilities.exceptions import MisconfigurationException
 from lightning.pytorch import Callback
 from torch.utils.collect_env import get_pretty_env_info

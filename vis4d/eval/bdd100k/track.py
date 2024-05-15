@@ -14,6 +14,8 @@ if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from scalabel.eval.detect import evaluate_det
     from scalabel.eval.mot import acc_single_video_mot, evaluate_track
     from scalabel.label.io import group_and_sort
+else:
+    raise ImportError("scalabel or bdd100k is not installed.")
 
 
 class BDD100KTrackEvaluator(ScalabelTrackEvaluator):

@@ -31,13 +31,22 @@ If you want to build the package from source and specify CUDA version, you can c
     cd vis4d
 
     python3 -m pip install -r requirements/install.txt -f https://download.pytorch.org/whl/cu118/torch_stable.html
-    python3 -m pip install -r requirements/torch-lib.txt
     python3 -m pip install -e .
 
 More information about torch and pytorch-lightning installation
 
 - `PyTorch <https://pytorch.org/get-started/locally>`_
 - `PyTorch Lightning <https://lightning.ai/docs/pytorch/latest/>`_
+
+-----------------------
+Install CUDA Operations
+-----------------------
+
+Some functionalities in the library require CUDA operations. You can install them by running:
+
+.. code:: bash
+
+    python3 -m pip install -r requirements/torch-lib.txt
 
 ================
 Directory Layout

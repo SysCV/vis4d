@@ -217,7 +217,7 @@ class COCODetectEvaluator(Evaluator):
         if metric == self.METRIC_DET:
             iou_type = "bbox"
             _predictions = self._predictions
-        elif metric == self.METRIC_INS_SEG:
+        else:
             # remove bbox for segm evaluation so cocoapi will use mask
             # area instead of box area
             iou_type = "segm"

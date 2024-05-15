@@ -159,6 +159,8 @@ def get_nusc_cfg(
         mean = [103.530, 116.280, 123.675]
         std = [1.0, 1.0, 1.0]
         image_channel_mode = "BGR"
+    else:
+        raise ValueError(f"Unknown style {style}")
 
     if version == "v1.0-mini":  # pragma: no cover
         assert train_split == "mini_train"

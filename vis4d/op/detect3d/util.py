@@ -111,5 +111,7 @@ def batched_nms_rotated(
         raise RuntimeError(
             "Please install vis4d_cuda_ops to use batched_nms_rotated"
         )
-    keep = nms_rotated(boxes_for_nms, scores, iou_threshold)
+    keep = nms_rotated(  # pylint: disable=possibly-used-before-assignment
+        boxes_for_nms, scores, iou_threshold
+    )
     return keep

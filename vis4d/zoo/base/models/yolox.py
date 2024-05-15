@@ -137,6 +137,8 @@ def get_model_setting(model_type: str) -> tuple[float, float, int, list[int]]:
     elif model_type == "xlarge":
         deepen_factor, widen_factor, num_csp_blocks = 1.33, 1.25, 4
         in_channels = [320, 640, 1280]
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
     return deepen_factor, widen_factor, num_csp_blocks, in_channels
 
 

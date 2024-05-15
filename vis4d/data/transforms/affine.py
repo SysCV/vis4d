@@ -22,6 +22,8 @@ from .crop import _get_keep_mask
 
 if OPENCV_AVAILABLE:
     import cv2
+else:
+    raise ImportError("Please install opencv-python to use this module.")
 
 
 class AffineParam(TypedDict):
@@ -233,12 +235,16 @@ class AffineImages:
             zip(images, warp_matrix_list, height_list, width_list)
         ):
             image = image[0].astype(np.uint8) if self.as_int else image[0]
-            image = cv2.warpPerspective(  # pylint: disable=no-member
+            image = cv2.warpPerspective(  # pylint: disable=no-member, unsubscriptable-object, line-too-long
                 image,
                 warp_matrix,
                 dsize=(width, height),
                 borderValue=self.border_val,
-            )[None, ...].astype(np.float32)
+            )[
+                None, ...
+            ].astype(
+                np.float32
+            )
 
             images[i] = image
             input_hw_list.append((height, width))

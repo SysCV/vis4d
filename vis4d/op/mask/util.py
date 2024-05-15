@@ -80,8 +80,11 @@ def _do_paste_mask(
     img_masks = F.grid_sample(masks, grid, align_corners=False)
 
     if skip_empty:
-        return img_masks[:, 0], (slice(y0_int, y1_int), slice(x0_int, x1_int))
-    return img_masks[:, 0], ()
+        return img_masks[:, 0], (  # pylint: disable=unsubscriptable-object
+            slice(y0_int, y1_int),
+            slice(x0_int, x1_int),
+        )
+    return img_masks[:, 0], ()  # pylint: disable=unsubscriptable-object
 
 
 def paste_masks_in_image(

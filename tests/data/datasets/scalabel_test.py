@@ -11,6 +11,8 @@ from vis4d.data.datasets.scalabel import Scalabel
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.typing import Config
+else:
+    raise ImportError("scalabel is not available")
 
 IMAGE_INDICES = np.array([0, 1, 232875, 465749])
 IMAGE_VALUES = np.array(

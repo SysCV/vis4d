@@ -233,7 +233,7 @@ def load_from_http(
         synchronize()
         if rank > 0:
             checkpoint = load_url(filename, map_location=map_location)
-    return checkpoint
+    return checkpoint  # pylint: disable=used-before-assignment
 
 
 def get_torchvision_models() -> dict[str, str]:

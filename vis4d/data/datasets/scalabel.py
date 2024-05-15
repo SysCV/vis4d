@@ -57,6 +57,8 @@ if SCALABEL_AVAILABLE:
         get_matrix_from_extrinsics,
         get_matrix_from_intrinsics,
     )
+else:
+    raise ImportError("scalabel is not installed.")
 
 
 def load_intrinsics(intrinsics: Intrinsics) -> NDArrayF32:
@@ -614,6 +616,8 @@ def instance_masks_from_scalabel(
             bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                 bitmask_raw.dtype
             )
+        else:
+            raise ValueError("No mask found in label.")
         bitmask_list.append(bitmask)
     if len(bitmask_list) == 0:  # pragma: no cover
         return np.empty((0, 0, 0), dtype=np.uint8)
@@ -680,6 +684,8 @@ def semantic_masks_from_scalabel(
             bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                 bitmask_raw.dtype
             )
+        else:
+            raise ValueError("No mask found in label.")
         bitmask_list.append(bitmask)
         if bg_as_class:
             foreground = (

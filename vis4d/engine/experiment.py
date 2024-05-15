@@ -198,6 +198,7 @@ def run_experiment(
 
     # Resume training
     if resume:
+        assert mode == "fit", "Resume is only supported in fit mode"
         if ckpt_path is None:
             ckpt_path = os.path.join(
                 config.output_dir, "checkpoints/last.ckpt"
@@ -210,10 +211,14 @@ def run_experiment(
         epoch = ckpt["epoch"] + 1
         global_step = ckpt["global_step"]
 
-        for i, optimizer in enumerate(optimizers):
+        for i, optimizer in enumerate(
+            optimizers  # pylint:disable=possibly-used-before-assignment
+        ):
             optimizer.load_state_dict(ckpt["optimizers"][i])
 
-        for i, lr_scheduler in enumerate(lr_schedulers):
+        for i, lr_scheduler in enumerate(
+            lr_schedulers  # pylint:disable=possibly-used-before-assignment
+        ):
             lr_scheduler.load_state_dict(ckpt["lr_schedulers"][i])
     else:
         epoch = 0

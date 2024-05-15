@@ -17,6 +17,8 @@ from .base import Transform
 
 if OPENCV_AVAILABLE:
     import cv2
+else:
+    raise ImportError("cv2 is not installed.")
 
 
 @Transform(K.images, K.images)

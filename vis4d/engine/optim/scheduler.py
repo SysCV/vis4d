@@ -1,4 +1,5 @@
-"""Vis4D LR schedulers."""
+# pylint: disable=no-member
+"""LR schedulers."""
 
 from __future__ import annotations
 
@@ -251,7 +252,7 @@ class QuadraticLRWarmup(LRScheduler):
             return self.base_lrs
         factors = [
             base_lr * (2 * step_count + 1) / self.max_steps**2
-            for base_lr in self.base_lrs
+            for base_lr in self.base_lrs  # pylint: disable=not-an-iterable
         ]
         if step_count == 0:
             return factors
