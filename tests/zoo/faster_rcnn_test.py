@@ -9,7 +9,7 @@ class TestFasterRCNNConfig(unittest.TestCase):
     """Tests the content of the provided configs for Faster-RCNN."""
 
     config_prefix = "faster_rcnn"
-    gt_config_path = "tests/vis4d-test-data/config_test/faster_rcnn"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/faster_rcnn"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_r50_fpn_coco(self) -> None:

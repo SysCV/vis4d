@@ -22,6 +22,8 @@ if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from scalabel.label.io import load
     from scalabel.label.transforms import mask_to_rle
     from scalabel.label.typing import Frame, Label
+else:
+    raise ImportError("scalabel or bdd100k is not installed.")
 
 
 class BDD100KSegEvaluator(Evaluator):

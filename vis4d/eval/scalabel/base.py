@@ -14,6 +14,8 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.io import load
     from scalabel.label.typing import Config, Frame
     from scalabel.label.utils import get_leaf_categories
+else:
+    raise ImportError("scalabel is not installed.")
 
 
 class ScalabelEvaluator(Evaluator):

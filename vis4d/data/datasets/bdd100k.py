@@ -95,6 +95,8 @@ if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
     from bdd100k.label.to_scalabel import bdd100k_to_scalabel
     from scalabel.label.io import load
     from scalabel.label.typing import Dataset as ScalabelData
+else:
+    raise ImportError("bdd100k or scalabel is not installed.")
 
 
 class BDD100K(Scalabel):

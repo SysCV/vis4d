@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 import numpy as np
 import torch
-import torchvision.transforms.functional as TF
+import torchvision.transforms.v2.functional as TF
 from torch import Tensor
 
 from vis4d.common.imports import OPENCV_AVAILABLE
@@ -17,6 +17,8 @@ from .base import Transform
 
 if OPENCV_AVAILABLE:
     import cv2
+else:
+    raise ImportError("cv2 is not installed.")
 
 
 @Transform(K.images, K.images)

@@ -7,28 +7,29 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import FieldConfigDict, class_config
-from vis4d.config.common.datasets.shift import (
-    CONN_SHIFT_INS_EVAL,
-    get_shift_instance_seg_config,
-)
-from vis4d.config.common.models import get_mask_rcnn_cfg
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
-    CONN_INS_MASK_2D_VIS,
-)
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.shift import SHIFTDetectEvaluator
 from vis4d.op.base import ResNet
 from vis4d.vis.image import SegMaskVisualizer
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
+from vis4d.zoo.base.data_connectors import (
+    CONN_BBOX_2D_TEST,
+    CONN_BBOX_2D_TRAIN,
+    CONN_INS_MASK_2D_VIS,
+)
+from vis4d.zoo.base.datasets.shift import (
+    CONN_SHIFT_INS_EVAL,
+    get_shift_instance_seg_config,
+)
+from vis4d.zoo.base.models.mask_rcnn import get_mask_rcnn_cfg
 
 
 def get_config() -> FieldConfigDict:

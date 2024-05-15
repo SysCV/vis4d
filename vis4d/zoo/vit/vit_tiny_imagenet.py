@@ -8,22 +8,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
-from vis4d.config.common.datasets.imagenet import (
-    CONN_IMAGENET_CLS_EVAL,
-    get_imagenet_cls_cfg,
-)
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.default.data_connectors.cls import (
-    CONN_CLS_LOSS,
-    CONN_CLS_TEST,
-    CONN_CLS_TRAIN,
-)
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.engine.callbacks import EMACallback, EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
@@ -34,6 +19,22 @@ from vis4d.engine.loss_module import LossModule
 from vis4d.eval.common.cls import ClassificationEvaluator
 from vis4d.model.adapter import ModelEMAAdapter
 from vis4d.model.cls.vit import ViTClassifer
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
+from vis4d.zoo.base.data_connectors.cls import (
+    CONN_CLS_LOSS,
+    CONN_CLS_TEST,
+    CONN_CLS_TRAIN,
+)
+from vis4d.zoo.base.datasets.imagenet import (
+    CONN_IMAGENET_CLS_EVAL,
+    get_imagenet_cls_cfg,
+)
 
 
 def get_config() -> ExperimentConfig:

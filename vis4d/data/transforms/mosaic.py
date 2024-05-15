@@ -10,7 +10,7 @@ from typing import TypedDict
 
 import numpy as np
 
-from vis4d.common.typing import NDArrayF32, NDArrayI32
+from vis4d.common.typing import NDArrayF32, NDArrayI64
 from vis4d.data.const import CommonKeys as K
 
 from .base import Transform
@@ -296,15 +296,15 @@ class MosaicBoxes2D:
     def __call__(
         self,
         boxes: list[NDArrayF32],
-        classes: list[NDArrayI32],
-        track_ids: list[NDArrayI32] | None,
+        classes: list[NDArrayI64],
+        track_ids: list[NDArrayI64] | None,
         paste_coords: list[list[tuple[int, int, int, int]]],
         crop_coords: list[list[tuple[int, int, int, int]]],
         im_scales: list[list[tuple[float, float]]],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI64], list[NDArrayI64] | None]:
         """Apply Mosaic to 2D bounding boxes."""
         new_boxes, new_classes = [], []
-        new_track_ids: list[NDArrayI32] | None = (
+        new_track_ids: list[NDArrayI64] | None = (
             [] if track_ids is not None else None
         )
         for i in range(0, len(boxes), self.NUM_SAMPLES):

@@ -59,7 +59,6 @@ class SpatialCrossAttention(nn.Module):
         spatial_shapes: Tensor,
         level_start_index: Tensor,
         bev_mask: Tensor,
-        residual: Tensor | None = None,
         query_pos: Tensor | None = None,
     ) -> Tensor:
         """Forward Function of Detr3DCrossAtten.
@@ -82,17 +81,14 @@ class SpatialCrossAttention(nn.Module):
                 as [0, h_0*w_0, h_0*w_0+h_1*w_1, ...].
             bev_mask (Tensor): The mask of BEV features with shape
                 (num_query, bs, num_levels, h, w).
-            residual (Tensor): The tensor used for addition, with the
-                same shape as `x`. Default None. If None, `x` will be used.
             query_pos (Tensor): The positional encoding for `query`. Default
                 None.
 
         Returns:
             Tensor: Forwarded results with shape [num_query, bs, embed_dims].
         """
-        if residual is None:
-            inp_residual = query
-            slots = torch.zeros_like(query)
+        inp_residual = query
+        slots = torch.zeros_like(query)
 
         if query_pos is not None:
             query = query + query_pos

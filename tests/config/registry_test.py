@@ -7,7 +7,7 @@ import unittest
 import pytest
 
 from tests.util import get_test_data
-from vis4d.config.util.registry import get_config_by_name, register_config
+from vis4d.config.registry import get_config_by_name, register_config
 
 
 class TestRegistry(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestRegistry(unittest.TestCase):
     def test_yaml(self) -> None:
         """Test reading a yaml config file."""
         file = get_test_data(
-            "config_test/bdd100k/faster_rcnn/faster_rcnn_r50_1x_bdd100k.yaml"
+            "zoo_test/bdd100k/faster_rcnn/faster_rcnn_r50_1x_bdd100k.yaml"
         )
 
         # Config can be resolved

@@ -22,6 +22,8 @@ if TIMM_AVAILABLE:
         auto_augment_policy,
         rand_augment_ops,
     )
+else:
+    raise ImportError("timm is not installed.")
 
 AugOp = Union[AutoAugment, RandAugment, AugMixAugment]
 

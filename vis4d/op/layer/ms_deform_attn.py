@@ -19,6 +19,8 @@ from vis4d.common.logging import rank_zero_warn
 
 if VIS4D_CUDA_OPS_AVAILABLE:
     from vis4d_cuda_ops import ms_deform_attn_backward, ms_deform_attn_forward
+else:
+    raise ImportError("vis4d_cuda_ops is not installed.")
 
 
 class MSDeformAttentionFunction(Function):  # pragma: no cover
@@ -221,6 +223,7 @@ class MSDeformAttention(nn.Module):
         is_power_of_2(d_model // n_heads)
 
         self.d_model = d_model
+        self.embed_dims = d_model
         self.n_levels = n_levels
         self.n_heads = n_heads
         self.n_points = n_points

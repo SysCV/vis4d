@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import Tensor, nn
 
 from vis4d.op.layer.conv2d import Conv2d
 
@@ -14,7 +13,7 @@ from vis4d.op.layer.conv2d import Conv2d
 class SemanticFPNOut(NamedTuple):
     """Output of the SemanticFPN prediction."""
 
-    outputs: torch.Tensor  # logits for final prediction, (N, C, H, W)
+    outputs: Tensor  # logits for final prediction, (N, C, H, W)
 
 
 class SemanticFPNHead(nn.Module):
@@ -91,11 +90,11 @@ class SemanticFPNHead(nn.Module):
         if hasattr(self.conv_seg, "bias") and self.conv_seg.bias is not None:
             nn.init.constant_(self.conv_seg.bias, 0)
 
-    def forward(self, features: list[torch.Tensor]) -> SemanticFPNOut:
+    def forward(self, features: list[Tensor]) -> SemanticFPNOut:
         """Transforms feature maps and returns segmentation prediction.
 
         Args:
-            features (list[torch.Tensor]): List of multi-level image features.
+            features (list[Tensor]): List of multi-level image features.
 
         Returns:
             SemanticFPNOut: Segmentation outputs.
@@ -117,3 +116,7 @@ class SemanticFPNHead(nn.Module):
             output = self.dropout(output)
         seg_preds = self.conv_seg(output)
         return SemanticFPNOut(outputs=seg_preds)
+
+    def __call__(self, feats: list[Tensor]) -> SemanticFPNOut:
+        """Type definition for function call."""
+        return super()._call_impl(feats)

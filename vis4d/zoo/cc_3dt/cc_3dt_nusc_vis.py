@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
-from vis4d.config.default import get_default_callbacks_cfg
 from vis4d.config.typing import ExperimentConfig
 from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 from vis4d.engine.callbacks import VisualizerCallback
 from vis4d.engine.connectors import MultiSensorCallbackConnector
 from vis4d.vis.image.bbox3d_visualizer import MultiCameraBBox3DVisualizer
 from vis4d.vis.image.bev_visualizer import BEVBBox3DVisualizer
+from vis4d.zoo.base import get_default_callbacks_cfg
 from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc import (
     get_config as get_cc_3dt_config,
 )

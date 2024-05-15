@@ -50,12 +50,12 @@ def test_resnet():
 
             # test norm freezed
             model.trainable_layers = 5
-            model.norm_freezed = True
+            model.norm_frozen = True
             model.train()
             for m in model.modules():
                 if isinstance(m, _BatchNorm):
                     assert not m.training
-            model.norm_freezed = False
+            model.norm_frozen = False
             model.train()
             for m in model.modules():
                 if isinstance(m, _BatchNorm):

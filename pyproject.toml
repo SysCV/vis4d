@@ -95,6 +95,7 @@ plugins = ["numpy.typing.mypy_plugin"]
         "terminaltables.*",
         "timm.*",
         "vis4d_cuda_ops.*",
+        "fvcore.*",
     ]
     ignore_missing_imports = true
 
@@ -111,12 +112,12 @@ plugins = ["numpy.typing.mypy_plugin"]
 
 [project]
 name = "vis4d"
-version = "0.0"
+version = "0.1.2"
 authors = [{name = "VIS @ ETH", email = "i@yf.io"}]
 description = "Vis4D Python package for Visual 4D scene understanding"
 readme = "README.md"
-license = { text="Apache 2.0"}
-requires-python = ">=3.9.0"
+license = {text = "Apache 2.0"}
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
@@ -134,7 +135,7 @@ dependencies = {file = ["requirements/install.txt"]}
 include = ["vis4d*"]
 
 [project.urls]
-"Documentation" = "https://vis.xyz/4d/"
+"Documentation" = "https://docs.vis.xyz/4d"
 "Source" = "https://github.com/syscv/vis4d"
 "Tracker" = "https://github.com/syscv/"
 

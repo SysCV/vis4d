@@ -40,6 +40,8 @@ if OPENCV_AVAILABLE:
         cvtColor,
         imdecode,
     )
+else:
+    raise ImportError("cv2 is not installed.")
 
 
 def im_decode(

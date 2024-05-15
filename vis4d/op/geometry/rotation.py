@@ -139,6 +139,7 @@ def _axis_angle_rotation(axis: str, angle: Tensor) -> Tensor:
     Returns:
         Rotation matrices as tensor of shape (..., 3, 3).
     """
+    assert axis in {"X", "Y", "Z"}, f"Invalid axis {axis}."
     cos = torch.cos(angle)
     sin = torch.sin(angle)
     one = torch.ones_like(angle)
@@ -146,9 +147,9 @@ def _axis_angle_rotation(axis: str, angle: Tensor) -> Tensor:
 
     if axis == "X":
         rot_flat = (one, zero, zero, zero, cos, -sin, zero, sin, cos)
-    if axis == "Y":
+    elif axis == "Y":
         rot_flat = (cos, zero, sin, zero, one, zero, -sin, zero, cos)
-    if axis == "Z":
+    else:
         rot_flat = (cos, -sin, zero, sin, cos, zero, zero, zero, one)
 
     return torch.stack(rot_flat, -1).reshape(angle.shape + (3, 3))

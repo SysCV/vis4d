@@ -9,7 +9,7 @@ class TestYOLOXConfig(unittest.TestCase):
     """Tests the content of the provided configs for YOLOX."""
 
     config_prefix = "yolox"
-    gt_config_path = "tests/vis4d-test-data/config_test/yolox"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/yolox"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_yolox_tiny_300e_coco(self) -> None:

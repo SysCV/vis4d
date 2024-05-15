@@ -7,11 +7,6 @@ from torch import optim
 
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
-from vis4d.config.common.models.mask_rcnn import (
-    CONN_MASK_HEAD_LOSS_2D,
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
-)
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.engine.connectors import LossConnector
@@ -29,6 +24,11 @@ from vis4d.op.detect.mask_rcnn import (
 )
 from vis4d.op.detect.rcnn import RCNNLoss, get_default_rcnn_box_codec
 from vis4d.op.detect.rpn import RPNLoss, get_default_rpn_box_codec
+from vis4d.zoo.base.models.mask_rcnn import (
+    CONN_MASK_HEAD_LOSS_2D,
+    CONN_ROI_LOSS_2D,
+    CONN_RPN_LOSS_2D,
+)
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 

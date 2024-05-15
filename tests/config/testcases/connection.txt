@@ -1,0 +1,62 @@
+===================================
+=          Training Loop          =
+===================================
+                    --------------                 
+[90m        <d>-boxes2d[00m |            | [94m*boxes2d        [00m
+[90m<d>-boxes2d_classes[00m |            | [94m*boxes2d_classes[00m
+[90m         <d>-images[00m | Train Data | [94m*images         [00m
+[90m       <d>-input_hw[00m |            | [94m*input_hw       [00m
+                    --------------                 
+                  --------------                           
+[94m         boxes2d*[00m |            | [33m<p>-proposals             [00m
+[94m boxes2d_classes*[00m |            | [33m<p>-roi                   [00m
+[94m          images*[00m |            | [94m*<p>-rpn                  [00m
+[94m        input_hw*[00m | FasterRCNN | [33m<p>-sampled_proposals     [00m
+[33m      original_hw[00m |            | [33m<p>-sampled_target_indices[00m
+[33m                 [00m |            | [33m<p>-sampled_targets       [00m
+                  --------------                           
+              -----------             
+[94m <p>-rpn.cls*[00m |         | [33mcls_outs    [00m
+[90m <d>-input_hw[00m |         | [33mimages_hw   [00m
+[94m <p>-rpn.box*[00m | RPNLoss | [33mreg_outs    [00m
+[90m  <d>-boxes2d[00m |         | [33mtarget_boxes[00m
+              -----------             
+                            ------------                
+[33m<p>-sampled_proposals.boxes[00m |          | [33mboxes          [00m
+[33m <p>-sampled_targets.labels[00m |          | [33mboxes_mask     [00m
+[33m          <p>-roi.cls_score[00m |          | [33mclass_outs     [00m
+[33m          <p>-roi.bbox_pred[00m | RCNNLoss | [33mregression_outs[00m
+[33m  <p>-sampled_targets.boxes[00m |          | [33mtarget_boxes   [00m
+[33m<p>-sampled_targets.classes[00m |          | [33mtarget_classes [00m
+                            ------------                
+===================================
+=          Testing Loop           =
+===================================
+                -------------             
+[90m     <d>-images[00m |           | [94m*images     [00m
+[90m   <d>-input_hw[00m | Test Data | [94m*input_hw   [00m
+[90m<d>-original_hw[00m |           | [94m*original_hw[00m
+                -------------             
+                --------------              
+[33m        boxes2d[00m |            | [33m<p>-boxes    [00m
+[33mboxes2d_classes[00m |            | [33m<p>-class_ids[00m
+[94m        images*[00m | FasterRCNN | [33m<p>-scores   [00m
+[94m      input_hw*[00m |            | [33m             [00m
+[94m   original_hw*[00m |            | [33m             [00m
+                --------------              
+===================================
+=            Callbacks            =
+===================================
+                    -------------------------             
+[33m          <p>-boxes[00m |                       | [94m*boxes      [00m
+[33m      <p>-class_ids[00m |                       | [94m*class_ids  [00m
+[90m   <d>-sample_names[00m | BoundingBoxVisualizer | [94m*image_names[00m
+[90m<d>-original_images[00m |                       | [94m*images     [00m
+[33m         <p>-scores[00m |                       | [94m*scores     [00m
+                    -------------------------             
+                 -----------------------              
+[90m<d>-sample_names[00m |                     | [33mcoco_image_id[00m
+[33m       <p>-boxes[00m |                     | [33mpred_boxes   [00m
+[33m   <p>-class_ids[00m | COCODetectEvaluator | [33mpred_classes [00m
+[33m      <p>-scores[00m |                     | [33mpred_scores  [00m
+                 -----------------------              

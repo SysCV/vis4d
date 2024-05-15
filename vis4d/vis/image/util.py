@@ -289,7 +289,9 @@ def preprocess_masks(
     Raises:
         ValueError: If the masks have an invalid shape.
     """
-    masks_np = array_to_numpy(masks, n_dims=None, dtype=np.uint8)
+    masks_np: NDArrayUI8 = array_to_numpy(  # type: ignore
+        masks, n_dims=None, dtype=np.uint8
+    )
 
     if len(masks_np.shape) == 2:
         masks_np, class_ids = _to_binary_mask(masks_np)

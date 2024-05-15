@@ -16,6 +16,8 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.io import group_and_sort
     from scalabel.label.transforms import mask_to_rle, xyxy_to_box2d
     from scalabel.label.typing import Config, Frame, Label
+else:
+    raise ImportError("scalabel is not installed.")
 
 
 class ScalabelTrackEvaluator(ScalabelEvaluator):
@@ -88,6 +90,16 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                 zip(boxes, scores, class_ids, track_ids)
             ):
                 box2d = xyxy_to_box2d(*box.tolist())
+
+                if pred_masks:
+                    rle = mask_to_rle(
+                        (masks[label_id] > self.mask_threshold).astype(
+                            np.uint8
+                        )
+                    )
+                else:
+                    rle = None
+
                 label = Label(
                     box2d=box2d,
                     category=(
@@ -97,15 +109,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
                     ),
                     score=float(score),
                     id=str(int(track_id)),
-                    rle=(
-                        mask_to_rle(
-                            (masks[label_id] > self.mask_threshold).astype(
-                                np.uint8
-                            )
-                        )
-                        if pred_masks
-                        else None
-                    ),
+                    rle=rle,
                 )
                 labels.append(label)
             frame = Frame(

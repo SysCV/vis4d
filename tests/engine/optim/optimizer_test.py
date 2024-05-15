@@ -13,8 +13,8 @@ from torch.optim.optimizer import Optimizer
 from tests.util import MockModel
 from vis4d.config import class_config
 from vis4d.config.typing import LrSchedulerConfig, ParamGroupCfg
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.engine.optim import LRSchedulerWrapper, PolyLR, set_up_optimizers
+from vis4d.zoo.base import get_lr_scheduler_cfg, get_optimizer_cfg
 
 
 def get_optimizer(

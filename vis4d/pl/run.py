@@ -5,17 +5,18 @@ from __future__ import annotations
 import logging
 import os.path as osp
 
-from absl import app
+import torch
+from absl import app  # pylint: disable=no-name-in-module
 from lightning.fabric.utilities.exceptions import MisconfigurationException
 from lightning.pytorch import Callback
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
-from vis4d.common.logging import rank_zero_info, setup_logger
+from vis4d.common.logging import dump_config, rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.typing import ExperimentConfig
-from vis4d.engine.callbacks.checkpoint import CheckpointCallback
+from vis4d.engine.callbacks import CheckpointCallback
 from vis4d.engine.flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG
 from vis4d.engine.parser import pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
@@ -43,10 +44,17 @@ def main(argv: ArgsType) -> None:
     setup_logger(logger_vis4d, log_file)
     setup_logger(logger_pl, log_file)
 
+    # Dump config
+    config_file = osp.join(
+        config.output_dir, f"config_{config.timestamp}.yaml"
+    )
+    dump_config(config, config_file)
+
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
     # PyTorch Setting
-    set_tf32(config.use_tf32)
+    set_tf32(config.use_tf32, config.tf32_matmul_precision)
+    torch.hub.set_dir(f"{config.work_dir}/.cache/torch/hub")
 
     # Setup device
     if num_gpus > 0:

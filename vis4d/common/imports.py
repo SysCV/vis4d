@@ -25,6 +25,7 @@ MMDET_AVAILABLE = package_available("mmdet")
 MMSEG_AVAILABLE = package_available("mmseg")
 DETECTRON2_AVAILABLE = package_available("detectron2")
 TIMM_AVAILABLE = package_available("timm")
+FVCORE_AVAILABLE = package_available("fvcore")
 
 # datasets
 WAYMO_AVAILABLE = package_available("waymo")

@@ -9,7 +9,7 @@ class TestFasterRCNNConfig(unittest.TestCase):
     """Tests the content of the provided configs for Faster R-CNN."""
 
     config_prefix = "shift.faster_rcnn"
-    gt_config_path = "tests/vis4d-test-data/config_test/shift/faster_rcnn"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/shift/faster_rcnn"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_r50_fpn_12e(self) -> None:

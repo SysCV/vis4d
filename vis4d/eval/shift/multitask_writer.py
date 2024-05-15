@@ -22,6 +22,8 @@ from vis4d.eval.base import Evaluator
 if SCALABEL_AVAILABLE:
     from scalabel.label.transforms import mask_to_rle, xyxy_to_box2d
     from scalabel.label.typing import Dataset, Frame, Label
+else:
+    raise ImportError("scalabel is not installed.")
 
 
 class SHIFTMultitaskWriter(Evaluator):
@@ -196,6 +198,18 @@ class SHIFTMultitaskWriter(Evaluator):
                     pred_boxes2d_classes[i],
                 ):
                     box2d = xyxy_to_box2d(*box.tolist())
+                    if pred_instance_masks:
+                        rle = mask_to_rle(
+                            (masks[class_id] > 0.0).astype(np.uint8)
+                        )
+                    else:
+                        rle = None
+
+                    if pred_boxes2d_track_ids:
+                        track_id = str(int(track_ids[0]))
+                    else:
+                        track_id = None
+
                     label = Label(
                         box2d=box2d,
                         category=(
@@ -204,18 +218,8 @@ class SHIFTMultitaskWriter(Evaluator):
                             else str(class_id)
                         ),
                         score=float(score),
-                        rle=(
-                            mask_to_rle(
-                                (masks[class_id] > 0.0).astype(np.uint8)
-                            )
-                            if pred_instance_masks
-                            else None
-                        ),
-                        id=(
-                            str(int(track_ids[0]))
-                            if pred_boxes2d_track_ids
-                            else None
-                        ),
+                        rle=rle,
+                        id=track_id,
                     )
                     labels.append(label)
                 frame = Frame(

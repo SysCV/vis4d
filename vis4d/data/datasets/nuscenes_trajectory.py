@@ -21,6 +21,8 @@ if NUSCENES_AVAILABLE:
     from nuscenes.eval.detection.utils import category_to_detection_name
     from nuscenes.utils.data_classes import Quaternion
     from nuscenes.utils.splits import create_splits_scenes
+else:
+    raise ImportError("nusenes-devkit is not available.")
 
 
 class NuScenesTrajectory(CacheMappingMixin, Dataset):
@@ -104,10 +106,12 @@ class NuScenesTrajectory(CacheMappingMixin, Dataset):
                 preds_center = [
                     pred["translation"][:2] for pred in same_class_preds
                 ]
-                distance_matrix = cdist(
-                    gt_world[:, :2],
-                    np.array(preds_center).reshape(-1, 2),
-                )[0]
+                distance_matrix = (
+                    cdist(  # pylint: disable=unsubscriptable-object
+                        gt_world[:, :2],
+                        np.array(preds_center).reshape(-1, 2),
+                    )[0]
+                )
 
                 if distance_matrix[distance_matrix.argmin()] <= 2:
                     match_pred = same_class_preds[distance_matrix.argmin()]

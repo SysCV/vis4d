@@ -311,7 +311,7 @@ class PointNetEncoder(nn.Module):
         return PointNetEncoderOut(
             features=features,
             transformations=transforms,
-            pointwise_features=pointwise_features,
+            pointwise_features=pointwise_features,  # pylint: disable=possibly-used-before-assignment, line-too-long
         )
 
 

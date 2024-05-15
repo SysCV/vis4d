@@ -350,14 +350,9 @@ class BEVFormerEncoderLayer(nn.Module):
         cross_attn: SpatialCrossAttention | None = None,
         feedforward_channels: int = 512,
         drop_out: float = 0.1,
-        batch_first: bool = True,
-        pre_norm: bool = False,
     ) -> None:
         """Init."""
         super().__init__()
-        self.batch_first = batch_first
-        self.pre_norm = pre_norm
-
         self.attentions = nn.ModuleList()
 
         self_attn = self_attn or TemporalSelfAttention(
@@ -371,18 +366,13 @@ class BEVFormerEncoderLayer(nn.Module):
         self.embed_dims = embed_dims
 
         self.ffns = nn.ModuleList()
-
-        layers: list[nn.Module] = [
-            nn.Sequential(
-                nn.Linear(self.embed_dims, feedforward_channels),
-                nn.ReLU(inplace=True),
-                nn.Dropout(drop_out),
+        self.ffns.append(
+            FFN(
+                embed_dims=embed_dims,
+                feedforward_channels=feedforward_channels,
+                dropout=drop_out,
             )
-        ]
-        layers.append(nn.Linear(feedforward_channels, self.embed_dims))
-        layers.append(nn.Dropout(drop_out))
-
-        self.ffns.append(FFN(layers=nn.Sequential(*layers)))
+        )
 
         self.norms = nn.ModuleList()
         for _ in range(3):

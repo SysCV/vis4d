@@ -14,7 +14,7 @@ from vis4d.op.track.qdtrack import QDTrackAssociation
 
 
 class Track(TypedDict):
-    """CC-3DT Track state.
+    """QDTrack Track state.
 
     Attributes:
         box (Tensor): In shape (4,) and contains x1, y1, x2, y2.

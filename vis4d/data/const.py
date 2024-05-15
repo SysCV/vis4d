@@ -8,6 +8,11 @@ helpful to use for better data transformation.
 from dataclasses import dataclass
 from enum import Enum
 
+# A custom value to distinguish instance ID and category ID; need to be greater
+# than the number of categories. For a pixel in the panoptic result map:
+# panaptic_id = instance_id * INSTANCE_OFFSET + category_id
+INSTANCE_OFFSET = 1000
+
 
 class AxisMode(Enum):
     """Enum for choosing among different coordinate frame conventions.
@@ -59,13 +64,14 @@ class CommonKeys:
     categories (NDArrayF32): Class labels of shape [C, ].
 
     boxes2d (NDArrayF32): 2D bounding boxes of shape [N, 4] in xyxy format.
-    boxes2d_classes (NDArrayI32): Semantic classes of 2D bounding boxes, shape
+    boxes2d_classes (NDArrayI64): Semantic classes of 2D bounding boxes, shape
         [N,].
-    boxes2d_track_ids (NDArrayI32): Tracking IDs of 2D bounding boxes,
+    boxes2d_track_ids (NDArrayI64): Tracking IDs of 2D bounding boxes,
         shape [N,].
     instance_masks (NDArrayUI8): Instance segmentation masks of shape
         [N, H, W].
     seg_masks (NDArrayUI8): Semantic segmentation masks [H, W].
+    panoptic_masks (NDArrayI64): Panoptic segmentation masks [H, W].
     deph_maps (NDArrayF32): Depth maps of shape [H, W].
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
@@ -82,7 +88,7 @@ class CommonKeys:
     instances3d:  TODO complete
     boxes3d (NDArrayF32): [N, 10], each row consists of center (XYZ),
         dimensions (WLH), and orientation quaternion (WXYZ).
-    boxes3d_classes (NDArrayI32): Associated semantic classes of 3D bounding
+    boxes3d_classes (NDArrayI64): Associated semantic classes of 3D bounding
         boxes, [N,].
     """
 
@@ -103,6 +109,7 @@ class CommonKeys:
     boxes2d_track_ids = "boxes2d_track_ids"
     instance_masks = "instance_masks"
     seg_masks = "seg_masks"
+    panoptic_masks = "panoptic_masks"
     depth_maps = "depth_maps"
     optical_flows = "optical_flows"
 

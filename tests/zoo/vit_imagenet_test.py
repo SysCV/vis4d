@@ -9,7 +9,7 @@ class TestViTConfig(unittest.TestCase):
     """Tests the content of the provided configs for ViT."""
 
     config_prefix = "vit"
-    gt_config_path = "tests/vis4d-test-data/config_test/vit"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/vit"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_small_imagenet(self) -> None:

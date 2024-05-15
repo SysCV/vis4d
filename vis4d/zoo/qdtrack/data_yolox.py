@@ -6,8 +6,6 @@ from ml_collections import ConfigDict
 
 from vis4d.config import class_config
 from vis4d.config.typing import DataConfig
-from vis4d.config.util import get_inference_dataloaders_cfg
-from vis4d.config.util.callable import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe, MultiSampleDataPipe
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
@@ -48,6 +46,8 @@ from vis4d.data.transforms.resize import (
     ResizeImages,
 )
 from vis4d.data.transforms.to_tensor import ToTensor
+from vis4d.zoo.base import get_inference_dataloaders_cfg
+from vis4d.zoo.base.callable import get_callable_cfg
 
 
 def get_train_dataloader(

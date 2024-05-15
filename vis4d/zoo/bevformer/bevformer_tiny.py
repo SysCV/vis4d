@@ -7,13 +7,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import CallbackConnector, MultiSensorDataConnector
@@ -31,6 +25,13 @@ from vis4d.op.detect3d.bevformer.spatial_cross_attention import (
 )
 from vis4d.op.detect3d.bevformer.transformer import PerceptionTransformer
 from vis4d.op.fpp.fpn import FPN
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
 from vis4d.zoo.bevformer.data import (
     CONN_NUSC_BBOX_3D_TEST,
     CONN_NUSC_DET3D_EVAL,
@@ -48,7 +49,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                    General Config                ##
     ######################################################
-    config = get_default_cfg(exp_name="bevformer_base")
+    config = get_default_cfg(exp_name="bevformer_tiny")
 
     # Hyper Parameters
     params = ExperimentParameters()

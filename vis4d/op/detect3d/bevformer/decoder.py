@@ -152,18 +152,13 @@ class BEVFormerDecoderLayer(nn.Module):
         self.embed_dims = embed_dims
 
         self.ffns = nn.ModuleList()
-
-        layers: list[nn.Module] = [
-            nn.Sequential(
-                nn.Linear(self.embed_dims, feedforward_channels),
-                nn.ReLU(inplace=True),
-                nn.Dropout(drop_out),
+        self.ffns.append(
+            FFN(
+                embed_dims=self.embed_dims,
+                feedforward_channels=feedforward_channels,
+                dropout=drop_out,
             )
-        ]
-        layers.append(nn.Linear(feedforward_channels, self.embed_dims))
-        layers.append(nn.Dropout(drop_out))
-
-        self.ffns.append(FFN(layers=nn.Sequential(*layers)))
+        )
 
         self.norms = nn.ModuleList()
         for _ in range(3):

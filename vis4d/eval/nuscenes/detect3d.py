@@ -25,6 +25,8 @@ if NUSCENES_AVAILABLE:
     from nuscenes.eval.detection.config import config_factory
     from nuscenes.eval.detection.evaluate import NuScenesEval
     from nuscenes.utils.data_classes import Quaternion
+else:
+    raise ImportError("nuscenes-devkit is not installed.")
 
 
 def _parse_high_level_metrics(

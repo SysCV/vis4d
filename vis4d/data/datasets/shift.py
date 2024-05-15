@@ -80,6 +80,8 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.io import parse
     from scalabel.label.typing import Config
     from scalabel.label.typing import Dataset as ScalabelData
+else:
+    raise ImportError("scalabel is not installed.")
 
 
 def _get_extension(backend: DataBackend) -> str:

@@ -10,7 +10,13 @@ import numpy as np
 import torch
 
 from vis4d.common.logging import rank_zero_warn
-from vis4d.common.typing import NDArrayBool, NDArrayF32, NDArrayI32, NDArrayUI8
+from vis4d.common.typing import (
+    NDArrayBool,
+    NDArrayF32,
+    NDArrayI32,
+    NDArrayI64,
+    NDArrayUI8,
+)
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import bbox_intersection
 
@@ -100,8 +106,8 @@ class GenCropParameters:
         shape: CropShape,
         crop_func: CropFunc = absolute_crop,
         allow_empty_crops: bool = True,
-        recompute_boxes2d: bool = False,
         cat_max_ratio: float = 1.0,
+        ignore_index: int = 255,
     ) -> None:
         """Creates an instance of the class.
 
@@ -111,16 +117,15 @@ class GenCropParameters:
                 of the crop. Defaults to absolute_crop.
             allow_empty_crops (bool, optional): Allow crops which result in
                 empty labels. Defaults to True.
-            recompute_boxes2d (bool, optional): Recompute the bounding boxes
-                after cropping instance masks. Defaults to False.
             cat_max_ratio (float, optional): Maximum ratio of a particular
                 class in segmentation masks after cropping. Defaults to 1.0.
+            ignore_index (int, optional): The index to ignore. Defaults to 255.
         """
         self.shape = shape
         self.crop_func = crop_func
-        self.cat_max_ratio = cat_max_ratio
         self.allow_empty_crops = allow_empty_crops
-        self.recompute_boxes2d = recompute_boxes2d
+        self.cat_max_ratio = cat_max_ratio
+        self.ignore_index = ignore_index
 
     def _get_crop(
         self, im_h: int, im_w: int, boxes: NDArrayF32 | None = None
@@ -128,11 +133,7 @@ class GenCropParameters:
         """Get the crop parameters."""
         crop_size = self.crop_func(im_h, im_w, self.shape)
         crop_box = _sample_crop(im_h, im_w, crop_size)
-        keep_mask = (
-            _get_keep_mask(boxes, crop_box)
-            if boxes is not None
-            else np.array([])
-        )
+        keep_mask = _get_keep_mask(boxes, crop_box)
         return crop_box, keep_mask
 
     def __call__(
@@ -147,14 +148,15 @@ class GenCropParameters:
         masks = masks_list[0] if masks_list is not None else None
 
         crop_box, keep_mask = self._get_crop(im_h, im_w, boxes)
-        if (boxes is not None and len(boxes) > 0) or self.cat_max_ratio != 1.0:
+        if (boxes is not None and len(boxes) > 0) or masks is not None:
             # resample crop if conditions not satisfied
             found_crop = False
             for _ in range(10):
                 # try resampling 10 times, otherwise use last crop
                 if (self.allow_empty_crops or keep_mask.sum() != 0) and (
-                    masks is None
-                    or _check_seg_max_cat(masks, crop_box, self.cat_max_ratio)
+                    _check_seg_max_cat(
+                        masks, crop_box, self.cat_max_ratio, self.ignore_index
+                    )
                 ):
                     found_crop = True
                     break
@@ -199,11 +201,7 @@ class GenCentralCropParameters:
 
         crop_size = self.crop_func(im_h, im_w, self.shape)
         crop_box = _get_central_crop(im_h, im_w, crop_size)
-        keep_mask = (
-            _get_keep_mask(boxes, crop_box)
-            if boxes is not None
-            else np.array([])
-        )
+        keep_mask = _get_keep_mask(boxes, crop_box)
         crop_params = [
             CropParam(crop_box=crop_box, keep_mask=keep_mask)
         ] * len(input_hw_list)
@@ -282,11 +280,7 @@ class GenRandomSizeCropParameters:
         boxes = boxes_list[0] if boxes_list is not None else None
 
         crop_box = self.get_params(im_h, im_w)
-        keep_mask = (
-            _get_keep_mask(boxes, crop_box)
-            if boxes is not None
-            else np.array([])
-        )
+        keep_mask = _get_keep_mask(boxes, crop_box)
 
         crop_params = [
             CropParam(crop_box=crop_box, keep_mask=keep_mask)
@@ -340,25 +334,25 @@ class CropBoxes2D:
     def __call__(
         self,
         boxes_list: list[NDArrayF32],
-        classes_list: list[NDArrayI32],
-        track_ids_list: list[NDArrayI32] | None,
+        classes_list: list[NDArrayI64],
+        track_ids_list: list[NDArrayI64] | None,
         crop_box_list: list[NDArrayI32],
         keep_mask_list: list[NDArrayBool],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI64], list[NDArrayI64] | None]:
         """Crop 2D bounding boxes.
 
         Args:
             boxes_list (list[NDArrayF32]): The list of bounding boxes to be
                 cropped.
-            classes_list (list[NDArrayI32]): The list of the corresponding
+            classes_list (list[NDArrayI64]): The list of the corresponding
                 classes.
-            track_ids_list (list[NDArrayI32] | None, optional): The list of
+            track_ids_list (list[NDArrayI64] | None, optional): The list of
                 corresponding tracking IDs. Defaults to None.
             crop_box_list (list[NDArrayI32]): The list of box to crop.
             keep_mask_list (list[NDArrayBool]): Which boxes to keep.
 
         Returns:
-            tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32]] | None:
+            tuple[list[NDArrayF32], list[NDArrayI64], list[NDArrayI64]] | None:
                 List of cropped bounding boxes according to parameters.
         """
         for i, (boxes, classes, crop_box, keep_mask) in enumerate(
@@ -392,6 +386,31 @@ class CropSegMasks:
         for i, (masks, crop_box) in enumerate(zip(masks_list, crop_box_list)):
             x1, y1, x2, y2 = crop_box
             masks_list[i] = masks[y1:y2, x1:x2]
+        return masks_list
+
+
+@Transform(
+    in_keys=[
+        K.instance_masks,
+        "transforms.crop.crop_box",
+        "transforms.crop.keep_mask",
+    ],
+    out_keys=[K.instance_masks],
+)
+class CropInstanceMasks:
+    """Crop instance segmentation masks."""
+
+    def __call__(
+        self,
+        masks_list: list[NDArrayUI8],
+        crop_box_list: list[NDArrayI32],
+        keep_mask_list: list[NDArrayBool],
+    ) -> list[NDArrayUI8]:
+        """Crop masks."""
+        for i, (masks, crop_box) in enumerate(zip(masks_list, crop_box_list)):
+            x1, y1, x2, y2 = crop_box
+            masks = masks[:, y1:y2, x1:x2]
+            masks_list[i] = masks[keep_mask_list[i]]
         return masks_list
 
 
@@ -470,9 +489,11 @@ def _get_central_crop(
     return np.array([crop_x1, crop_y1, crop_x2, crop_y2])
 
 
-def _get_keep_mask(boxes: NDArrayF32, crop_box: NDArrayI32) -> NDArrayBool:
+def _get_keep_mask(
+    boxes: NDArrayF32 | None, crop_box: NDArrayI32
+) -> NDArrayBool:
     """Get mask for 2D annotations to keep."""
-    if len(boxes) == 0:
+    if boxes is None or len(boxes) == 0:
         return np.array([], dtype=bool)
     # will be better to compute mask intersection (if exists) instead
     overlap = bbox_intersection(
@@ -482,21 +503,27 @@ def _get_keep_mask(boxes: NDArrayF32, crop_box: NDArrayI32) -> NDArrayBool:
 
 
 def _check_seg_max_cat(
-    masks: NDArrayUI8, crop_box: NDArrayI32, cat_max_ratio: float
+    masks: NDArrayUI8 | None,
+    crop_box: NDArrayI32,
+    cat_max_ratio: float,
+    ignore_index: int = 255,
 ) -> bool:
     """Check if any category occupies more than cat_max_ratio.
 
     Args:
-        masks (NDArrayUI8): Segmentation masks.
+        masks (NDArrayUI8 | None): Segmentation masks.
         crop_box (NDArrayI32): The box to crop.
         cat_max_ratio (float): Maximum category ratio.
+        ignore_index (int, optional): The index to ignore. Defaults to 255.
 
     Returns:
         bool: True if no category occupies more than cat_max_ratio.
     """
+    if cat_max_ratio >= 1.0 or masks is None:
+        return True
     x1, y1, x2, y2 = crop_box
     crop_masks = masks[y1:y2, x1:x2]
     cls_ids, cnts = np.unique(crop_masks, return_counts=True)
-    cnts = cnts[cls_ids != 255]
-    keep_mask = len(cnts) > 1 and cnts.max() / cnts.sum() < cat_max_ratio
-    return keep_mask
+    cnts = cnts[cls_ids != ignore_index]
+
+    return (cnts.max() / cnts.sum()) < cat_max_ratio

@@ -13,7 +13,7 @@ import numpy as np
 import torch
 
 from vis4d.common.imports import OPENCV_AVAILABLE
-from vis4d.common.typing import NDArrayF32, NDArrayI32
+from vis4d.common.typing import NDArrayF32, NDArrayI64
 from vis4d.data.const import CommonKeys as K
 from vis4d.op.box.box2d import bbox_clip, bbox_project
 
@@ -22,6 +22,8 @@ from .crop import _get_keep_mask
 
 if OPENCV_AVAILABLE:
     import cv2
+else:
+    raise ImportError("Please install opencv-python to use this module.")
 
 
 class AffineParam(TypedDict):
@@ -227,26 +229,22 @@ class AffineImages:
         height_list: list[int],
         width_list: list[int],
     ) -> tuple[list[NDArrayF32], list[tuple[int, int]]]:
-        """Crop a list of image of dimensions [N, H, W, C].
-
-        Args:
-            images (list[NDArrayF32]): The list of image.
-            crop_box (list[NDArrayI32]): The list of box to crop.
-
-        Returns:
-            list[NDArrayF32]: List of cropped image according to parameters.
-        """
+        """Affine a list of image of dimensions [N, H, W, C]."""
         input_hw_list = []
         for i, (image, warp_matrix, height, width) in enumerate(
             zip(images, warp_matrix_list, height_list, width_list)
         ):
             image = image[0].astype(np.uint8) if self.as_int else image[0]
-            image = cv2.warpPerspective(  # pylint: disable=no-member
+            image = cv2.warpPerspective(  # pylint: disable=no-member, unsubscriptable-object, line-too-long
                 image,
                 warp_matrix,
                 dsize=(width, height),
                 borderValue=self.border_val,
-            )[None, ...].astype(np.float32)
+            )[
+                None, ...
+            ].astype(
+                np.float32
+            )
 
             images[i] = image
             input_hw_list.append((height, width))
@@ -282,12 +280,12 @@ class AffineBoxes2D:
     def __call__(
         self,
         boxes: list[NDArrayF32],
-        classes: list[NDArrayI32],
-        track_ids: list[NDArrayI32] | None,
+        classes: list[NDArrayI64],
+        track_ids: list[NDArrayI64] | None,
         warp_matrix_list: list[NDArrayF32],
         height_list: list[int],
         width_list: list[int],
-    ) -> tuple[list[NDArrayF32], list[NDArrayI32], list[NDArrayI32] | None]:
+    ) -> tuple[list[NDArrayF32], list[NDArrayI64], list[NDArrayI64] | None]:
         """Apply Affine to 2D bounding boxes."""
         for i, (box, class_, warp_matrix, height, width) in enumerate(
             zip(

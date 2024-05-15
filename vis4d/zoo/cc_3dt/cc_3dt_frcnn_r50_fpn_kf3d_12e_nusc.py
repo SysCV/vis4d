@@ -7,13 +7,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
-from vis4d.config.util import get_lr_scheduler_cfg, get_optimizer_cfg
 from vis4d.data.datasets.nuscenes import nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback
@@ -27,6 +21,13 @@ from vis4d.eval.nuscenes import (
     NuScenesTrack3DEvaluator,
 )
 from vis4d.op.base import ResNet
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+    get_lr_scheduler_cfg,
+    get_optimizer_cfg,
+)
 from vis4d.zoo.cc_3dt.data import (
     CONN_NUSC_BBOX_3D_TEST,
     CONN_NUSC_DET3D_EVAL,

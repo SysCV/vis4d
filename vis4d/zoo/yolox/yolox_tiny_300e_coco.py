@@ -6,20 +6,6 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
-from vis4d.config.common.models.yolox import (
-    get_yolox_callbacks_cfg,
-    get_yolox_cfg,
-    get_yolox_optimizers_cfg,
-)
-from vis4d.config.default import (
-    get_default_callbacks_cfg,
-    get_default_cfg,
-    get_default_pl_trainer_cfg,
-)
-from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_VIS,
-)
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -27,6 +13,17 @@ from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
 from vis4d.eval.coco import COCODetectEvaluator
 from vis4d.vis.image import BoundingBoxVisualizer
+from vis4d.zoo.base import (
+    get_default_callbacks_cfg,
+    get_default_cfg,
+    get_default_pl_trainer_cfg,
+)
+from vis4d.zoo.base.data_connectors import CONN_BBOX_2D_TEST, CONN_BBOX_2D_VIS
+from vis4d.zoo.base.models.yolox import (
+    get_yolox_callbacks_cfg,
+    get_yolox_cfg,
+    get_yolox_optimizers_cfg,
+)
 from vis4d.zoo.yolox.data import CONN_COCO_BBOX_EVAL, get_coco_yolox_cfg
 
 CONN_BBOX_2D_TRAIN = {"images": K.images}

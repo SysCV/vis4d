@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor
-from torchvision.ops import batched_nms
+from torchvision.ops import batched_nms, nms
 
+from vis4d.common.logging import rank_zero_warn
 from vis4d.op.geometry.transform import transform_points
 
 
@@ -378,8 +379,10 @@ def multiclass_nms(
     score_thr: float,
     iou_thr: float,
     max_num: int = -1,
+    class_agnostic: bool = False,
+    split_thr: int = 100000,
 ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    """A per-class version of Non-maximum suppression.
+    """Non-maximum suppression with multiple classes.
 
     Args:
         multi_bboxes (Tensor): shape (n, #class*4) or (n, 4)
@@ -390,6 +393,11 @@ def multiclass_nms(
         iou_thr (float): NMS IoU threshold
         max_num (int, optional): if there are more than max_num bboxes after
             NMS, only top max_num will be kept. Defaults to -1.
+        class_agnostic (bool, optional): whether apply class_agnostic NMS.
+            Defaults to False.
+        split_thr (int, optional): If the number of bboxes is less than
+            split_thr, use class agnostic NMS with class_agnostic=True.
+            Defaults to 100000.
 
     Returns:
         tuple: (Tensor, Tensor, Tensor, Tensor): detections (k, 5), scores
@@ -417,12 +425,12 @@ def multiclass_nms(
     labels = labels.reshape(-1)
 
     if not torch.onnx.is_in_onnx_export():
-        # NonZero not supported  in TensorRT
+        # NonZero not supported in TensorRT
         # remove low scoring boxes
         valid_mask = scores > score_thr
 
     if not torch.onnx.is_in_onnx_export():
-        # NonZero not supported  in TensorRT
+        # NonZero not supported in TensorRT
         inds = valid_mask.nonzero(as_tuple=False).squeeze(1)
         bboxes, scores, labels = bboxes[inds], scores[inds], labels[inds]
     else:
@@ -440,7 +448,15 @@ def multiclass_nms(
             )
         return bboxes, scores, labels, inds
 
-    keep = batched_nms(bboxes, scores, labels, iou_thr)
+    if class_agnostic and bboxes.shape[0] < split_thr:
+        keep = nms(bboxes, scores, iou_thr)
+    else:
+        if class_agnostic:
+            rank_zero_warn(
+                f"Number of bboxes is larger than {split_thr}, "
+                "using per-class NMS instead"
+            )
+        keep = batched_nms(bboxes, scores, labels, iou_thr)
 
     if max_num > 0:
         keep = keep[:max_num]

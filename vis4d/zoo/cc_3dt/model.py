@@ -5,17 +5,6 @@ from __future__ import annotations
 from ml_collections import ConfigDict, FieldReference
 
 from vis4d.config import class_config
-from vis4d.config.common.models.faster_rcnn import (
-    get_default_rcnn_box_codec_cfg,
-    get_default_rpn_box_codec_cfg,
-)
-from vis4d.config.common.models.qdtrack import (
-    CONN_ROI_LOSS_2D as _CONN_ROI_LOSS_2D,
-)
-from vis4d.config.common.models.qdtrack import (
-    CONN_TRACK_LOSS_2D as _CONN_TRACK_LOSS_2D,
-)
-from vis4d.config.util import get_callable_cfg
 from vis4d.data.const import CommonKeys as K
 from vis4d.engine.connectors import LossConnector, pred_key, remap_pred_keys
 from vis4d.engine.loss_module import LossModule
@@ -28,6 +17,15 @@ from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.track.qdtrack import QDTrackInstanceSimilarityLoss
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
+from vis4d.zoo.base import get_callable_cfg
+from vis4d.zoo.base.models.faster_rcnn import (
+    get_default_rcnn_box_codec_cfg,
+    get_default_rpn_box_codec_cfg,
+)
+from vis4d.zoo.base.models.qdtrack import CONN_ROI_LOSS_2D as _CONN_ROI_LOSS_2D
+from vis4d.zoo.base.models.qdtrack import (
+    CONN_TRACK_LOSS_2D as _CONN_TRACK_LOSS_2D,
+)
 
 PRED_PREFIX = "qdtrack_out"
 

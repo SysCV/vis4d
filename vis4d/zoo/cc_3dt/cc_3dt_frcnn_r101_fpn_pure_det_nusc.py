@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
-from vis4d.config.default import get_default_callbacks_cfg
 from vis4d.config.typing import ExperimentConfig
 from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_class_map
 from vis4d.data.io.hdf5 import HDF5Backend
@@ -11,6 +10,7 @@ from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import MultiSensorCallbackConnector
 from vis4d.eval.nuscenes import NuScenesDet3DEvaluator
 from vis4d.op.base import ResNet
+from vis4d.zoo.base import get_default_callbacks_cfg
 from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc import (
     get_config as get_kf3d_config,
 )

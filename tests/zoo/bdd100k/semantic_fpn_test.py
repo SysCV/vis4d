@@ -9,7 +9,7 @@ class TestSemanticFPNConfig(unittest.TestCase):
     """Tests the content of the provided configs for Semantic-FPN."""
 
     config_prefix = "bdd100k.semantic_fpn"
-    gt_config_path = "tests/vis4d-test-data/config_test/bdd100k/semantic_fpn"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/bdd100k/semantic_fpn"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_r50_fpn_40k(self) -> None:

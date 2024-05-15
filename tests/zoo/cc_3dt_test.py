@@ -9,7 +9,7 @@ class TestCC3DTConfig(unittest.TestCase):
     """Tests the content of the provided configs."""
 
     config_prefix = "cc_3dt"
-    gt_config_path = "tests/vis4d-test-data/config_test/cc_3dt"
+    gt_config_path = "tests/vis4d-test-data/zoo_test/cc_3dt"
     varying_keys = ["save_prefix", "output_dir", "version", "timestamp"]
 
     def test_frcnn_r50_fpn_kf3d_12e_nusc(self) -> None:

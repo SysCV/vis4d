@@ -24,6 +24,7 @@ from vis4d.common.distributed import (
 )
 from vis4d.common.logging import (
     _info,
+    dump_config,
     rank_zero_info,
     rank_zero_warn,
     setup_logger,
@@ -107,10 +108,17 @@ def run_experiment(
     log_dir = os.path.join(config.output_dir, f"log_{config.timestamp}.txt")
     setup_logger(logger_vis4d, log_dir)
 
+    # Dump config
+    config_file = os.path.join(
+        config.output_dir, f"config_{config.timestamp}.yaml"
+    )
+    dump_config(config, config_file)
+
     rank_zero_info("Environment info: %s", get_pretty_env_info())
 
     # PyTorch Setting
-    set_tf32(config.use_tf32)
+    set_tf32(config.use_tf32, config.tf32_matmul_precision)
+    torch.hub.set_dir(f"{config.work_dir}/.cache/torch/hub")
     torch.backends.cudnn.benchmark = config.benchmark
 
     if show_config:
@@ -190,6 +198,7 @@ def run_experiment(
 
     # Resume training
     if resume:
+        assert mode == "fit", "Resume is only supported in fit mode"
         if ckpt_path is None:
             ckpt_path = os.path.join(
                 config.output_dir, "checkpoints/last.ckpt"
@@ -202,10 +211,14 @@ def run_experiment(
         epoch = ckpt["epoch"] + 1
         global_step = ckpt["global_step"]
 
-        for i, optimizer in enumerate(optimizers):
+        for i, optimizer in enumerate(
+            optimizers  # pylint:disable=possibly-used-before-assignment
+        ):
             optimizer.load_state_dict(ckpt["optimizers"][i])
 
-        for i, lr_scheduler in enumerate(lr_schedulers):
+        for i, lr_scheduler in enumerate(
+            lr_schedulers  # pylint:disable=possibly-used-before-assignment
+        ):
             lr_scheduler.load_state_dict(ckpt["lr_schedulers"][i])
     else:
         epoch = 0

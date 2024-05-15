@@ -15,6 +15,8 @@ if SCALABEL_AVAILABLE:
     from scalabel.eval.ins_seg import evaluate_ins_seg
     from scalabel.label.transforms import mask_to_rle, xyxy_to_box2d
     from scalabel.label.typing import Config, Frame, Label
+else:
+    raise ImportError("scalabel is not installed.")
 
 
 class ScalabelDetectEvaluator(ScalabelEvaluator):
@@ -82,6 +84,16 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
                 zip(boxes, scores, class_ids)
             ):
                 box2d = xyxy_to_box2d(*box.tolist())
+
+                if pred_masks:
+                    rle = mask_to_rle(
+                        (masks[label_id] > self.mask_threshold).astype(
+                            np.uint8
+                        )
+                    )
+                else:
+                    rle = None
+
                 label = Label(
                     id=str(label_id),
                     box2d=box2d,
@@ -91,15 +103,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
                         else str(class_id)
                     ),
                     score=float(score),
-                    rle=(
-                        mask_to_rle(
-                            (masks[label_id] > self.mask_threshold).astype(
-                                np.uint8
-                            )
-                        )
-                        if pred_masks
-                        else None
-                    ),
+                    rle=rle,
                 )
                 labels.append(label)
             frame = Frame(

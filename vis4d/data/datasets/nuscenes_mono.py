@@ -19,6 +19,8 @@ from .util import im_decode, print_class_histogram
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as NuScenesDevkit
     from nuscenes.utils.splits import create_splits_scenes
+else:
+    raise ImportError("nusenes-devkit is not available.")
 
 
 class NuScenesMono(NuScenes):

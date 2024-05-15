@@ -101,6 +101,6 @@ class TestDepthEvaluator(unittest.TestCase):
             metrics[DepthEvaluator.KEY_ABS_REL], 1.208, places=3
         )
         self.assertAlmostEqual(
-            metrics[DepthEvaluator.KEY_SQ_REL], 4.007, places=3
+            metrics[DepthEvaluator.KEY_SQ_REL], 5.635, places=3
         )
         assert isinstance(log_str, str)

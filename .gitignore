@@ -43,12 +43,8 @@ coverage/
 # downloaded repos and models
 scalabel/bot/experimental/*
 
-# python cache
-__pycache__/
-
 # python virtual environment
 env/
-
 
 # vscode workspace configuration
 *.code-workspace

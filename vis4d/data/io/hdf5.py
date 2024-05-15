@@ -21,7 +21,7 @@ if H5PY_AVAILABLE:
     import h5py
     from h5py import File
 else:
-    File = None  # pylint: disable=invalid-name
+    raise ImportError("Please install h5py to enable HDF5Backend.")
 
 
 class HDF5Backend(DataBackend):

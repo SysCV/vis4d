@@ -7,7 +7,7 @@ from typing import Any, TypedDict
 from ml_collections import ConfigDict, FieldReference
 from typing_extensions import NotRequired
 
-from vis4d.config.config_dict import FieldConfigDict
+from .config_dict import FieldConfigDict
 
 
 class ParamGroupCfg(TypedDict):
@@ -41,7 +41,7 @@ class DataConfig(ConfigDict):  # type: ignore
 
     Example:
         >>> from vis4d.config.types import DataConfig
-        >>> from vis4d.config.util import class_config
+        >>> from vis4d.zoo.base import class_config
         >>> from my_package.data import MyDataLoader
         >>> cfg = DataConfig()
         >>> cfg.train_dataloader = class_config(MyDataLoader, ...)
@@ -148,6 +148,7 @@ class ExperimentConfig(FieldConfigDict):
     log_every_n_steps: int | FieldReference
     use_tf32: bool | FieldReference
     benchmark: bool | FieldReference
+    tf32_matmul_precision: str | FieldReference
 
     params: ExperimentParameters
 

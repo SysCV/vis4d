@@ -26,6 +26,8 @@ from vis4d.vis.pointcloud.pointcloud_visualizer import PointCloudVisualizer
 
 if OPEN3D_AVAILABLE:
     import open3d as o3d
+else:
+    raise ImportError("open3d is not available")
 
 
 class TestPointcloudViewer(unittest.TestCase):
