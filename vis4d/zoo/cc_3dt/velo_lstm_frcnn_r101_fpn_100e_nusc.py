@@ -2,7 +2,7 @@
 """CC-3DT VeloLSTM on nuScenes."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch.optim import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 

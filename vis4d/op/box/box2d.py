@@ -420,7 +420,7 @@ def multiclass_nms(
     labels = torch.arange(num_classes, dtype=torch.long, device=scores.device)
     labels = labels.view(1, -1).expand_as(scores)
 
-    bboxes = bboxes.view(-1, 4)
+    bboxes = bboxes.reshape(-1, 4)
     scores = scores.reshape(-1)
     labels = labels.reshape(-1)
 

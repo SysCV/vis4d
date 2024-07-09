@@ -2,7 +2,7 @@
 """VIT ImageNet-1k training example."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch import nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR

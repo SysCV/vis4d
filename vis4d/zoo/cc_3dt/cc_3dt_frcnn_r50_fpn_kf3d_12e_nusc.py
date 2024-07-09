@@ -2,7 +2,7 @@
 """CC-3DT with Faster-RCNN ResNet-50 detector using KF3D motion model."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 

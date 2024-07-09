@@ -2,7 +2,7 @@
 """QDTrack with YOLOX-x on BDD100K."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config

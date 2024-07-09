@@ -2,7 +2,7 @@
 """BEVFormer base with ResNet-101-DCN backbone."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 

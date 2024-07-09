@@ -335,7 +335,7 @@ def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
     if not (dist.is_available() and dist.is_initialized()):
         return tensor
     tensor = tensor.clone()
-    dist.all_reduce(tensor.div_(dist.get_world_size()), op=dist.ReduceOp.SUM)
+    dist.all_reduce(tensor.div_(get_world_size()), op=dist.ReduceOp.SUM)
     return tensor
 
 
