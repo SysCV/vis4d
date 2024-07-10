@@ -45,11 +45,14 @@ class PillowCanvasBackend(CanvasBackend):
         Raises:
             ValueError: If the canvas is not initialized.
         """
-        if image is None and image_hw is None:
-            raise ValueError("Image or Image Shapes required to create canvas")
         if image_hw is not None:
             white_image = np.ones([*image_hw, 3]) * 255
             image = white_image.astype(np.uint8)
+        else:
+            assert (
+                image is not None
+            ), "Image or Image Shapes required to create canvas"
+
         self._image = Image.fromarray(image)
         self._image_draw = ImageDraw.Draw(self._image)
 
