@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from ml_collections import ConfigDict, FieldReference
-from torch.optim import SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
 from vis4d.config.typing import OptimizerConfig

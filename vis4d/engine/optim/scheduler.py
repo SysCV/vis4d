@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.optimizer import Optimizer
 
 from vis4d.common.typing import DictStrAny
 from vis4d.config import copy_and_resolve_references, instantiate_classes
@@ -80,10 +80,10 @@ class LRSchedulerWrapper(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Get current learning rate."""
-        return [
-            lr_scheduler["scheduler"].get_lr()
-            for lr_scheduler in self.lr_schedulers.values()
-        ]
+        lr = []
+        for lr_scheduler in self.lr_schedulers.values():
+            lr.extend(lr_scheduler["scheduler"].get_lr())
+        return lr
 
     def state_dict(self) -> dict[int, DictStrAny]:  # type: ignore
         """Get state dict."""
@@ -163,7 +163,7 @@ class ConstantLR(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count - 1  # type: ignore
+        step_count = self._step_count - 1
         if step_count == 0:
             return [
                 group["lr"] * self.factor
@@ -213,7 +213,7 @@ class PolyLR(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count - 1  # type: ignore
+        step_count = self._step_count - 1
         if step_count == 0 or step_count > self.max_steps:
             return [group["lr"] for group in self.optimizer.param_groups]
         decay_factor = (
@@ -247,7 +247,7 @@ class QuadraticLRWarmup(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count - 1  # type: ignore
+        step_count = self._step_count - 1
         if step_count >= self.max_steps:
             return self.base_lrs
         factors = [

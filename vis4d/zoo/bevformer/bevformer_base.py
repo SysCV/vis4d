@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch.optim import AdamW
+from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config

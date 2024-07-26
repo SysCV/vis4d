@@ -309,7 +309,7 @@ class ResizeOpticalFlows:
                 optical_flow_[:, :, 0] *= scale_factor[0]
                 optical_flow_[:, :, 1] *= scale_factor[1]
             optical_flows[i] = optical_flow_.numpy()
-        return optical_flow_.numpy()
+        return optical_flows
 
 
 @Transform(

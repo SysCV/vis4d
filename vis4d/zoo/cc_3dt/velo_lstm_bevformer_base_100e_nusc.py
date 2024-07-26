@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch.optim import Adam
+from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import class_config

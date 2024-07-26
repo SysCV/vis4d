@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 from ml_collections import ConfigDict
-from torch import optim
+from torch.optim.sgd import SGD
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data
@@ -85,7 +85,7 @@ def get_training_module(model_cfg: ConfigDict):
         }
     )
 
-    optimizer_cfg = get_optimizer_cfg(class_config(optim.SGD, lr=0.01))
+    optimizer_cfg = get_optimizer_cfg(class_config(SGD, lr=0.01))
     return TrainingModule(
         model_cfg=model_cfg,
         optimizers_cfg=[optimizer_cfg],
