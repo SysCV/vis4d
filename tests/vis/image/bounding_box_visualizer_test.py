@@ -32,8 +32,10 @@ class TestBoundingBoxVis(unittest.TestCase):
         self.scores: list[NDArrayF64] = testcase_gt["scores"]
         self.tracks = [np.arange(len(b)) for b in self.boxes]
 
+        cat_mapping = {v: k for k, v in COCO_COLOR_MAPPING.items()}
+
         self.vis = BoundingBoxVisualizer(
-            n_colors=20, class_id_mapping=COCO_COLOR_MAPPING, vis_freq=1
+            n_colors=20, cat_mapping=cat_mapping, vis_freq=1
         )
 
     def tearDown(self) -> None:

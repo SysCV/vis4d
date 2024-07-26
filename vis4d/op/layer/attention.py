@@ -120,6 +120,7 @@ class MultiheadAttention(nn.Module):
         super().__init__()
         self.batch_first = batch_first
         self.embed_dims = embed_dims
+        self.num_heads = num_heads
 
         self.attn = nn.MultiheadAttention(
             embed_dims, num_heads, dropout=attn_drop, **kwargs
@@ -193,8 +194,10 @@ class MultiheadAttention(nn.Module):
                 key_pos = query_pos
             else:
                 rank_zero_warn(
-                    "position encoding of key is"
-                    + f"missing in {self.__class__.__name__}."
+                    f"Position encoding of key in {self.__class__.__name__}"
+                    + "is missing, and positional encodeing of query has "
+                    + "has different shape and cannot be usde for key. "
+                    + "It it is not desired, please provide key_pos."
                 )
 
         if query_pos is not None:
