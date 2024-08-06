@@ -72,20 +72,24 @@ def get_config() -> ExperimentConfig:
     ######################################################
     config.pure_detection = ""
 
+    data_root = "vis4d/data/nuscenes_test"
+    version = "v1.0-test"
+    test_split = "test"
+
     data = DataConfig()
 
     data.train_dataloader = None
 
     test_dataset = class_config(
         NuScenesDetection,
-        data_root="data/nuscenes",
-        version="v1.0-test",
-        split="test",
+        data_root=data_root,
+        version=version,
+        split=test_split,
         keys_to_load=[K.images, K.original_images],
-        data_backend=class_config(HDF5Backend),
+        #data_backend=class_config(HDF5Backend),
         pure_detection=config.pure_detection,
         cache_as_binary=True,
-        cached_file_path="data/nuscenes/test.pkl",
+        cached_file_path=f"{data_root}/test.pkl",
     )
 
     data.test_dataloader = get_test_dataloader(
