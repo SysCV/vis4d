@@ -1,5 +1,5 @@
 # CC-3DT++: The Velocity-Similarity Enhanced Tracker of CR3DT
-This packages contains the isolated CC-3DT++ tracker of [CR3DT](https://arxiv.org/abs/2403.15313) and is meant to be run in combination with the main CR3DT repository. In case you want to run it isolated please follow the instructions below.
+This packages contains the isolated CC-3DT++ tracker of [CR3DT](https://arxiv.org/abs/2403.15313) and is meant to be run in combination with the [CR3DT](https://github.com/ETH-PBL/CR3DT) detector.
 
 ## Installation
 
@@ -88,7 +88,7 @@ If you find Vis4D is useful for your research, please consider citing the follow
 
 If you find CC-3DT++ is useful for your research, please consider citing the following BibTeX entry.
 
-```
+```bibtex
 @article{baumann2024cr3dt,
   title={CR3DT: Camera-RADAR Fusion for 3D Detection and Tracking},
   author={Baumann, Nicolas and Baumgartner, Michael and Ghignone, Edoardo and K{\"u}hne, Jonas and Fischer, Tobias and Yang, Yung-Hsu and Pollefeys, Marc and Magno, Michele},
