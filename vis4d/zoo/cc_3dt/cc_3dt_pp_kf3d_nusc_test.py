@@ -93,7 +93,7 @@ def get_config() -> ExperimentConfig:
     )
 
     data.test_dataloader = get_test_dataloader(
-        test_dataset=test_dataset, samples_per_gpu=1, workers_per_gpu=4
+        test_dataset=test_dataset, samples_per_gpu=1, workers_per_gpu=1
     )
 
     config.data = data
@@ -140,17 +140,14 @@ def get_config() -> ExperimentConfig:
             EvaluatorCallback,
             evaluator=class_config(
                 NuScenesDet3DEvaluator,
-                data_root="data/nuscenes",
-                version="v1.0-test",
-                split="test",
-                save_only=True,
+                data_root=data_root,
+                version=version,
+                split=test_split,
             ),
             save_predictions=True,
             save_prefix=config.output_dir,
             test_connector=class_config(
-                MultiSensorCallbackConnector,
-                key_mapping=CONN_NUSC_DET3D_EVAL,
-                sensors=NuScenes.CAMERAS,
+                CallbackConnector, key_mapping=CONN_NUSC_DET3D_EVAL
             ),
         )
     )
