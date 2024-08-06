@@ -153,7 +153,10 @@ def get_config() -> ExperimentConfig:
     callbacks.append(
         class_config(
             EvaluatorCallback,
-            evaluator=class_config(NuScenesTrack3DEvaluator),
+            evaluator=class_config(
+                NuScenesTrack3DEvaluator, 
+                metadata=("use_camera", "use_radar")
+            ),
             save_predictions=True,
             save_prefix=config.output_dir,
             test_connector=class_config(

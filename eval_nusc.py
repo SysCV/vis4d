@@ -87,6 +87,8 @@ def evaluate(
     """nuScenes evaluation."""
     if "mini" in version:
         eval_set = "mini_val"
+    elif "test" in version:
+        eval_set = "test"
     else:
         eval_set = "val"
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
+from vis4d.zoo.base import get_default_callbacks_cfg
 from vis4d.config.typing import DataConfig, ExperimentConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
@@ -13,10 +14,26 @@ from vis4d.model.track3d.cc_3dt import CC3DT
 from vis4d.op.base import ResNet
 from vis4d.op.track3d.cc_3dt import CC3DTrackAssociation
 from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
+from vis4d.engine.callbacks import EvaluatorCallback
+from vis4d.engine.connectors import (
+    CallbackConnector,
+    MultiSensorDataConnector,
+    data_key,
+)
+from vis4d.eval.nuscenes import (
+    NuScenesDet3DEvaluator,
+    NuScenesTrack3DEvaluator,
+)
+
 from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc import (
     get_config as get_kf3d_cfg,
 )
-from vis4d.zoo.cc_3dt.data import CONN_NUSC_BBOX_3D_TEST, get_test_dataloader
+from vis4d.zoo.cc_3dt.data import (
+    CONN_NUSC_BBOX_3D_TEST,
+    CONN_NUSC_DET3D_EVAL,
+    CONN_NUSC_TRACK3D_EVAL,
+    get_test_dataloader,
+)
 
 CONN_NUSC_BBOX_3D_TEST = {
     "images_list": data_key(K.images, sensors=NuScenes.CAMERAS),
@@ -110,5 +127,43 @@ def get_config() -> ExperimentConfig:
     config.test_data_connector = class_config(
         MultiSensorDataConnector, key_mapping=CONN_NUSC_BBOX_3D_TEST
     )
+
+    ######################################################
+    ##                     CALLBACKS                    ##
+    ######################################################
+    # Logger and Checkpoint
+    callbacks = get_default_callbacks_cfg(config.output_dir)
+
+    # Evaluator
+    callbacks.append(
+        class_config(
+            EvaluatorCallback,
+            evaluator=class_config(
+                NuScenesDet3DEvaluator,
+                data_root=data_root,
+                version=version,
+                split=test_split,
+            ),
+            save_predictions=True,
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                CallbackConnector, key_mapping=CONN_NUSC_DET3D_EVAL
+            ),
+        )
+    )
+
+    callbacks.append(
+        class_config(
+            EvaluatorCallback,
+            evaluator=class_config(NuScenesTrack3DEvaluator),
+            save_predictions=True,
+            save_prefix=config.output_dir,
+            test_connector=class_config(
+                CallbackConnector, key_mapping=CONN_NUSC_TRACK3D_EVAL
+            ),
+        )
+    )
+
+    config.callbacks = callbacks
 
     return config.value_mode()

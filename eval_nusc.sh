@@ -6,6 +6,9 @@ version=$2
 if [ $version == "mini" ]
 then
     dataroot=vis4d/data/nuscenes_mini/ #for mini
+elif [ $version == "test" ]
+then
+    dataroot=vis4d/data/nuscenes_test/ #for test
 else
 #else use full dataset
     dataroot=vis4d/data/nuscenes/
