@@ -75,9 +75,19 @@ vis4d.egg-info
 # local test logs and scripts
 log/
 /*.sh
+!eval_nusc.sh
+!main_cc3dtpp_track.sh
+!full_eval.sh
+!sec_docker.sh
 docs/source/api/*
 docs/source/tutorials/.ipynb_checkpoints/*
 wandb/
 
 # No lightning logs
 lightning_logs/
+
+# data folders
+vis4d/data/nuscenes/
+vis4d/data/nuscenes_mini/
+vis4d/data/nuscenes_test/
+qd_models/

@@ -1,0 +1,33 @@
+# freezing to the correct cuda installation
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+
+ADD . /root/cc3dt
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get clean && apt-get update &&\
+    apt-get install -y curl git libgl1-mesa-glx libglib2.0-0 
+
+# CONDA
+RUN curl -fsSL -v -o ~/miniconda.sh -O  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
+    chmod +x ~/miniconda.sh && \
+    ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh && \
+    /opt/conda/bin/conda install -y python=3.9 conda-build pyyaml numpy ipython cython typing typing_extensions mkl mkl-include ninja && \
+    /opt/conda/bin/conda clean -ya
+
+
+# CONDA ENVIRONMENT
+
+RUN /opt/conda/bin/conda init bash 
+
+RUN /opt/conda/bin/conda create --name cc3dt python=3.9
+
+RUN . ~/.bashrc && conda activate cc3dt && pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
+
+RUN git clone https://github.com/SysCV/vis4d_cuda_ops.git && cd vis4d_cuda_ops \
+    && . ~/.bashrc && conda activate cc3dt && pip install -v -e .
+
+RUN . ~/.bashrc && conda activate cc3dt && cd /root/cc3dt/vis4d && pip install vis4d && pip install motmetrics==1.1.3
+
+# Download the QD model
+RUN mkdir -p /root/cc3dt/qd_models && cd /root/cc3dt/qd_models && curl -O https://dl.cv.ethz.ch/vis4d/cc_3dt/cc_3dt_frcnn_r101_fpn_24e_nusc_f24f84.pt

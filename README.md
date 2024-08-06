@@ -1,131 +1,77 @@
-<p align="center">
-    <!-- pypi-strip -->
-    <picture>
-    <!-- /pypi-strip -->
-    <img alt="vis4d" src="https://dl.cv.ethz.ch/vis4d/vis4d_logo.svg" width="400">
-    <!-- pypi-strip -->
-    </picture>
-    <!-- /pypi-strip -->
-    <br/>
-    A modular library for 4D scene understanding
-</p>
-
-## Quickstart
-
-You can checkout our [documentation](https://docs.vis.xyz/4d/index.html).
-
-You can use the [template](https://github.com/SysCV/vis4d-template) here to start your own project with Vis4D.
+# CC-3DT++: The Velocity-Similarity Enhanced Tracker of CR3DT
+This packages contains the isolated CC-3DT++ tracker of [CR3DT](https://arxiv.org/abs/2403.15313) and is meant to be run in combination with the main CR3DT repository. In case you want to run it isolated please follow the instructions below.
 
 ## Installation
 
-Installation is as easy as
-
+Step 1: Clone the repository
 ```bash
-python3 -m pip install vis4d
+git clone https://github.com/ETH-PBL/cc-3dt-pp.git
+cd cc-3dt-pp
+```
+Step 2: Build the docker image
+```bash
+docker build -t cc3dt -f Dockerfile.cc3dtpp .
 ```
 
-[For more detailed information, check out our installation guide](docs/source/user_guide/install.rst)
-
-## Basic CLI usage
-
-- To train a model, e.g. Faster-RCNN on COCO
-
-```bash
-# vis4d.engine
-vis4d fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
-
-# vis4d.pl
-vis4d-pl fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
+Step 3. Create the folder structure below anywhere on your file system. You can chose to populate the folders with the nuScenes dataset and our provided pkl-files and checkpoints ([Google Drive with checkpoint and pkls](https://drive.google.com/drive/folders/1gHPZMUCDObDTHqbU_7Drw0CILx4pu_7i)), or just with the dataset and to create any pkl-files and checkpoints yourself. At least one of the three dataset folders (`v1.0-mini`, `v1.0-trainval`, or `v1.0-test`) needs to be populated.
+```shell script
+...
+├── <your data directory>
+│   ├── v1.0-mini
+│   ├── v1.0-trainval
+│   ├── v1.0-test
+│   └── checkpoints
+└ ...
 ```
 
-- To test a model
-
-```bash
-# vis4d.engine
-vis4d test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
-
-# vis4d.pl
-vis4d-pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
+Step 4. Start the docker container with the necessary flags using the provided utility script. After that you can open a second interactive shell to the docker using `sec_docker.sh`.
+```shell script
+./main_cc3dtpp_track.sh <path to your data directory>
+./sec_docker.sh
 ```
 
-## DDP
+Step 5. Make sure you have gnerated a results json file for the nuScenes dataset. You can use the following command to generate the results json file and place it in the corresponding datasets folder. Or you can download our provided detection results [here](https://drive.google.com/drive/folders/1gHPZMUCDObDTHqbU_7Drw0CILx4pu_7i).
 
-### Training
+Step 6. Inside the docker container, you can run the following command to evaluate the tracking performance on nuscense dataset. This will mount the datasets into the container in the correct naming convention.
+```shell script
+# For mini
+./full_eval.sh mini vis4d/data/nuscenes_mini/<results json file>
 
-- Local machine / SLURM interactivate job (`job-name=bash`)
+# For trainval
+./full_eval.sh trainval vis4d/data/nuscenes_trainval/<results json file>
 
-```bash
-# vis4d.engine
-./scripts/dist_train.sh <config-file> <num-gpus>
-
-# vis4d.pl
-vis4d-pl fit --config <config-file> --gpus <num-gpus>
+# For test
+./full_eval.sh test vis4d/data/nuscenes_test/<results json file>
 ```
 
-- SLURM
+## Expected Performance
 
-```bash
-# vis4d.engine
-srun vis4d fit --config <config-file> --gpus <num-gpus> --slurm True
-
-# vis4d.pl
-srun vis4d-pl fit --config <config-file> --gpus <num-gpus>
+### CC-3DT++ On nuScenes mini
 ```
-
-### Testing
-
-- Local machine / SLURM interactivate job (`job-name=bash`)
-
-```bash
-# vis4d.engine
-./scripts/dist_test.sh <config-file> <num-gpus>
-
-# vis4d.pl
-vis4d-pl test --config <config-file> --gpus <num-gpus>
-```
-
-- SLURM
-
-```bash
-# vis4d.engine
-srun vis4d test --config <config-file> --gpus <num-gpus> --slurm True
-
-# vis4d.pl
-srun vis4d-pl test --config <config-file> --gpus <num-gpus>
+Aggregated results:
+AMOTA   0.477
+AMOTP   1.226
+RECALL  0.587
+MOTAR   0.803
+GT      611
+MOTA    0.476
+MOTP    0.703
+MT      62
+ML      53
+FAF     96.2
+TP      2132
+FP      413
+FN      1437
+IDS     100
+FRAG    124
+TID     1.42
+LGD     5.02
+Eval time: 13.4s
 ```
 
 ## Acknowledgement
+For CC-3DT++ we build upon the original Vis4D codebase, which is a group effort by our team at ETH Zurich. We would like to thank the authors for their contribution to the open-source community.
 Vis4D is a group effort by our team at ETH Zurich.
-[Yung-Hsu Yang](https://royyang0714.github.io/) built the current version and will be the main maintainer of the codebase.
-
-Vis4D was originally written by [Tobias Fischer](https://tobiasfshr.github.io/) during the first three years of his Ph.D. at ETH Zurich, [Thomas E. Huang](https://www.thomasehuang.com/) helped contribute many models, [Tao Sun](https://www.suniique.com/) implemented the ViT models and designed the evaluation pipeline, and[René Zurbrügg](https://github.com/renezurbruegg) designed the config system.
-
-
-## Contributors
-**Project Leads**
-- [Yung-Hsu Yang](https://royyang0714.github.io/)*
-- [Tobias Fischer](https://tobiasfshr.github.io/)*
- 
-**Core Contributors**
-- [Thomas E. Huang](https://www.thomasehuang.com/)
-- [Tao Sun](https://www.suniique.com/)
-- [René Zurbrügg](https://renezurbruegg.github.io/)
- 
-**Advisors**
-- [Fisher Yu](https://www.yf.io/)
- 
-`*` denotes equal contribution
-
-**We are open to contributions and suggestions, feel free to reach out to us.**
-
-[Check out our contribution guidelines for this project](docs/source/dev_guide/contribute.rst)
-
-**Community Contributors**
- 
-<a href="https://github.com/SysCV/vis4d/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=SysCV/vis4d" />
-</a>
-
 
 ## Citation
 
@@ -137,5 +83,16 @@ If you find Vis4D is useful for your research, please consider citing the follow
   title = {Vis4D},
   howpublished = {\url{https://github.com/SysCV/vis4d}},
   year = {2024}
+}
+```
+
+If you find CC-3DT++ is useful for your research, please consider citing the following BibTeX entry.
+
+```
+@article{baumann2024cr3dt,
+  title={CR3DT: Camera-RADAR Fusion for 3D Detection and Tracking},
+  author={Baumann, Nicolas and Baumgartner, Michael and Ghignone, Edoardo and K{\"u}hne, Jonas and Fischer, Tobias and Yang, Yung-Hsu and Pollefeys, Marc and Magno, Michele},
+  journal={arXiv preprint arXiv:2403.15313},
+  year={2024}
 }
 ```
