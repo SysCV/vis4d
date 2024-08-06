@@ -38,7 +38,7 @@ Step 6. Inside the docker container, you can run the following command to evalua
 ./full_eval.sh mini vis4d/data/nuscenes_mini/<results json file>
 
 # For trainval
-./full_eval.sh trainval vis4d/data/nuscenes_trainval/<results json file>
+./full_eval.sh trainval vis4d/data/nuscenes/<results json file>
 
 # For test
 ./full_eval.sh test vis4d/data/nuscenes_test/<results json file>
