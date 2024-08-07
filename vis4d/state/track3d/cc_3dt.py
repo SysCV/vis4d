@@ -279,6 +279,7 @@ class CC3DTrackGraph:
                 )
                 memory_boxes_3d_predict[i, :3] += pd_box_3d[self.motion_dims :]
 
+            # TODO: (michbaum) Predict the velocity here as well?
             memory_velocities = memo_velocities
 
         else:
@@ -289,6 +290,8 @@ class CC3DTrackGraph:
             memory_boxes_3d_predict = None
             memory_velocities = None
 
+        obs_velocities = boxes_3d[:, 9:]
+        # breakpoint()
         obs_boxes_3d = torch.cat(
             [boxes_3d[:, :6], boxes_3d[:, 8].unsqueeze(1)], dim=1
         )
@@ -301,6 +304,7 @@ class CC3DTrackGraph:
             scores_3d,
             class_ids,
             embeddings,
+            obs_velocities,
             memory_boxes_3d,
             memory_track_ids,
             memory_class_ids,
@@ -415,9 +419,9 @@ class CC3DTrackGraph:
                 track["box_3d"][8] = pd_box_3d[6]
 
         # Backdrops
-        backdrop_inds = torch.nonzero(
-            torch.eq(track_ids, -1), as_tuple=False
-        ).squeeze(1)
+        backdrop_inds = torch.nonzero(track_ids == -1, as_tuple=False).squeeze(
+            1
+        )
 
         valid_ious = torch.eq(
             camera_ids[backdrop_inds].unsqueeze(1),
@@ -511,6 +515,7 @@ class CC3DTrackGraph:
             * self.tracklets[track_id]["acc_frame"]
             + velocity
         ) / (self.tracklets[track_id]["acc_frame"] + 1)
+        self.tracklets[track_id]["velocity"][4:] = self.tracklets[track_id]["box_3d"][9:12]
 
         self.tracklets[track_id]["last_frame"] = frame_id
         self.tracklets[track_id]["acc_frame"] += 1
