@@ -9,9 +9,9 @@ then
 elif [ $version == "test" ]
 then
     dataroot=vis4d/data/nuscenes_test/ #for test
-else
-#else use full dataset
-    dataroot=vis4d/data/nuscenes/
+elif [ $version == "trainval" ]
+then
+    dataroot=vis4d/data/nuscenes/ #for trainval
 fi
 
 

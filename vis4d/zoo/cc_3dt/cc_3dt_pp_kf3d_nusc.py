@@ -85,7 +85,7 @@ def get_config() -> ExperimentConfig:
         data_root=data_root,
         version=version,
         split=test_split,
-        keys_to_load=[K.images, K.original_images, K.boxes3d],
+        keys_to_load=[K.images, K.original_images],
         #data_backend=class_config(HDF5Backend),
         pure_detection=config.pure_detection,
         cache_as_binary=True,
@@ -155,7 +155,10 @@ def get_config() -> ExperimentConfig:
     callbacks.append(
         class_config(
             EvaluatorCallback,
-            evaluator=class_config(NuScenesTrack3DEvaluator),
+            evaluator=class_config(
+                NuScenesTrack3DEvaluator, 
+                metadata=("use_camera", "use_radar")
+            ),
             save_predictions=True,
             save_prefix=config.output_dir,
             test_connector=class_config(

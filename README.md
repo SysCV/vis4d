@@ -46,9 +46,29 @@ Step 6. Inside the docker container, you can run the following command to evalua
 
 ## Expected Performance
 
+### CC-3DT++ On nuScenes trainval
+```
+AMOTA   0.381
+AMOTP   1.366
+RECALL  0.461
+MOTAR   0.729
+GT      14556
+MOTA    0.342
+MOTP    0.711
+MT      2120
+ML      2505
+FAF     38.5
+TP      55658
+FP      10808
+FN      45034
+IDS     1205
+FRAG    2012
+TID     1.44
+LGD     2.52
+```
+
 ### CC-3DT++ On nuScenes mini
 ```
-Aggregated results:
 AMOTA   0.477
 AMOTP   1.226
 RECALL  0.587
@@ -66,7 +86,6 @@ IDS     100
 FRAG    124
 TID     1.42
 LGD     5.02
-Eval time: 13.4s
 ```
 
 ## Acknowledgement

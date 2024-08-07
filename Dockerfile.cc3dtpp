@@ -27,7 +27,7 @@ RUN . ~/.bashrc && conda activate cc3dt && pip install torch==2.1.2 torchvision=
 RUN git clone https://github.com/SysCV/vis4d_cuda_ops.git && cd vis4d_cuda_ops \
     && . ~/.bashrc && conda activate cc3dt && pip install -v -e .
 
-RUN . ~/.bashrc && conda activate cc3dt && cd /root/cc3dt/vis4d && pip install vis4d && pip install motmetrics==1.1.3
+RUN . ~/.bashrc && conda activate cc3dt && cd /root/cc3dt/vis4d && pip install vis4d && pip install motmetrics==1.1.3 && pip install pandas==1.1.5
 
 # Download the QD model
 RUN mkdir -p /root/cc3dt/qd_models && cd /root/cc3dt/qd_models && curl -O https://dl.cv.ethz.ch/vis4d/cc_3dt/cc_3dt_frcnn_r101_fpn_24e_nusc_f24f84.pt
