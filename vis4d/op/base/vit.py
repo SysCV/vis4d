@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import torch
-from timm.models.helpers import named_apply
+from timm.models import named_apply
 from torch import nn
 
 from ..layer import PatchEmbed, TransformerBlock

@@ -13,22 +13,24 @@ from vis4d.common.typing import (
     NDArrayF32,
     NDArrayUI8,
 )
-from vis4d.vis.image.canvas import CanvasBackend, PillowCanvasBackend
-from vis4d.vis.image.util import (
+
+from ..util import generate_color_map
+from .canvas import CanvasBackend, PillowCanvasBackend
+from .util import (
     preprocess_boxes,
     preprocess_boxes3d,
     preprocess_image,
     preprocess_masks,
     project_point,
 )
-from vis4d.vis.image.viewer import ImageViewerBackend, MatplotlibImageViewer
-from vis4d.vis.util import generate_color_map
+from .viewer import ImageViewerBackend, MatplotlibImageViewer
 
 
 def imshow(
     image: ArrayLike,
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    file_path: str | None = None,
 ) -> None:
     """Shows a single image.
 
@@ -37,28 +39,13 @@ def imshow(
         image_mode (str, optional): Image Mode. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
+        file_path (str): The path to save the image to. Defaults to None.
     """
     image = preprocess_image(image, image_mode)
     image_viewer.show_images([image])
 
-
-def imsave(
-    image: ArrayLike,
-    file_path: str,
-    image_mode: str = "RGB",
-    image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
-) -> None:
-    """Shows a single image.
-
-    Args:
-        image (NDArrayNumber): The image to show.
-        file_path (str): The path to save the image to.
-        image_mode (str, optional): Image Mode. Defaults to "RGB".
-        image_viewer (ImageViewerBackend, optional): The Image viewer backend
-            to use. Defaults to MatplotlibImageViewer().
-    """
-    image = preprocess_image(image, image_mode)
-    image_viewer.save_images([image], [file_path])
+    if file_path is not None:
+        image_viewer.save_images([image], [file_path])
 
 
 def draw_masks(
@@ -158,6 +145,7 @@ def imshow_bboxes(
     image_mode: str = "RGB",
     box_width: int = 1,
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    file_path: str | None = None,
 ) -> None:
     """Shows the bounding boxes overlayed on the given image.
 
@@ -176,6 +164,7 @@ def imshow_bboxes(
         box_width (int, optional): Width of the box border. Defaults to 1.
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
+        file_path (str): The path to save the image to. Defaults to None.
     """
     image = preprocess_image(image, mode=image_mode)
     img = draw_bboxes(
@@ -189,7 +178,7 @@ def imshow_bboxes(
         image_mode,
         box_width,
     )
-    imshow(img, image_mode, image_viewer)
+    imshow(img, image_mode, image_viewer, file_path)
 
 
 def draw_bbox3d(
@@ -244,6 +233,7 @@ def imshow_bboxes3d(
     n_colors: int = 50,
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    file_path: str | None = None,
 ) -> None:
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode=image_mode)
@@ -259,7 +249,7 @@ def imshow_bboxes3d(
         n_colors=n_colors,
         image_mode=image_mode,
     )
-    imshow(img, image_mode, image_viewer)
+    imshow(img, image_mode, image_viewer, file_path)
 
 
 def imshow_masks(
@@ -270,6 +260,7 @@ def imshow_masks(
     image_mode: str = "RGB",
     canvas: CanvasBackend = PillowCanvasBackend(),
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    file_path: str | None = None,
 ) -> None:
     """Shows semantic masks overlayed over the given image.
 
@@ -286,11 +277,13 @@ def imshow_masks(
             Defaults to PillowCanvasBackend().
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
+        file_path (str): The path to save the image to. Defaults to None.
     """
     imshow(
         draw_masks(image, masks, class_ids, n_colors, image_mode, canvas),
         image_mode,
         image_viewer,
+        file_path,
     )
 
 
@@ -306,6 +299,7 @@ def imshow_topk_bboxes(
     image_mode: str = "RGB",
     box_width: int = 1,
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    file_path: str | None = None,
 ) -> None:
     """Visualize the 'topk' bounding boxes with highest score.
 
@@ -325,6 +319,7 @@ def imshow_topk_bboxes(
         box_width (int, optional): Width of the box border. Defaults to 1.
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
+        file_path (str): The path to save the image to. Defaults to None.
 
     """
     scores = array_to_numpy(scores, n_dims=1, dtype=np.float32)
@@ -344,6 +339,7 @@ def imshow_topk_bboxes(
         image_mode,
         box_width,
         image_viewer,
+        file_path,
     )
 
 
@@ -356,6 +352,7 @@ def imshow_track_matches(
     ref_track_ids: list[ArrayLikeInt],
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
+    file_path: str | None = None,
 ) -> None:
     """Visualize paired bounding boxes successively for batched frame pairs.
 
@@ -372,6 +369,7 @@ def imshow_track_matches(
         image_mode (str, optional): Color mode if the image. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
+        file_path (str): The path to save the image to. Defaults to None.
     """
     key_imgs_np = arrays_to_numpy(*key_imgs, n_dims=3, dtype=np.float32)
     ref_imgs_np = arrays_to_numpy(*ref_imgs, n_dims=3, dtype=np.float32)
@@ -404,12 +402,14 @@ def imshow_track_matches(
                     key_box[key_i],
                     image_mode=image_mode,
                     image_viewer=image_viewer,
+                    file_path=file_path,
                 )
                 imshow_bboxes(
                     ref_image,
                     ref_box[ref_i],
                     image_mode=image_mode,
                     image_viewer=image_viewer,
+                    file_path=file_path,
                 )
             else:
                 # stack imgs horizontal
@@ -420,4 +420,4 @@ def imshow_track_matches(
                     ref_image, ref_box[batch_i], image_mode=image_mode
                 )
                 stacked_img = np.vstack([k_img, r_img])
-                imshow(stacked_img, image_mode, image_viewer)
+                imshow(stacked_img, image_mode, image_viewer, file_path)
