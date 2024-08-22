@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath(PATH_ROOT))
 
 project = "Vis4D"
 copyright = "2022, ETH Zurich"
-author = "Tobias Fischer"
+author = "Vis4D Team"
 
 
 # -- General configuration ---------------------------------------------------
