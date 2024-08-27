@@ -264,7 +264,7 @@ def all_gather_object_gpu(  # type: ignore
 
 
 def create_tmpdir(
-    rank: int, tmpdir: None | str = None
+    rank: int, tmpdir: None | str = None, use_system_tmp: bool = True
 ) -> str:  # pragma: no cover
     """Create and distribute a temporary directory across all processes."""
     if tmpdir is not None:
@@ -273,10 +273,10 @@ def create_tmpdir(
     if rank == 0:
         # create a temporary directory
         default_tmpdir = tempfile.gettempdir()
-        if default_tmpdir is not None:
+        if default_tmpdir is not None and use_system_tmp:
             dist_tmpdir = os.path.join(default_tmpdir, ".dist_tmp")
         else:
-            dist_tmpdir = ".dist_tmp"
+            dist_tmpdir = os.path.join("vis4d-workspace", ".dist_tmp")
         os.makedirs(dist_tmpdir, exist_ok=True)
         tmpdir = tempfile.mkdtemp(dir=dist_tmpdir)
     else:
@@ -288,6 +288,7 @@ def all_gather_object_cpu(  # type: ignore
     data: Any,
     tmpdir: None | str = None,
     rank_zero_return_only: bool = True,
+    use_system_tmp: bool = True,
 ) -> list[Any] | None:  # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
@@ -304,7 +305,7 @@ def all_gather_object_cpu(  # type: ignore
         return [data]
 
     # make tmp dir
-    tmpdir = create_tmpdir(rank, tmpdir)
+    tmpdir = create_tmpdir(rank, tmpdir, use_system_tmp)
 
     # encode & save
     with open(os.path.join(tmpdir, f"part_{rank}.pkl"), "wb") as f:
