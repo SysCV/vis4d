@@ -295,7 +295,8 @@ def all_gather_object_cpu(  # type: ignore
     Args:
         data: any picklable object.
         tmpdir: Save path for temporary files. If None, safely create tmpdir.
-        rank_zero_return_only: if results should only be returned on rank 0
+        rank_zero_return_only: if results should only be returned on rank 0.
+        use_system_tmp: if use system tmpdir or not.
 
     Returns:
         list[Any]: list of data gathered from each process.
