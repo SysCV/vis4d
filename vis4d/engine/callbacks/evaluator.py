@@ -118,7 +118,7 @@ class EvaluatorCallback(Callback):
                 values are the corresponding evaluated values.
         """
         rank_zero_info(
-            f"Running evaluator {str(self.evaluator)} with {metric} metric... ",
+            f"Running evaluator {str(self.evaluator)} with {metric} metric... "
         )
         log_dict = {}
 
