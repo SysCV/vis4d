@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import os.path as osp
 
 from lightning.pytorch import Callback, Trainer
@@ -31,6 +32,7 @@ class PLTrainer(Trainer):
         checkpoint_callback: ModelCheckpoint | None = None,
         wandb: bool = False,
         seed: int = -1,
+        timeout: int = 3600,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -54,6 +56,7 @@ class PLTrainer(Trainer):
             seed (int, optional): The integer value seed for global random
                 state. Defaults to -1. If -1, a random seed will be generated.
                 This will be set by TrainingModule.
+            timeout: Timeout (seconds) for DDP connection. Default: 3600.
         """
         self.work_dir = work_dir
         self.exp_name = exp_name
@@ -126,7 +129,8 @@ class PLTrainer(Trainer):
         elif kwargs["devices"] > 1:  # pragma: no cover
             if kwargs["accelerator"] == "gpu":
                 ddp_plugin = DDPStrategy(
-                    find_unused_parameters=find_unused_parameters
+                    find_unused_parameters=find_unused_parameters,
+                    timeout=datetime.timedelta(timeout),
                 )
                 kwargs["strategy"] = ddp_plugin
 
