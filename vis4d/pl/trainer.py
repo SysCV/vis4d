@@ -75,6 +75,7 @@ class PLTrainer(Trainer):
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,
+                    id=version,
                 )
             elif TENSORBOARD_AVAILABLE:
                 exp_logger = TensorBoardLogger(
