@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import lightning.pytorch as pl
 import numpy as np
-from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
 from vis4d.config.sweep import grid_search

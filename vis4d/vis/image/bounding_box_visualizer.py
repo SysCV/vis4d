@@ -45,7 +45,7 @@ class BoundingBoxVisualizer(Visualizer):
         self,
         *args: ArgsType,
         n_colors: int = 50,
-        class_id_mapping: dict[int, str] | None = None,
+        cat_mapping: dict[str, int] | None = None,
         file_type: str = "png",
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
@@ -55,9 +55,9 @@ class BoundingBoxVisualizer(Visualizer):
 
         Args:
             n_colors (int): How many colors should be used for the internal
-                            color map
-            class_id_mapping (dict[int, str]): Mapping from class id to
-                                                      human readable name
+                color map
+            cat_mapping (dict[str, int]): Mapping from class names to class
+                ids. Defaults to None.
             file_type (str): Desired file type
             canvas (CanvasBackend): Backend that is used to draw on images
             viewer (ImageViewerBackend): Backend that is used show images
@@ -66,7 +66,9 @@ class BoundingBoxVisualizer(Visualizer):
         self._samples: list[DataSample] = []
         self.color_palette = generate_color_map(n_colors)
         self.class_id_mapping = (
-            class_id_mapping if class_id_mapping is not None else {}
+            {v: k for k, v in cat_mapping.items()}
+            if cat_mapping is not None
+            else {}
         )
         self.file_type = file_type
         self.canvas = canvas

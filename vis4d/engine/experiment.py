@@ -33,6 +33,7 @@ from vis4d.common.slurm import init_dist_slurm
 from vis4d.common.util import init_random_seed, set_random_seed, set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.typing import ExperimentConfig
+from vis4d.engine.callbacks import VisualizerCallback
 
 from .optim import set_up_optimizers
 from .parser import pprints_config
@@ -87,6 +88,7 @@ def run_experiment(
     use_slurm: bool = False,
     ckpt_path: str | None = None,
     resume: bool = False,
+    vis: bool = False,
 ) -> None:
     """Entry point for running a single experiment.
 
@@ -99,6 +101,7 @@ def run_experiment(
             required environment variables for slurm.
         ckpt_path (str | None): Path to a checkpoint to load.
         resume (bool): If set, resume training from the checkpoint.
+        vis (bool): If set, enable visualizer callback.
 
     Raises:
         ValueError: If `mode` is not `fit` or `test`.
@@ -141,7 +144,18 @@ def run_experiment(
             )
 
     # Callbacks
-    callbacks = [instantiate_classes(cb) for cb in config.callbacks]
+    callbacks = []
+    for cb in config.callbacks:
+        callback = instantiate_classes(cb)
+
+        if not vis and isinstance(callback, VisualizerCallback):
+            rank_zero_info(
+                "VisualizerCallback is not used. "
+                "Please set --vis=True to use it."
+            )
+            continue
+
+        callbacks.append(callback)
 
     # Setup DDP & seed
     seed = init_random_seed() if config.seed == -1 else config.seed

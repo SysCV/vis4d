@@ -4,7 +4,7 @@ import shutil
 import tempfile
 import unittest
 
-from torch.optim import SGD
+from torch.optim.sgd import SGD
 
 from tests.util import MOCKLOSS, MockModel
 from vis4d.config import class_config

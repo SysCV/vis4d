@@ -131,7 +131,6 @@ class COCODetectEvaluator(Evaluator):
         coco_gt_cats = self._coco_gt.loadCats(self._coco_gt.getCatIds())
         self.cat_map = {c["name"]: c["id"] for c in coco_gt_cats}
         self._predictions: list[DictStrAny] = []
-        self.coco_dt: COCO | None = None
 
     @property
     def metrics(self) -> list[str]:
@@ -151,7 +150,6 @@ class COCODetectEvaluator(Evaluator):
     def reset(self) -> None:
         """Reset the saved predictions to start new round of evaluation."""
         self._predictions = []
-        self.coco_dt = None
 
     def process_batch(  # type: ignore # pylint: disable=arguments-differ
         self,

@@ -223,17 +223,27 @@ def preprocess_boxes3d(
     class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
     track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
-    boxes3d_np = boxes3d_np[mask]
-    corners_np = corners_np[mask]
-    scores_np = scores_np[mask] if scores_np is not None else None
-    class_ids_np = class_ids_np[mask] if class_ids_np is not None else None
-    track_ids_np = track_ids_np[mask] if track_ids_np is not None else None
-
     centers_proc: list[tuple[float, float, float]] = []
     corners_proc: list[list[tuple[float, float, float]]] = []
     colors_proc: list[tuple[int, int, int]] = []
     labels_proc: list[str] = []
     track_ids_proc: list[int] = []
+
+    if len(mask) == 1:
+        if not mask[0]:
+            return (
+                centers_proc,
+                corners_proc,
+                labels_proc,
+                colors_proc,
+                track_ids_proc,
+            )
+    else:
+        boxes3d_np = boxes3d_np[mask]
+        corners_np = corners_np[mask]
+        scores_np = scores_np[mask] if scores_np is not None else None
+        class_ids_np = class_ids_np[mask] if class_ids_np is not None else None
+        track_ids_np = track_ids_np[mask] if track_ids_np is not None else None
 
     for idx in range(corners_np.shape[0]):
         class_id = None if class_ids_np is None else class_ids_np[idx].item()

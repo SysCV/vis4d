@@ -4,7 +4,7 @@ import os
 import unittest
 
 from tests.util import get_test_data
-from vis4d.data.io.hdf5 import convert_dataset
+from vis4d.data.io.to_hdf5 import convert_dataset
 
 
 class TestHDF5(unittest.TestCase):

@@ -3,6 +3,8 @@
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
 
+from __future__ import annotations
+
 import math
 
 import torch
@@ -59,24 +61,45 @@ class SinePositionalEncoding(nn.Module):
         self.eps = eps
         self.offset = offset
 
-    def forward(self, mask: Tensor) -> Tensor:
+    def forward(
+        self, mask: Tensor | None, inputs: Tensor | None = None
+    ) -> Tensor:
         """Forward function for `SinePositionalEncoding`.
 
         Args:
-            mask (Tensor): ByteTensor mask. Non-zero values representing
+            mask (Tensor | None): ByteTensor mask. Non-zero values representing
                 ignored positions, while zero values means valid positions
-                for this image. Shape [bs, h, w].
+                for this image. Shape [bs, h, w]. If None, it means single
+                image or batch image with no padding.
+            inputs (Tensor | None): The input tensor. It mask is None, this
+                input tensor is required to get the shape of the input image.
 
         Returns:
             pos (Tensor): Returned position embedding with shape
                 [bs, num_feats*2, h, w].
         """
-        # For convenience of exporting to ONNX, it's required to convert
-        # `masks` from bool to int.
-        mask = mask.to(torch.int)
-        not_mask = 1 - mask  # logical_not
-        y_embed = not_mask.cumsum(1, dtype=torch.float32)
-        x_embed = not_mask.cumsum(2, dtype=torch.float32)
+        if mask is not None:
+            # For convenience of exporting to ONNX, it's required to convert
+            # `masks` from bool to int.
+            mask = mask.to(torch.int)
+            b, h, w = mask.size()
+            device = mask.device
+            not_mask = 1 - mask  # logical_not
+            y_embed = not_mask.cumsum(1, dtype=torch.float32)
+            x_embed = not_mask.cumsum(2, dtype=torch.float32)
+        else:
+            # single image or batch image with no padding
+            assert isinstance(inputs, Tensor)
+            b, _, h, w = inputs.shape
+            device = inputs.device
+            x_embed = torch.arange(
+                1, w + 1, dtype=torch.float32, device=device
+            )
+            x_embed = x_embed.view(1, 1, -1).repeat(b, h, 1)
+            y_embed = torch.arange(
+                1, h + 1, dtype=torch.float32, device=device
+            )
+            y_embed = y_embed.view(1, -1, 1).repeat(b, 1, w)
         if self.normalize:
             y_embed = (
                 (y_embed + self.offset)
@@ -89,13 +112,13 @@ class SinePositionalEncoding(nn.Module):
                 * self.scale
             )
         dim_t = torch.arange(
-            self.num_feats, dtype=torch.float32, device=mask.device
+            self.num_feats, dtype=torch.float32, device=device
         )
         dim_t = self.temperature ** (2 * (dim_t // 2) / self.num_feats)
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t
         # use `view` instead of `flatten` for dynamically exporting to ONNX
-        b, h, w = mask.size()
+
         pos_x = torch.stack(
             (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4
         ).view(b, h, w, -1)
@@ -166,79 +189,4 @@ class LearnedPositionalEncoding(nn.Module):
             .unsqueeze(0)
             .repeat(mask.shape[0], 1, 1, 1)
         )
-        return pos
-
-
-class SinePositionalEncoding3D(SinePositionalEncoding):
-    """3D Position encoding with sine and cosine functions."""
-
-    def forward(self, mask: Tensor) -> Tensor:
-        """Forward function for `SinePositionalEncoding3D`.
-
-        Args:
-            mask (Tensor): ByteTensor mask. Non-zero values representing
-                ignored positions, while zero values means valid positions
-                for this image. Shape [bs, t, h, w].
-
-        Returns:
-            pos (Tensor): Returned position embedding with shape
-                [bs, num_feats*2, h, w].
-        """
-        assert mask.dim() == 4, (
-            f"{mask.shape} should be a 4-dimensional Tensor,"
-            f" got {mask.dim()}-dimensional Tensor instead "
-        )
-        # For convenience of exporting to ONNX, it's required to convert
-        # `masks` from bool to int.
-        mask = mask.to(torch.int)
-        not_mask = 1 - mask  # logical_not
-        z_embed = not_mask.cumsum(1, dtype=torch.float32)
-        y_embed = not_mask.cumsum(2, dtype=torch.float32)
-        x_embed = not_mask.cumsum(3, dtype=torch.float32)
-        if self.normalize:
-            z_embed = (
-                (z_embed + self.offset)
-                / (z_embed[:, -1:, :, :] + self.eps)
-                * self.scale
-            )
-            y_embed = (
-                (y_embed + self.offset)
-                / (y_embed[:, :, -1:, :] + self.eps)
-                * self.scale
-            )
-            x_embed = (
-                (x_embed + self.offset)
-                / (x_embed[:, :, :, -1:] + self.eps)
-                * self.scale
-            )
-        dim_t = torch.arange(
-            self.num_feats, dtype=torch.float32, device=mask.device
-        )
-        dim_t = self.temperature ** (2 * (dim_t // 2) / self.num_feats)
-
-        dim_t_z = torch.arange(
-            (self.num_feats * 2), dtype=torch.float32, device=mask.device
-        )
-        dim_t_z = self.temperature ** (
-            2 * (dim_t_z // 2) / (self.num_feats * 2)
-        )
-
-        pos_x = x_embed[:, :, :, :, None] / dim_t
-        pos_y = y_embed[:, :, :, :, None] / dim_t
-        pos_z = z_embed[:, :, :, :, None] / dim_t_z
-        # use `view` instead of `flatten` for dynamically exporting to ONNX
-        b, t, h, w = mask.size()
-        pos_x = torch.stack(
-            (pos_x[:, :, :, :, 0::2].sin(), pos_x[:, :, :, :, 1::2].cos()),
-            dim=5,
-        ).view(b, t, h, w, -1)
-        pos_y = torch.stack(
-            (pos_y[:, :, :, :, 0::2].sin(), pos_y[:, :, :, :, 1::2].cos()),
-            dim=5,
-        ).view(b, t, h, w, -1)
-        pos_z = torch.stack(
-            (pos_z[:, :, :, :, 0::2].sin(), pos_z[:, :, :, :, 1::2].cos()),
-            dim=5,
-        ).view(b, t, h, w, -1)
-        pos = (torch.cat((pos_y, pos_x), dim=4) + pos_z).permute(0, 1, 4, 2, 3)
         return pos

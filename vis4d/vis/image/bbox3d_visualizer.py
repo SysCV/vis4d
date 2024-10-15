@@ -230,30 +230,32 @@ class BoundingBox3DVisualizer(Visualizer):
             [],
         )
 
-        for center, corners, label, color, track_id in zip(
-            *preprocess_boxes3d(
-                image_hw,
-                boxes3d,
-                intrinsics,
-                extrinsics,
-                scores,
-                class_ids,
-                track_ids,
-                self.color_palette,
-                self.class_id_mapping,
-                axis_mode=self.axis_mode,
-            )
-        ):
-            data_sample.boxes.append(
-                DetectionBox3D(
-                    corners=corners,
-                    label=label,
-                    color=color,
-                    track_id=track_id,
+        if len(boxes3d) != 0:
+            for center, corners, label, color, track_id in zip(
+                *preprocess_boxes3d(
+                    image_hw,
+                    boxes3d,
+                    intrinsics,
+                    extrinsics,
+                    scores,
+                    class_ids,
+                    track_ids,
+                    self.color_palette,
+                    self.class_id_mapping,
+                    axis_mode=self.axis_mode,
                 )
-            )
-            if track_id is not None:
-                self.trajectories[track_id].append(center)
+            ):
+                data_sample.boxes.append(
+                    DetectionBox3D(
+                        corners=corners,
+                        label=label,
+                        color=color,
+                        track_id=track_id,
+                    )
+                )
+                if track_id is not None:
+                    self.trajectories[track_id].append(center)
+
         self._samples.append(data_sample)
 
     def show(self, cur_iter: int, blocking: bool = True) -> None:
@@ -279,9 +281,13 @@ class BoundingBox3DVisualizer(Visualizer):
         """
         self.canvas.create_canvas(sample.image)
 
-        global_to_cam = inverse_rigid_transform(
-            torch.from_numpy(sample.extrinsics)
-        ).numpy()
+        if self.plot_trajectory:
+            assert (
+                sample.extrinsics is not None
+            ), "Extrinsics is needed to plot trajectory."
+            global_to_cam = inverse_rigid_transform(
+                torch.from_numpy(sample.extrinsics)
+            ).numpy()
 
         for box in sample.boxes:
             self.canvas.draw_box_3d(
@@ -300,8 +306,8 @@ class BoundingBox3DVisualizer(Visualizer):
 
             if self.plot_trajectory:
                 assert (
-                    sample.extrinsics is not None and box.track_id is not None
-                ), "Extrinsics and track id must be set to plot trajectory."
+                    box.track_id is not None
+                ), "track id must be set to plot trajectory."
 
                 trajectory = self.trajectories[box.track_id]
                 for center in trajectory:

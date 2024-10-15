@@ -27,6 +27,7 @@ class VisualizerCallback(Callback):
         show: bool = False,
         save_to_disk: bool = True,
         save_prefix: str | None = None,
+        output_dir: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Init callback.
@@ -35,11 +36,13 @@ class VisualizerCallback(Callback):
             visualizer (Visualizer): Visualizer.
             visualize_train (bool): If the training data should be visualized.
                 Defaults to False.
-            save_prefix (str): Output directory for saving the visualizations.
             show (bool): If the visualizations should be shown. Defaults to
                 False.
             save_to_disk (bool): If the visualizations should be saved to disk.
                 Defaults to True.
+            save_prefix (str): Output directory prefix for distinguish
+                different visualizations.
+            output_dir (str): Output directory for saving the visualizations.
         """
         super().__init__(*args, **kwargs)
         self.visualizer = visualizer
@@ -50,9 +53,15 @@ class VisualizerCallback(Callback):
 
         if self.save_to_disk:
             assert (
-                save_prefix is not None
-            ), "If save_to_disk is True, save_prefix must be provided."
-            self.output_dir = f"{self.save_prefix}/vis"
+                output_dir is not None
+            ), "If save_to_disk is True, output_dir must be provided."
+
+            output_dir = os.path.join(output_dir, "vis")
+
+            if save_prefix is not None:
+                output_dir = os.path.join(output_dir, save_prefix)
+
+            self.output_dir = output_dir
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""

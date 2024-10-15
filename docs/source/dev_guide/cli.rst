@@ -1,10 +1,11 @@
 ###
 CLI
 ###
+
 We provide a command line interface for training and evaluating your models.
 Assuming you have installed the package using pip, you can use the command `vis4d` to access the CLI.
 
-Alternatively, you can run the CLI using `python -m vis4d.engine.cli` or `python -m vis4d.pl.cli` if you want to use the PyTorch Lightning version.
+Alternatively, you can run the CLI using `python -m vis4d.engine.run` or `python -m vis4d.pl.run` if you want to use the PyTorch Lightning version.
 
 The CLI relies on a configuration file to specify each experiment. We use `ml_collections <https://github.com/google/ml_collections>`_ as underlying framework to define the configuration files.
 You can read up on our configuration files in the `Config System <configuration_files>`_ section.
@@ -12,6 +13,7 @@ You can read up on our configuration files in the `Config System <configuration_
 =============
 CLI Interface
 =============
+
 The provided examples assume that the experiment configuration file is located at `path_to_experiment_cfg.py`.
 You can read up on our configuration files in the `Config System <configuration_files>`_ section.
 
@@ -20,6 +22,7 @@ We support both, our own training engine as well as `PyTorch Lightning <https://
 ------------
 CLI Commands
 ------------
+
 .. code-block:: bash
 
   vis4d [fit | test] --config path_to_experiment_cfg.py
@@ -54,15 +57,13 @@ Quick Start
 
 .. code-block:: bash
 
-   vis4d fit --config path_to_experiment_cfg.py
+   vis4d test --config path_to_experiment_cfg.py
 
 **Overwrite Config Parameters**
 
 .. code-block:: bash
 
    vis4d fit --config path_to_experiment_cfg.py --config.my_field=2 --config.my.nested.field="test"
-
-
 
 **Perform Parameter Sweeps**
 
@@ -87,6 +88,7 @@ Note that misstyping a config parameter
    vis4d fit --config path_to_experiment_cfg.py --config.params.lrs=0.01
 
 will result in the following error:
+
 .. code-block:: bash
 
-   AttributeError: Did you mean "lr" instead of "lrw"?'
+   AttributeError: Did you mean "lr" instead of "lrs"?'

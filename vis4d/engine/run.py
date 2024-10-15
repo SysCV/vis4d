@@ -11,7 +11,16 @@ from vis4d.config.replicator import replicate_config
 from vis4d.config.typing import ExperimentConfig
 
 from .experiment import run_experiment
-from .flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG, _SLURM, _SWEEP
+from .flag import (
+    _CKPT,
+    _CONFIG,
+    _GPUS,
+    _RESUME,
+    _SHOW_CONFIG,
+    _SLURM,
+    _SWEEP,
+    _VIS,
+)
 
 
 def main(argv: ArgsType) -> None:
@@ -68,6 +77,7 @@ def main(argv: ArgsType) -> None:
             _SLURM.value,
             _CKPT.value,
             _RESUME.value,
+            _VIS.value,
         )
 
 

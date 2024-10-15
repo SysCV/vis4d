@@ -2,10 +2,6 @@
 Troubleshooting
 ***************
 
-================
-Training crashes
-================
-
 -----------
 File limits
 -----------

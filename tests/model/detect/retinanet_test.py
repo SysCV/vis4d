@@ -3,7 +3,7 @@
 import unittest
 
 import torch
-from torch import optim
+from torch.optim.sgd import SGD
 
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
@@ -75,7 +75,7 @@ class RetinaNetTest(unittest.TestCase):
             retina_net.retinanet_head.box_sampler,
         )
 
-        optimizer = optim.SGD(retina_net.parameters(), lr=0.001, momentum=0.9)
+        optimizer = SGD(retina_net.parameters(), lr=0.001, momentum=0.9)
 
         dataset = COCO(get_test_data("coco_test"), split="train")
         train_loader = get_train_dataloader(dataset, 2, (256, 256))

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch import optim
+from torch.optim.sgd import SGD
 
 from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys as K
@@ -59,7 +59,7 @@ class SemanticFPNTest(unittest.TestCase):
         """Test SemanticFPN training."""
         model = SemanticFPN(num_classes=21)
         loss_fn = SegCrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
         train_loader = get_train_dataloader(self.dataset, 2)
         model.train()
 
