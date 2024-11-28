@@ -64,6 +64,7 @@ class BoundingBox3DVisualizer(Visualizer):
         image_mode: str = "RGB",
         width: int = 2,
         camera_near_clip: float = 0.15,
+        plot_heading: bool = True,
         axis_mode: AxisMode = AxisMode.ROS,
         trajectory_length: int = 10,
         plot_trajectory: bool = True,
@@ -84,6 +85,8 @@ class BoundingBox3DVisualizer(Visualizer):
             width (int): Width of the drawn bounding boxes. Defaults to 2.
             camera_near_clip (float): Near clipping plane of the camera.
                 Defaults to 0.15.
+            plot_heading (bool): If the heading should be plotted. Defaults to
+                True.
             axis_mode (AxisMode): Axis mode for the input bboxes. Defaults to
                 AxisMode.ROS (i.e. global coordinate).
             trajectory_length (int): How many past frames should be used to
@@ -117,6 +120,7 @@ class BoundingBox3DVisualizer(Visualizer):
         self.width = width
 
         self.camera_near_clip = camera_near_clip
+        self.plot_heading = plot_heading
         self.canvas = canvas if canvas is not None else PillowCanvasBackend()
         self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
 
@@ -296,6 +300,7 @@ class BoundingBox3DVisualizer(Visualizer):
                 sample.intrinsics,
                 self.width,
                 self.camera_near_clip,
+                self.plot_heading,
             )
 
             selected_corner = project_point(box.corners[0], sample.intrinsics)
