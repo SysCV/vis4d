@@ -16,7 +16,7 @@ from vis4d.common.distributed import get_rank, get_world_size
 from .const import CommonKeys as K
 from .data_pipe import DataPipe
 from .datasets import VideoDataset
-from .samplers import VideoInferenceSampler
+from .samplers import AspectRatioBatchSampler, VideoInferenceSampler
 from .transforms import compose
 from .transforms.to_tensor import ToTensor
 from .typing import DictData, DictDataOrList
@@ -123,6 +123,7 @@ def build_train_dataloader(
     pin_memory: bool = True,
     shuffle: bool = True,
     seed: int | None = None,
+    aspect_ratio_grouping: bool = False,
     disable_subprocess_warning: bool = False,
 ) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
@@ -169,6 +170,14 @@ def build_train_dataloader(
         sampler = DistributedSampler(dataset, shuffle=shuffle)
         shuffle = False
 
+    batch_sampler = None
+    if aspect_ratio_grouping:
+        batch_sampler = AspectRatioBatchSampler(
+            sampler, batch_size=samples_per_gpu
+        )
+        samples_per_gpu = 1
+        shuffle = None
+
     dataloader = DataLoader(
         dataset,
         batch_size=samples_per_gpu,
@@ -176,7 +185,8 @@ def build_train_dataloader(
         collate_fn=(
             _collate_fn_multi if dataset.has_reference else _collate_fn_single
         ),
-        sampler=sampler,
+        sampler=sampler if not aspect_ratio_grouping else None,
+        batch_sampler=batch_sampler,
         worker_init_fn=_worker_init_fn,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
