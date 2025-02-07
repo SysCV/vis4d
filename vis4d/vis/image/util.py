@@ -27,29 +27,25 @@ from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 
 def _get_box_label(
-    class_id: int | None,
+    category: str | None,
     score: float | None,
     track_id: int | None,
-    class_id_mapping: dict[int, str] | None = None,
 ) -> str:
     """Gets a unique string representation for a box definition.
 
     Args:
-        class_id (int): The class id for this box
+        category (str): The category name
         score (float): The confidence score
         track_id (int): The track id
-        class_id_mapping (dict[int,str]): Mapping of class_id to class name
 
     Returns:
         str: Label for this box of format
             'class_name, track_id, score%'
     """
     labels = []
-    if class_id_mapping is None:
-        class_id_mapping = {}
 
-    if class_id is not None:
-        labels.append(class_id_mapping.get(class_id, str(class_id)))
+    if category is not None:
+        labels.append(category)
     if track_id is not None:
         labels.append(str(track_id))
     if score is not None:
@@ -88,6 +84,7 @@ def preprocess_boxes(
     color_palette: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
+    categories: None | list[str] = None,
 ) -> tuple[
     list[tuple[float, float, float, float]],
     list[str],
@@ -157,9 +154,15 @@ def preprocess_boxes(
             )
         )
         colors_proc.append(color)
-        labels_proc.append(
-            _get_box_label(class_id, score, track_id, class_id_mapping)
-        )
+
+        if categories is not None:
+            category = categories[idx]
+        elif class_id is not None:
+            category = class_id_mapping.get(class_id, str(class_id))
+        else:
+            category = None
+
+        labels_proc.append(_get_box_label(category, score, track_id))
     return boxes_proc, labels_proc, colors_proc
 
 
@@ -266,9 +269,13 @@ def preprocess_boxes3d(
         )
         corners_proc.append([tuple(pts) for pts in corners_np[idx].tolist()])
         colors_proc.append(color)
-        labels_proc.append(
-            _get_box_label(class_id, score, track_id, class_id_mapping)
-        )
+
+        if class_id is not None:
+            category = class_id_mapping.get(class_id, str(class_id))
+        else:
+            category = None
+
+        labels_proc.append(_get_box_label(category, score, track_id))
         track_ids_proc.append(track_id)
     return centers_proc, corners_proc, labels_proc, colors_proc, track_ids_proc
 

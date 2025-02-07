@@ -226,17 +226,17 @@ def build_inference_dataloaders(
 
     dataloaders = []
     for dataset in datasets_:
-        if isinstance(dataset, DataPipe):
-            assert (
-                len(dataset.datasets) == 1
-            ), "Inference needs a single dataset per DataPipe."
-            current_dataset = dataset.datasets[0]
-        else:
-            current_dataset = dataset
-
         sampler: DistributedSampler[list[int]] | None
         if get_world_size() > 1:
             if video_based_inference:
+                if isinstance(dataset, DataPipe):
+                    assert (
+                        len(dataset.datasets) == 1
+                    ), "DDP Vdieo Inference only support a single dataset."
+                    current_dataset = dataset.datasets[0]
+                else:
+                    current_dataset = dataset
+
                 assert isinstance(
                     current_dataset, VideoDataset
                 ), "Video based inference needs a VideoDataset."

@@ -58,10 +58,8 @@ class VisualizerCallback(Callback):
 
             output_dir = os.path.join(output_dir, "vis")
 
-            if save_prefix is not None:
-                output_dir = os.path.join(output_dir, save_prefix)
-
             self.output_dir = output_dir
+            self.save_prefix = save_prefix
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
@@ -90,10 +88,12 @@ class VisualizerCallback(Callback):
                 self.visualizer.show(cur_iter=cur_iter)
 
             if self.save_to_disk:
-                os.makedirs(f"{self.output_dir}/train", exist_ok=True)
+                output_folder = os.path.join(
+                    self.output_dir, "train", self.save_prefix
+                )
+                os.makedirs(output_folder, exist_ok=True)
                 self.visualizer.save_to_disk(
-                    cur_iter=cur_iter,
-                    output_folder=f"{self.output_dir}/train",
+                    cur_iter=cur_iter, output_folder=output_folder
                 )
 
             self.visualizer.reset()
@@ -119,10 +119,12 @@ class VisualizerCallback(Callback):
             self.visualizer.show(cur_iter=cur_iter)
 
         if self.save_to_disk:
-            os.makedirs(f"{self.output_dir}/test", exist_ok=True)
+            output_folder = os.path.join(
+                self.output_dir, "test", self.save_prefix
+            )
+            os.makedirs(output_folder, exist_ok=True)
             self.visualizer.save_to_disk(
-                cur_iter=cur_iter,
-                output_folder=f"{self.output_dir}/test",
+                cur_iter=cur_iter, output_folder=output_folder
             )
 
         self.visualizer.reset()

@@ -87,6 +87,7 @@ class BoundingBoxVisualizer(Visualizer):
         scores: None | list[ArrayLikeFloat] = None,
         class_ids: None | list[ArrayLikeInt] = None,
         track_ids: None | list[ArrayLikeInt] = None,
+        categories: None | list[list[str]] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -112,6 +113,7 @@ class BoundingBoxVisualizer(Visualizer):
                     None if scores is None else scores[idx],
                     None if class_ids is None else class_ids[idx],
                     None if track_ids is None else track_ids[idx],
+                    None if categories is None else categories[idx],
                 )
 
     def process_single_image(
@@ -122,6 +124,7 @@ class BoundingBoxVisualizer(Visualizer):
         scores: None | ArrayLikeFloat = None,
         class_ids: None | ArrayLikeInt = None,
         track_ids: None | ArrayLikeInt = None,
+        categories: None | list[str] = None,
     ) -> None:
         """Processes a single image entry.
 
@@ -148,6 +151,7 @@ class BoundingBoxVisualizer(Visualizer):
                 track_ids,
                 self.color_palette,
                 self.class_id_mapping,
+                categories=categories,
             )
         ):
             data_sample.boxes.append(
