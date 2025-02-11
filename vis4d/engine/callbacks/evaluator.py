@@ -41,6 +41,7 @@ class EvaluatorCallback(Callback):
         metrics_to_eval: list[str] | None = None,
         save_predictions: bool = False,
         save_prefix: None | str = None,
+        output_dir: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Init callback."""
@@ -51,14 +52,24 @@ class EvaluatorCallback(Callback):
 
         if self.save_predictions:
             assert (
-                save_prefix is not None
+                output_dir is not None
             ), "If save_predictions is True, save_prefix must be provided."
-            self.output_dir = save_prefix
+
+            output_dir = os.path.join(output_dir, "eval")
+
+            self.output_dir = output_dir
+            self.save_prefix = save_prefix
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
         if self.save_predictions:
             self.output_dir = broadcast(self.output_dir)
+
+            if self.save_prefix is not None:
+                self.output_dir = os.path.join(
+                    self.output_dir, self.save_prefix
+                )
+
             for metric in self.metrics_to_eval:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)

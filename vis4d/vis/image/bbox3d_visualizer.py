@@ -140,6 +140,7 @@ class BoundingBox3DVisualizer(Visualizer):
         class_ids: None | list[ArrayLikeInt] = None,
         track_ids: None | list[ArrayLikeInt] = None,
         sequence_names: None | list[str] = None,
+        categories: None | list[list[str]] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -176,6 +177,7 @@ class BoundingBox3DVisualizer(Visualizer):
                     None if class_ids is None else class_ids[batch],
                     None if track_ids is None else track_ids[batch],
                     None if sequence_names is None else sequence_names[batch],
+                    None if categories is None else categories[batch],
                 )
 
             for tid in self.trajectories:
@@ -193,6 +195,7 @@ class BoundingBox3DVisualizer(Visualizer):
         class_ids: None | ArrayLikeInt = None,
         track_ids: None | ArrayLikeInt = None,
         sequence_name: None | str = None,
+        categories: None | list[str] = None,
         camera_name: None | str = None,
     ) -> None:
         """Processes a single image entry.
@@ -247,6 +250,7 @@ class BoundingBox3DVisualizer(Visualizer):
                     self.color_palette,
                     self.class_id_mapping,
                     axis_mode=self.axis_mode,
+                    categories=categories,
                 )
             ):
                 data_sample.boxes.append(

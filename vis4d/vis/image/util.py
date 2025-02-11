@@ -178,6 +178,7 @@ def preprocess_boxes3d(
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
     axis_mode: AxisMode = AxisMode.OPENCV,
+    categories: None | list[str] = None,
 ) -> tuple[
     list[tuple[float, float, float]],
     list[list[tuple[float, float, float]]],
@@ -270,7 +271,9 @@ def preprocess_boxes3d(
         corners_proc.append([tuple(pts) for pts in corners_np[idx].tolist()])
         colors_proc.append(color)
 
-        if class_id is not None:
+        if categories is not None:
+            category = categories[idx]
+        elif class_id is not None:
             category = class_id_mapping.get(class_id, str(class_id))
         else:
             category = None
