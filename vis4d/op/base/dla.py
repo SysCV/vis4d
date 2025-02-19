@@ -324,6 +324,7 @@ class Root(nn.Module):
         out_channels: int,
         kernel_size: int,
         residual: bool,
+        with_cp: bool = False,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
@@ -338,14 +339,23 @@ class Root(nn.Module):
         self.bn = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
+        self.with_cp = with_cp
 
     def forward(self, *input_x: Tensor) -> Tensor:
         """Forward."""
-        children = input_x
-        feats = self.conv(torch.cat(input_x, 1))
-        feats = self.bn(feats)
-        if self.residual:
-            feats += children[0]
+
+        def _inner_forward(input_x: Tensor) -> Tensor:
+            feats = self.conv(torch.cat(input_x, 1))
+            feats = self.bn(feats)
+            if self.residual:
+                feats += input_x[0]
+            return feats
+
+        if self.with_cp:
+            feats = checkpoint(_inner_forward, input_x)
+        else:
+            feats = _inner_forward(input_x)
+
         feats = self.relu(feats)
 
         return feats
@@ -398,7 +408,11 @@ class Tree(nn.Module):
                 with_cp=with_cp,
             )
             self.root = Root(
-                root_dim, out_channels, root_kernel_size, root_residual
+                root_dim,
+                out_channels,
+                root_kernel_size,
+                root_residual,
+                with_cp=with_cp,
             )
         else:
             self.tree1 = Tree(

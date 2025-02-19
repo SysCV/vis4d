@@ -288,7 +288,7 @@ def all_gather_object_cpu(  # type: ignore
     data: Any,
     tmpdir: None | str = None,
     rank_zero_return_only: bool = True,
-    use_system_tmp: bool = True,
+    use_system_tmp: bool = False,
 ) -> list[Any] | None:  # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
