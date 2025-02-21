@@ -33,6 +33,7 @@ class PLTrainer(Trainer):
         wandb: bool = False,
         seed: int = -1,
         timeout: int = 3600,
+        wandb_id: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -75,7 +76,7 @@ class PLTrainer(Trainer):
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,
-                    id=version,
+                    id=wandb_id,
                 )
             elif TENSORBOARD_AVAILABLE:
                 exp_logger = TensorBoardLogger(
