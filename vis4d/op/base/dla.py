@@ -154,7 +154,9 @@ class BasicBlock(nn.Module):
             return out
 
         if self.with_cp and input_x.requires_grad:
-            out = checkpoint(_inner_forward, input_x, residual)
+            out = checkpoint(
+                _inner_forward, input_x, residual, use_reentrant=True
+            )
         else:
             out = _inner_forward(input_x, residual)
 
@@ -229,7 +231,9 @@ class Bottleneck(nn.Module):
             return out
 
         if self.with_cp and input_x.requires_grad:
-            out = checkpoint(_inner_forward, input_x, residual)
+            out = checkpoint(
+                _inner_forward, input_x, residual, use_reentrant=True
+            )
         else:
             out = _inner_forward(input_x, residual)
 
@@ -306,7 +310,9 @@ class BottleneckX(nn.Module):
             return out
 
         if self.with_cp and input_x.requires_grad:
-            out = checkpoint(_inner_forward, input_x, residual)
+            out = checkpoint(
+                _inner_forward, input_x, residual, use_reentrant=True
+            )
         else:
             out = _inner_forward(input_x, residual)
 
@@ -344,17 +350,17 @@ class Root(nn.Module):
     def forward(self, *input_x: Tensor) -> Tensor:
         """Forward."""
 
-        def _inner_forward(input_x: Tensor) -> Tensor:
+        def _inner_forward(*input_x: Tensor) -> Tensor:
             feats = self.conv(torch.cat(input_x, 1))
             feats = self.bn(feats)
             if self.residual:
                 feats += input_x[0]
             return feats
 
-        if self.with_cp:
-            feats = checkpoint(_inner_forward, input_x)
+        if self.with_cp and input_x[0].requires_grad:
+            feats = checkpoint(_inner_forward, *input_x, use_reentrant=True)
         else:
-            feats = _inner_forward(input_x)
+            feats = _inner_forward(*input_x)
 
         feats = self.relu(feats)
 
@@ -445,8 +451,7 @@ class Tree(nn.Module):
         self.levels = levels
         if stride > 1:
             self.downsample = nn.MaxPool2d(stride, stride=stride)
-        if in_channels != out_channels:
-            # TODO: check if this is correct
+        if in_channels != out_channels and levels == 1:
             # NOTE the official impl/weights have project layers in levels > 1
             # case that are never used, hence 'levels == 1' is added but
             # pretrained models will need strict=False while loading.
