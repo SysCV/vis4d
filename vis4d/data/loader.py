@@ -122,6 +122,7 @@ def build_train_dataloader(
     sensors: Sequence[str] | None = None,
     pin_memory: bool = True,
     shuffle: bool = True,
+    drop_last: bool = False,
     seed: int | None = None,
     aspect_ratio_grouping: bool = False,
     disable_subprocess_warning: bool = False,
@@ -167,11 +168,14 @@ def build_train_dataloader(
 
     sampler = None
     if get_world_size() > 1:
-        sampler = DistributedSampler(dataset, shuffle=shuffle)
+        sampler = DistributedSampler(
+            dataset, shuffle=shuffle, drop_last=drop_last
+        )
         shuffle = False
+        drop_last = False
 
     batch_sampler = None
-    if aspect_ratio_grouping:
+    if aspect_ratio_grouping and sampler is not None:
         batch_sampler = AspectRatioBatchSampler(
             sampler, batch_size=samples_per_gpu
         )
@@ -191,6 +195,7 @@ def build_train_dataloader(
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
         shuffle=shuffle,
+        drop_last=drop_last,
     )
     return dataloader
 
