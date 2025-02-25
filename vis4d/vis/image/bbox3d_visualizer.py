@@ -68,6 +68,7 @@ class BoundingBox3DVisualizer(Visualizer):
         axis_mode: AxisMode = AxisMode.ROS,
         trajectory_length: int = 10,
         plot_trajectory: bool = True,
+        save_boxes3d: bool = False,
         canvas: CanvasBackend | None = None,
         viewer: ImageViewerBackend | None = None,
         **kwargs: ArgsType,
@@ -121,6 +122,8 @@ class BoundingBox3DVisualizer(Visualizer):
 
         self.camera_near_clip = camera_near_clip
         self.plot_heading = plot_heading
+        self.save_boxes3d = save_boxes3d
+
         self.canvas = canvas if canvas is not None else PillowCanvasBackend()
         self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
 
@@ -348,7 +351,7 @@ class BoundingBox3DVisualizer(Visualizer):
                 output_dir = output_folder
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                self._draw_image(sample)
+                _ = self._draw_image(sample)
 
                 if sample.sequence_name is not None:
                     output_dir = os.path.join(output_dir, sample.sequence_name)
@@ -358,6 +361,14 @@ class BoundingBox3DVisualizer(Visualizer):
 
                 os.makedirs(output_dir, exist_ok=True)
                 self.canvas.save_to_disk(os.path.join(output_dir, image_name))
+
+                if self.save_boxes3d:
+                    corners = np.array([box.corners for box in sample.boxes])
+
+                    np.save(
+                        os.path.join(output_dir, f"{sample.image_name}.npy"),
+                        corners,
+                    )
 
 
 class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
