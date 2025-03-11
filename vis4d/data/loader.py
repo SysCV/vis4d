@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data.distributed import DistributedSampler, Sampler
 
 from vis4d.common.distributed import get_rank, get_world_size
 
@@ -125,6 +125,7 @@ def build_train_dataloader(
     drop_last: bool = False,
     seed: int | None = None,
     aspect_ratio_grouping: bool = False,
+    sampler: Sampler | None = None,
     disable_subprocess_warning: bool = False,
 ) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
@@ -166,8 +167,7 @@ def build_train_dataloader(
             if disable_subprocess_warning and worker_id != 0:
                 warnings.simplefilter("ignore")
 
-    sampler = None
-    if get_world_size() > 1:
+    if get_world_size() > 1 and sampler is None:
         sampler = DistributedSampler(
             dataset, shuffle=shuffle, drop_last=drop_last
         )
