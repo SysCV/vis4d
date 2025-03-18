@@ -131,6 +131,10 @@ class BoundingBox3DVisualizer(Visualizer):
         """Reset visualizer."""
         self._samples.clear()
 
+    def __repr__(self):
+        """Return string representation."""
+        return "BoundingBox3DVisualizer"
+
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
         cur_iter: int,
@@ -351,7 +355,7 @@ class BoundingBox3DVisualizer(Visualizer):
                 output_dir = output_folder
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                _ = self._draw_image(sample)
+                image = self._draw_image(sample)
 
                 if sample.sequence_name is not None:
                     output_dir = os.path.join(output_dir, sample.sequence_name)
@@ -369,6 +373,8 @@ class BoundingBox3DVisualizer(Visualizer):
                         os.path.join(output_dir, f"{sample.image_name}.npy"),
                         corners,
                     )
+
+            return image
 
 
 class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
