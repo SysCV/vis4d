@@ -5,9 +5,10 @@ from __future__ import annotations
 import os
 
 from torch import nn
+from lightning.pytorch.loggers import WandbLogger
 
 from vis4d.common import ArgsType
-from vis4d.common.distributed import broadcast
+from vis4d.common.distributed import broadcast, get_rank, synchronize
 from vis4d.data.typing import DictData
 from vis4d.engine.loss_module import LossModule
 from vis4d.vis.base import Visualizer
@@ -123,8 +124,21 @@ class VisualizerCallback(Callback):
                 self.output_dir, "test", self.save_prefix
             )
             os.makedirs(output_folder, exist_ok=True)
-            self.visualizer.save_to_disk(
+            image = self.visualizer.save_to_disk(
                 cur_iter=cur_iter, output_folder=output_folder
             )
+
+            if get_rank() == 0 and trainer_state["train_engine"] == "pl":
+                trainer = trainer_state["train_module"]
+                if (
+                    isinstance(trainer.logger, WandbLogger)
+                    and image is not None
+                ):
+                    trainer.logger.log_image(
+                        key=f"{self.visualizer}/{cur_iter}",
+                        images=[image],
+                        step=trainer.global_step,
+                    )
+            synchronize()
 
         self.visualizer.reset()
