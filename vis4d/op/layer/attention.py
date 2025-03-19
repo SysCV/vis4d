@@ -100,6 +100,7 @@ class MultiheadAttention(nn.Module):
         proj_drop: float = 0.0,
         dropout_layer: nn.Module | None = None,
         batch_first: bool = False,
+        need_weights: bool = False,
         **kwargs: ArgsType,
     ) -> None:
         """Init MultiheadAttention.
@@ -121,6 +122,7 @@ class MultiheadAttention(nn.Module):
         self.batch_first = batch_first
         self.embed_dims = embed_dims
         self.num_heads = num_heads
+        self.need_weights = need_weights
 
         self.attn = nn.MultiheadAttention(
             embed_dims, num_heads, dropout=attn_drop, **kwargs
@@ -223,7 +225,11 @@ class MultiheadAttention(nn.Module):
             value=value,
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
-        )[0]
+            need_weights=self.need_weights,
+        )
+
+        if isinstance(out, tuple):
+            out = out[0]
 
         if self.batch_first:
             out = out.transpose(0, 1)
