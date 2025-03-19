@@ -13,6 +13,10 @@ from vis4d.engine.optim.scheduler import LRSchedulerWrapper
 class LRSchedulerCallback(pl.Callback):
     """Callback to configure learning rate during training."""
 
+    def __init__(self) -> None:
+        """Initialize the callback."""
+        self.last_step = 0
+
     def on_train_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
@@ -27,8 +31,11 @@ class LRSchedulerCallback(pl.Callback):
         if not isinstance(schedulers, Iterable):
             schedulers = [schedulers]  # type: ignore
 
-        for scheduler in schedulers:
-            if scheduler is None:
-                continue
-            assert isinstance(scheduler, LRSchedulerWrapper)
-            scheduler.step_on_batch(trainer.global_step)
+        if trainer.global_step != self.last_step:
+            for scheduler in schedulers:
+                if scheduler is None:
+                    continue
+                assert isinstance(scheduler, LRSchedulerWrapper)
+                scheduler.step_on_batch(trainer.global_step)
+
+                self.last_step = trainer.global_step
