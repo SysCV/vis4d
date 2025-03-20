@@ -126,15 +126,13 @@ class LRSchedulerWrapper(LRScheduler):
 
     def step_on_batch(self, step: int) -> None:
         """Step on training batch end."""
-        # Minus 1 because the step is called after the optimizer.step()
-        step -= 1
         for lr_scheduler in self.lr_schedulers.values():
             if not lr_scheduler["epoch_based"]:
                 self._step_lr(lr_scheduler, step)
 
         for i, lr_scheduler_cfg in enumerate(self.lr_schedulers_cfg):
             if not lr_scheduler_cfg["epoch_based"] and (
-                lr_scheduler_cfg["begin"] == step + 1
+                lr_scheduler_cfg["begin"] == step
             ):
                 self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
