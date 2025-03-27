@@ -59,6 +59,7 @@ def get_default_cfg(
     config.tf32_matmul_precision = "highest"
     config.benchmark = False
     config.compute_flops = False
+    config.check_unused_parameters = False
 
     return config
 

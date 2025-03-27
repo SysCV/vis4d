@@ -156,6 +156,7 @@ def main(argv: ArgsType) -> None:
         config.seed,
         ckpt_path if not resume else None,
         config.compute_flops,
+        config.check_unused_parameters,
     )
     data_module = DataModule(config.data)
 

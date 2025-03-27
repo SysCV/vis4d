@@ -47,7 +47,7 @@ class TrainingModule(pl.LightningModule):
         seed: int = -1,
         ckpt_path: None | str = None,
         compute_flops: bool = False,
-        check_the_unused_parameters: bool = False,
+        check_unused_parameters: bool = False,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -66,7 +66,7 @@ class TrainingModule(pl.LightningModule):
                 Defaults to None.
             compute_flops (bool, optional): If to compute the FLOPs of the
                 model. Defaults to False.
-            check_the_unused_parameters (bool, optional): If to check the
+            check_unused_parameters (bool, optional): If to check the
                 unused parameters. Defaults to False.
         """
         super().__init__()
@@ -79,7 +79,7 @@ class TrainingModule(pl.LightningModule):
         self.seed = seed
         self.ckpt_path = ckpt_path
         self.compute_flops = compute_flops
-        self.check_unused_parameters = check_the_unused_parameters
+        self.check_unused_parameters = check_unused_parameters
 
         # Create model placeholder
         self.model: nn.Module
