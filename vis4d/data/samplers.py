@@ -115,7 +115,14 @@ class AspectRatioBatchSampler(BatchSampler):
 
     def __iter__(self):
         for idx in self.sampler:
-            data_dict = self.sampler.dataset[idx]
+            if hasattr(self.sampler, "dataset"):
+                data_dict = self.sampler.dataset[idx]
+            elif hasattr(self.sampler, "data_source"):
+                data_dict = self.sampler.data_source[idx]
+            else:
+                raise ValueError(
+                    "sampler should have dataset or data_source attribute"
+                )
             height, width = data_dict[K.input_hw]
             bucket_id = 0 if width < height else 1
             bucket = self._aspect_ratio_buckets[bucket_id]

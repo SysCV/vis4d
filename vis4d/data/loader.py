@@ -8,7 +8,12 @@ from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 from torch.utils.data.distributed import DistributedSampler, Sampler
 
 from vis4d.common.distributed import get_rank, get_world_size
@@ -167,20 +172,29 @@ def build_train_dataloader(
             if disable_subprocess_warning and worker_id != 0:
                 warnings.simplefilter("ignore")
 
-    if get_world_size() > 1 and sampler is None:
-        sampler = DistributedSampler(
-            dataset, shuffle=shuffle, drop_last=drop_last
-        )
-        shuffle = False
-        drop_last = False
+    if sampler is None:
+        if get_world_size() > 1:
+            sampler = DistributedSampler(
+                dataset, shuffle=shuffle, drop_last=drop_last
+            )
+            shuffle = False
+            drop_last = False
+        else:
+            if shuffle:
+                sampler = RandomSampler(dataset)
+                shuffle = False
+            else:
+                sampler = SequentialSampler(dataset)
 
     batch_sampler = None
-    if aspect_ratio_grouping and sampler is not None:
+    if aspect_ratio_grouping:
         batch_sampler = AspectRatioBatchSampler(
-            sampler, batch_size=samples_per_gpu
+            sampler, batch_size=samples_per_gpu, drop_last=drop_last
         )
         samples_per_gpu = 1
         shuffle = None
+        drop_last = False
+        sampler = None
 
     dataloader = DataLoader(
         dataset,
@@ -189,7 +203,7 @@ def build_train_dataloader(
         collate_fn=(
             _collate_fn_multi if dataset.has_reference else _collate_fn_single
         ),
-        sampler=sampler if not aspect_ratio_grouping else None,
+        sampler=sampler,
         batch_sampler=batch_sampler,
         worker_init_fn=_worker_init_fn,
         persistent_workers=workers_per_gpu > 0,

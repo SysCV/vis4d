@@ -137,7 +137,6 @@ class VisualizerCallback(Callback):
                     trainer.logger.log_image(
                         key=f"{self.visualizer}/{cur_iter}",
                         images=[image],
-                        step=trainer.global_step,
                     )
             synchronize()
 
