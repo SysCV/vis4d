@@ -115,7 +115,13 @@ class PillowCanvasBackend(CanvasBackend):
             raise ValueError(
                 "No Image Draw initialized! Did you call 'create_canvas'?"
             )
-        self._image_draw.text(position, text, color, font=self._font)
+        left, top, right, bottom = self._image_draw.textbbox(
+            position, text, font=self._font
+        )
+        self._image_draw.rectangle(
+            (left - 2, top - 2, right + 2, bottom + 2), fill=color
+        )
+        self._image_draw.text(position, text, (255, 255, 255), font=self._font)
 
     def draw_box(
         self,

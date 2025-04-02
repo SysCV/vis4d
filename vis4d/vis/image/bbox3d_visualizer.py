@@ -316,8 +316,7 @@ class BoundingBox3DVisualizer(Visualizer):
 
             selected_corner = project_point(box.corners[0], sample.intrinsics)
             self.canvas.draw_text(
-                (selected_corner[0], selected_corner[1]),
-                box.label,
+                (selected_corner[0], selected_corner[1]), box.label, box.color
             )
 
             if self.plot_trajectory:

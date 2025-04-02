@@ -47,6 +47,7 @@ class BoundingBoxVisualizer(Visualizer):
         n_colors: int = 50,
         cat_mapping: dict[str, int] | None = None,
         file_type: str = "png",
+        width: int = 2,
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
         **kwargs: ArgsType,
@@ -71,6 +72,7 @@ class BoundingBoxVisualizer(Visualizer):
             else {}
         )
         self.file_type = file_type
+        self.width = width
         self.canvas = canvas
         self.viewer = viewer
 
@@ -187,8 +189,8 @@ class BoundingBoxVisualizer(Visualizer):
         """
         self.canvas.create_canvas(sample.image)
         for box in sample.boxes:
-            self.canvas.draw_box(box.corners, box.color)
-            self.canvas.draw_text(box.corners[:2], box.label)
+            self.canvas.draw_box(box.corners, box.color, width=self.width)
+            self.canvas.draw_text(box.corners[:2], box.label, box.color)
 
         return self.canvas.as_numpy_image()
 
@@ -206,11 +208,7 @@ class BoundingBoxVisualizer(Visualizer):
             for sample in self._samples:
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                self.canvas.create_canvas(sample.image)
-
-                for box in sample.boxes:
-                    self.canvas.draw_box(box.corners, box.color)
-                    self.canvas.draw_text(box.corners[:2], box.label)
+                _ = self._draw_image(sample)
 
                 self.canvas.save_to_disk(
                     os.path.join(output_folder, image_name)
