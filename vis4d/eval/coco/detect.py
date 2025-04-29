@@ -76,8 +76,8 @@ def predictions_to_coco(
     """
     predictions = []
     boxes_xyxy = copy.deepcopy(boxes)
-    boxes_wywh = xyxy_to_xywh(boxes_xyxy)
-    for i, (box, score, cls) in enumerate(zip(boxes_wywh, scores, classes)):
+    boxes_xywh = xyxy_to_xywh(boxes_xyxy)
+    for i, (box, score, cls) in enumerate(zip(boxes_xywh, scores, classes)):
         mask = masks[i] if masks is not None else None
         xywh = box.tolist()
         area = float(xywh[2] * xywh[3])

@@ -137,13 +137,13 @@ class HDF5Backend(DataBackend):
             File: the hdf5 file.
         """
         if hdf5_path not in self.db_cache:
-            client = File(hdf5_path, mode)
+            client = File(hdf5_path, mode, swmr=True, libver="latest")
             self.db_cache[hdf5_path] = [client, mode]
         else:
             client, current_mode = self.db_cache[hdf5_path]
             if current_mode != mode:
                 client.close()
-                client = File(hdf5_path, mode)
+                client = File(hdf5_path, mode, swmr=True, libver="latest")
                 self.db_cache[hdf5_path] = [client, mode]
         return client
 
