@@ -50,6 +50,7 @@ def get_track_3d_out(
     )
 
 
+# @torch.jit.script TODO
 class CC3DTrackAssociation:
     """Data association relying on quasi-dense instance similarity and 3D clue.
 
@@ -110,6 +111,7 @@ class CC3DTrackAssociation:
         scores_3d: Tensor,
         class_ids: Tensor,
         embeddings: Tensor,
+        obs_velocities: Tensor,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         """Remove overlapping objects across classes via nms.
 
@@ -134,6 +136,7 @@ class CC3DTrackAssociation:
             class_ids,
             detections_3d,
             scores_3d,
+            obs_velocities,
         ) = (
             detections[inds],
             camera_ids[inds],
@@ -141,6 +144,7 @@ class CC3DTrackAssociation:
             class_ids[inds],
             detections_3d[inds],
             scores_3d[inds],
+            obs_velocities[inds],
         )
         valids = embeddings.new_ones((len(detections),), dtype=torch.bool)
 
@@ -164,6 +168,7 @@ class CC3DTrackAssociation:
         scores_3d = scores_3d[valids]
         class_ids = class_ids[valids]
         embeddings = embeddings[valids]
+        obs_velocities = obs_velocities[valids]
         return (
             detections,
             scores,
@@ -172,6 +177,7 @@ class CC3DTrackAssociation:
             class_ids,
             embeddings,
             inds[valids],
+            obs_velocities,
         )
 
     @staticmethod
@@ -180,20 +186,21 @@ class CC3DTrackAssociation:
         memory_boxes_3d_predict: Tensor,
         memory_boxes_3d: Tensor,
         memory_velocities: Tensor,
+        obs_velocities: Tensor,
     ) -> Tensor:
         """Depth ordering matching."""
         # Centroid
         centroid_weight_list = []
         for memory_box_3d_predict in memory_boxes_3d_predict:
             centroid_weight_list.append(
-                F.pairwise_distance(  # pylint: disable=not-callable
+                F.pairwise_distance(
                     obsv_boxes_3d[:, :3],
                     memory_box_3d_predict[:3],
                     keepdim=True,
                 )
             )
         centroid_weight = torch.cat(centroid_weight_list, dim=1)
-        centroid_weight = torch.exp(-torch.div(centroid_weight, 10.0))
+        centroid_weight = torch.exp(-centroid_weight / 10.0)
 
         # Moving distance should be aligned
         motion_weight_list = []
@@ -201,14 +208,14 @@ class CC3DTrackAssociation:
             obsv_boxes_3d[:, :3, None]
             - memory_boxes_3d[:, :3, None].transpose(2, 0)
         ).transpose(1, 2)
+        
         for v in obsv_velocities:
             motion_weight_list.append(
-                F.pairwise_distance(  # pylint: disable=not-callable
-                    v, memory_velocities[:, :3]
-                ).unsqueeze(0)
+                F.pairwise_distance(v, memory_velocities[:, :3]).unsqueeze(0)
             )
+
         motion_weight = torch.cat(motion_weight_list, dim=0)
-        motion_weight = torch.exp(-torch.div(motion_weight, 5.0))
+        motion_weight = torch.exp(-motion_weight / 5.0)
 
         # Moving direction should be aligned
         # Set to 0.5 when two vector not within +-90 degree
@@ -217,21 +224,35 @@ class CC3DTrackAssociation:
             obsv_boxes_3d[:, :2, None]
             - memory_boxes_3d[:, :2, None].transpose(2, 0)
         ).transpose(1, 2)
+        
         for d in obsv_direct:
             cos_sim_list.append(
-                F.cosine_similarity(  # pylint: disable=not-callable
-                    d, memory_velocities[:, :2]
-                ).unsqueeze(0)
+                F.cosine_similarity(d, memory_velocities[:, :2]).unsqueeze(0)
             )
         cos_sim = torch.cat(cos_sim_list, dim=0)
-        cos_sim = torch.add(cos_sim, 1.0)
-        cos_sim = torch.div(cos_sim, 2.0)
+        cos_sim += 1.0
+        cos_sim /= 2.0
 
+
+        #####Velocity score#####
+        # Velocity vectors should be aligned
+        velsim_weight_list = []
+        obsvvv_velocities = obs_velocities.unsqueeze(1).expand_as(obsv_velocities)
+        for v in obsvvv_velocities:
+            velsim_weight_list.append(
+                F.pairwise_distance(v, memory_velocities[:, -3:]).unsqueeze(0)
+            )
+        velsim_weight = torch.cat(velsim_weight_list, dim=0)
+        velsim_weight = torch.exp(-velsim_weight / 5.0)
+
+        ######Score######
+        #normalize wheighting terms again
         scores_depth = (
-            cos_sim * centroid_weight + (1.0 - cos_sim) * motion_weight
+            velsim_weight * centroid_weight + (1.0 - velsim_weight) * motion_weight
         )
 
-        return scores_depth
+        return scores_depth, velsim_weight
+    
 
     def __call__(
         self,
@@ -242,6 +263,7 @@ class CC3DTrackAssociation:
         detection_scores_3d: Tensor,
         detection_class_ids: Tensor,
         detection_embeddings: Tensor,
+        obs_velocities: Tensor | None = None,
         memory_boxes_3d: Tensor | None = None,
         memory_track_ids: Tensor | None = None,
         memory_class_ids: Tensor | None = None,
@@ -281,6 +303,7 @@ class CC3DTrackAssociation:
             detection_class_ids,
             detection_embeddings,
             permute_inds,
+            obs_velocities,
         ) = self._filter_detections(
             detections,
             camera_ids,
@@ -289,6 +312,7 @@ class CC3DTrackAssociation:
             detection_scores_3d,
             detection_class_ids,
             detection_embeddings,
+            obs_velocities,
         )
 
         if with_depth_confidence:
@@ -312,21 +336,22 @@ class CC3DTrackAssociation:
             bbox3d_weight_list = []
             for memory_box_3d_predict in memory_boxes_3d_predict:
                 bbox3d_weight_list.append(
-                    F.pairwise_distance(  # pylint: disable=not-callable
+                    F.pairwise_distance(
                         detections_3d,
                         memory_box_3d_predict,
                         keepdim=True,
                     )
                 )
             bbox3d_weight = torch.cat(bbox3d_weight_list, dim=1)
-            scores_iou = torch.exp(-torch.div(bbox3d_weight, 10.0))
+            scores_iou = torch.exp(-bbox3d_weight / 10.0)
 
             # Depth Ordering
-            scores_depth = self.depth_ordering(
+            scores_depth, scores_velocity = self.depth_ordering(
                 detections_3d,
                 memory_boxes_3d_predict,
                 memory_boxes_3d,
                 memory_velocities,
+                obs_velocities,
             )
 
             # match using bisoftmax metric
@@ -347,22 +372,26 @@ class CC3DTrackAssociation:
                 ) == memory_class_ids.view(1, -1)
                 scores_cats = cat_same.float()
 
+            self.bbox_affinity_weight = 0.75
+            self.feat_affinity_weight = 1 - self.bbox_affinity_weight
+
             affinity_scores = (
                 self.bbox_affinity_weight * scores_iou * scores_depth
                 + self.feat_affinity_weight * similarity_scores
             )
+
             affinity_scores /= (
                 self.bbox_affinity_weight + self.feat_affinity_weight
             )
-            affinity_scores = torch.mul(
-                affinity_scores, torch.greater(scores_iou, 0.0).float()
-            )
-            affinity_scores = torch.mul(
-                affinity_scores, torch.greater(scores_depth, 0.0).float()
-            )
+            
+            affinity_scores *= (scores_iou > 0.0).float()
+            affinity_scores *= (scores_depth > 0.0).float()
             if self.with_cats:
-                affinity_scores = torch.mul(affinity_scores, scores_cats)
+                affinity_scores *= scores_cats
 
+            # TODO: Set the thresholds, original values: 0.5, 0.5
+            self.nms_class_iou_thr = 0.3
+            self.match_score_thr = 0.3
             ids = greedy_assign(
                 detection_scores * depth_confidence,
                 memory_track_ids,
