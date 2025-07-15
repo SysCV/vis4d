@@ -80,8 +80,7 @@ class LoggingCallback(Callback):
                 else -1
             )
         else:
-            # After optimizer.step(), global_step is already incremented by 1.
-            cur_iter = trainer_state["global_step"]
+            cur_iter = trainer_state["global_step"] + 1
             total_iters = trainer_state["num_steps"]
 
         log_dict: None | MetricLogs = None

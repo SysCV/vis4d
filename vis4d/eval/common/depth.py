@@ -100,8 +100,8 @@ class DepthEvaluator(Evaluator):
         """Process a batch of data.
 
         Args:
-            prediction (np.array): Prediction optical flow, in shape (H, W, 2).
-            groundtruth (np.array): Target optical flow, in shape (H, W, 2).
+            prediction (np.array): Prediction optical flow, in shape (B, H, W).
+            groundtruth (np.array): Target optical flow, in shape (B, H, W).
         """
         preds = (
             array_to_numpy(prediction, n_dims=None, dtype=np.float32)

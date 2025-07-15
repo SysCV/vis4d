@@ -81,7 +81,7 @@ class BasicBlock(nn.Module):
             return out
 
         if self.use_checkpoint and x.requires_grad:
-            out = checkpoint(_inner_forward, x)
+            out = checkpoint(_inner_forward, x, use_reentrant=True)
         else:
             out = _inner_forward(x)
 
@@ -183,7 +183,7 @@ class Bottleneck(nn.Module):
             return out
 
         if self.use_checkpoint and x.requires_grad:
-            out = checkpoint(_inner_forward, x)
+            out = checkpoint(_inner_forward, x, use_reentrant=True)
         else:
             out = _inner_forward(x)
 

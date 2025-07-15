@@ -64,9 +64,11 @@ class BoundingBox3DVisualizer(Visualizer):
         image_mode: str = "RGB",
         width: int = 2,
         camera_near_clip: float = 0.15,
+        plot_heading: bool = True,
         axis_mode: AxisMode = AxisMode.ROS,
         trajectory_length: int = 10,
         plot_trajectory: bool = True,
+        save_boxes3d: bool = False,
         canvas: CanvasBackend | None = None,
         viewer: ImageViewerBackend | None = None,
         **kwargs: ArgsType,
@@ -84,6 +86,8 @@ class BoundingBox3DVisualizer(Visualizer):
             width (int): Width of the drawn bounding boxes. Defaults to 2.
             camera_near_clip (float): Near clipping plane of the camera.
                 Defaults to 0.15.
+            plot_heading (bool): If the heading should be plotted. Defaults to
+                True.
             axis_mode (AxisMode): Axis mode for the input bboxes. Defaults to
                 AxisMode.ROS (i.e. global coordinate).
             trajectory_length (int): How many past frames should be used to
@@ -117,12 +121,19 @@ class BoundingBox3DVisualizer(Visualizer):
         self.width = width
 
         self.camera_near_clip = camera_near_clip
+        self.plot_heading = plot_heading
+        self.save_boxes3d = save_boxes3d
+
         self.canvas = canvas if canvas is not None else PillowCanvasBackend()
         self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
 
     def reset(self) -> None:
         """Reset visualizer."""
         self._samples.clear()
+
+    def __repr__(self):
+        """Return string representation."""
+        return "BoundingBox3DVisualizer"
 
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -136,6 +147,7 @@ class BoundingBox3DVisualizer(Visualizer):
         class_ids: None | list[ArrayLikeInt] = None,
         track_ids: None | list[ArrayLikeInt] = None,
         sequence_names: None | list[str] = None,
+        categories: None | list[list[str]] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -172,6 +184,7 @@ class BoundingBox3DVisualizer(Visualizer):
                     None if class_ids is None else class_ids[batch],
                     None if track_ids is None else track_ids[batch],
                     None if sequence_names is None else sequence_names[batch],
+                    None if categories is None else categories[batch],
                 )
 
             for tid in self.trajectories:
@@ -189,6 +202,7 @@ class BoundingBox3DVisualizer(Visualizer):
         class_ids: None | ArrayLikeInt = None,
         track_ids: None | ArrayLikeInt = None,
         sequence_name: None | str = None,
+        categories: None | list[str] = None,
         camera_name: None | str = None,
     ) -> None:
         """Processes a single image entry.
@@ -230,30 +244,33 @@ class BoundingBox3DVisualizer(Visualizer):
             [],
         )
 
-        for center, corners, label, color, track_id in zip(
-            *preprocess_boxes3d(
-                image_hw,
-                boxes3d,
-                intrinsics,
-                extrinsics,
-                scores,
-                class_ids,
-                track_ids,
-                self.color_palette,
-                self.class_id_mapping,
-                axis_mode=self.axis_mode,
-            )
-        ):
-            data_sample.boxes.append(
-                DetectionBox3D(
-                    corners=corners,
-                    label=label,
-                    color=color,
-                    track_id=track_id,
+        if len(boxes3d) != 0:
+            for center, corners, label, color, track_id in zip(
+                *preprocess_boxes3d(
+                    image_hw,
+                    boxes3d,
+                    intrinsics,
+                    extrinsics,
+                    scores,
+                    class_ids,
+                    track_ids,
+                    self.color_palette,
+                    self.class_id_mapping,
+                    axis_mode=self.axis_mode,
+                    categories=categories,
                 )
-            )
-            if track_id is not None:
-                self.trajectories[track_id].append(center)
+            ):
+                data_sample.boxes.append(
+                    DetectionBox3D(
+                        corners=corners,
+                        label=label,
+                        color=color,
+                        track_id=track_id,
+                    )
+                )
+                if track_id is not None:
+                    self.trajectories[track_id].append(center)
+
         self._samples.append(data_sample)
 
     def show(self, cur_iter: int, blocking: bool = True) -> None:
@@ -279,9 +296,13 @@ class BoundingBox3DVisualizer(Visualizer):
         """
         self.canvas.create_canvas(sample.image)
 
-        global_to_cam = inverse_rigid_transform(
-            torch.from_numpy(sample.extrinsics)
-        ).numpy()
+        if self.plot_trajectory:
+            assert (
+                sample.extrinsics is not None
+            ), "Extrinsics is needed to plot trajectory."
+            global_to_cam = inverse_rigid_transform(
+                torch.from_numpy(sample.extrinsics)
+            ).numpy()
 
         for box in sample.boxes:
             self.canvas.draw_box_3d(
@@ -290,18 +311,18 @@ class BoundingBox3DVisualizer(Visualizer):
                 sample.intrinsics,
                 self.width,
                 self.camera_near_clip,
+                self.plot_heading,
             )
 
             selected_corner = project_point(box.corners[0], sample.intrinsics)
             self.canvas.draw_text(
-                (selected_corner[0], selected_corner[1]),
-                box.label,
+                (selected_corner[0], selected_corner[1]), box.label, box.color
             )
 
             if self.plot_trajectory:
                 assert (
-                    sample.extrinsics is not None and box.track_id is not None
-                ), "Extrinsics and track id must be set to plot trajectory."
+                    box.track_id is not None
+                ), "track id must be set to plot trajectory."
 
                 trajectory = self.trajectories[box.track_id]
                 for center in trajectory:
@@ -333,7 +354,7 @@ class BoundingBox3DVisualizer(Visualizer):
                 output_dir = output_folder
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                self._draw_image(sample)
+                image = self._draw_image(sample)
 
                 if sample.sequence_name is not None:
                     output_dir = os.path.join(output_dir, sample.sequence_name)
@@ -343,6 +364,16 @@ class BoundingBox3DVisualizer(Visualizer):
 
                 os.makedirs(output_dir, exist_ok=True)
                 self.canvas.save_to_disk(os.path.join(output_dir, image_name))
+
+                if self.save_boxes3d:
+                    corners = np.array([box.corners for box in sample.boxes])
+
+                    np.save(
+                        os.path.join(output_dir, f"{sample.image_name}.npy"),
+                        corners,
+                    )
+
+            return image
 
 
 class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):

@@ -248,7 +248,6 @@ class Trainer:
 
                     # Step optimizers
                     optimizer.step()
-                    self.global_step += 1
 
                 # Step learning rate schedulers
                 for lr_scheduler in lr_schedulers:
@@ -277,6 +276,8 @@ class Trainer:
 
                     # Set model back to train mode
                     model.train()
+
+                self.global_step += 1
 
                 if self.done():
                     return

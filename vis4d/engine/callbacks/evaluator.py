@@ -41,6 +41,7 @@ class EvaluatorCallback(Callback):
         metrics_to_eval: list[str] | None = None,
         save_predictions: bool = False,
         save_prefix: None | str = None,
+        output_dir: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Init callback."""
@@ -51,14 +52,24 @@ class EvaluatorCallback(Callback):
 
         if self.save_predictions:
             assert (
-                save_prefix is not None
+                output_dir is not None
             ), "If save_predictions is True, save_prefix must be provided."
-            self.output_dir = save_prefix
+
+            output_dir = os.path.join(output_dir, "eval")
+
+            self.output_dir = output_dir
+            self.save_prefix = save_prefix
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
         if self.save_predictions:
             self.output_dir = broadcast(self.output_dir)
+
+            if self.save_prefix is not None:
+                self.output_dir = os.path.join(
+                    self.output_dir, self.save_prefix
+                )
+
             for metric in self.metrics_to_eval:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
@@ -90,13 +101,26 @@ class EvaluatorCallback(Callback):
         self.evaluator.gather(all_gather_object_cpu)
 
         synchronize()
-        log_dict = self.evaluate()
-        log_dict = broadcast(log_dict)
+        self.process()
+
+        log_dict: MetricLogs = {}
+        for metric in self.metrics_to_eval:
+            metric_dict = self.evaluate(metric)
+            metric_dict = broadcast(metric_dict)
+            assert isinstance(metric_dict, dict)
+            log_dict.update(metric_dict)
+
         self.evaluator.reset()
+
         return log_dict
 
     @rank_zero_only
-    def evaluate(self) -> MetricLogs:
+    def process(self) -> None:
+        """Process the evaluator."""
+        self.evaluator.process()
+
+    @rank_zero_only
+    def evaluate(self, metric: str) -> MetricLogs:
         """Evaluate the performance after processing all input/output pairs.
 
         Returns:
@@ -104,26 +128,26 @@ class EvaluatorCallback(Callback):
                 keys are formatted as {metric_name}/{key_name}, and the
                 values are the corresponding evaluated values.
         """
-        rank_zero_info("Running evaluator %s...", str(self.evaluator))
-        self.evaluator.process()
-
+        rank_zero_info(
+            f"Running evaluator {str(self.evaluator)} with {metric} metric... "
+        )
         log_dict = {}
-        for metric in self.metrics_to_eval:
-            # Save output predictions. This is done here instead of
-            # on_test_batch_end because the evaluator may not have processed
-            # all batches yet.
-            if self.save_predictions:
-                output_dir = os.path.join(self.output_dir, metric)
-                self.evaluator.save(metric, output_dir)
 
-            # Evaluate metric
-            metric_dict, metric_str = self.evaluator.evaluate(metric)
-            for k, v in metric_dict.items():
-                log_k = metric + "/" + k
-                rank_zero_info("%s: %.4f", log_k, v)
-                log_dict[f"{metric}/{k}"] = v
+        # Save output predictions. This is done here instead of
+        # on_test_batch_end because the evaluator may not have processed
+        # all batches yet.
+        if self.save_predictions:
+            output_dir = os.path.join(self.output_dir, metric)
+            self.evaluator.save(metric, output_dir)
 
-            rank_zero_info("Showing results for metric: %s", metric)
-            rank_zero_info(metric_str)
+        # Evaluate metric
+        metric_dict, metric_str = self.evaluator.evaluate(metric)
+        for k, v in metric_dict.items():
+            log_k = metric + "/" + k
+            rank_zero_info("%s: %.4f", log_k, v)
+            log_dict[f"{metric}/{k}"] = v
+
+        rank_zero_info("Showing results for metric: %s", metric)
+        rank_zero_info(metric_str)
 
         return log_dict

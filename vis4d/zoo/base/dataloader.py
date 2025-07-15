@@ -32,6 +32,7 @@ def get_train_dataloader_cfg(
     sensors: Sequence[str] | None = None,
     pin_memory: bool | FieldReference = True,
     shuffle: bool | FieldReference = True,
+    aspect_ratio_grouping: bool | FieldReference = False,
 ) -> ConfigDict:
     """Creates dataloader configuration given dataset and preprocessing.
 
@@ -84,6 +85,7 @@ def get_train_dataloader_cfg(
         sensors=sensors,
         pin_memory=pin_memory,
         shuffle=shuffle,
+        aspect_ratio_grouping=aspect_ratio_grouping,
     )
 
 

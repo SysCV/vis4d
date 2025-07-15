@@ -45,8 +45,9 @@ class BoundingBoxVisualizer(Visualizer):
         self,
         *args: ArgsType,
         n_colors: int = 50,
-        class_id_mapping: dict[int, str] | None = None,
+        cat_mapping: dict[str, int] | None = None,
         file_type: str = "png",
+        width: int = 2,
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
         **kwargs: ArgsType,
@@ -55,9 +56,9 @@ class BoundingBoxVisualizer(Visualizer):
 
         Args:
             n_colors (int): How many colors should be used for the internal
-                            color map
-            class_id_mapping (dict[int, str]): Mapping from class id to
-                                                      human readable name
+                color map
+            cat_mapping (dict[str, int]): Mapping from class names to class
+                ids. Defaults to None.
             file_type (str): Desired file type
             canvas (CanvasBackend): Backend that is used to draw on images
             viewer (ImageViewerBackend): Backend that is used show images
@@ -66,9 +67,12 @@ class BoundingBoxVisualizer(Visualizer):
         self._samples: list[DataSample] = []
         self.color_palette = generate_color_map(n_colors)
         self.class_id_mapping = (
-            class_id_mapping if class_id_mapping is not None else {}
+            {v: k for k, v in cat_mapping.items()}
+            if cat_mapping is not None
+            else {}
         )
         self.file_type = file_type
+        self.width = width
         self.canvas = canvas
         self.viewer = viewer
 
@@ -85,6 +89,7 @@ class BoundingBoxVisualizer(Visualizer):
         scores: None | list[ArrayLikeFloat] = None,
         class_ids: None | list[ArrayLikeInt] = None,
         track_ids: None | list[ArrayLikeInt] = None,
+        categories: None | list[list[str]] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -110,6 +115,7 @@ class BoundingBoxVisualizer(Visualizer):
                     None if scores is None else scores[idx],
                     None if class_ids is None else class_ids[idx],
                     None if track_ids is None else track_ids[idx],
+                    None if categories is None else categories[idx],
                 )
 
     def process_single_image(
@@ -120,6 +126,7 @@ class BoundingBoxVisualizer(Visualizer):
         scores: None | ArrayLikeFloat = None,
         class_ids: None | ArrayLikeInt = None,
         track_ids: None | ArrayLikeInt = None,
+        categories: None | list[str] = None,
     ) -> None:
         """Processes a single image entry.
 
@@ -146,6 +153,7 @@ class BoundingBoxVisualizer(Visualizer):
                 track_ids,
                 self.color_palette,
                 self.class_id_mapping,
+                categories=categories,
             )
         ):
             data_sample.boxes.append(
@@ -181,8 +189,8 @@ class BoundingBoxVisualizer(Visualizer):
         """
         self.canvas.create_canvas(sample.image)
         for box in sample.boxes:
-            self.canvas.draw_box(box.corners, box.color)
-            self.canvas.draw_text(box.corners[:2], box.label)
+            self.canvas.draw_box(box.corners, box.color, width=self.width)
+            self.canvas.draw_text(box.corners[:2], box.label, box.color)
 
         return self.canvas.as_numpy_image()
 
@@ -200,11 +208,7 @@ class BoundingBoxVisualizer(Visualizer):
             for sample in self._samples:
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                self.canvas.create_canvas(sample.image)
-
-                for box in sample.boxes:
-                    self.canvas.draw_box(box.corners, box.color)
-                    self.canvas.draw_text(box.corners[:2], box.label)
+                _ = self._draw_image(sample)
 
                 self.canvas.save_to_disk(
                     os.path.join(output_folder, image_name)

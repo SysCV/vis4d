@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 import torch
-from torch import optim
+from torch.optim.sgd import SGD
 
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
@@ -46,7 +46,7 @@ class FCNResNetTest(unittest.TestCase):
         """Test FCNResNet training."""
         model = FCNResNet(base_model="resnet50", resize=(64, 64))
         loss_fn = MultiLevelSegLoss(feature_idx=(4, 5), weights=[0.5, 1])
-        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
         dataset = COCO(
             get_test_data("coco_test"), split="train", use_pascal_voc_cats=True
         )

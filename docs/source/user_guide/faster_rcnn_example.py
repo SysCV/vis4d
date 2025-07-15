@@ -6,7 +6,7 @@ import tempfile
 
 import lightning.pytorch as pl
 import numpy as np
-from torch.optim import SGD
+from torch.optim.sgd import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config

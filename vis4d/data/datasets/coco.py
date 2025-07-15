@@ -204,6 +204,9 @@ class COCO(CacheMappingMixin, Dataset):
             cached_file_path=cached_file_path,
         )
 
+        # TODO: Control category names depending on the task
+        self.category_names = sorted(coco_det_map, key=coco_det_map.get)
+
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
         return (
@@ -354,5 +357,7 @@ class COCO(CacheMappingMixin, Dataset):
                 seg_masks = seg_masks.astype(np.int64)
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
                 dict_data[K.seg_masks] = seg_masks[None]
+
+        dict_data["texts"] = self.category_names
 
         return dict_data

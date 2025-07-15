@@ -212,6 +212,8 @@ class FFN(nn.Module):
                 LayerScale. Default: 0.0
         """
         super().__init__()
+        self.embed_dims = embed_dims
+
         layers: list[nn.Module] = []
         in_channels = embed_dims
         for _ in range(num_fcs - 1):

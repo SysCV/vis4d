@@ -96,6 +96,18 @@ class TestCC3DTConfig(unittest.TestCase):
             )
         )
 
+    def test_nusc_test(self) -> None:
+        """Test the config."""
+        cfg_gt = f"{self.gt_config_path}/cc_3dt_nusc_test.yaml"
+
+        self.assertTrue(
+            compare_configs(
+                f"{self.config_prefix}.cc_3dt_nusc_test",
+                cfg_gt,
+                self.varying_keys,
+            )
+        )
+
     def test_bevformer_base_velo_lstm_nusc(self) -> None:
         """Test the config."""
         cfg_gt = (

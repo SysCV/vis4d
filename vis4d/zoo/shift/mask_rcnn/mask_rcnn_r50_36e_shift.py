@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import FieldConfigDict, class_config
 from vis4d.data.io.hdf5 import HDF5Backend

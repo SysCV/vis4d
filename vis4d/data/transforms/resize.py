@@ -50,6 +50,7 @@ class GenResizeParameters:
         align_long_edge: bool = False,
         resize_short_edge: bool = False,
         allow_overflow: bool = False,
+        fixed_scale: bool = False,
     ) -> None:
         """Creates an instance of the class.
 
@@ -78,14 +79,63 @@ class GenResizeParameters:
                 to the smallest size such that it is no smaller than shape.
                 Otherwise, we scale the image to the largest size such that it
                 is no larger than shape. Defaults to False.
+            fixed_scale (bool, optional): If set to True, we scale the image
+                without offset. Defaults to False.
         """
         self.shape = shape
         self.keep_ratio = keep_ratio
+
+        assert multiscale_mode in {"list", "range"}
         self.multiscale_mode = multiscale_mode
+
+        assert (
+            scale_range[0] <= scale_range[1]
+        ), f"Invalid scale range: {scale_range[1]} < {scale_range[0]}"
         self.scale_range = scale_range
+
         self.align_long_edge = align_long_edge
         self.resize_short_edge = resize_short_edge
         self.allow_overflow = allow_overflow
+        self.fixed_scale = fixed_scale
+
+    def _get_target_shape(
+        self, input_shape: tuple[int, int]
+    ) -> tuple[int, int]:
+        """Generate possibly random target shape."""
+        if self.multiscale_mode == "range":
+            assert isinstance(
+                self.shape, tuple
+            ), "Specify shape as tuple when using multiscale mode range."
+            if self.scale_range[0] < self.scale_range[1]:  # do multi-scale
+                w_scale = (
+                    random.uniform(0, 1)
+                    * (self.scale_range[1] - self.scale_range[0])
+                    + self.scale_range[0]
+                )
+                h_scale = (
+                    random.uniform(0, 1)
+                    * (self.scale_range[1] - self.scale_range[0])
+                    + self.scale_range[0]
+                )
+            else:
+                h_scale = w_scale = 1.0
+
+            shape = int(self.shape[0] * h_scale), int(self.shape[1] * w_scale)
+        else:
+            assert isinstance(
+                self.shape, list
+            ), "Specify shape as list when using multiscale mode list."
+            shape = random.choice(self.shape)
+
+        return get_resize_shape(
+            input_shape,
+            shape,
+            self.keep_ratio,
+            self.align_long_edge,
+            self.resize_short_edge,
+            self.allow_overflow,
+            self.fixed_scale,
+        )
 
     def __call__(
         self, images: list[NDArrayF32]
@@ -94,16 +144,7 @@ class GenResizeParameters:
         image = images[0]
 
         im_shape = (image.shape[1], image.shape[2])
-        target_shape = get_target_shape(
-            im_shape,
-            self.shape,
-            self.keep_ratio,
-            self.multiscale_mode,
-            self.scale_range,
-            self.align_long_edge,
-            self.resize_short_edge,
-            self.allow_overflow,
-        )
+        target_shape = self._get_target_shape(im_shape)
         scale_factor = (
             target_shape[1] / im_shape[1],
             target_shape[0] / im_shape[0],
@@ -115,6 +156,66 @@ class GenResizeParameters:
         target_shapes = [target_shape] * len(images)
 
         return resize_params, target_shapes
+
+
+def get_resize_shape(
+    original_shape: tuple[int, int],
+    new_shape: tuple[int, int],
+    keep_ratio: bool = True,
+    align_long_edge: bool = False,
+    resize_short_edge: bool = False,
+    allow_overflow: bool = False,
+    fixed_scale: bool = False,
+) -> tuple[int, int]:
+    """Get shape for resize, considering keep_ratio and align_long_edge.
+
+    Args:
+        original_shape (tuple[int, int]): Original shape in [H, W].
+        new_shape (tuple[int, int]): New shape in [H, W].
+        keep_ratio (bool, optional): Whether to keep the aspect ratio.
+            Defaults to True.
+        align_long_edge (bool, optional): Whether to align the long edge of
+            the original shape with the long edge of the new shape.
+            Defaults to False.
+        resize_short_edge (bool, optional): Whether to resize according to the
+            short edge. Defaults to False.
+        allow_overflow (bool, optional): Whether to allow overflow.
+            Defaults to False.
+        fixed_scale (bool, optional): Whether to use fixed scale.
+
+    Returns:
+        tuple[int, int]: The new shape in [H, W].
+    """
+    h, w = original_shape
+    new_h, new_w = new_shape
+
+    if keep_ratio:
+        if allow_overflow:
+            comp_fn = max
+        else:
+            comp_fn = min
+
+        if align_long_edge:
+            long_edge, short_edge = max(new_shape), min(new_shape)
+            scale_factor = comp_fn(
+                long_edge / max(h, w), short_edge / min(h, w)
+            )
+        elif resize_short_edge:
+            short_edge = min(original_shape)
+            new_short_edge = min(new_shape)
+            scale_factor = new_short_edge / short_edge
+        else:
+            scale_factor = comp_fn(new_w / w, new_h / h)
+
+        if fixed_scale:
+            offset = 0.0
+        else:
+            offset = 0.5
+
+        new_h = int(h * scale_factor + offset)
+        new_w = int(w * scale_factor + offset)
+
+    return new_h, new_w
 
 
 @Transform([K.images, "transforms.resize.target_shape"], K.images)
@@ -164,6 +265,36 @@ class ResizeImages:
                 backend=self.imresize_backend,
             )
         return images
+
+
+def resize_image(
+    inputs: NDArrayF32,
+    shape: tuple[int, int],
+    interpolation: str = "bilinear",
+    antialias: bool = False,
+    backend: str = "torch",
+) -> NDArrayF32:
+    """Resize image."""
+    if backend == "torch":
+        image = torch.from_numpy(inputs).permute(0, 3, 1, 2)
+        image = resize_tensor(image, shape, interpolation, antialias)
+        return image.permute(0, 2, 3, 1).numpy()
+
+    if backend == "cv2":
+        cv2_interp_codes = {
+            "nearest": INTER_NEAREST,
+            "bilinear": INTER_LINEAR,
+            "bicubic": INTER_CUBIC,
+            "area": INTER_AREA,
+            "lanczos": INTER_LANCZOS4,
+        }
+        return cv2.resize(  # pylint: disable=no-member, unsubscriptable-object
+            inputs[0].astype(np.uint8),
+            (shape[1], shape[0]),
+            interpolation=cv2_interp_codes[interpolation],
+        )[None, ...].astype(np.float32)
+
+    raise ValueError(f"Invalid imresize backend: {backend}")
 
 
 @Transform([K.boxes2d, "transforms.resize.scale_factor"], K.boxes2d)
@@ -309,7 +440,7 @@ class ResizeOpticalFlows:
                 optical_flow_[:, :, 0] *= scale_factor[0]
                 optical_flow_[:, :, 1] *= scale_factor[1]
             optical_flows[i] = optical_flow_.numpy()
-        return optical_flow_.numpy()
+        return optical_flows
 
 
 @Transform(
@@ -389,34 +520,6 @@ class ResizeIntrinsics:
         return intrinsics
 
 
-def resize_image(
-    inputs: NDArrayF32,
-    shape: tuple[int, int],
-    interpolation: str = "bilinear",
-    antialias: bool = False,
-    backend: str = "torch",
-) -> NDArrayF32:
-    """Resize image."""
-    if backend == "torch":
-        image = torch.from_numpy(inputs).permute(0, 3, 1, 2)
-        image = resize_tensor(image, shape, interpolation, antialias)
-        return image.permute(0, 2, 3, 1).numpy()
-    if backend == "cv2":
-        cv2_interp_codes = {
-            "nearest": INTER_NEAREST,
-            "bilinear": INTER_LINEAR,
-            "bicubic": INTER_CUBIC,
-            "area": INTER_AREA,
-            "lanczos": INTER_LANCZOS4,
-        }
-        return cv2.resize(  # pylint: disable=no-member, unsubscriptable-object
-            inputs[0].astype(np.uint8),
-            (shape[1], shape[0]),
-            interpolation=cv2_interp_codes[interpolation],
-        )[None, ...].astype(np.float32)
-    raise ValueError(f"Invalid imresize backend: {backend}")
-
-
 def resize_tensor(
     inputs: Tensor,
     shape: tuple[int, int],
@@ -434,107 +537,3 @@ def resize_tensor(
         antialias=antialias,
     )
     return output
-
-
-def get_resize_shape(
-    original_shape: tuple[int, int],
-    new_shape: tuple[int, int],
-    keep_ratio: bool = True,
-    align_long_edge: bool = False,
-    resize_short_edge: bool = False,
-    allow_overflow: bool = False,
-) -> tuple[int, int]:
-    """Get shape for resize, considering keep_ratio and align_long_edge.
-
-    Args:
-        original_shape (tuple[int, int]): Original shape in [H, W].
-        new_shape (tuple[int, int]): New shape in [H, W].
-        keep_ratio (bool, optional): Whether to keep the aspect ratio.
-            Defaults to True.
-        align_long_edge (bool, optional): Whether to align the long edge of
-            the original shape with the long edge of the new shape.
-            Defaults to False.
-        resize_short_edge (bool, optional): Whether to resize according to the
-            short edge. Defaults to False.
-        allow_overflow (bool, optional): Whether to allow overflow.
-            Defaults to False.
-
-    Returns:
-        tuple[int, int]: The new shape in [H, W].
-    """
-    h, w = original_shape
-    new_h, new_w = new_shape
-    if keep_ratio:
-        if allow_overflow:
-            comp_fn = max
-        else:
-            comp_fn = min
-        if align_long_edge:
-            long_edge, short_edge = max(new_shape), min(new_shape)
-            scale_factor = comp_fn(
-                long_edge / max(h, w), short_edge / min(h, w)
-            )
-        elif resize_short_edge:
-            short_edge = min(original_shape)
-            new_short_edge = min(new_shape)
-            scale_factor = new_short_edge / short_edge
-        else:
-            scale_factor = comp_fn(new_w / w, new_h / h)
-        new_h = int(h * scale_factor + 0.5)
-        new_w = int(w * scale_factor + 0.5)
-    return new_h, new_w
-
-
-def get_target_shape(
-    input_shape: tuple[int, int],
-    shape: tuple[int, int] | list[tuple[int, int]],
-    keep_ratio: bool = False,
-    multiscale_mode: str = "range",
-    scale_range: tuple[float, float] = (1.0, 1.0),
-    align_long_edge: bool = False,
-    resize_short_edge: bool = False,
-    allow_overflow: bool = False,
-) -> tuple[int, int]:
-    """Generate possibly random target shape."""
-    assert multiscale_mode in {"list", "range"}
-    if multiscale_mode == "list":
-        assert isinstance(
-            shape, list
-        ), "Specify shape as list when using multiscale mode list."
-        assert len(shape) >= 1
-    else:
-        assert isinstance(
-            shape, tuple
-        ), "Specify shape as tuple when using multiscale mode range."
-        assert (
-            scale_range[0] <= scale_range[1]
-        ), f"Invalid scale range: {scale_range[1]} < {scale_range[0]}"
-
-    if multiscale_mode == "range":
-        assert isinstance(shape, tuple)
-        if scale_range[0] < scale_range[1]:  # do multi-scale
-            w_scale = (
-                random.uniform(0, 1) * (scale_range[1] - scale_range[0])
-                + scale_range[0]
-            )
-            h_scale = (
-                random.uniform(0, 1) * (scale_range[1] - scale_range[0])
-                + scale_range[0]
-            )
-        else:
-            h_scale = w_scale = 1.0
-
-        shape = int(shape[0] * h_scale), int(shape[1] * w_scale)
-    else:
-        assert isinstance(shape, list)
-        shape = random.choice(shape)
-
-    shape = get_resize_shape(
-        input_shape,
-        shape,
-        keep_ratio,
-        align_long_edge,
-        resize_short_edge,
-        allow_overflow,
-    )
-    return shape

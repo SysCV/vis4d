@@ -5,9 +5,10 @@ from __future__ import annotations
 import os
 
 from torch import nn
+from lightning.pytorch.loggers import WandbLogger
 
 from vis4d.common import ArgsType
-from vis4d.common.distributed import broadcast
+from vis4d.common.distributed import broadcast, get_rank, synchronize
 from vis4d.data.typing import DictData
 from vis4d.engine.loss_module import LossModule
 from vis4d.vis.base import Visualizer
@@ -27,6 +28,7 @@ class VisualizerCallback(Callback):
         show: bool = False,
         save_to_disk: bool = True,
         save_prefix: str | None = None,
+        output_dir: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
         """Init callback.
@@ -35,11 +37,13 @@ class VisualizerCallback(Callback):
             visualizer (Visualizer): Visualizer.
             visualize_train (bool): If the training data should be visualized.
                 Defaults to False.
-            save_prefix (str): Output directory for saving the visualizations.
             show (bool): If the visualizations should be shown. Defaults to
                 False.
             save_to_disk (bool): If the visualizations should be saved to disk.
                 Defaults to True.
+            save_prefix (str): Output directory prefix for distinguish
+                different visualizations.
+            output_dir (str): Output directory for saving the visualizations.
         """
         super().__init__(*args, **kwargs)
         self.visualizer = visualizer
@@ -50,9 +54,13 @@ class VisualizerCallback(Callback):
 
         if self.save_to_disk:
             assert (
-                save_prefix is not None
-            ), "If save_to_disk is True, save_prefix must be provided."
-            self.output_dir = f"{self.save_prefix}/vis"
+                output_dir is not None
+            ), "If save_to_disk is True, output_dir must be provided."
+
+            output_dir = os.path.join(output_dir, "vis")
+
+            self.output_dir = output_dir
+            self.save_prefix = save_prefix
 
     def setup(self) -> None:  # pragma: no cover
         """Setup callback."""
@@ -81,10 +89,12 @@ class VisualizerCallback(Callback):
                 self.visualizer.show(cur_iter=cur_iter)
 
             if self.save_to_disk:
-                os.makedirs(f"{self.output_dir}/train", exist_ok=True)
+                output_folder = os.path.join(
+                    self.output_dir, "train", self.save_prefix
+                )
+                os.makedirs(output_folder, exist_ok=True)
                 self.visualizer.save_to_disk(
-                    cur_iter=cur_iter,
-                    output_folder=f"{self.output_dir}/train",
+                    cur_iter=cur_iter, output_folder=output_folder
                 )
 
             self.visualizer.reset()
@@ -110,10 +120,24 @@ class VisualizerCallback(Callback):
             self.visualizer.show(cur_iter=cur_iter)
 
         if self.save_to_disk:
-            os.makedirs(f"{self.output_dir}/test", exist_ok=True)
-            self.visualizer.save_to_disk(
-                cur_iter=cur_iter,
-                output_folder=f"{self.output_dir}/test",
+            output_folder = os.path.join(
+                self.output_dir, "test", self.save_prefix
             )
+            os.makedirs(output_folder, exist_ok=True)
+            image = self.visualizer.save_to_disk(
+                cur_iter=cur_iter, output_folder=output_folder
+            )
+
+            if get_rank() == 0 and trainer_state["train_engine"] == "pl":
+                trainer = trainer_state["train_module"]
+                if (
+                    isinstance(trainer.logger, WandbLogger)
+                    and image is not None
+                ):
+                    trainer.logger.log_image(
+                        key=f"{self.visualizer}/{cur_iter}",
+                        images=[image],
+                    )
+            synchronize()
 
         self.visualizer.reset()

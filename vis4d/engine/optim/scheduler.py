@@ -5,8 +5,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.optimizer import Optimizer
 
 from vis4d.common.typing import DictStrAny
 from vis4d.config import copy_and_resolve_references, instantiate_classes
@@ -80,10 +80,10 @@ class LRSchedulerWrapper(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Get current learning rate."""
-        return [
-            lr_scheduler["scheduler"].get_lr()
-            for lr_scheduler in self.lr_schedulers.values()
-        ]
+        lr = []
+        for lr_scheduler in self.lr_schedulers.values():
+            lr.extend(lr_scheduler["scheduler"].get_lr())
+        return lr
 
     def state_dict(self) -> dict[int, DictStrAny]:  # type: ignore
         """Get state dict."""
@@ -107,7 +107,7 @@ class LRSchedulerWrapper(LRScheduler):
     def _step_lr(self, lr_scheduler: LRSchedulerDict, step: int) -> None:
         """Step the learning rate."""
         if lr_scheduler["begin"] <= step and (
-            lr_scheduler["end"] == -1 or lr_scheduler["end"] > step
+            lr_scheduler["end"] == -1 or lr_scheduler["end"] >= step
         ):
             lr_scheduler["scheduler"].step()
 
@@ -126,15 +126,13 @@ class LRSchedulerWrapper(LRScheduler):
 
     def step_on_batch(self, step: int) -> None:
         """Step on training batch end."""
-        # Minus 1 because the step is called after the optimizer.step()
-        step -= 1
         for lr_scheduler in self.lr_schedulers.values():
             if not lr_scheduler["epoch_based"]:
                 self._step_lr(lr_scheduler, step)
 
         for i, lr_scheduler_cfg in enumerate(self.lr_schedulers_cfg):
             if not lr_scheduler_cfg["epoch_based"] and (
-                lr_scheduler_cfg["begin"] == step + 1
+                lr_scheduler_cfg["begin"] == step
             ):
                 self._instantiate_lr_scheduler(i, lr_scheduler_cfg)
 
@@ -163,7 +161,7 @@ class ConstantLR(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count - 1  # type: ignore
+        step_count = self._step_count - 1
         if step_count == 0:
             return [
                 group["lr"] * self.factor
@@ -213,7 +211,7 @@ class PolyLR(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count - 1  # type: ignore
+        step_count = self._step_count - 1
         if step_count == 0 or step_count > self.max_steps:
             return [group["lr"] for group in self.optimizer.param_groups]
         decay_factor = (
@@ -247,7 +245,7 @@ class QuadraticLRWarmup(LRScheduler):
 
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        step_count = self._step_count - 1  # type: ignore
+        step_count = self._step_count - 1
         if step_count >= self.max_steps:
             return self.base_lrs
         factors = [

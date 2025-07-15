@@ -16,8 +16,15 @@ from vis4d.common.logging import dump_config, rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.typing import ExperimentConfig
-from vis4d.engine.callbacks import CheckpointCallback
-from vis4d.engine.flag import _CKPT, _CONFIG, _GPUS, _RESUME, _SHOW_CONFIG
+from vis4d.engine.callbacks import CheckpointCallback, VisualizerCallback
+from vis4d.engine.flag import (
+    _CKPT,
+    _CONFIG,
+    _GPUS,
+    _RESUME,
+    _SHOW_CONFIG,
+    _VIS,
+)
 from vis4d.engine.parser import pprints_config
 from vis4d.pl.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.pl.data_module import DataModule
@@ -83,12 +90,23 @@ def main(argv: ArgsType) -> None:
         test_data_connector = None
 
     # Callbacks
+    vis = _VIS.value
+
     callbacks: list[Callback] = []
     for cb in config.callbacks:
         callback = instantiate_classes(cb)
         # Skip checkpoint callback to use PL ModelCheckpoint
-        if not isinstance(callback, CheckpointCallback):
-            callbacks.append(CallbackWrapper(callback))
+        if isinstance(callback, CheckpointCallback):
+            continue
+
+        if not vis and isinstance(callback, VisualizerCallback):
+            rank_zero_info(
+                "VisualizerCallback is not used. "
+                "Please set --vis=True to use it."
+            )
+            continue
+
+        callbacks.append(CallbackWrapper(callback))
 
     if "pl_callbacks" in config:
         pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]
@@ -137,6 +155,8 @@ def main(argv: ArgsType) -> None:
         hyper_params,
         config.seed,
         ckpt_path if not resume else None,
+        config.compute_flops,
+        config.check_unused_parameters,
     )
     data_module = DataModule(config.data)
 
