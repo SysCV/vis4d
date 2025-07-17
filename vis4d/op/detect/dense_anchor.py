@@ -29,7 +29,7 @@ class DetectorTargets(NamedTuple):
 def images_to_levels(
     targets: list[
         tuple[list[Tensor], list[Tensor], list[Tensor], list[Tensor]]
-    ]
+    ],
 ) -> list[list[Tensor]]:
     """Convert targets by image to targets by feature level."""
     targets_per_level = []

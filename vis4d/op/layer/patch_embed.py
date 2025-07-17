@@ -1,6 +1,6 @@
 """Image to Patch Embedding using Conv2d.
 
-Modified from vision_transformer 
+Modified from vision_transformer
 (https://github.com/google-research/vision_transformer).
 """
 

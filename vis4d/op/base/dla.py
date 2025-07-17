@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import math
+from collections.abc import Sequence
 
 import torch
 from torch import Tensor, nn

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 
-from torch import nn
 from lightning.pytorch.loggers import WandbLogger
+from torch import nn
 
 from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, get_rank, synchronize
@@ -89,9 +89,11 @@ class VisualizerCallback(Callback):
                 self.visualizer.show(cur_iter=cur_iter)
 
             if self.save_to_disk:
-                output_folder = os.path.join(
-                    self.output_dir, "train", self.save_prefix
-                )
+                output_folder = os.path.join(self.output_dir, "train")
+                if self.save_prefix is not None:
+                    output_folder = os.path.join(
+                        output_folder, self.save_prefix
+                    )
                 os.makedirs(output_folder, exist_ok=True)
                 self.visualizer.save_to_disk(
                     cur_iter=cur_iter, output_folder=output_folder
@@ -120,14 +122,20 @@ class VisualizerCallback(Callback):
             self.visualizer.show(cur_iter=cur_iter)
 
         if self.save_to_disk:
-            output_folder = os.path.join(
-                self.output_dir, "test", self.save_prefix
-            )
+            output_folder = os.path.join(self.output_dir, "test")
+            if self.save_prefix is not None:
+                output_folder = os.path.join(output_folder, self.save_prefix)
             os.makedirs(output_folder, exist_ok=True)
             image = self.visualizer.save_to_disk(
                 cur_iter=cur_iter, output_folder=output_folder
             )
 
+            assert (
+                "train_engine" in trainer_state
+            ), "Trainer state must contain 'train_engine' key."
+            assert (
+                "train_module" in trainer_state
+            ), "Trainer state must contain 'train_module' key."
             if get_rank() == 0 and trainer_state["train_engine"] == "pl":
                 trainer = trainer_state["train_module"]
                 if (
