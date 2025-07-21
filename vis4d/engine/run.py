@@ -7,8 +7,6 @@ import os.path as osp
 
 import torch
 from absl import app  # pylint: disable=no-name-in-module
-from lightning.fabric.utilities.exceptions import MisconfigurationException
-from lightning.pytorch import Callback
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType
@@ -16,7 +14,11 @@ from vis4d.common.logging import dump_config, rank_zero_info, setup_logger
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.typing import ExperimentConfig
-from vis4d.engine.callbacks import CheckpointCallback, VisualizerCallback
+from vis4d.engine.callbacks import (
+    Callback,
+    VisualizerCallback,
+    LRSchedulerCallback,
+)
 from vis4d.engine.flag import (
     _CKPT,
     _CONFIG,
@@ -26,7 +28,6 @@ from vis4d.engine.flag import (
     _VIS,
 )
 from vis4d.engine.parser import pprints_config
-from vis4d.engine.callbacks import CallbackWrapper, LRSchedulerCallback
 from vis4d.engine.data_module import DataModule
 from vis4d.engine.trainer import PLTrainer
 from vis4d.engine.training_module import TrainingModule
@@ -95,31 +96,20 @@ def main(argv: ArgsType) -> None:
     callbacks: list[Callback] = []
     for cb in config.callbacks:
         callback = instantiate_classes(cb)
-        # Skip checkpoint callback to use PL ModelCheckpoint
-        if isinstance(callback, CheckpointCallback):
-            continue
+
+        assert isinstance(callback, Callback), (
+            "Callback must be a subclass of Callback. "
+            f"Provided callback: {cb} is not!"
+        )
 
         if not vis and isinstance(callback, VisualizerCallback):
             rank_zero_info(
-                "VisualizerCallback is not used. "
+                f"{callback.visualizer} is not used."
                 "Please set --vis=True to use it."
             )
             continue
 
-        callbacks.append(CallbackWrapper(callback))
-
-    if "pl_callbacks" in config:
-        pl_callbacks = [instantiate_classes(cb) for cb in config.pl_callbacks]
-    else:
-        pl_callbacks = []
-
-    for cb in pl_callbacks:
-        if not isinstance(cb, Callback):
-            raise MisconfigurationException(
-                "Callback must be a subclass of pytorch_lightning Callback. "
-                f"Provided callback: {cb} is not!"
-            )
-        callbacks.append(cb)
+        callbacks.append(callback)
 
     # Add needed callbacks
     callbacks.append(LRSchedulerCallback())

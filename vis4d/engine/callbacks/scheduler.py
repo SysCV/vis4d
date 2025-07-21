@@ -9,8 +9,10 @@ import lightning.pytorch as pl
 
 from vis4d.engine.optim.scheduler import LRSchedulerWrapper
 
+from .base import Callback
 
-class LRSchedulerCallback(pl.Callback):
+
+class LRSchedulerCallback(Callback):
     """Callback to configure learning rate during training."""
 
     def __init__(self) -> None:

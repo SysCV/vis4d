@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from typing import Any
+import lightning.pytorch as pl
 
-from torch import nn
+from collections import defaultdict
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
-from vis4d.data.typing import DictData
-from vis4d.engine.loss_module import LossModule
 
 from .base import Callback
-from .trainer_state import TrainerState
 
 
 class LoggingCallback(Callback):
@@ -31,62 +29,57 @@ class LoggingCallback(Callback):
         self.test_timer = Timer()
         self.last_step = 0
 
-    def on_train_batch_start(
-        self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        loss_module: LossModule,
-        batch: DictData,
-        batch_idx: int,
-    ) -> None:
-        """Hook to run at the start of a training batch."""
-        if not self.epoch_based and self.train_timer.paused:
-            self.train_timer.resume()
-
     def on_train_epoch_start(
-        self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        loss_module: LossModule,
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the start of a training epoch."""
         if self.epoch_based:
             self.train_timer.reset()
             self.last_step = 0
             self._metrics.clear()
-        elif trainer_state["global_step"] == 0:
+        elif trainer.global_step == 0:
             self.train_timer.reset()
 
-    def on_train_batch_end(
+    def on_train_batch_start(  # type: ignore
         self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        loss_module: LossModule,
-        outputs: DictData,
-        batch: DictData,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
         batch_idx: int,
-    ) -> None | MetricLogs:
+    ) -> None:
+        """Hook to run at the start of a training batch."""
+        if self.train_timer.paused:
+            self.train_timer.resume()
+
+    def on_train_batch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+    ) -> None:
         """Hook to run at the end of a training batch."""
-        if "metrics" in trainer_state:
-            for k, v in trainer_state["metrics"].items():
+        if "metrics" in outputs:
+            for k, v in outputs["metrics"].items():
                 self._metrics[k].append(v)
 
         if self.epoch_based:
             cur_iter = batch_idx + 1
 
-            total_iters = (
-                trainer_state["num_train_batches"]
-                if trainer_state["num_train_batches"] is not None
-                else -1
-            )
+            # Resolve float("inf") to -1
+            if isinstance(trainer.num_training_batches, float):
+                total_iters = -1
+            else:
+                total_iters = trainer.num_training_batches
         else:
-            cur_iter = trainer_state["global_step"] + 1
-            total_iters = trainer_state["num_steps"]
+            cur_iter = trainer.global_step + 1
+            total_iters = trainer.max_steps
 
         log_dict: None | MetricLogs = None
         if cur_iter % self._refresh_rate == 0 and cur_iter != self.last_step:
             prefix = (
-                f"Epoch {trainer_state['current_epoch'] + 1}"
+                f"Epoch {pl_module.current_epoch + 1}"
                 if self.epoch_based
                 else "Iter"
             )
@@ -107,30 +100,62 @@ class LoggingCallback(Callback):
 
         return log_dict
 
+    def on_validation_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Hook to run at the start of a validation epoch."""
+        self.test_timer.reset()
+        self.train_timer.pause()
+
+    def on_validation_batch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        """Wait for on_validation_batch_end PL hook to call 'process'."""
+        cur_iter = batch_idx + 1
+
+        # Resolve float("inf") to -1
+        if isinstance(trainer.num_val_batches[dataloader_idx], int):
+            total_iters = trainer.num_val_batches[dataloader_idx]
+        else:
+            total_iters = -1
+
+        if cur_iter % self._refresh_rate == 0:
+            rank_zero_info(
+                compose_log_str(
+                    "Validation", cur_iter, total_iters, self.test_timer
+                )
+            )
+
     def on_test_epoch_start(
-        self, trainer_state: TrainerState, model: nn.Module
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the start of a testing epoch."""
         self.test_timer.reset()
-        if not self.epoch_based:
-            self.train_timer.pause()
+        self.train_timer.pause()
 
     def on_test_batch_end(
         self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        outputs: DictData,
-        batch: DictData,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         """Hook to run at the end of a testing batch."""
         cur_iter = batch_idx + 1
-        total_iters = (
-            trainer_state["num_test_batches"][dataloader_idx]
-            if trainer_state["num_test_batches"] is not None
-            else -1
-        )
+
+        # Resolve float("inf") to -1
+        if isinstance(trainer.num_test_batches[dataloader_idx], int):
+            total_iters = trainer.num_test_batches[dataloader_idx]
+        else:
+            total_iters = -1
 
         if cur_iter % self._refresh_rate == 0:
             rank_zero_info(

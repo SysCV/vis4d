@@ -115,6 +115,10 @@ class BEVBBox3DVisualizer(Visualizer):
         self.canvas = canvas if canvas is not None else PillowCanvasBackend()
         self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
 
+    def __repr__(self):
+        """Return string representation."""
+        return "BEVBBox3DVisualizer"
+
     def reset(self) -> None:
         """Reset visualizer."""
         self._samples.clear()

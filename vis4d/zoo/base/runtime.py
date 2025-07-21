@@ -9,7 +9,7 @@ from ml_collections import ConfigDict, FieldReference
 
 from vis4d.config import class_config
 from vis4d.config.typing import ExperimentConfig
-from vis4d.engine.callbacks import CheckpointCallback, LoggingCallback
+from vis4d.engine.callbacks import LoggingCallback
 
 
 def get_default_cfg(
@@ -92,16 +92,6 @@ def get_default_callbacks_cfg(
     callbacks.append(
         class_config(
             LoggingCallback, epoch_based=epoch_based, refresh_rate=refresh_rate
-        )
-    )
-
-    # Checkpoint
-    callbacks.append(
-        class_config(
-            CheckpointCallback,
-            epoch_based=epoch_based,
-            save_prefix=output_dir,
-            checkpoint_period=checkpoint_period,
         )
     )
 

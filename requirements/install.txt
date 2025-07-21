@@ -6,7 +6,7 @@ devtools
 h5py
 jsonargparse[signatures]
 lightning
-ml_collections==0.1.1 # Config interface. Need exact version since we overwrite internal functions
+ml_collections==1.1.0 # Config interface. Need exact version since we overwrite internal functions
 numpy>=1.21.0,<2.0.0
 opencv-python
 pandas

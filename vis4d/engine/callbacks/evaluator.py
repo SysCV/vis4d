@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 
-from torch import nn
+from typing import Any
+
+import lightning.pytorch as pl
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import (
@@ -18,21 +20,10 @@ from vis4d.data.typing import DictData
 from vis4d.eval.base import Evaluator
 
 from .base import Callback
-from .trainer_state import TrainerState
 
 
 class EvaluatorCallback(Callback):
-    """Callback for model evaluation.
-
-    Args:
-        evaluator (Evaluator): Evaluator.
-        metrics_to_eval (list[str], Optional): Metrics to evaluate. If None,
-            all metrics in the evaluator will be evaluated. Defaults to None.
-        save_predictions (bool): If the predictions should be saved. Defaults
-            to False.
-        save_prefix (str, Optional): Output directory for saving the
-            evaluation results. Defaults to None.
-    """
+    """Callback for model evaluation."""
 
     def __init__(
         self,
@@ -44,7 +35,20 @@ class EvaluatorCallback(Callback):
         output_dir: str | None = None,
         **kwargs: ArgsType,
     ) -> None:
-        """Init callback."""
+        """Init callback.
+
+        Args:
+            evaluator (Evaluator): Evaluator.
+            metrics_to_eval (list[str], Optional): Metrics to evaluate. If
+                None, all metrics in the evaluator will be evaluated. Defaults
+                to None.
+            save_predictions (bool): If the predictions should be saved.
+                Defaults to False.
+            save_prefix (str, Optional): Output directory for saving the
+                evaluation results. Defaults to None.
+            output_dir (str, Optional): Output directory for saving the
+                evaluation results.
+        """
         super().__init__(*args, **kwargs)
         self.evaluator = evaluator
         self.save_predictions = save_predictions
@@ -60,7 +64,9 @@ class EvaluatorCallback(Callback):
             self.output_dir = output_dir
             self.save_prefix = save_prefix
 
-    def setup(self) -> None:  # pragma: no cover
+    def setup(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str
+    ) -> None:  # pragma: no cover
         """Setup callback."""
         if self.save_predictions:
             self.output_dir = broadcast(self.output_dir)
@@ -75,10 +81,38 @@ class EvaluatorCallback(Callback):
                 os.makedirs(output_dir, exist_ok=True)
         self.evaluator.reset()
 
+    def on_validation_batch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        """Hook to run at the end of a validation batch."""
+        self.on_test_batch_end(
+            trainer=trainer,
+            pl_module=pl_module,
+            outputs=outputs,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+        )
+
+    def on_validation_epoch_end(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
+        log_dict = self.run_eval(pl_module)
+
+        for k, v in log_dict.items():
+            pl_module.log(f"val/{k}", v, sync_dist=True, rank_zero_only=True)
+
     def on_test_batch_end(
         self,
-        trainer_state: TrainerState,
-        model: nn.Module,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
         outputs: DictData,
         batch: DictData,
         batch_idx: int,
@@ -95,9 +129,16 @@ class EvaluatorCallback(Callback):
                 self.evaluator.save_batch(metric, output_dir)
 
     def on_test_epoch_end(
-        self, trainer_state: TrainerState, model: nn.Module
-    ) -> None | MetricLogs:
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
         """Hook to run at the end of a testing epoch."""
+        log_dict = self.run_eval(pl_module)
+
+        for k, v in log_dict.items():
+            pl_module.log(f"test/{k}", v, sync_dist=True, rank_zero_only=True)
+
+    def run_eval(self, pl_module: pl.LightningModule) -> MetricLogs:
+        """Run evaluation for the given evaluator."""
         self.evaluator.gather(all_gather_object_cpu)
 
         synchronize()

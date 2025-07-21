@@ -391,6 +391,10 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
 
         self.cameras = cameras
 
+    def __repr__(self):
+        """Return string representation."""
+        return "MultiCameraBBox3DVisualizer"
+
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
         cur_iter: int,
@@ -403,6 +407,7 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
         class_ids: list[ArrayLikeInt] | None = None,
         track_ids: list[ArrayLikeInt] | None = None,
         sequence_names: list[str] | None = None,
+        categories: None | list[list[str]] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -446,5 +451,6 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
                             if sequence_names is None
                             else sequence_names[batch]
                         ),
+                        None if categories is None else categories[batch],
                         self.cameras[idx],
                     )

@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import os
+import lightning.pytorch as pl
 
 from lightning.pytorch.loggers import WandbLogger
-from torch import nn
 
 from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, get_rank, synchronize
-from vis4d.data.typing import DictData
-from vis4d.engine.loss_module import LossModule
 from vis4d.vis.base import Visualizer
 
 from .base import Callback
-from .trainer_state import TrainerState
 
 
 class VisualizerCallback(Callback):
@@ -62,18 +61,19 @@ class VisualizerCallback(Callback):
             self.output_dir = output_dir
             self.save_prefix = save_prefix
 
-    def setup(self) -> None:  # pragma: no cover
+    def setup(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str
+    ) -> None:  # pragma: no cover
         """Setup callback."""
         if self.save_to_disk:
             self.output_dir = broadcast(self.output_dir)
 
-    def on_train_batch_end(
+    def on_train_batch_end(  # type: ignore
         self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        loss_module: LossModule,
-        outputs: DictData,
-        batch: DictData,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
         batch_idx: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
@@ -89,24 +89,41 @@ class VisualizerCallback(Callback):
                 self.visualizer.show(cur_iter=cur_iter)
 
             if self.save_to_disk:
-                output_folder = os.path.join(self.output_dir, "train")
-                if self.save_prefix is not None:
-                    output_folder = os.path.join(
-                        output_folder, self.save_prefix
-                    )
-                os.makedirs(output_folder, exist_ok=True)
-                self.visualizer.save_to_disk(
-                    cur_iter=cur_iter, output_folder=output_folder
-                )
+                self.save(trainer=trainer, cur_iter=cur_iter, stage="train")
 
             self.visualizer.reset()
 
-    def on_test_batch_end(
+    def on_validation_batch_end(  # type: ignore
         self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        outputs: DictData,
-        batch: DictData,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        """Hook to run at the end of a validation batch."""
+        cur_iter = batch_idx + 1
+
+        self.visualizer.process(
+            cur_iter=cur_iter,
+            **self.get_test_callback_inputs(outputs, batch),
+        )
+
+        if self.show:
+            self.visualizer.show(cur_iter=cur_iter)
+
+        if self.save_to_disk:
+            self.save(trainer=trainer, cur_iter=cur_iter, stage="val")
+
+        self.visualizer.reset()
+
+    def on_test_batch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
@@ -122,30 +139,28 @@ class VisualizerCallback(Callback):
             self.visualizer.show(cur_iter=cur_iter)
 
         if self.save_to_disk:
-            output_folder = os.path.join(self.output_dir, "test")
-            if self.save_prefix is not None:
-                output_folder = os.path.join(output_folder, self.save_prefix)
-            os.makedirs(output_folder, exist_ok=True)
-            image = self.visualizer.save_to_disk(
-                cur_iter=cur_iter, output_folder=output_folder
-            )
-
-            assert (
-                "train_engine" in trainer_state
-            ), "Trainer state must contain 'train_engine' key."
-            assert (
-                "train_module" in trainer_state
-            ), "Trainer state must contain 'train_module' key."
-            if get_rank() == 0 and trainer_state["train_engine"] == "pl":
-                trainer = trainer_state["train_module"]
-                if (
-                    isinstance(trainer.logger, WandbLogger)
-                    and image is not None
-                ):
-                    trainer.logger.log_image(
-                        key=f"{self.visualizer}/{cur_iter}",
-                        images=[image],
-                    )
-            synchronize()
+            self.save(trainer=trainer, cur_iter=cur_iter, stage="test")
 
         self.visualizer.reset()
+
+    def save(self, trainer: pl.Trainer, cur_iter: int, stage: str) -> None:
+        """Save the visualizer state."""
+        output_folder = os.path.join(self.output_dir, stage)
+
+        if self.save_prefix is not None:
+            output_folder = os.path.join(output_folder, self.save_prefix)
+
+        os.makedirs(output_folder, exist_ok=True)
+
+        image = self.visualizer.save_to_disk(
+            cur_iter=cur_iter, output_folder=output_folder
+        )
+
+        if get_rank() == 0:
+            if isinstance(trainer.logger, WandbLogger) and image is not None:
+                trainer.logger.log_image(
+                    key=f"{self.visualizer}/{cur_iter}",
+                    images=[image],
+                )
+
+        synchronize()
