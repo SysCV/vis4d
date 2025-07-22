@@ -61,14 +61,13 @@ doc/media
 # python build
 build/
 dist/
-scalabel.egg-info
+vis4d.egg-info
 
 # coverage
 .coverage*
 
 # package default workspace
 vis4d-workspace
-vis4d.egg-info
 
 *.tmp
 

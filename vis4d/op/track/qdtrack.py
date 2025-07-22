@@ -10,7 +10,7 @@ from torch import Tensor, nn
 
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
-from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
+from vis4d.op.box.poolers import MultiScaleRoIAlign, MultiScaleRoIPooler
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
@@ -340,7 +340,7 @@ class QDSimilarityHead(nn.Module):
 
     def __init__(
         self,
-        proposal_pooler: None | RoIPooler = None,
+        proposal_pooler: None | MultiScaleRoIPooler = None,
         in_dim: int = 256,
         num_convs: int = 4,
         conv_out_dim: int = 256,
@@ -355,8 +355,8 @@ class QDSimilarityHead(nn.Module):
         """Creates an instance of the class.
 
         Args:
-            proposal_pooler (None | RoIPooler, optional): RoI pooling module.
-                Defaults to None.
+            proposal_pooler (None | MultiScaleRoIPooler, optional): RoI pooling
+                module. Defaults to None.
             in_dim (int, optional): Input feature dimension. Defaults to 256.
             num_convs (int, optional): Number of convolutional layers inside
                 the head. Defaults to 4.

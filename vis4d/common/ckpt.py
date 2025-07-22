@@ -328,7 +328,7 @@ def load_state_dict(
         # recursively check parallel module in case that the model has a
         # complicated structure, e.g., nn.Module(nn.Module(DDP))
         if is_module_wrapper(module):
-            module = module.module
+            module = module.module  # type: ignore
         local_metadata = (
             {} if metadata is None else metadata.get(prefix[:-1], {})
         )

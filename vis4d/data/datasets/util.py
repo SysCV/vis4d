@@ -360,3 +360,8 @@ def print_class_histogram(class_frequencies: dict[str, int]) -> None:
         f"Distribution of instances among all {num_classes} categories:\n"
         + colored(table, "cyan")
     )
+
+
+def get_category_names(det_mapping: dict[str, int]) -> list[str]:
+    """Get category names from a mapping of category names to ids."""
+    return sorted(det_mapping, key=det_mapping.get)  # type: ignore

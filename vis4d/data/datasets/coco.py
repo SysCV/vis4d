@@ -16,7 +16,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
 from .base import Dataset
-from .util import CacheMappingMixin, im_decode
+from .util import CacheMappingMixin, get_category_names, im_decode
 
 # COCO detection
 coco_det_map = {
@@ -204,8 +204,10 @@ class COCO(CacheMappingMixin, Dataset):
             cached_file_path=cached_file_path,
         )
 
-        # TODO: Control category names depending on the task
-        self.category_names = sorted(coco_det_map, key=coco_det_map.get)  # type: ignore # pylint: disable=line-too-long
+        if self.use_pascal_voc_cats:
+            self.category_names = get_category_names(coco_seg_map)
+        else:
+            self.category_names = get_category_names(coco_det_map)
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""

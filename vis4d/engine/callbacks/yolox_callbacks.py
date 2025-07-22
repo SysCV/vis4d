@@ -94,7 +94,7 @@ class YOLOXModeSwitchCallback(Callback):
             """Return dataloader for training."""
             return new_dataloader
 
-        pl_module.datamodule.train_dataloader = train_dataloader
+        pl_module.datamodule.train_dataloader = train_dataloader  # type: ignore # pylint: disable=line-too-long
         pl_module.reload_dataloaders_every_n_epochs = self.switch_epoch  # type: ignore # pylint: disable=line-too-long
 
         self.switched = True
