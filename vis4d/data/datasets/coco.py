@@ -360,6 +360,6 @@ class COCO(CacheMappingMixin, Dataset):
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
                 dict_data[K.seg_masks] = seg_masks[None]
 
-        dict_data["texts"] = self.category_names
+        dict_data[K.boxes2d_names] = self.category_names
 
         return dict_data

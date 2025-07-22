@@ -1,5 +1,7 @@
 """A wrap for timm transforms."""
 
+from __future__ import annotations
+
 from typing import Union
 
 import numpy as np
@@ -45,7 +47,7 @@ class _AutoAug:
     """Apply Timm's AutoAugment to a image array."""
 
     def __init__(self) -> None:
-        self.aug_op = None
+        self.aug_op: AugOp | None = None
 
     def _create(self, policy: str, hparams: dict[str, float]) -> AugOp:
         """Create augmentation op."""
