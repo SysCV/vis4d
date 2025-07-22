@@ -26,7 +26,7 @@ class TestVisualizerCallback(unittest.TestCase):
 
         self.callback = VisualizerCallback(
             visualizer=BoundingBoxVisualizer(),
-            save_prefix=self.test_dir,
+            output_dir=self.test_dir,
             train_connector=CallbackConnector(CONN_BBOX_2D_VIS),
             test_connector=CallbackConnector(CONN_BBOX_2D_VIS),
         )

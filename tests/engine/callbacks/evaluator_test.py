@@ -31,7 +31,7 @@ class TestEvaluatorCallback(unittest.TestCase):
             ),
             save_predictions=True,
             metrics_to_eval=[COCODetectEvaluator.METRIC_DET],
-            save_prefix=self.test_dir,
+            output_dir=self.test_dir,
             test_connector=CallbackConnector(CONN_COCO_MASK_EVAL),
         )
 

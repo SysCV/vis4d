@@ -48,7 +48,7 @@ class TestMosaic(unittest.TestCase):
         assert len(data["transforms"]["mosaic"]["im_scales"]) == 4
         assert np.allclose(
             data[K.images],
-            torch.load(get_test_file("mosaic_images.npy")),
+            np.load(get_test_file("mosaic_images.npy")),
             atol=1e-4,
         )
 
@@ -75,12 +75,19 @@ class TestMosaic(unittest.TestCase):
         data = params.apply_to_data([copy.deepcopy(data) for _ in range(4)])
         data = MosaicImages().apply_to_data(data)
         data = transform.apply_to_data(data)[0]
-        box_data = [
+
+        assert np.allclose(
             data[K.boxes2d],
+            np.load(get_test_file("mosaic_boxes2d.npy")),
+            atol=1e-4,
+        )
+        assert np.allclose(
             data[K.boxes2d_classes],
+            np.load(get_test_file("mosaic_boxes2d_classes.npy")),
+            atol=1e-4,
+        )
+        assert np.allclose(
             data[K.boxes2d_track_ids],
-        ]
-        for pred, gt in zip(
-            box_data, torch.load(get_test_file("mosaic_boxes2d.npy"))
-        ):
-            assert np.allclose(pred, gt, atol=1e-4)
+            np.load(get_test_file("mosaic_boxes2d_track_ids.npy")),
+            atol=1e-4,
+        )

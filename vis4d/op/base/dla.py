@@ -624,8 +624,6 @@ class DLA(BaseModel):
         Returns:
             fp (list[Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
-            fp[0] is a feature map with the image resolution instead of the
-            original image.
         """
         input_x = self.base_layer(images)
 

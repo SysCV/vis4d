@@ -65,7 +65,7 @@ class YOLOXTest(unittest.TestCase):
             dets = yolox(inputs, images_hw, original_hw=images_hw)
         assert isinstance(dets, DetOut)
 
-        testcase_gt = torch.load(get_test_file("yolox.pt"))
+        testcase_gt = torch.load(get_test_file("yolox.pt"), weights_only=False)
 
         def _assert_eq(
             prediction: list[torch.Tensor], gts: list[torch.Tensor]

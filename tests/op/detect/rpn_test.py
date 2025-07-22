@@ -26,7 +26,7 @@ def test_rpn_head():
     )
     # rpn forward
     rpn_out = rpn_head(test_features)
-    rpn_gt = torch.load(get_test_file("rpn_gt.pth"))
+    rpn_gt = torch.load(get_test_file("rpn_gt.pth"), weights_only=False)
     assert len(rpn_out.cls) == len(rpn_out.box) == num_feats
     for i in range(num_feats):
         wh_ = wh // 2**i

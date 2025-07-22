@@ -134,7 +134,9 @@ class CC3DTTest(unittest.TestCase):
                 if cur_iter == 1:
                     break
 
-        testcase_gt_list = torch.load(get_test_file("bevformer_tiny.pt"))
+        testcase_gt_list = torch.load(
+            get_test_file("bevformer_tiny.pt"), weights_only=False
+        )
 
         for dets, testcase_gt in zip(dets_list, testcase_gt_list):
             for pred, expected in zip(dets, testcase_gt):

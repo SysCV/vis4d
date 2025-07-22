@@ -289,6 +289,7 @@ class BEVBBox3DVisualizer(Visualizer):
             self.canvas.draw_text(
                 (img_center[0] + distance - 25, img_center[1]),
                 f"{10 * i} m",
+                color=(0, 0, 0),
             )
 
         # Draw ego car

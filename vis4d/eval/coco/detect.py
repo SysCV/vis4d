@@ -184,7 +184,7 @@ class COCODetectEvaluator(Evaluator):
 
             if pred_masks is not None:
                 masks_np = array_to_numpy(
-                    pred_masks[i], n_dims=2, dtype=np.float32
+                    pred_masks[i], n_dims=3, dtype=np.float32
                 )
             else:
                 masks_np = None

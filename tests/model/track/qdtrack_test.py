@@ -77,7 +77,9 @@ class QDTrackTest(unittest.TestCase):
             tracks = qdtrack(images, inputs_hw, original_hw, frame_ids)
         assert isinstance(tracks, TrackOut)
         print("Testcase file:", get_test_file("qdtrack.pt"))
-        testcase_gt = torch.load(get_test_file("qdtrack.pt"))
+        testcase_gt = torch.load(
+            get_test_file("qdtrack.pt"), weights_only=False
+        )
         for pred_entry, expected_entry in zip(tracks, testcase_gt):
             for pred, expected in zip(pred_entry, expected_entry):
                 print("PREDICTION:", pred.shape, pred)
@@ -132,7 +134,9 @@ class QDTrackTest(unittest.TestCase):
             tracks = qdtrack(images, inputs_hw, original_hw, frame_ids)
         assert isinstance(tracks, TrackOut)
         print("Testcase file:", get_test_file("qdtrack-yolox.pt"))
-        testcase_gt = torch.load(get_test_file("qdtrack-yolox.pt"))
+        testcase_gt = torch.load(
+            get_test_file("qdtrack-yolox.pt"), weights_only=False
+        )
         for pred_entry, expected_entry in zip(tracks, testcase_gt):
             for pred, expected in zip(pred_entry, expected_entry):
                 print("PREDICTION:", pred.shape, pred)

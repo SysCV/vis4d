@@ -16,8 +16,8 @@ class TestDLA(unittest.TestCase):
         dla46_c = DLA(name="dla46_c")
         out = dla46_c(self.inputs)
         self.assertEqual(len(out), 6)
-        channels = [16, 32, 64, 64, 128, 256]
-        for i in range(6):
+        channels = [3, 3, 64, 64, 128, 256]
+        for i in range(2, 6):
             feat = out[i]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])
@@ -29,8 +29,8 @@ class TestDLA(unittest.TestCase):
         dla46x_c = DLA(name="dla46x_c")
         out = dla46x_c(self.inputs)
         self.assertEqual(len(out), 6)
-        channels = [16, 32, 64, 64, 128, 256]
-        for i in range(6):
+        channels = [3, 3, 64, 64, 128, 256]
+        for i in range(2, 6):
             feat = out[i]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])

@@ -30,7 +30,9 @@ class TestBoundingBox3DVis(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         data_root = get_test_data("nuscenes_test", absolute_path=False)
 
-        self.testcase_gt = torch.load(f"{data_root}/cc_3dt.pt")
+        self.testcase_gt = torch.load(
+            f"{data_root}/cc_3dt.pt", weights_only=False
+        )
 
         dataset = NuScenes(
             data_root=data_root,
