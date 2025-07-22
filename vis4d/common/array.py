@@ -106,14 +106,14 @@ def array_to_numpy(
     If the argument is None, None will be returned.
 
     Examples:
-    >>> convert_to_array([1,2,3])
-    >>> # -> array([1,2,3])
-    >>> convert_to_array(None)
-    >>> # -> None
-    >>> convert_to_array(torch.tensor([1,2,3]).cuda())
-    >>> # -> array([1,2,3])
-    >>> convert_to_array([1,2,3], n_dims = 2).shape
-    >>> # -> [1, 3]
+        >>> convert_to_array([1,2,3])
+        >>> # -> array([1,2,3])
+        >>> convert_to_array(None)
+        >>> # -> None
+        >>> convert_to_array(torch.tensor([1,2,3]).cuda())
+        >>> # -> array([1,2,3])
+        >>> convert_to_array([1,2,3], n_dims = 2).shape
+        >>> # -> [1, 3]
 
     Args:
         data (ArrayLike | None): ArrayLike object that should be converted
