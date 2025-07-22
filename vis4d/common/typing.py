@@ -16,13 +16,6 @@ from torch import (  # pylint: disable=no-name-in-module
     Tensor,
 )
 
-NumpyBool = np.bool_
-NumpyFloat = Union[np.float32, np.float64]
-NumpyInt = Union[np.int32, np.int64]
-NumpyUInt = Union[  # pylint: disable=invalid-name
-    np.uint8, np.uint16, np.uint32
-]
-
 NDArrayBool = npt.NDArray[np.bool_]
 NDArrayF32 = npt.NDArray[np.float32]
 NDArrayF64 = npt.NDArray[np.float64]
@@ -47,7 +40,6 @@ TorchCheckpoint = DictStrAny
 LossesType = Dict[str, Tensor]
 TorchLossFunc = Callable[..., Any]  # type: ignore
 GenericFunc = Callable[..., Any]  # type: ignore
-TrainingModule = Any  # type: ignore
 
 ArrayIterableFloat = Iterable[Union[float, "ArrayIterableFloat"]]
 ArrayIterableBool = Iterable[Union[bool, "ArrayIterableBool"]]
@@ -63,3 +55,20 @@ ArrayLikeUInt = Union[  # pylint: disable=invalid-name
 ArrayLike = Union[ArrayLikeBool, ArrayLikeFloat, ArrayLikeInt, ArrayLikeUInt]
 
 ListAny = list[Any]  # type: ignore
+
+
+# Trick mypy into not applying contravariance rules to inputs by defining
+# forward as a value, rather than a function.  See also
+# https://github.com/python/mypy/issues/8795
+def unimplemented(self, *args: Any) -> None:  # type: ignore
+    r"""Define the computation performed at every call.
+
+    Should be overridden by all subclasses.
+
+    .. note::
+        Although the recipe for forward pass needs to be defined within
+        this function, one should call the :class:`Module` instance afterwards
+        instead of this since the former takes care of running the
+        registered hooks while the latter silently ignores them.
+    """
+    raise NotImplementedError()

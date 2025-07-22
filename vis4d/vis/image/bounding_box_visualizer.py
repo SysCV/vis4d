@@ -59,9 +59,10 @@ class BoundingBoxVisualizer(Visualizer):
                 color map
             cat_mapping (dict[str, int]): Mapping from class names to class
                 ids. Defaults to None.
-            file_type (str): Desired file type
-            canvas (CanvasBackend): Backend that is used to draw on images
-            viewer (ImageViewerBackend): Backend that is used show images
+            file_type (str): Desired file type. Defaults to "png".
+            width (int): Width of the bounding box lines. Defaults to 2.
+            canvas (CanvasBackend): Backend that is used to draw on images.
+            viewer (ImageViewerBackend): Backend that is used show images.
         """
         super().__init__(*args, **kwargs)
         self._samples: list[DataSample] = []
@@ -76,11 +77,15 @@ class BoundingBoxVisualizer(Visualizer):
         self.canvas = canvas
         self.viewer = viewer
 
+    def __repr__(self) -> str:
+        """Return string representation of the visualizer."""
+        return "BoundingBoxVisualizer"
+
     def reset(self) -> None:
         """Reset visualizer."""
         self._samples.clear()
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process(  # pylint: disable=arguments-differ
         self,
         cur_iter: int,
         images: list[ArrayLike],
@@ -105,6 +110,9 @@ class BoundingBoxVisualizer(Visualizer):
                 class ids each of shape [N]. Defaults to None.
             track_ids (None | list[ArrayLikeInt], optional): List of predicted
                 track ids each of shape [N]. Defaults to None.
+            categories (None | list[list[str]], optional): List of categories
+                for each image. Instead of class ids, the categories will be
+                used to label the boxes. Defaults to None.
         """
         if self._run_on_batch(cur_iter):
             for idx, image in enumerate(images):
@@ -141,6 +149,9 @@ class BoundingBoxVisualizer(Visualizer):
                 shape [N]. Defaults to None.
             track_ids (None | ArrayLikeInt, optional): Predicted track ids of
                 shape [N]. Defaults to None.
+            categories (None | list[str], optional): List of categories for
+                each box. Instead of class ids, the categories will be used to
+                label the boxes. Defaults to None.
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
         data_sample = DataSample(img_normalized, image_name, [])

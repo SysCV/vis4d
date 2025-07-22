@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from vis4d.common.array import array_to_numpy, arrays_to_numpy
+from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
     ArrayLikeBool,
@@ -371,15 +371,23 @@ def imshow_track_matches(
             to use. Defaults to MatplotlibImageViewer().
         file_path (str): The path to save the image to. Defaults to None.
     """
-    key_imgs_np = arrays_to_numpy(*key_imgs, n_dims=3, dtype=np.float32)
-    ref_imgs_np = arrays_to_numpy(*ref_imgs, n_dims=3, dtype=np.float32)
-    key_boxes_np = arrays_to_numpy(*key_boxes, n_dims=2, dtype=np.float32)
-    ref_boxes_np = arrays_to_numpy(*ref_boxes, n_dims=2, dtype=np.float32)
-    key_track_ids_np = arrays_to_numpy(
-        *key_track_ids, n_dims=1, dtype=np.int32
+    key_imgs_np = tuple(
+        array_to_numpy(img, n_dims=3, dtype=np.float32) for img in key_imgs
     )
-    ref_track_ids_np = arrays_to_numpy(
-        *ref_track_ids, n_dims=1, dtype=np.int32
+    ref_imgs_np = tuple(
+        array_to_numpy(img, n_dims=3, dtype=np.float32) for img in ref_imgs
+    )
+    key_boxes_np = tuple(
+        array_to_numpy(b, n_dims=2, dtype=np.float32) for b in key_boxes
+    )
+    ref_boxes_np = tuple(
+        array_to_numpy(b, n_dims=2, dtype=np.float32) for b in ref_boxes
+    )
+    key_track_ids_np = tuple(
+        array_to_numpy(t, n_dims=1, dtype=np.int32) for t in key_track_ids
+    )
+    ref_track_ids_np = tuple(
+        array_to_numpy(t, n_dims=1, dtype=np.int32) for t in ref_track_ids
     )
 
     for batch_i, (key_box, ref_box) in enumerate(

@@ -134,7 +134,7 @@ class NuScenesTrack3DEvaluator(Evaluator):
                 annos.append(nusc_anno)
         self.tracks_3d[token] = annos
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self,
         tokens: list[str],
         boxes_3d: list[ArrayLike],

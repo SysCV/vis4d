@@ -24,6 +24,8 @@ torchvision>=0.15.1
 tqdm
 utm
 wheel
+scipy
+scipy-stubs
 
 # packages for datasets
 bdd100k

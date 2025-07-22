@@ -117,6 +117,10 @@ class MultiheadAttention(nn.Module):
             batch_first (bool): When it is True,  Key, Query and Value are
                 shape of (batch, n, embed_dim), otherwise (n, batch,
                 embed_dim). Default to False.
+            need_weights (bool): Whether to return the attention weights.
+                If True, the output will be a tuple of (attn_output,
+                attn_output_weights) and not using FlashAttention. If False,
+                only the attn_output will be returned. Default to False.
         """
         super().__init__()
         self.batch_first = batch_first

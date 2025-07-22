@@ -205,7 +205,7 @@ class COCO(CacheMappingMixin, Dataset):
         )
 
         # TODO: Control category names depending on the task
-        self.category_names = sorted(coco_det_map, key=coco_det_map.get)
+        self.category_names = sorted(coco_det_map, key=coco_det_map.get)  # type: ignore # pylint: disable=line-too-long
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""

@@ -44,7 +44,7 @@ class ScalabelDetectEvaluator(ScalabelEvaluator):
         """Supported metrics."""
         return [self.METRICS_DET, self.METRICS_INS_SEG]
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self,
         frame_ids: list[int],
         sample_names: list[str],

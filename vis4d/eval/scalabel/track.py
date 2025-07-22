@@ -46,7 +46,7 @@ class ScalabelTrackEvaluator(ScalabelEvaluator):
         """Supported metrics."""
         return [self.METRICS_TRACK, self.METRICS_SEG_TRACK]
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self,
         frame_ids: list[int],
         sample_names: list[str],

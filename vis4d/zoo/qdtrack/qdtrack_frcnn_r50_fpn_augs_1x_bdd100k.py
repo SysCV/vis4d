@@ -116,7 +116,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Mode switch for strong augmentations
     callbacks += [class_config(YOLOXModeSwitchCallback, switch_epoch=9)]

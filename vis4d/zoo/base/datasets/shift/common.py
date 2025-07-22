@@ -346,7 +346,7 @@ def get_shift_dataloader_config(
     return data
 
 
-def get_shift_config(  # pylint: disable=too-many-arguments
+def get_shift_config(  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long
     data_root: str = "data/shift/images",
     train_split: str = "train",
     train_framerate: str = "images",

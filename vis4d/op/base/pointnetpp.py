@@ -229,13 +229,13 @@ class PointNetSetAbstraction(nn.Module):
         last_channel = in_channel
 
         # Create norms
-        norm_fn: Callable[[int], nn.Module] = (
+        norm_fn: Callable[[int], nn.Module] | None = (
             getattr(nn, norm_cls) if norm_cls is not None else None
         )
 
         for out_channel in mlp:
             self.mlp_convs.append(nn.Conv2d(last_channel, out_channel, 1))
-            if norm_cls is not None:
+            if norm_fn is not None:
                 self.mlp_bns.append(norm_fn(out_channel))
             last_channel = out_channel
         self.group_all = group_all

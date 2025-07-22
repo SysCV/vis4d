@@ -112,7 +112,7 @@ class PointcloudData:
             else:
                 self.num_instances = len(
                     np.unique(
-                        self.classes * np.max(self.instances) + self.instances  # type: ignore # pylint: disable=line-too-long
+                        self.classes * np.max(self.instances) + self.instances
                     )
                 )
 

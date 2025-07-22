@@ -98,7 +98,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     # Logger and Checkpoint
     callbacks = get_default_callbacks_cfg(
-        config.output_dir, refresh_rate=config.log_every_n_steps
+        refresh_rate=config.log_every_n_steps
     )
 
     # YOLOX callbacks

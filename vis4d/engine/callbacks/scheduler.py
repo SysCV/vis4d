@@ -17,6 +17,7 @@ class LRSchedulerCallback(Callback):
 
     def __init__(self) -> None:
         """Initialize the callback."""
+        super().__init__()
         self.last_step = 0
 
     def on_train_batch_end(  # type: ignore

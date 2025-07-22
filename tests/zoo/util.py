@@ -2,17 +2,8 @@
 
 from __future__ import annotations
 
-import importlib
-
 from tests.util import content_equal
-from vis4d.config.typing import ExperimentConfig
-
-
-def get_config_for_name(config_name: str) -> ExperimentConfig:
-    """Get config for name."""
-    module = importlib.import_module("vis4d.zoo." + config_name)
-
-    return module.get_config()
+from vis4d.zoo.util import get_config_for_name
 
 
 def compare_configs(

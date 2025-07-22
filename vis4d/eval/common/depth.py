@@ -94,7 +94,7 @@ class DepthEvaluator(Evaluator):
         mask = (target > self.min_depth) & (target <= self.max_depth)
         return prediction[mask], target[mask]
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self, prediction: ArrayLike, groundtruth: ArrayLike
     ) -> None:
         """Process a batch of data.

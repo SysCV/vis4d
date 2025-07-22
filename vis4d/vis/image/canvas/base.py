@@ -145,6 +145,7 @@ class CanvasBackend:
         intrinsics: NDArrayF32,
         width: int = 0,
         camera_near_clip: float = 0.15,
+        plot_heading: bool = True,
     ) -> None:
         """Draws a line between two points.
 
@@ -156,6 +157,8 @@ class CanvasBackend:
             width (int, optional): The width of the line. Defaults to 0.
             camera_near_clip (float, optional): The near clipping plane of the
                 camera. Defaults to 0.15.
+            plot_heading (bool, optional): If True, the heading of the box will
+                be plotted as a line. Defaults to True.
         """
         raise NotImplementedError
 

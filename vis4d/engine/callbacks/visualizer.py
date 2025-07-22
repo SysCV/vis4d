@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-import os
 import lightning.pytorch as pl
 
-from lightning.pytorch.loggers import WandbLogger
-
 from vis4d.common import ArgsType
-from vis4d.common.distributed import broadcast, get_rank, synchronize
+from vis4d.common.distributed import broadcast, synchronize
 from vis4d.vis.base import Visualizer
 
 from .base import Callback
@@ -89,7 +87,7 @@ class VisualizerCallback(Callback):
                 self.visualizer.show(cur_iter=cur_iter)
 
             if self.save_to_disk:
-                self.save(trainer=trainer, cur_iter=cur_iter, stage="train")
+                self.save(cur_iter=cur_iter, stage="train")
 
             self.visualizer.reset()
 
@@ -114,7 +112,7 @@ class VisualizerCallback(Callback):
             self.visualizer.show(cur_iter=cur_iter)
 
         if self.save_to_disk:
-            self.save(trainer=trainer, cur_iter=cur_iter, stage="val")
+            self.save(cur_iter=cur_iter, stage="val")
 
         self.visualizer.reset()
 
@@ -139,11 +137,11 @@ class VisualizerCallback(Callback):
             self.visualizer.show(cur_iter=cur_iter)
 
         if self.save_to_disk:
-            self.save(trainer=trainer, cur_iter=cur_iter, stage="test")
+            self.save(cur_iter=cur_iter, stage="test")
 
         self.visualizer.reset()
 
-    def save(self, trainer: pl.Trainer, cur_iter: int, stage: str) -> None:
+    def save(self, cur_iter: int, stage: str) -> None:
         """Save the visualizer state."""
         output_folder = os.path.join(self.output_dir, stage)
 
@@ -152,15 +150,16 @@ class VisualizerCallback(Callback):
 
         os.makedirs(output_folder, exist_ok=True)
 
-        image = self.visualizer.save_to_disk(
+        self.visualizer.save_to_disk(
             cur_iter=cur_iter, output_folder=output_folder
         )
 
-        if get_rank() == 0:
-            if isinstance(trainer.logger, WandbLogger) and image is not None:
-                trainer.logger.log_image(
-                    key=f"{self.visualizer}/{cur_iter}",
-                    images=[image],
-                )
+        # TODO: Add support for logging images to WandB.
+        # if get_rank() == 0:
+        #     if isinstance(trainer.logger, WandbLogger) and image is not None:
+        #         trainer.logger.log_image(
+        #             key=f"{self.visualizer}/{cur_iter}",
+        #             images=[image],
+        #         )
 
         synchronize()

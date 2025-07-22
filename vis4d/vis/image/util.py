@@ -108,6 +108,8 @@ def preprocess_boxes(
             to color tuple (0-255).
         default_color (tuple[int, int, int]): fallback color for boxes of no
             class or track id is given.
+        categories (None | list[str], optional): List of categories for each
+            box.
 
     Returns:
         boxes_proc (list[tuple[float, float, float, float]]): List of box
@@ -279,7 +281,8 @@ def preprocess_boxes3d(
             category = None
 
         labels_proc.append(_get_box_label(category, score, track_id))
-        track_ids_proc.append(track_id)
+        if track_id is not None:
+            track_ids_proc.append(track_id)
     return centers_proc, corners_proc, labels_proc, colors_proc, track_ids_proc
 
 
@@ -309,9 +312,7 @@ def preprocess_masks(
     Raises:
         ValueError: If the masks have an invalid shape.
     """
-    masks_np: NDArrayUI8 = array_to_numpy(  # type: ignore
-        masks, n_dims=None, dtype=np.uint8
-    )
+    masks_np = array_to_numpy(masks, n_dims=None, dtype=np.uint8)
 
     if len(masks_np.shape) == 2:
         masks_np, class_ids = _to_binary_mask(masks_np)
@@ -358,7 +359,7 @@ def preprocess_image(image: ArrayLike, mode: str = "RGB") -> NDArrayUI8:
 
     # Convert torch to numpy convention
     if not image_np.shape[-1] == 3:
-        image_np = np.transpose(image_np, (1, 2, 0))  # type: ignore
+        image_np = np.transpose(image_np, (1, 2, 0))
 
     # Convert image_np to [0, 255]
     min_val, max_val = (

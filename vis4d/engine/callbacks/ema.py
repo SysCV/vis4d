@@ -15,7 +15,7 @@ from .util import get_model
 class EMACallback(Callback):
     """Callback for EMA."""
 
-    def on_train_batch_end(
+    def on_train_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,

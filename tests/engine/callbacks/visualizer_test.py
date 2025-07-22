@@ -4,11 +4,11 @@ import shutil
 import tempfile
 import unittest
 
+import lightning.pytorch as pl
 import torch
 
-from tests.util import MOCKLOSS, MockModel
 from vis4d.data.const import CommonKeys as K
-from vis4d.engine.callbacks import TrainerState, VisualizerCallback
+from vis4d.engine.callbacks import VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector
 from vis4d.vis.image import BoundingBoxVisualizer
 from vis4d.zoo.base.data_connectors import CONN_BBOX_2D_VIS
@@ -21,6 +21,9 @@ class TestVisualizerCallback(unittest.TestCase):
         """Creates a tmp directory and setup callback."""
         self.test_dir = tempfile.mkdtemp()
 
+        self.trainer = pl.Trainer()
+        self.training_module = pl.LightningModule()
+
         self.callback = VisualizerCallback(
             visualizer=BoundingBoxVisualizer(),
             save_prefix=self.test_dir,
@@ -28,17 +31,7 @@ class TestVisualizerCallback(unittest.TestCase):
             test_connector=CallbackConnector(CONN_BBOX_2D_VIS),
         )
 
-        self.callback.setup()
-
-        self.trainer_state = TrainerState(
-            current_epoch=0,
-            num_epochs=0,
-            global_step=0,
-            train_dataloader=None,
-            num_train_batches=None,
-            test_dataloader=None,
-            num_test_batches=None,
-        )
+        self.callback.setup(self.trainer, self.training_module, stage="fit")
 
     def tearDown(self) -> None:
         """Removes the tmp directory after the test."""
@@ -47,9 +40,8 @@ class TestVisualizerCallback(unittest.TestCase):
     def test_on_train_batch_end(self) -> None:
         """Test on_train_batch_end function."""
         self.callback.on_train_batch_end(
-            self.trainer_state,
-            MockModel(0),
-            MOCKLOSS,
+            self.trainer,
+            self.training_module,
             outputs={
                 "boxes": [torch.zeros((0, 4))],
                 "scores": [torch.zeros((0,))],
@@ -65,8 +57,8 @@ class TestVisualizerCallback(unittest.TestCase):
     def test_on_test_batch_end(self) -> None:
         """Test the visualizer callback."""
         self.callback.on_test_batch_end(
-            self.trainer_state,
-            MockModel(0),
+            self.trainer,
+            self.training_module,
             outputs={
                 "boxes": [torch.zeros((0, 4))],
                 "scores": [torch.zeros((0,))],

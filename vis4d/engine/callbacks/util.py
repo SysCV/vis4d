@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import lightning.pytorch as pl
 from torch import nn
 
@@ -19,7 +18,7 @@ def get_model(model: pl.LightningModule) -> nn.Module:
 
 def get_loss_module(loss_module: pl.LightningModule) -> LossModule:
     """Get loss_module from pl module."""
-    if isinstance(loss_module, TrainingModule):
-        assert loss_module.loss_module is not None
-        return loss_module.loss_module
-    return loss_module  # type: ignore
+    assert (
+        loss_module.loss_module is not None
+    ), "Loss module is not set in the training module."
+    return loss_module.loss_module

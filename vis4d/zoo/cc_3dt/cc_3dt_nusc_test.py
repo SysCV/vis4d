@@ -68,7 +68,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Evaluator
     callbacks.append(

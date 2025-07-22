@@ -11,50 +11,13 @@ from collections import OrderedDict
 from functools import wraps
 from typing import Any
 
-import cloudpickle
 import torch
 import torch.distributed as dist
-from torch import nn
+from torch import Tensor, nn
 from torch.distributed import broadcast_object_list
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from vis4d.common import ArgsType, DictStrAny, GenericFunc
-
-
-class PicklableWrapper:  #  mypy: disable=line-too-long
-    """Wrap an object to make it more picklable.
-
-    Note that it uses heavy weight serialization libraries that are slower than
-    pickle. It's best to use it only on closures (which are usually not
-    picklable). This is a simplified version of
-    https://github.com/joblib/joblib/blob/master/joblib/externals/loky/cloudpickle_wrapper.py
-    """
-
-    def __init__(self, obj: Any | PicklableWrapper) -> None:  # type: ignore
-        """Creates an instance of the class."""
-        while isinstance(obj, PicklableWrapper):
-            # Wrapping an object twice is no-op
-            obj = obj._obj
-        self._obj: Any = obj
-
-    def __reduce__(self) -> tuple[Any, tuple[bytes]]:
-        """Reduce."""
-        s = cloudpickle.dumps(self._obj)
-        return cloudpickle.loads, (s,)
-
-    def __call__(self, *args: ArgsType, **kwargs: ArgsType) -> Any:
-        """Call."""
-        return self._obj(*args, **kwargs)
-
-    def __getattr__(self, attr: str) -> Any:
-        """Get attribute.
-
-        Ensure that the wrapped object can be used seamlessly as the previous
-        object.
-        """
-        if attr not in ["_obj"]:
-            return getattr(self._obj, attr)
-        return getattr(self, attr)
 
 
 # no coverage for these functions, since we don't unittest distributed setting
@@ -128,7 +91,7 @@ def synchronize() -> None:  # pragma: no cover
     dist.barrier(group=dist.group.WORLD, device_ids=[get_local_rank()])
 
 
-def broadcast(obj: Any, src: int = 0) -> Any:  # pragma: no cover
+def broadcast(obj: Any, src: int = 0) -> Any:  # type: ignore
     """Broadcast an object from a source to all processes."""
     if not distributed_available():
         return obj
@@ -140,14 +103,14 @@ def broadcast(obj: Any, src: int = 0) -> Any:  # pragma: no cover
     return obj[0]
 
 
-def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
-    """Serialize arbitrary picklable data to a torch.Tensor.
+def serialize_to_tensor(data: Any) -> Tensor:  # type: ignore
+    """Serialize arbitrary picklable data to a Tensor.
 
     Args:
         data (Any): The data to serialize.
 
     Returns:
-        torch.Tensor: The serialized data as a torch.Tensor.
+        Tensor: The serialized data as a Tensor.
 
     Raises:
         AssertionError: If the backend of torch.distributed is not gloo or
@@ -186,7 +149,7 @@ def rank_zero_only(func: GenericFunc) -> GenericFunc:
     """
 
     @wraps(func)
-    def wrapped_fn(*args: ArgsType, **kwargs: ArgsType) -> Any:
+    def wrapped_fn(*args: ArgsType, **kwargs: ArgsType) -> Any:  # type: ignore
         rank = get_rank()
         if rank == 0:
             return func(*args, **kwargs)
@@ -196,8 +159,8 @@ def rank_zero_only(func: GenericFunc) -> GenericFunc:
 
 
 def pad_to_largest_tensor(
-    tensor: torch.Tensor,
-) -> tuple[list[int], torch.Tensor]:  # pragma: no cover
+    tensor: Tensor,
+) -> tuple[list[int], Tensor]:  # pragma: no cover
     """Pad tensor to largest size among the tensors in each process.
 
     Args:
@@ -251,7 +214,7 @@ def all_gather_object_gpu(  # type: ignore
     tensor_list = [tensor.clone() for _ in range(world_size)]
     dist.all_gather_object(tensor_list, tensor)  # (world_size, N)
 
-    if rank_zero_return_only and not rank == 0:
+    if rank_zero_return_only and rank != 0:
         return None
 
     # decode
@@ -313,7 +276,7 @@ def all_gather_object_cpu(  # type: ignore
         pickle.dump(data, f)
     synchronize()
 
-    if rank_zero_return_only and not rank == 0:
+    if rank_zero_return_only and rank != 0:
         return None
 
     # load & decode
@@ -332,7 +295,7 @@ def all_gather_object_cpu(  # type: ignore
     return data_list
 
 
-def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
+def reduce_mean(tensor: Tensor) -> Tensor:
     """Obtain the mean of tensor on different GPUs."""
     if not (dist.is_available() and dist.is_initialized()):
         return tensor
@@ -341,9 +304,9 @@ def reduce_mean(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
-def obj2tensor(
+def obj2tensor(  # type: ignore
     pyobj: Any, device: torch.device = torch.device("cuda")
-) -> torch.Tensor:
+) -> Tensor:
     """Serialize picklable python object to tensor.
 
     Args:
@@ -354,11 +317,11 @@ def obj2tensor(
     return torch.ByteTensor(storage).to(device=device)
 
 
-def tensor2obj(tensor: torch.Tensor) -> Any:
+def tensor2obj(tensor: Tensor) -> Any:  # type: ignore
     """Deserialize tensor to picklable python object.
 
     Args:
-        tensor (torch.Tensor): Tensor to be deserialized.
+        tensor (Tensor): Tensor to be deserialized.
     """
     return pickle.loads(tensor.cpu().numpy().tobytes())
 

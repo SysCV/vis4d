@@ -41,7 +41,9 @@ if SCALABEL_AVAILABLE:
         poly2ds_to_mask,
         rle_to_mask,
     )
-    from scalabel.label.typing import Config
+    from scalabel.label.typing import (
+        Config,
+    )
     from scalabel.label.typing import Dataset as ScalabelData
     from scalabel.label.typing import (
         Extrinsics,

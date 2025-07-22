@@ -58,6 +58,8 @@ class PLTrainer(Trainer):
                 state. Defaults to -1. If -1, a random seed will be generated.
                 This will be set by TrainingModule.
             timeout: Timeout (seconds) for DDP connection. Default: 3600.
+            wandb_id: If using wandb, the id of the run. If None, a new run
+                will be created. Default: None.
         """
         self.work_dir = work_dir
         self.exp_name = exp_name

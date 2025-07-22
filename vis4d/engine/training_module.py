@@ -201,25 +201,7 @@ class TrainingModule(pl.LightningModule):
         optimizer: Optimizer | LightningOptimizer,
         optimizer_closure: GenericFunc | None = None,
     ) -> None:
-        """Optimizer step.
-
-        Args:
-            epoch (int): Current epoch.
-            batch_idx (int): Index of current batch.
-            optimizer: A PyTorch optimizer
-            optimizer_closure: The optimizer closure. This closure must be executed as it includes the
-                calls to ``training_step()``, ``optimizer.zero_grad()``, and ``backward()``.
-
-        Examples::
-
-            def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_closure):
-                # Add your custom logic to run directly before `optimizer.step()`
-
-                optimizer.step(closure=optimizer_closure)
-
-                # Add your custom logic to run directly after `optimizer.step()`
-
-        """
+        """Optimizer step."""
         if self.check_unused_parameters:
             for name, param in self.model.named_parameters():
                 if param.grad is None:

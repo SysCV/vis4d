@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import random
 from collections import OrderedDict
-
 from typing import Any
 
+import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
-
-import lightning.pytorch as pl
-
 from torch import nn
 from torch.nn.modules.batchnorm import _NormBase
 from torch.utils.data import DataLoader
@@ -35,16 +32,16 @@ from .util import get_loss_module, get_model
 
 
 class YOLOXModeSwitchCallback(Callback):
-    """Callback for switching the mode of YOLOX training.
-
-    Args:
-        switch_epoch (int): Epoch to switch the mode.
-    """
+    """Callback for switching the mode of YOLOX training."""
 
     def __init__(
         self, *args: ArgsType, switch_epoch: int, **kwargs: ArgsType
     ) -> None:
-        """Init callback."""
+        """Init callback.
+
+        Args:
+            switch_epoch (int): Epoch to switch the mode.
+        """
         super().__init__(*args, **kwargs)
         self.switch_epoch = switch_epoch
         self.switched = False
@@ -79,7 +76,7 @@ class YOLOXModeSwitchCallback(Callback):
         dataloader = trainer.train_dataloader
         assert dataloader is not None
         new_dataloader = DataLoader(
-            DataPipe(dataloader.dataset.datasets),  # type: ignore
+            DataPipe(dataloader.dataset.datasets),
             batch_size=dataloader.batch_size,
             num_workers=dataloader.num_workers,
             collate_fn=dataloader.collate_fn,
@@ -88,7 +85,7 @@ class YOLOXModeSwitchCallback(Callback):
             pin_memory=dataloader.pin_memory,
         )
 
-        pl_module.check_val_every_n_epoch = 1
+        pl_module.check_val_every_n_epoch = 1  # type: ignore
 
         # Override train_dataloader method in PL datamodule.
         # Set reload_dataloaders_every_n_epochs to 1 to use the new
@@ -98,7 +95,7 @@ class YOLOXModeSwitchCallback(Callback):
             return new_dataloader
 
         pl_module.datamodule.train_dataloader = train_dataloader
-        pl_module.reload_dataloaders_every_n_epochs = self.switch_epoch
+        pl_module.reload_dataloaders_every_n_epochs = self.switch_epoch  # type: ignore # pylint: disable=line-too-long
 
         self.switched = True
 
@@ -123,12 +120,7 @@ class YOLOXSyncNormCallback(Callback):
     def on_test_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
-        """Hook to run at the beginning of a testing epoch.
-
-        Args:
-            trainer_state (TrainerState): Trainer state.
-            model (nn.Module): Model that is being trained.
-        """
+        """Hook to run at the beginning of a testing epoch."""
         if get_world_size() > 1:
             model = get_model(pl_module)
             norm_states = get_norm_states(model)

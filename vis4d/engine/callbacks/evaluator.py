@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-
 from typing import Any
 
 import lightning.pytorch as pl
@@ -104,12 +103,12 @@ class EvaluatorCallback(Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
-        log_dict = self.run_eval(pl_module)
+        log_dict = self.run_eval()
 
         for k, v in log_dict.items():
             pl_module.log(f"val/{k}", v, sync_dist=True, rank_zero_only=True)
 
-    def on_test_batch_end(
+    def on_test_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
@@ -132,12 +131,12 @@ class EvaluatorCallback(Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the end of a testing epoch."""
-        log_dict = self.run_eval(pl_module)
+        log_dict = self.run_eval()
 
         for k, v in log_dict.items():
             pl_module.log(f"test/{k}", v, sync_dist=True, rank_zero_only=True)
 
-    def run_eval(self, pl_module: pl.LightningModule) -> MetricLogs:
+    def run_eval(self) -> MetricLogs:
         """Run evaluation for the given evaluator."""
         self.evaluator.gather(all_gather_object_cpu)
 

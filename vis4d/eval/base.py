@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from vis4d.common import ArgsType, GenericFunc, MetricLogs
+from vis4d.common.typing import GenericFunc, MetricLogs, unimplemented
 
 
 class Evaluator:  # pragma: no cover
@@ -83,20 +83,11 @@ class Evaluator:  # pragma: no cover
         """
         raise NotImplementedError
 
-    def process_batch(self, *args: ArgsType) -> None:
-        """Process a batch of data.
-
-        Raises:
-            NotImplementedError: This is an abstract class method.
-        """
-        raise NotImplementedError
+    # Process a batch of data.
+    process_batch: GenericFunc = unimplemented
 
     def process(self) -> None:
-        """Process all accumulated data at the end of an epoch, if any.
-
-        Raises:
-            NotImplementedError: This is an abstract class method.
-        """
+        """Process all accumulated data at the end of an epoch, if any."""
 
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate all predictions according to given metric.

@@ -120,7 +120,7 @@ class SegMaskVisualizer(Visualizer):
             self.canvas.draw_bitmap(mask.mask, mask.color)
         return self.canvas.as_numpy_image()
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process(  # pylint: disable=arguments-differ
         self,
         cur_iter: int,
         images: list[ArrayLikeFloat],

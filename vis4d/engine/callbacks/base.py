@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from torch import Tensor
-
 import lightning.pytorch as pl
+from torch import Tensor
 
 from vis4d.common.typing import DictStrArrNested
 from vis4d.data.typing import DictData

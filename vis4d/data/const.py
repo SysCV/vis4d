@@ -49,20 +49,24 @@ class CommonKeys:
     keys where we expect a pre-defined format to enable the usage of common
     data pre-processing operations among different datasets.
 
+    ### Image based inputs ###
     images (NDArrayF32): Image of shape [1, H, W, C].
     input_hw (Tuple[int, int]): Shape of image in (height, width) after
         transformations.
     original_images (NDArrayF32): Original image of shape [1, H, W, C].
     original_hw (Tuple[int, int]): Original shape of image in (height, width).
 
+    ### General Info ###
     sample_names (str): Name of the current sample.
     sequence_names (str): If the dataset contains videos,  this field indicates
         the name of the current sequence.
     frame_ids (int): If the dataset contains videos, this field indicates the
         temporal frame index of the current image / sample.
 
+    ### Image Classification ###
     categories (NDArrayF32): Class labels of shape [C, ].
 
+    ### 2D annotations ###
     boxes2d (NDArrayF32): 2D bounding boxes of shape [N, 4] in xyxy format.
     boxes2d_classes (NDArrayI64): Semantic classes of 2D bounding boxes, shape
         [N,].
@@ -73,6 +77,9 @@ class CommonKeys:
     seg_masks (NDArrayUI8): Semantic segmentation masks [H, W].
     panoptic_masks (NDArrayI64): Panoptic segmentation masks [H, W].
     deph_maps (NDArrayF32): Depth maps of shape [H, W].
+
+
+
 
     intrinsics (NDArrayF32): Intrinsic sensor calibration. Shape [3, 3].
     extrinsics (NDArrayF32): Extrinsic sensor calibration, transformation of
@@ -103,6 +110,9 @@ class CommonKeys:
     sequence_names = "sequence_names"  # Sequence name for each sample
     frame_ids = "frame_ids"
 
+    # Image Classification
+    categories = "categories"
+
     # 2D annotations
     boxes2d = "boxes2d"
     boxes2d_classes = "boxes2d_classes"
@@ -110,11 +120,10 @@ class CommonKeys:
     instance_masks = "instance_masks"
     seg_masks = "seg_masks"
     panoptic_masks = "panoptic_masks"
+
+    # Depth & Flow
     depth_maps = "depth_maps"
     optical_flows = "optical_flows"
-
-    # Image Classification
-    categories = "categories"
 
     # sensor calibration
     intrinsics = "intrinsics"

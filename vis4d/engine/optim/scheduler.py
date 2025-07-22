@@ -78,21 +78,23 @@ class LRSchedulerWrapper(LRScheduler):
             "epoch_based": lr_scheduler_cfg["epoch_based"],
         }
 
-    def get_lr(self) -> list[float]:  # type: ignore
+    def get_lr(self) -> list[float]:
         """Get current learning rate."""
         lr = []
         for lr_scheduler in self.lr_schedulers.values():
             lr.extend(lr_scheduler["scheduler"].get_lr())
         return lr
 
-    def state_dict(self) -> dict[int, DictStrAny]:  # type: ignore
+    def state_dict(self) -> dict[int, DictStrAny]:
         """Get state dict."""
         state_dict = {}
         for scheduler_idx, lr_scheduler in self.lr_schedulers.items():
             state_dict[scheduler_idx] = lr_scheduler["scheduler"].state_dict()
         return state_dict
 
-    def load_state_dict(self, state_dict: dict[int, DictStrAny]) -> None:  # type: ignore # pylint: disable=line-too-long
+    def load_state_dict(
+        self, state_dict: dict[int, DictStrAny]  # type: ignore
+    ) -> None:
         """Load state dict."""
         for scheduler_idx, _state_dict in state_dict.items():
             # Instantiate the lr scheduler if it is not instantiated yet
@@ -159,7 +161,7 @@ class ConstantLR(LRScheduler):
         self.factor = factor
         super().__init__(optimizer, last_epoch)
 
-    def get_lr(self) -> list[float]:  # type: ignore
+    def get_lr(self) -> list[float]:
         """Compute current learning rate."""
         step_count = self._step_count - 1
         if step_count == 0:
@@ -209,7 +211,7 @@ class PolyLR(LRScheduler):
         self.min_lr = min_lr
         super().__init__(optimizer, last_epoch)
 
-    def get_lr(self) -> list[float]:  # type: ignore
+    def get_lr(self) -> list[float]:
         """Compute current learning rate."""
         step_count = self._step_count - 1
         if step_count == 0 or step_count > self.max_steps:
@@ -243,7 +245,7 @@ class QuadraticLRWarmup(LRScheduler):
         self.max_steps = max_steps
         super().__init__(optimizer, last_epoch)
 
-    def get_lr(self) -> list[float]:  # type: ignore
+    def get_lr(self) -> list[float]:
         """Compute current learning rate."""
         step_count = self._step_count - 1
         if step_count >= self.max_steps:

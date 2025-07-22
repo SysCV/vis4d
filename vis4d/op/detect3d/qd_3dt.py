@@ -101,7 +101,7 @@ def get_default_box_codec(
 class QD3DTBBox3DHead(nn.Module):
     """This class implements the QD-3DT bounding box 3D head."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long
         self,
         num_classes: int,
         proposal_pooler: None | RoIPooler = None,

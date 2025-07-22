@@ -16,9 +16,10 @@ from vis4d.config import instantiate_classes
 from vis4d.config.typing import ExperimentConfig
 from vis4d.engine.callbacks import (
     Callback,
-    VisualizerCallback,
     LRSchedulerCallback,
+    VisualizerCallback,
 )
+from vis4d.engine.data_module import DataModule
 from vis4d.engine.flag import (
     _CKPT,
     _CONFIG,
@@ -28,7 +29,6 @@ from vis4d.engine.flag import (
     _VIS,
 )
 from vis4d.engine.parser import pprints_config
-from vis4d.engine.data_module import DataModule
 from vis4d.engine.trainer import PLTrainer
 from vis4d.engine.training_module import TrainingModule
 

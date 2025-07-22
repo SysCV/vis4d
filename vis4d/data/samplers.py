@@ -95,25 +95,25 @@ class AspectRatioBatchSampler(BatchSampler):
     """
 
     def __init__(
-        self, sampler: Sampler, batch_size: int, drop_last: bool = False
+        self,
+        sampler: Sampler,  # type: ignore
+        batch_size: int,
+        drop_last: bool = False,
     ) -> None:
+        """Creates an instance of the class."""
         if not isinstance(sampler, Sampler):
             raise TypeError(
                 "sampler should be an instance of ``Sampler``, "
                 f"but got {sampler}"
             )
-        if not isinstance(batch_size, int) or batch_size <= 0:
-            raise ValueError(
-                "batch_size should be a positive integer value, "
-                f"but got batch_size={batch_size}"
-            )
-        self.sampler = sampler
-        self.batch_size = batch_size
-        self.drop_last = drop_last
-        # two groups for w < h and w >= h
-        self._aspect_ratio_buckets = [[] for _ in range(2)]
 
-    def __iter__(self):
+        super().__init__(sampler, batch_size, drop_last)
+
+        # two groups for w < h and w >= h
+        self._aspect_ratio_buckets: list[list[int]] = [[] for _ in range(2)]
+
+    def __iter__(self) -> Iterator[list[int]]:
+        """Iteration method."""
         for idx in self.sampler:
             if hasattr(self.sampler, "dataset"):
                 data_dict = self.sampler.dataset[idx]
@@ -147,7 +147,10 @@ class AspectRatioBatchSampler(BatchSampler):
                 left_data = left_data[self.batch_size :]
 
     def __len__(self) -> int:
+        """Return length of sampler instance."""
         if self.drop_last:
-            return len(self.sampler) // self.batch_size
-        else:
-            return (len(self.sampler) + self.batch_size - 1) // self.batch_size
+            return len(self.sampler) // self.batch_size  # type: ignore
+
+        return (
+            len(self.sampler) + self.batch_size - 1  # type: ignore
+        ) // self.batch_size

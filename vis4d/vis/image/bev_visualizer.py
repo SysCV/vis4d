@@ -115,7 +115,7 @@ class BEVBBox3DVisualizer(Visualizer):
         self.canvas = canvas if canvas is not None else PillowCanvasBackend()
         self.viewer = viewer if viewer is not None else MatplotlibImageViewer()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return string representation."""
         return "BEVBBox3DVisualizer"
 
@@ -123,7 +123,7 @@ class BEVBBox3DVisualizer(Visualizer):
         """Reset visualizer."""
         self._samples.clear()
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process(  # pylint: disable=arguments-differ
         self,
         cur_iter: int,
         sample_names: list[list[str]] | list[str],
@@ -172,13 +172,13 @@ class BEVBBox3DVisualizer(Visualizer):
         extrinsics_np = array_to_numpy(extrinsics, n_dims=2, dtype=np.float32)
         data_sample = DataSample(
             sample_name,
-            extrinsics_np,  # type: ignore
+            extrinsics_np,
             sequence_name,
             [],
         )
 
         boxes3d_lidar, boxes3d = self._get_lidar_and_global_boxes3d(
-            boxes3d, extrinsics_np  # type: ignore
+            boxes3d, extrinsics_np
         )
 
         corners = boxes3d_to_corners(

@@ -61,7 +61,7 @@ class MSDeformAttentionFunction(Function):  # pragma: no cover
 
     @staticmethod
     @once_differentiable  # type: ignore
-    def backward(
+    def backward(  # type: ignore
         ctx, grad_output: Tensor
     ) -> tuple[Tensor, None, None, Tensor, Tensor, None]:
         """Backward pass."""

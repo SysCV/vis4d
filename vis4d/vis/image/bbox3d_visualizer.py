@@ -94,6 +94,8 @@ class BoundingBox3DVisualizer(Visualizer):
                 draw the trajectory. Defaults to 10.
             plot_trajectory (bool): If the trajectory should be plotted.
                 Defaults to True.
+            save_boxes3d (bool): If the corners of 3D boxes should be saved to
+                disk in the format of npy. Defaults to False.
             canvas (CanvasBackend): Backend that is used to draw on images. If
                 None a PillowCanvasBackend is used.
             viewer (ImageViewerBackend): Backend that is used show images. If
@@ -131,11 +133,11 @@ class BoundingBox3DVisualizer(Visualizer):
         """Reset visualizer."""
         self._samples.clear()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return string representation."""
         return "BoundingBox3DVisualizer"
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process(  # pylint: disable=arguments-differ
         self,
         cur_iter: int,
         images: list[ArrayLike],
@@ -169,6 +171,9 @@ class BoundingBox3DVisualizer(Visualizer):
                 track ids each of shape [B, N]. Defaults to None.
             sequence_names (None | list[str], optional): List of sequence
                 names of shape [B,]. Defaults to None.
+            categories (None | list[list[str]], optional): List of categories
+                for each image. Instead of class ids, the categories will be
+                used to label the boxes. Defaults to None.
         """
         if self._run_on_batch(cur_iter):
             for batch, image in enumerate(images):
@@ -223,6 +228,9 @@ class BoundingBox3DVisualizer(Visualizer):
                 shape [N]. Defaults to None.
             sequence_name (None | str, optional): Sequence name. Defaults to
                 None.
+            categories (None | list[str], optional): List of categories for
+                each box. Instead of class ids, the categories will be used to
+                label the boxes. Defaults to None.
             camera_name (None | str, optional): Camera name. Defaults to None.
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
@@ -237,14 +245,14 @@ class BoundingBox3DVisualizer(Visualizer):
         data_sample = DataSample(
             img_normalized,
             image_name,
-            intrinsics_np,  # type: ignore
-            extrinsics_np,  # type: ignore
+            intrinsics_np,
+            extrinsics_np,
             sequence_name,
             camera_name,
             [],
         )
 
-        if len(boxes3d) != 0:
+        if len(boxes3d) != 0:  # type: ignore
             for center, corners, label, color, track_id in zip(
                 *preprocess_boxes3d(
                     image_hw,
@@ -354,7 +362,7 @@ class BoundingBox3DVisualizer(Visualizer):
                 output_dir = output_folder
                 image_name = f"{sample.image_name}.{self.file_type}"
 
-                image = self._draw_image(sample)
+                self._draw_image(sample)
 
                 if sample.sequence_name is not None:
                     output_dir = os.path.join(output_dir, sample.sequence_name)
@@ -373,8 +381,6 @@ class BoundingBox3DVisualizer(Visualizer):
                         corners,
                     )
 
-            return image
-
 
 class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
     """Bounding box 3D visualizer class for multi-camera datasets."""
@@ -391,7 +397,7 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
 
         self.cameras = cameras
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return string representation."""
         return "MultiCameraBBox3DVisualizer"
 
@@ -429,6 +435,9 @@ class MultiCameraBBox3DVisualizer(BoundingBox3DVisualizer):
                 track ids each of shape [B, N]. Defaults to None.
             sequence_names (None | list[str], optional): List of sequence
                 names of shape [B,]. Defaults to None.
+            categories (None | list[list[str]], optional): List of categories
+                for each image. Instead of class ids, the categories will be
+                used to label the boxes. Defaults to None.
         """
         if self._run_on_batch(cur_iter):
             for idx, batch_images in enumerate(images):

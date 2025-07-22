@@ -7,7 +7,7 @@ import unittest
 from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
-from vis4d.pl.data_module import DataModule
+from vis4d.engine.data_module import DataModule
 from vis4d.zoo.base.datasets.coco import get_coco_detection_cfg
 
 

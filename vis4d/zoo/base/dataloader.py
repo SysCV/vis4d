@@ -60,6 +60,8 @@ def get_train_dataloader_cfg(
             Defaults to True.
         shuffle (bool | FieldReference, optional): Whether to shuffle the
             dataset. Defaults to True.
+        aspect_ratio_grouping (bool | FieldReference, optional): Whether to
+            group the samples by aspect ratio. Defaults to False.
 
     Returns:
         ConfigDict: Configuration that can be instantiate as a dataloader.

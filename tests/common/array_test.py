@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import torch
 
-from vis4d.common.array import array_to_numpy, arrays_to_numpy
+from vis4d.common.array import array_to_numpy
 
 
 class TestConvertToArray(unittest.TestCase):
@@ -52,11 +52,3 @@ class TestConvertToArray(unittest.TestCase):
 
         # And the right if we can not remove anything from the left anymore
         self.assertEqual(array_to_numpy(data.copy(), 2).shape, (2, 3))
-
-    def test_array_to_numpys_multiple(self) -> None:
-        """Test that multiple arrays are converted correctly."""
-        out = arrays_to_numpy(
-            np.random.rand(2, 3), np.random.rand(1, 1, 2, 3), n_dims=3
-        )
-        for arr in out:
-            self.assertEqual(arr.shape, (1, 2, 3))

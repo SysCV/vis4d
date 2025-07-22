@@ -150,7 +150,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # EMA callback
     callbacks.append(class_config(EMACallback))

@@ -341,7 +341,9 @@ class Root(nn.Module):
             bias=False,
             padding=(kernel_size - 1) // 2,
         )
-        self.bn = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
+        self.bn = nn.BatchNorm2d(  # pylint: disable=invalid-name
+            out_channels, momentum=BN_MOMENTUM
+        )
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
         self.with_cp = with_cp
@@ -500,7 +502,7 @@ class DLA(BaseModel):
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
-        assert name in DLA_ARCH_SETTINGS, f"name is not supported!"
+        assert name in DLA_ARCH_SETTINGS, f"{name} is not supported!"
 
         levels, channels, residual_root, block = DLA_ARCH_SETTINGS[name]
 

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 
-def _do_paste_mask(
+def _do_paste_mask(  # type: ignore
     masks: Tensor,
     boxes: Tensor,
     img_h: int,

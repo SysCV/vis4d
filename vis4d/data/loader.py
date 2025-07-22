@@ -14,7 +14,8 @@ from torch.utils.data import (
     RandomSampler,
     SequentialSampler,
 )
-from torch.utils.data.distributed import DistributedSampler, Sampler
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data.sampler import Sampler
 
 from vis4d.common.distributed import get_rank, get_world_size
 
@@ -126,11 +127,11 @@ def build_train_dataloader(
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
     sensors: Sequence[str] | None = None,
     pin_memory: bool = True,
-    shuffle: bool = True,
+    shuffle: bool | None = True,
     drop_last: bool = False,
     seed: int | None = None,
     aspect_ratio_grouping: bool = False,
-    sampler: Sampler | None = None,
+    sampler: Sampler | None = None,  # type: ignore
     disable_subprocess_warning: bool = False,
 ) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
@@ -174,17 +175,19 @@ def build_train_dataloader(
 
     if sampler is None:
         if get_world_size() > 1:
+            assert isinstance(
+                shuffle, bool
+            ), "When using distributed training, shuffle must be a boolean."
             sampler = DistributedSampler(
                 dataset, shuffle=shuffle, drop_last=drop_last
             )
             shuffle = False
             drop_last = False
+        elif shuffle:
+            sampler = RandomSampler(dataset)
+            shuffle = False
         else:
-            if shuffle:
-                sampler = RandomSampler(dataset)
-                shuffle = False
-            else:
-                sampler = SequentialSampler(dataset)
+            sampler = SequentialSampler(dataset)
 
     batch_sampler = None
     if aspect_ratio_grouping:

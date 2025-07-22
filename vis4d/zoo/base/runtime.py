@@ -5,7 +5,7 @@ from __future__ import annotations
 import platform
 from datetime import datetime
 
-from ml_collections import ConfigDict, FieldReference
+from ml_collections import ConfigDict
 
 from vis4d.config import class_config
 from vis4d.config.typing import ExperimentConfig
@@ -65,8 +65,6 @@ def get_default_cfg(
 
 
 def get_default_callbacks_cfg(
-    output_dir: str | FieldReference,
-    checkpoint_period: int = 1,
     epoch_based: bool = True,
     refresh_rate: int = 50,
 ) -> list[ConfigDict]:
@@ -74,11 +72,8 @@ def get_default_callbacks_cfg(
 
     It will return a list of callbacks config including:
         - LoggingCallback
-        - CheckpointCallback
 
     Args:
-        output_dir (str | FieldReference): Output directory.
-        checkpoint_period (int, optional): Checkpoint period. Defaults to 1.
         epoch_based (bool, optional): Whether to use epoch based logging.
         refresh_rate (int, optional): Refresh rate for the logging. Defaults to
             50.

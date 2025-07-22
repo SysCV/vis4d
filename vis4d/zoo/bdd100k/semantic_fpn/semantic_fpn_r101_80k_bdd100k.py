@@ -150,11 +150,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    callbacks = get_default_callbacks_cfg(
-        config.output_dir,
-        epoch_based=False,
-        checkpoint_period=config.val_check_interval,
-    )
+    callbacks = get_default_callbacks_cfg(epoch_based=False)
 
     # Evaluator
     callbacks.append(

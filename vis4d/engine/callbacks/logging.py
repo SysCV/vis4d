@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
-import lightning.pytorch as pl
-
 from collections import defaultdict
+from typing import Any
+
+import lightning.pytorch as pl
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.logging import rank_zero_info
@@ -76,7 +76,6 @@ class LoggingCallback(Callback):
             cur_iter = trainer.global_step + 1
             total_iters = trainer.max_steps
 
-        log_dict: None | MetricLogs = None
         if cur_iter % self._refresh_rate == 0 and cur_iter != self.last_step:
             prefix = (
                 f"Epoch {pl_module.current_epoch + 1}"
@@ -84,7 +83,7 @@ class LoggingCallback(Callback):
                 else "Iter"
             )
 
-            log_dict = {
+            log_dict: MetricLogs = {
                 k: sum(v) / len(v) if len(v) > 0 else float("NaN")
                 for k, v in self._metrics.items()
             }
@@ -98,7 +97,8 @@ class LoggingCallback(Callback):
             self._metrics.clear()
             self.last_step = cur_iter
 
-        return log_dict
+            for k, v in log_dict.items():
+                pl_module.log(f"train/{k}", v, rank_zero_only=True)
 
     def on_validation_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -121,7 +121,7 @@ class LoggingCallback(Callback):
 
         # Resolve float("inf") to -1
         if isinstance(trainer.num_val_batches[dataloader_idx], int):
-            total_iters = trainer.num_val_batches[dataloader_idx]
+            total_iters = int(trainer.num_val_batches[dataloader_idx])
         else:
             total_iters = -1
 
@@ -139,7 +139,7 @@ class LoggingCallback(Callback):
         self.test_timer.reset()
         self.train_timer.pause()
 
-    def on_test_batch_end(
+    def on_test_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
@@ -153,7 +153,7 @@ class LoggingCallback(Callback):
 
         # Resolve float("inf") to -1
         if isinstance(trainer.num_test_batches[dataloader_idx], int):
-            total_iters = trainer.num_test_batches[dataloader_idx]
+            total_iters = int(trainer.num_test_batches[dataloader_idx])
         else:
             total_iters = -1
 

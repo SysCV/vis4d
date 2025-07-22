@@ -16,7 +16,6 @@ from .typing import (
     NDArrayUI8,
     TorchCheckpoint,
     TorchLossFunc,
-    TrainingModule,
 )
 
 __all__ = [
@@ -35,5 +34,4 @@ __all__ = [
     "TorchLossFunc",
     "GenericFunc",
     "ListAny",
-    "TrainingModule",
 ]

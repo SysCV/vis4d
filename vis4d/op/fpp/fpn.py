@@ -14,7 +14,9 @@ from torchvision.ops import FeaturePyramidNetwork as _FPN
 from torchvision.ops.feature_pyramid_network import (
     ExtraFPNBlock as _ExtraFPNBlock,
 )
-from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
+from torchvision.ops.feature_pyramid_network import (
+    LastLevelMaxPool,
+)
 
 from .base import FeaturePyramidProcessing
 
