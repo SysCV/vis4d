@@ -4,7 +4,6 @@ import copy
 import unittest
 
 import numpy as np
-import torch
 from PIL import Image
 
 from tests.util import get_test_file
