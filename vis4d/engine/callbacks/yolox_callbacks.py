@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import random
 from collections import OrderedDict
+from typing import Any
 
+import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -22,43 +24,37 @@ from vis4d.common.distributed import (
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.typing import DictDataOrList
-from vis4d.engine.loss_module import LossModule
 from vis4d.op.detect.yolox import YOLOXHeadLoss
 from vis4d.op.loss.common import l1_loss
 
 from .base import Callback
-from .trainer_state import TrainerState
+from .util import get_loss_module, get_model
 
 
 class YOLOXModeSwitchCallback(Callback):
-    """Callback for switching the mode of YOLOX training.
-
-    Args:
-        switch_epoch (int): Epoch to switch the mode.
-    """
+    """Callback for switching the mode of YOLOX training."""
 
     def __init__(
         self, *args: ArgsType, switch_epoch: int, **kwargs: ArgsType
     ) -> None:
-        """Init callback."""
+        """Init callback.
+
+        Args:
+            switch_epoch (int): Epoch to switch the mode.
+        """
         super().__init__(*args, **kwargs)
         self.switch_epoch = switch_epoch
         self.switched = False
 
     def on_train_epoch_end(
-        self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        loss_module: LossModule,
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Hook to run at the end of a training epoch."""
-        if (
-            trainer_state["current_epoch"] < self.switch_epoch - 1
-            or self.switched
-        ):
+        if pl_module.current_epoch < self.switch_epoch - 1 or self.switched:
             # TODO: Make work with resume.
             return
+
+        loss_module = get_loss_module(pl_module)
 
         found_loss = False
         for loss in loss_module.losses:
@@ -77,10 +73,10 @@ class YOLOXModeSwitchCallback(Callback):
             rank_zero_warn("YOLOXHeadLoss should be in LossModule.")
         # Set data pipeline to default DataPipe to skip strong augs.
         # Switch to checking validation every epoch.
-        dataloader = trainer_state["train_dataloader"]
+        dataloader = trainer.train_dataloader
         assert dataloader is not None
         new_dataloader = DataLoader(
-            DataPipe(dataloader.dataset.datasets),  # type: ignore
+            DataPipe(dataloader.dataset.datasets),
             batch_size=dataloader.batch_size,
             num_workers=dataloader.num_workers,
             collate_fn=dataloader.collate_fn,
@@ -88,25 +84,18 @@ class YOLOXModeSwitchCallback(Callback):
             persistent_workers=dataloader.persistent_workers,
             pin_memory=dataloader.pin_memory,
         )
-        train_module = trainer_state["train_module"]
-        train_module.check_val_every_n_epoch = 1
-        if trainer_state["train_engine"] == "vis4d":
-            # Directly modify the train dataloader.
-            train_module.train_dataloader = new_dataloader
-        elif trainer_state["train_engine"] == "pl":
-            # Override train_dataloader method in PL datamodule.
-            # Set reload_dataloaders_every_n_epochs to 1 to use the new
-            # dataloader.
-            def train_dataloader() -> DataLoader:  # type: ignore
-                """Return dataloader for training."""
-                return new_dataloader
 
-            train_module.datamodule.train_dataloader = train_dataloader
-            train_module.reload_dataloaders_every_n_epochs = self.switch_epoch
-        else:
-            raise ValueError(
-                f"Unsupported training engine {trainer_state['train_engine']}."
-            )
+        pl_module.check_val_every_n_epoch = 1  # type: ignore
+
+        # Override train_dataloader method in PL datamodule.
+        # Set reload_dataloaders_every_n_epochs to 1 to use the new
+        # dataloader.
+        def train_dataloader() -> DataLoader:  # type: ignore
+            """Return dataloader for training."""
+            return new_dataloader
+
+        pl_module.datamodule.train_dataloader = train_dataloader  # type: ignore # pylint: disable=line-too-long
+        pl_module.reload_dataloaders_every_n_epochs = self.switch_epoch  # type: ignore # pylint: disable=line-too-long
 
         self.switched = True
 
@@ -129,22 +118,17 @@ class YOLOXSyncNormCallback(Callback):
     """Callback for syncing the norm states of YOLOX training."""
 
     def on_test_epoch_start(
-        self, trainer_state: TrainerState, model: nn.Module
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
-        """Hook to run at the beginning of a testing epoch.
+        """Hook to run at the beginning of a testing epoch."""
+        if get_world_size() > 1:
+            model = get_model(pl_module)
+            norm_states = get_norm_states(model)
 
-        Args:
-            trainer_state (TrainerState): Trainer state.
-            model (nn.Module): Model that is being trained.
-        """
-        rank_zero_info("Synced norm states across all processes.")
-        if get_world_size() == 1:
-            return
-        norm_states = get_norm_states(model)
-        if len(norm_states) == 0:
-            return
-        norm_states = all_reduce_dict(norm_states, reduce_op="mean")
-        model.load_state_dict(norm_states, strict=False)
+            if len(norm_states) > 0:
+                rank_zero_info("Synced norm states across all processes.")
+                norm_states = all_reduce_dict(norm_states, reduce_op="mean")
+                model.load_state_dict(norm_states, strict=False)
 
 
 class YOLOXSyncRandomResizeCallback(Callback):
@@ -173,18 +157,17 @@ class YOLOXSyncRandomResizeCallback(Callback):
         shape_tensor = broadcast(shape_tensor, 0)
         return (int(shape_tensor[0].item()), int(shape_tensor[1].item()))
 
-    def on_train_batch_start(
+    def on_train_batch_start(  # type: ignore
         self,
-        trainer_state: TrainerState,
-        model: nn.Module,
-        loss_module: LossModule,
-        batch: DictDataOrList,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        batch: Any,
         batch_idx: int,
     ) -> None:
         """Hook to run at the start of a training batch."""
         if not isinstance(batch, list):
             batch = [batch]
-        if (trainer_state["global_step"] + 1) % self.interval == 0:
+        if (trainer.global_step + 1) % self.interval == 0:
             self.random_shape = self._get_random_shape(
                 batch[0][K.images].device
             )

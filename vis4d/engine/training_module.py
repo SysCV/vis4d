@@ -6,14 +6,16 @@ from typing import Any
 
 import lightning.pytorch as pl
 from lightning.pytorch import seed_everything
+from lightning.pytorch.core.optimizer import LightningOptimizer
 from ml_collections import ConfigDict
 from torch import nn
+from torch.optim.optimizer import Optimizer
 
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.common.distributed import broadcast
 from vis4d.common.imports import FVCORE_AVAILABLE
 from vis4d.common.logging import rank_zero_info
-from vis4d.common.typing import DictStrAny
+from vis4d.common.typing import DictStrAny, GenericFunc
 from vis4d.common.util import init_random_seed
 from vis4d.config import instantiate_classes
 from vis4d.config.typing import OptimizerConfig
@@ -45,6 +47,7 @@ class TrainingModule(pl.LightningModule):
         seed: int = -1,
         ckpt_path: None | str = None,
         compute_flops: bool = False,
+        check_unused_parameters: bool = False,
     ) -> None:
         """Initialize the TrainingModule.
 
@@ -63,6 +66,8 @@ class TrainingModule(pl.LightningModule):
                 Defaults to None.
             compute_flops (bool, optional): If to compute the FLOPs of the
                 model. Defaults to False.
+            check_unused_parameters (bool, optional): If to check the
+                unused parameters. Defaults to False.
         """
         super().__init__()
         self.model_cfg = model_cfg
@@ -74,6 +79,7 @@ class TrainingModule(pl.LightningModule):
         self.seed = seed
         self.ckpt_path = ckpt_path
         self.compute_flops = compute_flops
+        self.check_unused_parameters = check_unused_parameters
 
         # Create model placeholder
         self.model: nn.Module
@@ -187,3 +193,18 @@ class TrainingModule(pl.LightningModule):
         """Perform a step on the lr scheduler."""
         # TODO: Support metric if needed
         scheduler.step(self.current_epoch)
+
+    def optimizer_step(
+        self,
+        epoch: int,
+        batch_idx: int,
+        optimizer: Optimizer | LightningOptimizer,
+        optimizer_closure: GenericFunc | None = None,
+    ) -> None:
+        """Optimizer step."""
+        if self.check_unused_parameters:
+            for name, param in self.model.named_parameters():
+                if param.grad is None:
+                    rank_zero_info(name)
+
+        optimizer.step(closure=optimizer_closure)

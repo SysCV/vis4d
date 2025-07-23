@@ -110,7 +110,7 @@ class PointCloudVisualizer(Visualizer):
             points_xyz, colors=colors, classes=semantics, instances=instances
         )
 
-    def process(  # type: ignore # pylint: disable=arguments-differ
+    def process(  # pylint: disable=arguments-differ
         self,
         cur_iter: int,
         points_xyz: NDArrayF64,

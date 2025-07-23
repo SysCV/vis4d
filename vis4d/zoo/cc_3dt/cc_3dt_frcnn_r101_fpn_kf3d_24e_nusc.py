@@ -2,9 +2,9 @@
 """CC-3DT with Faster-RCNN ResNet-101 detector using KF3D motion model."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
-from torch.optim import SGD
+import lightning.pytorch as pl
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
@@ -155,7 +155,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Evaluator
     callbacks.append(

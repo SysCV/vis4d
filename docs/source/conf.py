@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath(PATH_ROOT))
 
 project = "Vis4D"
 copyright = "2022, ETH Zurich"
-author = "Tobias Fischer"
+author = "Vis4D Team"
 
 
 # -- General configuration ---------------------------------------------------
@@ -94,7 +94,7 @@ texinfo_documents = [
         "Vis4D Documentation",
         author,
         "Vis4D",
-        "Dynamic Scene Understanding in Pytorch.",
+        "Dynamic Scene Understanding in PyTorch.",
         "Miscellaneous",
     )
 ]
@@ -102,13 +102,14 @@ texinfo_documents = [
 # -- auto doc settings -------------------------------------------------------
 autosummary_generate = True
 autodoc_member_order = "groupwise"
-autoclass_content = "both"
+# autoclass_content = "both"
 add_module_names = False  # Remove namespaces from class/method signatures
+autodoc_member_order = "bysource"
 autodoc_default_options = {
     "members": True,
     "methods": True,
     "special-members": "__call__",
-    "exclude-members": "_abc_impl,__init__",
+    "exclude-members": "_abc_impl,__repr__",
 }
 
 # -- Napoleon settings -------------------------------------------------------
@@ -117,7 +118,7 @@ autodoc_default_options = {
 # project.
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
-napoleon_include_init_with_doc = False
+napoleon_include_init_with_doc = True
 napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False

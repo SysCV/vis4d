@@ -1,1 +1,2 @@
 open3d
+matplotlib>3.9

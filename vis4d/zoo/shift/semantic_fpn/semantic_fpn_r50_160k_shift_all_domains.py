@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch import optim
 from torch.optim.lr_scheduler import LinearLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
@@ -108,7 +108,7 @@ def get_config() -> ExperimentConfig:
     config.optimizers = [
         get_optimizer_cfg(
             optimizer=class_config(
-                optim.SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
+                SGD, lr=params.lr, momentum=0.9, weight_decay=0.0005
             ),
             lr_schedulers=[
                 get_lr_scheduler_cfg(
@@ -145,11 +145,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    callbacks = get_default_callbacks_cfg(
-        config.output_dir,
-        epoch_based=False,
-        checkpoint_period=config.val_check_interval,
-    )
+    callbacks = get_default_callbacks_cfg(epoch_based=False)
 
     # Evaluator
     callbacks.append(

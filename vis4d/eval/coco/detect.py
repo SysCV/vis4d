@@ -13,21 +13,29 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable
 
-from vis4d.common import DictStrAny, GenericFunc, MetricLogs, NDArrayNumber
+from vis4d.common.array import array_to_numpy
 from vis4d.common.logging import rank_zero_warn
+from vis4d.common.typing import (
+    ArrayLike,
+    DictStrAny,
+    GenericFunc,
+    MetricLogs,
+    NDArrayF32,
+    NDArrayI64,
+)
 from vis4d.data.datasets.coco import coco_det_map
 
 from ..base import Evaluator
 
 
-def xyxy_to_xywh(boxes: NDArrayNumber) -> NDArrayNumber:
+def xyxy_to_xywh(boxes: NDArrayF32) -> NDArrayF32:
     """Convert Tensor [N, 4] in xyxy format into xywh.
 
     Args:
-        boxes (NDArrayNumber): Bounding boxes in Vis4D format.
+        boxes (NDArrayF32): Bounding boxes in Vis4D format.
 
     Returns:
-        NDArrayNumber: COCO format bounding boxes.
+        NDArrayF32: COCO format bounding boxes.
     """
     boxes[:, 2] = boxes[:, 2] - boxes[:, 0]
     boxes[:, 3] = boxes[:, 3] - boxes[:, 1]
@@ -54,10 +62,10 @@ def predictions_to_coco(
     cat_map: dict[str, int],
     coco_id2name: dict[int, str],
     image_id: int,
-    boxes: NDArrayNumber,
-    scores: NDArrayNumber,
-    classes: NDArrayNumber,
-    masks: None | NDArrayNumber = None,
+    boxes: NDArrayF32,
+    scores: NDArrayF32,
+    classes: NDArrayI64,
+    masks: None | NDArrayF32 = None,
 ) -> list[DictStrAny]:
     """Convert Vis4D format predictions to COCO format.
 
@@ -65,10 +73,10 @@ def predictions_to_coco(
         cat_map (dict[str, int]): COCO class name to class ID mapping.
         coco_id2name (dict[int, str]): COCO class ID to class name mapping.
         image_id (int): ID of image.
-        boxes (NDArrayNumber): Predicted bounding boxes.
-        scores (NDArrayNumber): Predicted scores for each box.
-        classes (NDArrayNumber): Predicted classes for each box.
-        masks (None | NDArrayNumber, optional): Predicted masks. Defaults to
+        boxes (NDArrayF32): Predicted bounding boxes.
+        scores (NDArrayF32): Predicted scores for each box.
+        classes (NDArrayI64): Predicted classes for each box.
+        masks (None | NDArrayF32, optional): Predicted masks. Defaults to
             None.
 
     Returns:
@@ -76,8 +84,8 @@ def predictions_to_coco(
     """
     predictions = []
     boxes_xyxy = copy.deepcopy(boxes)
-    boxes_wywh = xyxy_to_xywh(boxes_xyxy)
-    for i, (box, score, cls) in enumerate(zip(boxes_wywh, scores, classes)):
+    boxes_xywh = xyxy_to_xywh(boxes_xyxy)
+    for i, (box, score, cls) in enumerate(zip(boxes_xywh, scores, classes)):
         mask = masks[i] if masks is not None else None
         xywh = box.tolist()
         area = float(xywh[2] * xywh[3])
@@ -91,7 +99,7 @@ def predictions_to_coco(
         }
         if mask is not None:
             annotation["segmentation"] = maskUtils.encode(
-                np.array(mask.cpu(), order="F", dtype="uint8")
+                np.array(mask, order="F", dtype="uint8")
             )
             annotation["segmentation"]["counts"] = annotation["segmentation"][
                 "counts"
@@ -131,7 +139,6 @@ class COCODetectEvaluator(Evaluator):
         coco_gt_cats = self._coco_gt.loadCats(self._coco_gt.getCatIds())
         self.cat_map = {c["name"]: c["id"] for c in coco_gt_cats}
         self._predictions: list[DictStrAny] = []
-        self.coco_dt: COCO | None = None
 
     @property
     def metrics(self) -> list[str]:
@@ -151,36 +158,45 @@ class COCODetectEvaluator(Evaluator):
     def reset(self) -> None:
         """Reset the saved predictions to start new round of evaluation."""
         self._predictions = []
-        self.coco_dt = None
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self,
         coco_image_id: list[int],
-        pred_boxes: list[NDArrayNumber],
-        pred_scores: list[NDArrayNumber],
-        pred_classes: list[NDArrayNumber],
-        pred_masks: None | list[NDArrayNumber] = None,
+        pred_boxes: list[ArrayLike],
+        pred_scores: list[ArrayLike],
+        pred_classes: list[ArrayLike],
+        pred_masks: None | list[ArrayLike] = None,
     ) -> None:
         """Process sample and convert detections to coco format.
 
         coco_image_id (list[int]): COCO image ID.
-        pred_boxes (list[NDArrayNumber]): Predicted bounding boxes.
-        pred_scores (list[NDArrayNumber]): Predicted scores for each box.
-        pred_classes (list[NDArrayNumber]): Predicted classes for each box.
-        pred_masks (None | list[NDArrayNumber], optional): Predicted masks.
+        pred_boxes (list[ArrayLike]): Predicted bounding boxes.
+        pred_scores (list[ArrayLike]): Predicted scores for each box.
+        pred_classes (list[ArrayLike]): Predicted classes for each box.
+        pred_masks (None | list[ArrayLike], optional): Predicted masks.
         """
         for i, (image_id, boxes, scores, classes) in enumerate(
             zip(coco_image_id, pred_boxes, pred_scores, pred_classes)
         ):
-            masks = pred_masks[i] if pred_masks else None
+            boxes_np = array_to_numpy(boxes, n_dims=None, dtype=np.float32)
+            scores_np = array_to_numpy(scores, n_dims=None, dtype=np.float32)
+            classes_np = array_to_numpy(classes, n_dims=None, dtype=np.int64)
+
+            if pred_masks is not None:
+                masks_np = array_to_numpy(
+                    pred_masks[i], n_dims=3, dtype=np.float32
+                )
+            else:
+                masks_np = None
+
             coco_preds = predictions_to_coco(
                 self.cat_map,
                 self.coco_id2name,
                 image_id,
-                boxes,
-                scores,
-                classes,
-                masks,
+                boxes_np,
+                scores_np,
+                classes_np,
+                masks_np,
             )
             self._predictions.extend(coco_preds)
 

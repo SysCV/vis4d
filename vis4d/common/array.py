@@ -10,67 +10,74 @@ import torch
 from vis4d.common.typing import (
     ArrayLike,
     NDArrayBool,
-    NDArrayFloat,
-    NDArrayInt,
+    NDArrayF32,
+    NDArrayF64,
+    NDArrayI32,
+    NDArrayI64,
     NDArrayNumber,
-    NDArrayUInt,
-    NumpyBool,
-    NumpyFloat,
-    NumpyInt,
-    NumpyUInt,
+    NDArrayUI8,
+    NDArrayUI16,
+    NDArrayUI32,
 )
 
 
+# Bool dtypes
 @overload
 def array_to_numpy(
-    data: ArrayLike, n_dims: int | None, dtype: type[NumpyBool]
+    data: ArrayLike, n_dims: int | None, dtype: type[np.bool_]
 ) -> NDArrayBool: ...
 
 
+# Float dtypes
 @overload
 def array_to_numpy(
-    data: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
-) -> NDArrayFloat: ...
-
-
-@overload
-def array_to_numpy(
-    data: ArrayLike, n_dims: int | None, dtype: type[NumpyInt]
-) -> NDArrayInt: ...
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.float32]
+) -> NDArrayF32: ...
 
 
 @overload
 def array_to_numpy(
-    data: ArrayLike, n_dims: int | None, dtype: type[NumpyUInt]
-) -> NDArrayUInt: ...
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.float64]
+) -> NDArrayF64: ...
+
+
+# Int dtypes
+@overload
+def array_to_numpy(
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.int32]
+) -> NDArrayI32: ...
 
 
 @overload
 def array_to_numpy(
-    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyBool]
-) -> NDArrayBool | None: ...
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.int64]
+) -> NDArrayI64: ...
+
+
+# UInt dtypes
+@overload
+def array_to_numpy(
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.uint8]
+) -> NDArrayUI8: ...
 
 
 @overload
 def array_to_numpy(
-    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyFloat]
-) -> NDArrayFloat | None: ...
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.uint16]
+) -> NDArrayUI16: ...
 
 
 @overload
 def array_to_numpy(
-    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyInt]
-) -> NDArrayInt | None: ...
+    data: ArrayLike | None, n_dims: int | None, dtype: type[np.uint32]
+) -> NDArrayUI32: ...
 
 
+# Union of all dtypes
 @overload
 def array_to_numpy(
-    data: ArrayLike | None, n_dims: int | None, dtype: type[NumpyUInt]
-) -> NDArrayUInt | None: ...
-
-
-@overload
-def array_to_numpy(data: ArrayLike, n_dims: int | None) -> NDArrayNumber: ...
+    data: ArrayLike | None, n_dims: int | None
+) -> NDArrayNumber: ...
 
 
 @overload
@@ -81,7 +88,14 @@ def array_to_numpy(
     data: ArrayLike | None,
     n_dims: int | None = None,
     dtype: (
-        type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] | type[NumpyUInt]
+        type[np.bool_]
+        | type[np.float32]
+        | type[np.float64]
+        | type[np.int32]
+        | type[np.int64]
+        | type[np.uint8]
+        | type[np.uint16]
+        | type[np.uint32]
     ) = np.float32,
 ) -> NDArrayNumber | None:
     """Converts a given array like object to a numpy array.
@@ -92,14 +106,14 @@ def array_to_numpy(
     If the argument is None, None will be returned.
 
     Examples:
-    >>> convert_to_array([1,2,3])
-    >>> # -> array([1,2,3])
-    >>> convert_to_array(None)
-    >>> # -> None
-    >>> convert_to_array(torch.tensor([1,2,3]).cuda())
-    >>> # -> array([1,2,3])
-    >>> convert_to_array([1,2,3], n_dims = 2).shape
-    >>> # -> [1, 3]
+        >>> convert_to_array([1,2,3])
+        >>> # -> array([1,2,3])
+        >>> convert_to_array(None)
+        >>> # -> None
+        >>> convert_to_array(torch.tensor([1,2,3]).cuda())
+        >>> # -> array([1,2,3])
+        >>> convert_to_array([1,2,3], n_dims = 2).shape
+        >>> # -> [1, 3]
 
     Args:
         data (ArrayLike | None): ArrayLike object that should be converted
@@ -110,9 +124,8 @@ def array_to_numpy(
             squeezed or exanded (from the left). If it still does not match,
             an error is raised.
 
-        dtype (type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] |
-            type[NumpyUInt], optional): Target dtype of the array. Defaults to
-            np.float32.
+        dtype (SUPPORTED_DTYPES, optional): Target dtype of the array. Defaults
+            to np.float32.
 
     Raises:
         ValueError: If the provied array like objects can not be converted
@@ -150,61 +163,4 @@ def array_to_numpy(
                 f"have {n_dims} dimensions."
             )
 
-    # hardcode next type check since mypy can not resolve this correctly
-    typed_arr: NDArrayNumber = array.astype(dtype)  # type: ignore
-    return typed_arr
-
-
-@overload
-def arrays_to_numpy(
-    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyBool]
-) -> tuple[NDArrayBool, ...]: ...
-
-
-@overload
-def arrays_to_numpy(
-    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
-) -> tuple[NDArrayFloat, ...]: ...
-
-
-@overload
-def arrays_to_numpy(
-    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyInt]
-) -> tuple[NDArrayInt, ...]: ...
-
-
-@overload
-def arrays_to_numpy(
-    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyUInt]
-) -> tuple[NDArrayUInt, ...]: ...
-
-
-def arrays_to_numpy(
-    *args: ArrayLike | None,
-    n_dims: int | None = None,
-    dtype: (
-        type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] | type[NumpyUInt]
-    ) = np.float32,
-) -> tuple[NDArrayNumber | None, ...]:
-    """Converts a given sequence of optional ArrayLike objects to numpy.
-
-    Args:
-        args (ArrayLike | None): Provided arguments.
-        n_dims (int | None, optional): Target number of dimension of the array.
-            If the provided array does not have this shape, it will be
-            squeezed or exanded (from the left). If it still does not match,
-            an error is Raised.
-        dtype (type[NumpyBool] | type[NumpyFloat] | type[NumpyInt] |
-            type[NumpyUInt], optional): Target dtype of the array. Defaults to
-            np.float32.
-
-    Raises:
-        ValueError: If the provied array like objects can not be converted
-            with the target dimensions.
-
-    Returns:
-        tuple[NDArrayNumber | None]: The converted arguments as numpy array.
-    """
-    # Ignore mypy check due to 'Not all union combinations were tried because
-    # there are too many unions'
-    return tuple(array_to_numpy(arg, n_dims, dtype) for arg in args)  # type: ignore # pylint: disable=line-too-long
+    return array.astype(dtype)  # type: ignore

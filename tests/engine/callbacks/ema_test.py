@@ -2,10 +2,11 @@
 
 import unittest
 
+import lightning.pytorch as pl
 import torch
 
-from tests.util import MOCKLOSS, MockModel
-from vis4d.engine.callbacks import EMACallback, TrainerState
+from tests.util import MockModel
+from vis4d.engine.callbacks import EMACallback
 from vis4d.model.adapter import ModelEMAAdapter
 
 
@@ -14,29 +15,21 @@ class TestEMACallback(unittest.TestCase):
 
     def setUp(self) -> None:
         """Setup callback."""
+        self.trainer = pl.Trainer()
+        self.training_module = pl.LightningModule()
+
         self.callback = EMACallback()
-        self.callback.setup()
+        self.callback.setup(self.trainer, self.training_module, stage="fit")
 
         self.model = ModelEMAAdapter(MockModel(0))
         self.model.ema_model.linear.weight.fill_(0)
         self.model.ema_model.linear.bias.fill_(0)
 
-        self.trainer_state = TrainerState(
-            current_epoch=0,
-            num_epochs=0,
-            global_step=0,
-            train_dataloader=None,
-            num_train_batches=None,
-            test_dataloader=None,
-            num_test_batches=None,
-        )
-
     def test_ema_callback(self) -> None:
         """Test EMA callback function."""
         self.callback.on_train_batch_end(
-            self.trainer_state,
+            self.trainer,
             self.model,
-            MOCKLOSS,
             outputs={},
             batch={},
             batch_idx=0,

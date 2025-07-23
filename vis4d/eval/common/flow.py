@@ -68,7 +68,7 @@ class OpticalFlowEvaluator(Evaluator):
         mask = np.sum(np.abs(target), axis=-1) <= self.max_flow
         return prediction[mask], target[mask]
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self, prediction: ArrayLike, groundtruth: ArrayLike
     ) -> None:
         """Process a batch of data.

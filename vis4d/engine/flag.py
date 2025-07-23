@@ -21,6 +21,11 @@ _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _SLURM = flags.DEFINE_bool(
     "slurm", default=False, help="If set, setup slurm running jobs."
 )
+_VIS = flags.DEFINE_bool(
+    "vis",
+    default=False,
+    help="If set, running visualization using visualizer callback.",
+)
 
 
 __all__ = [
@@ -31,4 +36,5 @@ __all__ = [
     "_SHOW_CONFIG",
     "_SWEEP",
     "_SLURM",
+    "_VIS",
 ]

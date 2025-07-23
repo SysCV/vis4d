@@ -69,7 +69,7 @@ class BDD100KSegEvaluator(Evaluator):
         """Reset the evaluator."""
         self.frames = []
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self, data_names: list[str], masks_list: list[ArrayLike]
     ) -> None:
         """Process tracking results."""

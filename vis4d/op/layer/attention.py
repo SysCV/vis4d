@@ -100,6 +100,7 @@ class MultiheadAttention(nn.Module):
         proj_drop: float = 0.0,
         dropout_layer: nn.Module | None = None,
         batch_first: bool = False,
+        need_weights: bool = False,
         **kwargs: ArgsType,
     ) -> None:
         """Init MultiheadAttention.
@@ -116,10 +117,16 @@ class MultiheadAttention(nn.Module):
             batch_first (bool): When it is True,  Key, Query and Value are
                 shape of (batch, n, embed_dim), otherwise (n, batch,
                 embed_dim). Default to False.
+            need_weights (bool): Whether to return the attention weights.
+                If True, the output will be a tuple of (attn_output,
+                attn_output_weights) and not using FlashAttention. If False,
+                only the attn_output will be returned. Default to False.
         """
         super().__init__()
         self.batch_first = batch_first
         self.embed_dims = embed_dims
+        self.num_heads = num_heads
+        self.need_weights = need_weights
 
         self.attn = nn.MultiheadAttention(
             embed_dims, num_heads, dropout=attn_drop, **kwargs
@@ -193,8 +200,10 @@ class MultiheadAttention(nn.Module):
                 key_pos = query_pos
             else:
                 rank_zero_warn(
-                    "position encoding of key is"
-                    + f"missing in {self.__class__.__name__}."
+                    f"Position encoding of key in {self.__class__.__name__}"
+                    + "is missing, and positional encodeing of query has "
+                    + "has different shape and cannot be usde for key. "
+                    + "It it is not desired, please provide key_pos."
                 )
 
         if query_pos is not None:
@@ -220,7 +229,11 @@ class MultiheadAttention(nn.Module):
             value=value,
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
-        )[0]
+            need_weights=self.need_weights,
+        )
+
+        if isinstance(out, tuple):
+            out = out[0]
 
         if self.batch_first:
             out = out.transpose(0, 1)

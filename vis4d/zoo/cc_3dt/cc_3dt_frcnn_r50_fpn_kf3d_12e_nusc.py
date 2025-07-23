@@ -2,9 +2,9 @@
 """CC-3DT with Faster-RCNN ResNet-50 detector using KF3D motion model."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
-from torch.optim import SGD
+import lightning.pytorch as pl
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
@@ -155,7 +155,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Evaluator
     callbacks.append(
@@ -168,7 +168,7 @@ def get_config() -> ExperimentConfig:
                 split=test_split,
             ),
             save_predictions=True,
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_NUSC_DET3D_EVAL
             ),
@@ -180,7 +180,7 @@ def get_config() -> ExperimentConfig:
             EvaluatorCallback,
             evaluator=class_config(NuScenesTrack3DEvaluator),
             save_predictions=True,
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_NUSC_TRACK3D_EVAL
             ),

@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import math
+from collections.abc import Sequence
+
 import torch
 from torch import Tensor, nn
+from torch.utils.checkpoint import checkpoint
+
+from vis4d.common.ckpt import load_model_checkpoint
 
 from .base import BaseModel
 
 BN_MOMENTUM = 0.1
-DLA_MODEL_PREFIX = "http://dl.yf.io/dla/models/"
+
+DLA_MODEL_PREFIX = "http://dl.yf.io/dla/models/imagenet"
+
 DLA_MODEL_MAPPING = {
     "dla34": "dla34-ba72cf86.pth",
     "dla46_c": "dla46_c-2bfd52c3.pth",
@@ -21,6 +29,7 @@ DLA_MODEL_MAPPING = {
     "dla102x2": "dla102x2-262837b6.pth",
     "dla169": "dla169-0914e092.pth",
 }
+
 DLA_ARCH_SETTINGS = {  # pylint: disable=consider-using-namedtuple-or-dataclass
     "dla34": (
         (1, 1, 1, 2, 2, 1),
@@ -89,7 +98,12 @@ class BasicBlock(nn.Module):
     """BasicBlock."""
 
     def __init__(
-        self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
+        self,
+        inplanes: int,
+        planes: int,
+        stride: int = 1,
+        dilation: int = 1,
+        with_cp: bool = False,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
@@ -115,22 +129,36 @@ class BasicBlock(nn.Module):
         )
         self.bn2 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.stride = stride
+        self.with_cp = with_cp
 
     def forward(
         self, input_x: Tensor, residual: None | Tensor = None
     ) -> Tensor:
         """Forward."""
-        if residual is None:
-            residual = input_x
 
-        out = self.conv1(input_x)
-        out = self.bn1(out)
-        out = self.relu(out)
+        def _inner_forward(
+            input_x: Tensor, residual: None | Tensor = None
+        ) -> Tensor:
+            if residual is None:
+                residual = input_x
+            out = self.conv1(input_x)
+            out = self.bn1(out)
+            out = self.relu(out)
 
-        out = self.conv2(out)
-        out = self.bn2(out)
+            out = self.conv2(out)
+            out = self.bn2(out)
 
-        out += residual
+            out += residual
+
+            return out
+
+        if self.with_cp and input_x.requires_grad:
+            out = checkpoint(
+                _inner_forward, input_x, residual, use_reentrant=True
+            )
+        else:
+            out = _inner_forward(input_x, residual)
+
         out = self.relu(out)
 
         return out
@@ -142,7 +170,12 @@ class Bottleneck(nn.Module):
     expansion = 2
 
     def __init__(
-        self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
+        self,
+        inplanes: int,
+        planes: int,
+        stride: int = 1,
+        dilation: int = 1,
+        with_cp: bool = False,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
@@ -168,26 +201,41 @@ class Bottleneck(nn.Module):
         self.bn3 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.stride = stride
+        self.with_cp = with_cp
 
     def forward(
         self, input_x: Tensor, residual: None | Tensor = None
     ) -> Tensor:
         """Forward."""
-        if residual is None:
-            residual = input_x
 
-        out = self.conv1(input_x)
-        out = self.bn1(out)
-        out = self.relu(out)
+        def _inner_forward(
+            input_x: Tensor, residual: None | Tensor = None
+        ) -> Tensor:
+            if residual is None:
+                residual = input_x
 
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
+            out = self.conv1(input_x)
+            out = self.bn1(out)
+            out = self.relu(out)
 
-        out = self.conv3(out)
-        out = self.bn3(out)
+            out = self.conv2(out)
+            out = self.bn2(out)
+            out = self.relu(out)
 
-        out += residual
+            out = self.conv3(out)
+            out = self.bn3(out)
+
+            out += residual
+
+            return out
+
+        if self.with_cp and input_x.requires_grad:
+            out = checkpoint(
+                _inner_forward, input_x, residual, use_reentrant=True
+            )
+        else:
+            out = _inner_forward(input_x, residual)
+
         out = self.relu(out)
 
         return out
@@ -200,7 +248,12 @@ class BottleneckX(nn.Module):
     cardinality = 32
 
     def __init__(
-        self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
+        self,
+        inplanes: int,
+        planes: int,
+        stride: int = 1,
+        dilation: int = 1,
+        with_cp: bool = False,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
@@ -227,26 +280,41 @@ class BottleneckX(nn.Module):
         self.bn3 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.stride = stride
+        self.with_cp = with_cp
 
     def forward(
         self, input_x: Tensor, residual: None | Tensor = None
     ) -> Tensor:
         """Forward."""
-        if residual is None:
-            residual = input_x
 
-        out = self.conv1(input_x)
-        out = self.bn1(out)
-        out = self.relu(out)
+        def _inner_forward(
+            input_x: Tensor, residual: None | Tensor = None
+        ) -> Tensor:
+            if residual is None:
+                residual = input_x
 
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
+            out = self.conv1(input_x)
+            out = self.bn1(out)
+            out = self.relu(out)
 
-        out = self.conv3(out)
-        out = self.bn3(out)
+            out = self.conv2(out)
+            out = self.bn2(out)
+            out = self.relu(out)
 
-        out += residual
+            out = self.conv3(out)
+            out = self.bn3(out)
+
+            out += residual
+
+            return out
+
+        if self.with_cp and input_x.requires_grad:
+            out = checkpoint(
+                _inner_forward, input_x, residual, use_reentrant=True
+            )
+        else:
+            out = _inner_forward(input_x, residual)
+
         out = self.relu(out)
 
         return out
@@ -261,6 +329,7 @@ class Root(nn.Module):
         out_channels: int,
         kernel_size: int,
         residual: bool,
+        with_cp: bool = False,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
@@ -272,17 +341,28 @@ class Root(nn.Module):
             bias=False,
             padding=(kernel_size - 1) // 2,
         )
-        self.bn1 = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
+        self.bn = nn.BatchNorm2d(  # pylint: disable=invalid-name
+            out_channels, momentum=BN_MOMENTUM
+        )
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
+        self.with_cp = with_cp
 
     def forward(self, *input_x: Tensor) -> Tensor:
         """Forward."""
-        children = input_x
-        feats = self.conv(torch.cat(input_x, 1))
-        feats = self.bn1(feats)
-        if self.residual:
-            feats += children[0]
+
+        def _inner_forward(*input_x: Tensor) -> Tensor:
+            feats = self.conv(torch.cat(input_x, 1))
+            feats = self.bn(feats)
+            if self.residual:
+                feats += input_x[0]
+            return feats
+
+        if self.with_cp and input_x[0].requires_grad:
+            feats = checkpoint(_inner_forward, *input_x, use_reentrant=True)
+        else:
+            feats = _inner_forward(*input_x)
+
         feats = self.relu(feats)
 
         return feats
@@ -303,6 +383,7 @@ class Tree(nn.Module):
         root_kernel_size: int = 1,
         dilation: int = 1,
         root_residual: bool = False,
+        with_cp: bool = False,
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
@@ -320,13 +401,25 @@ class Tree(nn.Module):
             root_dim += in_channels
         if levels == 1:
             self.tree1: Tree | BasicBlock = block_c(
-                in_channels, out_channels, stride, dilation=dilation
+                in_channels,
+                out_channels,
+                stride,
+                dilation=dilation,
+                with_cp=with_cp,
             )
             self.tree2: Tree | BasicBlock = block_c(
-                out_channels, out_channels, 1, dilation=dilation
+                out_channels,
+                out_channels,
+                1,
+                dilation=dilation,
+                with_cp=with_cp,
             )
             self.root = Root(
-                root_dim, out_channels, root_kernel_size, root_residual
+                root_dim,
+                out_channels,
+                root_kernel_size,
+                root_residual,
+                with_cp=with_cp,
             )
         else:
             self.tree1 = Tree(
@@ -339,6 +432,7 @@ class Tree(nn.Module):
                 root_kernel_size=root_kernel_size,
                 dilation=dilation,
                 root_residual=root_residual,
+                with_cp=with_cp,
             )
             self.tree2 = Tree(
                 levels - 1,
@@ -349,6 +443,7 @@ class Tree(nn.Module):
                 root_kernel_size=root_kernel_size,
                 dilation=dilation,
                 root_residual=root_residual,
+                with_cp=with_cp,
             )
         self.level_root = level_root
         self.root_dim = root_dim
@@ -369,7 +464,7 @@ class Tree(nn.Module):
                     stride=1,
                     bias=False,
                 ),
-                nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM),
+                nn.BatchNorm2d(out_channels),
             )
 
     def forward(
@@ -399,32 +494,21 @@ class DLA(BaseModel):
 
     def __init__(
         self,
-        name: None | str = None,
-        levels: tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1),
-        channels: tuple[int, int, int, int, int, int] = (
-            16,
-            32,
-            64,
-            128,
-            256,
-            512,
-        ),
-        block: str = "BasicBlock",
-        residual_root: bool = False,
-        cardinality: int = 32,
+        name: str,
+        out_indices: Sequence[int] = (0, 1, 2, 3),
+        with_cp: bool = False,
+        pretrained: bool = False,
         weights: None | str = None,
-        style: str = "imagenet",
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
-        if name is not None:
-            assert name in DLA_ARCH_SETTINGS
-            arch_setting = DLA_ARCH_SETTINGS[name]
-            levels, channels, residual_root, block = arch_setting
-            if name == "dla102x2":  # pragma: no cover
-                BottleneckX.cardinality = 64
-        else:
-            BottleneckX.cardinality = cardinality
+        assert name in DLA_ARCH_SETTINGS, f"{name} is not supported!"
+
+        levels, channels, residual_root, block = DLA_ARCH_SETTINGS[name]
+
+        if name == "dla102x2":  # pragma: no cover
+            BottleneckX.cardinality = 64
+
         self.base_layer = nn.Sequential(
             nn.Conv2d(
                 3, channels[0], kernel_size=7, stride=1, padding=3, bias=False
@@ -446,6 +530,7 @@ class DLA(BaseModel):
             2,
             level_root=False,
             root_residual=residual_root,
+            with_cp=with_cp,
         )
         self.level3 = Tree(
             levels[3],
@@ -455,6 +540,7 @@ class DLA(BaseModel):
             2,
             level_root=True,
             root_residual=residual_root,
+            with_cp=with_cp,
         )
         self.level4 = Tree(
             levels[4],
@@ -464,6 +550,7 @@ class DLA(BaseModel):
             2,
             level_root=True,
             root_residual=residual_root,
+            with_cp=with_cp,
         )
         self.level5 = Tree(
             levels[5],
@@ -473,19 +560,30 @@ class DLA(BaseModel):
             2,
             level_root=True,
             root_residual=residual_root,
+            with_cp=with_cp,
         )
 
-        self._out_channels = list(channels)
+        self.out_indices = out_indices
+        self._out_channels = [channels[i + 2] for i in out_indices]
 
-        if weights is not None:  # pragma: no cover
-            if weights.startswith("dla://"):
-                weights_name = weights.split("dla://")[-1]
-                assert weights_name in DLA_MODEL_MAPPING
-                weights = (
-                    f"{DLA_MODEL_PREFIX}{style}/"
-                    f"{DLA_MODEL_MAPPING[weights_name]}"
-                )
-            self.load_pretrained_model(weights)
+        if pretrained:
+            if weights is None:  # pragma: no cover
+                weights = f"{DLA_MODEL_PREFIX}/{DLA_MODEL_MAPPING[name]}"
+
+            load_model_checkpoint(self, weights)
+
+        else:
+            self._init_weights()
+
+    def _init_weights(self) -> None:
+        """Initialize module weights."""
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
 
     @staticmethod
     def _make_conv_level(
@@ -516,14 +614,6 @@ class DLA(BaseModel):
             inplanes = planes
         return nn.Sequential(*modules)
 
-    def load_pretrained_model(self, weights: str) -> None:
-        """Load pretrained weights."""
-        if weights.startswith("http://") or weights.startswith("https://"):
-            model_weights = torch.hub.load_state_dict_from_url(weights)
-        else:  # pragma: no cover
-            model_weights = torch.load(weights)
-        self.load_state_dict(model_weights, strict=False)
-
     def forward(self, images: Tensor) -> list[Tensor]:
         """DLA forward.
 
@@ -534,14 +624,17 @@ class DLA(BaseModel):
         Returns:
             fp (list[Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
-            fp[0] is a feature map with the image resolution instead of the
-            original image.
         """
         input_x = self.base_layer(images)
-        outs: list[Tensor] = []
+
+        outs = [images, images]
+
         for i in range(6):
             input_x = getattr(self, f"level{i}")(input_x)
-            outs.append(input_x)
+
+            if i - 2 in self.out_indices:
+                outs.append(input_x)
+
         return outs
 
     @property
@@ -551,4 +644,4 @@ class DLA(BaseModel):
         Returns:
             list[int]: number of channels
         """
-        return self._out_channels
+        return [3, 3] + self._out_channels

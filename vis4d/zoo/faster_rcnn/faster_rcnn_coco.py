@@ -2,18 +2,11 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
-import numpy as np
-from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
-from vis4d.config.sweep import grid_search
-from vis4d.config.typing import (
-    ExperimentConfig,
-    ExperimentParameters,
-    ParameterSweepConfig,
-)
+from vis4d.config.typing import ExperimentConfig, ExperimentParameters
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.engine.connectors import CallbackConnector, DataConnector
@@ -136,14 +129,14 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Visualizer
     callbacks.append(
         class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_BBOX_2D_VIS
             ),
@@ -174,29 +167,4 @@ def get_config() -> ExperimentConfig:
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
 
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
-
     return config.value_mode()
-
-
-def get_sweep() -> ParameterSweepConfig:  # pragma: no cover
-    """Returns the config dict for a grid search over learning rate.
-
-    The name of the experiments will also be updated to include the learning
-    rate in the format "lr_{params.lr:.3f}_".
-
-    Returns:
-        ParameterSweepConfig: The configuration that can be used to run a grid
-            search. It can be passed to replicate_config to create a list of
-            configs that can be used to run a grid search.
-    """
-    # Here we define the parameters that we want to sweep over.
-    # In order to sweep over multiple parameters, we can pass a list of
-    # parameters to the grid_search function.
-    sweep_config = grid_search("params.lr", list(np.linspace(0.001, 0.01, 3)))
-
-    # Here we update the name of the experiment to include the learning rate.
-    sweep_config.suffix = "lr_{params.lr:.3f}_"
-    return sweep_config

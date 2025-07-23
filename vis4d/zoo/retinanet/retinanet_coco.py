@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
-from torch.optim import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
+from torch.optim.sgd import SGD
 
 from vis4d.config import class_config
 from vis4d.config.typing import ExperimentConfig, ExperimentParameters
@@ -162,7 +162,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Visualizer
     callbacks.append(

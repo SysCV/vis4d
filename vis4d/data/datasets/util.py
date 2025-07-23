@@ -54,8 +54,9 @@ def im_decode(
         "L",
     }, f"{mode} not supported for image decoding!"
     if backend == "PIL":
-        pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-        pil_img = ImageOps.exif_transpose(pil_img)  # type: ignore
+        pil_img_file = Image.open(BytesIO(bytearray(im_bytes)))
+        pil_img = ImageOps.exif_transpose(pil_img_file)
+        assert pil_img is not None, "Image could not be loaded!"
         if pil_img.mode == "L":  # pragma: no cover
             if mode == "L":
                 img: NDArrayUI8 = np.array(pil_img)[..., None]
@@ -359,3 +360,8 @@ def print_class_histogram(class_frequencies: dict[str, int]) -> None:
         f"Distribution of instances among all {num_classes} categories:\n"
         + colored(table, "cyan")
     )
+
+
+def get_category_names(det_mapping: dict[str, int]) -> list[str]:
+    """Get category names from a mapping of category names to ids."""
+    return sorted(det_mapping, key=det_mapping.get)  # type: ignore

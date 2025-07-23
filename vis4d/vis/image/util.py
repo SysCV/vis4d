@@ -27,29 +27,25 @@ from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 
 def _get_box_label(
-    class_id: int | None,
+    category: str | None,
     score: float | None,
     track_id: int | None,
-    class_id_mapping: dict[int, str] | None = None,
 ) -> str:
     """Gets a unique string representation for a box definition.
 
     Args:
-        class_id (int): The class id for this box
+        category (str): The category name
         score (float): The confidence score
         track_id (int): The track id
-        class_id_mapping (dict[int,str]): Mapping of class_id to class name
 
     Returns:
         str: Label for this box of format
             'class_name, track_id, score%'
     """
     labels = []
-    if class_id_mapping is None:
-        class_id_mapping = {}
 
-    if class_id is not None:
-        labels.append(class_id_mapping.get(class_id, str(class_id)))
+    if category is not None:
+        labels.append(category)
     if track_id is not None:
         labels.append(str(track_id))
     if score is not None:
@@ -88,6 +84,7 @@ def preprocess_boxes(
     color_palette: list[tuple[int, int, int]] = DEFAULT_COLOR_MAPPING,
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
+    categories: None | list[str] = None,
 ) -> tuple[
     list[tuple[float, float, float, float]],
     list[str],
@@ -111,6 +108,8 @@ def preprocess_boxes(
             to color tuple (0-255).
         default_color (tuple[int, int, int]): fallback color for boxes of no
             class or track id is given.
+        categories (None | list[str], optional): List of categories for each
+            box.
 
     Returns:
         boxes_proc (list[tuple[float, float, float, float]]): List of box
@@ -157,9 +156,15 @@ def preprocess_boxes(
             )
         )
         colors_proc.append(color)
-        labels_proc.append(
-            _get_box_label(class_id, score, track_id, class_id_mapping)
-        )
+
+        if categories is not None:
+            category = categories[idx]
+        elif class_id is not None:
+            category = class_id_mapping.get(class_id, str(class_id))
+        else:
+            category = None
+
+        labels_proc.append(_get_box_label(category, score, track_id))
     return boxes_proc, labels_proc, colors_proc
 
 
@@ -175,6 +180,7 @@ def preprocess_boxes3d(
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
     axis_mode: AxisMode = AxisMode.OPENCV,
+    categories: None | list[str] = None,
 ) -> tuple[
     list[tuple[float, float, float]],
     list[list[tuple[float, float, float]]],
@@ -223,17 +229,27 @@ def preprocess_boxes3d(
     class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
     track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
-    boxes3d_np = boxes3d_np[mask]
-    corners_np = corners_np[mask]
-    scores_np = scores_np[mask] if scores_np is not None else None
-    class_ids_np = class_ids_np[mask] if class_ids_np is not None else None
-    track_ids_np = track_ids_np[mask] if track_ids_np is not None else None
-
     centers_proc: list[tuple[float, float, float]] = []
     corners_proc: list[list[tuple[float, float, float]]] = []
     colors_proc: list[tuple[int, int, int]] = []
     labels_proc: list[str] = []
     track_ids_proc: list[int] = []
+
+    if len(mask) == 1:
+        if not mask[0]:
+            return (
+                centers_proc,
+                corners_proc,
+                labels_proc,
+                colors_proc,
+                track_ids_proc,
+            )
+    else:
+        boxes3d_np = boxes3d_np[mask]
+        corners_np = corners_np[mask]
+        scores_np = scores_np[mask] if scores_np is not None else None
+        class_ids_np = class_ids_np[mask] if class_ids_np is not None else None
+        track_ids_np = track_ids_np[mask] if track_ids_np is not None else None
 
     for idx in range(corners_np.shape[0]):
         class_id = None if class_ids_np is None else class_ids_np[idx].item()
@@ -256,10 +272,17 @@ def preprocess_boxes3d(
         )
         corners_proc.append([tuple(pts) for pts in corners_np[idx].tolist()])
         colors_proc.append(color)
-        labels_proc.append(
-            _get_box_label(class_id, score, track_id, class_id_mapping)
-        )
-        track_ids_proc.append(track_id)
+
+        if categories is not None:
+            category = categories[idx]
+        elif class_id is not None:
+            category = class_id_mapping.get(class_id, str(class_id))
+        else:
+            category = None
+
+        labels_proc.append(_get_box_label(category, score, track_id))
+        if track_id is not None:
+            track_ids_proc.append(track_id)
     return centers_proc, corners_proc, labels_proc, colors_proc, track_ids_proc
 
 
@@ -289,9 +312,7 @@ def preprocess_masks(
     Raises:
         ValueError: If the masks have an invalid shape.
     """
-    masks_np: NDArrayUI8 = array_to_numpy(  # type: ignore
-        masks, n_dims=None, dtype=np.uint8
-    )
+    masks_np = array_to_numpy(masks, n_dims=None, dtype=np.uint8)
 
     if len(masks_np.shape) == 2:
         masks_np, class_ids = _to_binary_mask(masks_np)
@@ -338,7 +359,7 @@ def preprocess_image(image: ArrayLike, mode: str = "RGB") -> NDArrayUI8:
 
     # Convert torch to numpy convention
     if not image_np.shape[-1] == 3:
-        image_np = np.transpose(image_np, (1, 2, 0))  # type: ignore
+        image_np = np.transpose(image_np, (1, 2, 0))
 
     # Convert image_np to [0, 255]
     min_val, max_val = (

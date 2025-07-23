@@ -2,8 +2,8 @@
 """CC-3DT VeloLSTM for BEVFormer on nuScenes."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
-from torch.optim import Adam
+import lightning.pytorch as pl
+from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 
 from vis4d.config import class_config
@@ -134,7 +134,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     config.callbacks = callbacks
 

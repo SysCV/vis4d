@@ -1,4 +1,4 @@
 [submodule "vis4d-test-data"]
-	path = tests/vis4d-test-data
-	url = git@github.com:SysCV/vis4d-test-data.git
+    path = tests/vis4d-test-data
+    url = git@github.com:SysCV/vis4d-test-data.git
     branch = main

@@ -26,14 +26,15 @@ class TestBoundingBoxVis(unittest.TestCase):
             testcase_gt = pickle.load(f)
 
         self.images: list[NDArrayF64] = testcase_gt["imgs"]
-        self.image_names: list[str] = ["0000", "0001"]
         self.boxes: list[NDArrayF64] = testcase_gt["boxes"]
         self.classes: list[NDArrayI64] = testcase_gt["classes"]
         self.scores: list[NDArrayF64] = testcase_gt["scores"]
         self.tracks = [np.arange(len(b)) for b in self.boxes]
 
+        cat_mapping = {v: k for k, v in COCO_COLOR_MAPPING.items()}
+
         self.vis = BoundingBoxVisualizer(
-            n_colors=20, class_id_mapping=COCO_COLOR_MAPPING, vis_freq=1
+            n_colors=20, cat_mapping=cat_mapping, vis_freq=1
         )
 
     def tearDown(self) -> None:
@@ -55,7 +56,7 @@ class TestBoundingBoxVis(unittest.TestCase):
         """Tests visualization of single boudning boxes."""
         self.vis.process_single_image(
             image=self.images[0],
-            image_name=self.image_names[0],
+            image_name="bbox_with_cts_target",
             boxes=self.boxes[0],
             scores=self.scores[0],
             class_ids=self.classes[0],
@@ -64,7 +65,7 @@ class TestBoundingBoxVis(unittest.TestCase):
 
         self.vis.save_to_disk(cur_iter=1, output_folder=self.test_dir)
         self.assert_img_equal(
-            os.path.join(self.test_dir, "0000.png"),
+            os.path.join(self.test_dir, "bbox_with_cts_target.png"),
             get_test_file("bbox_with_cts_target.png"),
         )
         self.vis.reset()
@@ -73,7 +74,7 @@ class TestBoundingBoxVis(unittest.TestCase):
         """Tests visualization of single bounding boxes without track ids."""
         self.vis.process_single_image(
             image=self.images[0],
-            image_name=self.image_names[0],
+            image_name="bbox_with_cs_target",
             boxes=self.boxes[0],
             scores=self.scores[0],
             class_ids=self.classes[0],
@@ -82,7 +83,7 @@ class TestBoundingBoxVis(unittest.TestCase):
 
         self.vis.save_to_disk(cur_iter=1, output_folder=self.test_dir)
         self.assert_img_equal(
-            os.path.join(self.test_dir, "0000.png"),
+            os.path.join(self.test_dir, "bbox_with_cs_target.png"),
             get_test_file("bbox_with_cs_target.png"),
         )
         self.vis.reset()
@@ -91,7 +92,7 @@ class TestBoundingBoxVis(unittest.TestCase):
         """Tests visualization of single bounding boxes with only classes."""
         self.vis.process_single_image(
             image=self.images[0],
-            image_name=self.image_names[0],
+            image_name="bbox_with_c_target",
             boxes=self.boxes[0],
             scores=None,
             class_ids=self.classes[0],
@@ -100,7 +101,7 @@ class TestBoundingBoxVis(unittest.TestCase):
 
         self.vis.save_to_disk(cur_iter=1, output_folder=self.test_dir)
         self.assert_img_equal(
-            os.path.join(self.test_dir, "0000.png"),
+            os.path.join(self.test_dir, "bbox_with_c_target.png"),
             get_test_file("bbox_with_c_target.png"),
         )
         self.vis.reset()
@@ -110,7 +111,7 @@ class TestBoundingBoxVis(unittest.TestCase):
         self.vis.process(
             cur_iter=1,
             images=self.images,
-            image_names=self.image_names,
+            image_names=[f"bbox_batched_{i}" for i in range(len(self.images))],
             boxes=self.boxes,
             scores=self.scores,
             class_ids=self.classes,
@@ -120,7 +121,7 @@ class TestBoundingBoxVis(unittest.TestCase):
         self.vis.save_to_disk(cur_iter=1, output_folder=self.test_dir)
         for i in range(2):
             self.assert_img_equal(
-                os.path.join(self.test_dir, f"000{i}.png"),
+                os.path.join(self.test_dir, f"bbox_batched_{i}.png"),
                 get_test_file(f"bbox_batched_{i}.png"),
             )
         self.vis.reset()

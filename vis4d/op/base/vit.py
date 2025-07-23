@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import torch
-from timm.models.helpers import named_apply
+from timm.models import named_apply
 from torch import nn
 
 from ..layer import PatchEmbed, TransformerBlock
@@ -19,7 +19,7 @@ def _init_weights_vit_timm(  # pylint: disable=unused-argument
         if module.bias is not None:
             nn.init.zeros_(module.bias)
     elif hasattr(module, "init_weights"):
-        module.init_weights()
+        module.init_weights()  # type: ignore
 
 
 ViT_PRESET = {  # pylint: disable=consider-using-namedtuple-or-dataclass

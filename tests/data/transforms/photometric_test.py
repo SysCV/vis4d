@@ -4,7 +4,6 @@ import copy
 import unittest
 
 import numpy as np
-import torch
 from PIL import Image
 
 from tests.util import get_test_file
@@ -36,7 +35,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0],
-            torch.load(get_test_file("random_gamma_gt.npy")),
+            np.load(get_test_file("random_gamma_gt.npy")),
             atol=1e-4,
         )
 
@@ -47,7 +46,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0][..., [2, 1, 0]],
-            torch.load(get_test_file("random_gamma_gt.npy")),
+            np.load(get_test_file("random_gamma_gt.npy")),
             atol=1e-4,
         )
 
@@ -59,7 +58,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0],
-            torch.load(get_test_file("random_brightness_gt.npy")),
+            np.load(get_test_file("random_brightness_gt.npy")),
             atol=1e-4,
         )
 
@@ -71,7 +70,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0],
-            torch.load(get_test_file("random_contrast_gt.npy")),
+            np.load(get_test_file("random_contrast_gt.npy")),
             atol=1e-4,
         )
 
@@ -83,7 +82,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0],
-            torch.load(get_test_file("random_saturation_gt.npy")),
+            np.load(get_test_file("random_saturation_gt.npy")),
             atol=1e-4,
         )
 
@@ -96,7 +95,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0],
-            torch.load(get_test_file("random_hue_gt.npy")),
+            np.load(get_test_file("random_hue_gt.npy")),
             atol=1e-4,
         )
 
@@ -107,7 +106,7 @@ class TestPhotometric(unittest.TestCase):
         self.assertEqual(data[K.images].shape, (1, 230, 352, 3))
         assert np.allclose(
             data[K.images][0][..., [2, 1, 0]],
-            torch.load(get_test_file("random_hue_gt.npy")),
+            np.load(get_test_file("random_hue_gt.npy")),
             atol=1e-4,
         )
 

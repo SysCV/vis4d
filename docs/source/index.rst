@@ -44,7 +44,6 @@ for further research and development of 4D Vision algorithms.
 
 .. toctree::
     :hidden:
-    :maxdepth: 1
     :caption: Reference
 
     API<api/vis4d>

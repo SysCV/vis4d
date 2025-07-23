@@ -113,7 +113,9 @@ class CBGSDataset(Dataset[DictDataOrList]):
         sample_indices = []
 
         frac = 1.0 / len(self.cat2id)
-        ratios = [frac / v for v in class_distribution.values()]
+        ratios = [
+            frac / v if v > 0 else 1 for v in class_distribution.values()
+        ]
         for cls_inds, ratio in zip(
             list(class_sample_indices.values()), ratios
         ):

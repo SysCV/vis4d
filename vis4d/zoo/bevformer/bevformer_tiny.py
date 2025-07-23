@@ -2,8 +2,8 @@
 """BEVFormer tiny with ResNet-50 backbone."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
-from torch.optim import AdamW
+import lightning.pytorch as pl
+from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
@@ -160,7 +160,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Evaluator
     callbacks.append(

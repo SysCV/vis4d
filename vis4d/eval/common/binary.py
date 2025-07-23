@@ -102,7 +102,7 @@ class BinaryEvaluator(Evaluator):
         self.false_negatives = []
         self.n_samples = []
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self,
         prediction: ArrayLike,
         groundtruth: ArrayLike,

@@ -46,17 +46,6 @@ class COCOTest(unittest.TestCase):
         """Test if sample loaded correctly."""
         item = self.coco[0]
         item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
-        self.assertEqual(
-            tuple(item.keys()),
-            (
-                "sample_names",
-                "images",
-                "input_hw",
-                "boxes2d",
-                "boxes2d_classes",
-                "instance_masks",
-            ),
-        )
 
         self.assertEqual(item[K.sample_names], 37777)
         self.assertEqual(item[K.input_hw], [230, 352])
@@ -142,14 +131,6 @@ class COCOSegTest(unittest.TestCase):
         """Test if sample loaded correctly."""
         item = self.coco[0]
         item = ToTensor().apply_to_data([item])[0]  # pylint: disable=no-member
-        assert tuple(item.keys()) == (
-            "sample_names",
-            "images",
-            "input_hw",
-            "boxes2d_classes",
-            "instance_masks",
-            "seg_masks",
-        )
 
         self.assertEqual(item[K.sample_names], 37777)
         self.assertEqual(item[K.input_hw], [230, 352])

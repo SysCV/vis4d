@@ -8,15 +8,21 @@ from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data.sampler import Sampler
 
 from vis4d.common.distributed import get_rank, get_world_size
 
 from .const import CommonKeys as K
 from .data_pipe import DataPipe
 from .datasets import VideoDataset
-from .samplers import VideoInferenceSampler
+from .samplers import AspectRatioBatchSampler, VideoInferenceSampler
 from .transforms import compose
 from .transforms.to_tensor import ToTensor
 from .typing import DictData, DictDataOrList
@@ -121,8 +127,11 @@ def build_train_dataloader(
     collate_keys: Sequence[str] = DEFAULT_COLLATE_KEYS,
     sensors: Sequence[str] | None = None,
     pin_memory: bool = True,
-    shuffle: bool = True,
+    shuffle: bool | None = True,
+    drop_last: bool = False,
     seed: int | None = None,
+    aspect_ratio_grouping: bool = False,
+    sampler: Sampler | None = None,  # type: ignore
     disable_subprocess_warning: bool = False,
 ) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
@@ -164,10 +173,31 @@ def build_train_dataloader(
             if disable_subprocess_warning and worker_id != 0:
                 warnings.simplefilter("ignore")
 
-    sampler = None
-    if get_world_size() > 1:
-        sampler = DistributedSampler(dataset, shuffle=shuffle)
-        shuffle = False
+    if sampler is None:
+        if get_world_size() > 1:
+            assert isinstance(
+                shuffle, bool
+            ), "When using distributed training, shuffle must be a boolean."
+            sampler = DistributedSampler(
+                dataset, shuffle=shuffle, drop_last=drop_last
+            )
+            shuffle = False
+            drop_last = False
+        elif shuffle:
+            sampler = RandomSampler(dataset)
+            shuffle = False
+        else:
+            sampler = SequentialSampler(dataset)
+
+    batch_sampler = None
+    if aspect_ratio_grouping:
+        batch_sampler = AspectRatioBatchSampler(
+            sampler, batch_size=samples_per_gpu, drop_last=drop_last
+        )
+        samples_per_gpu = 1
+        shuffle = None
+        drop_last = False
+        sampler = None
 
     dataloader = DataLoader(
         dataset,
@@ -177,10 +207,12 @@ def build_train_dataloader(
             _collate_fn_multi if dataset.has_reference else _collate_fn_single
         ),
         sampler=sampler,
+        batch_sampler=batch_sampler,
         worker_init_fn=_worker_init_fn,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
         shuffle=shuffle,
+        drop_last=drop_last,
     )
     return dataloader
 
@@ -216,17 +248,17 @@ def build_inference_dataloaders(
 
     dataloaders = []
     for dataset in datasets_:
-        if isinstance(dataset, DataPipe):
-            assert (
-                len(dataset.datasets) == 1
-            ), "Inference needs a single dataset per DataPipe."
-            current_dataset = dataset.datasets[0]
-        else:
-            current_dataset = dataset
-
         sampler: DistributedSampler[list[int]] | None
         if get_world_size() > 1:
             if video_based_inference:
+                if isinstance(dataset, DataPipe):
+                    assert (
+                        len(dataset.datasets) == 1
+                    ), "DDP Vdieo Inference only support a single dataset."
+                    current_dataset = dataset.datasets[0]
+                else:
+                    current_dataset = dataset
+
                 assert isinstance(
                     current_dataset, VideoDataset
                 ), "Video based inference needs a VideoDataset."

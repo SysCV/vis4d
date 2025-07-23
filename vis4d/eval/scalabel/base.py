@@ -60,12 +60,6 @@ class ScalabelEvaluator(Evaluator):
         """Reset the evaluator."""
         self.frames = []
 
-    def process_batch(  # type: ignore # pragma: no cover
-        self, *args: Any, **kwargs: Any
-    ) -> None:
-        """Process sample and update confusion matrix."""
-        raise NotImplementedError
-
     def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate the dataset."""
         raise NotImplementedError

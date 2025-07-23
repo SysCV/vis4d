@@ -2,7 +2,7 @@
 """QDTrack with YOLOX-x on BDD100K."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
@@ -101,7 +101,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     # Logger and Checkpoint
     callbacks = get_default_callbacks_cfg(
-        config.output_dir, refresh_rate=config.log_every_n_steps
+        refresh_rate=config.log_every_n_steps
     )
 
     # YOLOX callbacks

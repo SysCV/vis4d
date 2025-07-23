@@ -11,7 +11,7 @@ from torch import Tensor, nn
 from vis4d.common.typing import LossesType
 from vis4d.op.box.encoder.qd_3dt import QD3DTBox3DDecoder, QD3DTBox3DEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
-from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
+from vis4d.op.box.poolers import MultiScaleRoIAlign, MultiScaleRoIPooler
 from vis4d.op.box.samplers import (
     CombinedSampler,
     Sampler,
@@ -47,7 +47,7 @@ class QD3DTDet3DOut(NamedTuple):
     depth_uncertainty: list[Tensor]
 
 
-def get_default_proposal_pooler() -> RoIPooler:
+def get_default_proposal_pooler() -> MultiScaleRoIAlign:
     """Get default proposal pooler of QD-3DT bounding box 3D head."""
     return MultiScaleRoIAlign(
         resolution=[7, 7], strides=[4, 8, 16, 32], sampling_ratio=0
@@ -101,10 +101,10 @@ def get_default_box_codec(
 class QD3DTBBox3DHead(nn.Module):
     """This class implements the QD-3DT bounding box 3D head."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long
         self,
         num_classes: int,
-        proposal_pooler: None | RoIPooler = None,
+        proposal_pooler: None | MultiScaleRoIPooler = None,
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
         box_encoder: None | QD3DTBox3DEncoder = None,

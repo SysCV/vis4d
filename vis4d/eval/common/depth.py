@@ -94,14 +94,14 @@ class DepthEvaluator(Evaluator):
         mask = (target > self.min_depth) & (target <= self.max_depth)
         return prediction[mask], target[mask]
 
-    def process_batch(  # type: ignore # pylint: disable=arguments-differ
+    def process_batch(
         self, prediction: ArrayLike, groundtruth: ArrayLike
     ) -> None:
         """Process a batch of data.
 
         Args:
-            prediction (np.array): Prediction optical flow, in shape (H, W, 2).
-            groundtruth (np.array): Target optical flow, in shape (H, W, 2).
+            prediction (np.array): Prediction optical flow, in shape (B, H, W).
+            groundtruth (np.array): Target optical flow, in shape (B, H, W).
         """
         preds = (
             array_to_numpy(prediction, n_dims=None, dtype=np.float32)

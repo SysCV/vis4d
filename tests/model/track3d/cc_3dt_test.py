@@ -98,7 +98,9 @@ class CC3DTTest(unittest.TestCase):
                 if cur_iter == 1:
                     break
 
-        testcase_gt_list = torch.load(f"{data_root}/cc_3dt.pt")
+        testcase_gt_list = torch.load(
+            f"{data_root}/cc_3dt.pt", weights_only=False
+        )
 
         for tracks, testcase_gt in zip(tracks_list, testcase_gt_list):
             for pred, expected in zip(tracks, testcase_gt):

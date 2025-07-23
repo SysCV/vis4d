@@ -61,7 +61,7 @@ class MSDeformAttentionFunction(Function):  # pragma: no cover
 
     @staticmethod
     @once_differentiable  # type: ignore
-    def backward(
+    def backward(  # type: ignore
         ctx, grad_output: Tensor
     ) -> tuple[Tensor, None, None, Tensor, Tensor, None]:
         """Backward pass."""
@@ -223,11 +223,14 @@ class MSDeformAttention(nn.Module):
         is_power_of_2(d_model // n_heads)
 
         self.d_model = d_model
-        self.embed_dims = d_model
         self.n_levels = n_levels
         self.n_heads = n_heads
         self.n_points = n_points
         self.im2col_step = im2col_step
+
+        # Aligned Attributes to MHA
+        self.embed_dims = d_model
+        self.num_heads = n_heads
 
         self.sampling_offsets = nn.Linear(
             d_model, n_heads * n_levels * n_points * 2
@@ -359,3 +362,22 @@ class MSDeformAttention(nn.Module):
         output = self.output_proj(output)
 
         return output
+
+    def __call__(
+        self,
+        query: Tensor,
+        reference_points: Tensor,
+        input_flatten: Tensor,
+        input_spatial_shapes: Tensor,
+        input_level_start_index: Tensor,
+        input_padding_mask: Tensor | None = None,
+    ) -> Tensor:
+        """Type definition for call implementation."""
+        return self._call_impl(
+            query,
+            reference_points,
+            input_flatten,
+            input_spatial_shapes,
+            input_level_start_index,
+            input_padding_mask,
+        )

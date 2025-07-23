@@ -2,9 +2,9 @@
 """VIT ImageNet-1k training example."""
 from __future__ import annotations
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch import nn
-from torch.optim import AdamW
+from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
 
 from vis4d.config import class_config
@@ -150,7 +150,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # EMA callback
     callbacks.append(class_config(EMACallback))

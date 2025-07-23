@@ -73,7 +73,7 @@ def set_tf32(use_tf32: bool, precision: str) -> None:  # pragma: no cover
 
 def init_random_seed() -> int:
     """Initialize random seed for the experiment."""
-    return np.random.randint(2**31)
+    return int(np.random.randint(2**31))
 
 
 def set_random_seed(seed: int, deterministic: bool = False) -> None:

@@ -205,7 +205,9 @@ def load_from_local(
     filename = osp.expanduser(filename)
     if not osp.isfile(filename):
         raise FileNotFoundError(f"{filename} can not be found.")
-    checkpoint = torch.load(filename, map_location=map_location)
+    checkpoint = torch.load(
+        filename, weights_only=True, map_location=map_location
+    )
     return checkpoint
 
 
@@ -326,7 +328,7 @@ def load_state_dict(
         # recursively check parallel module in case that the model has a
         # complicated structure, e.g., nn.Module(nn.Module(DDP))
         if is_module_wrapper(module):
-            module = module.module
+            module = module.module  # type: ignore
         local_metadata = (
             {} if metadata is None else metadata.get(prefix[:-1], {})
         )

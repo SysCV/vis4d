@@ -16,7 +16,7 @@ from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
 from .base import Dataset
-from .util import CacheMappingMixin, im_decode
+from .util import CacheMappingMixin, get_category_names, im_decode
 
 # COCO detection
 coco_det_map = {
@@ -204,6 +204,11 @@ class COCO(CacheMappingMixin, Dataset):
             cached_file_path=cached_file_path,
         )
 
+        if self.use_pascal_voc_cats:
+            self.category_names = get_category_names(coco_seg_map)
+        else:
+            self.category_names = get_category_names(coco_det_map)
+
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
         return (
@@ -354,5 +359,7 @@ class COCO(CacheMappingMixin, Dataset):
                 seg_masks = seg_masks.astype(np.int64)
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
                 dict_data[K.seg_masks] = seg_masks[None]
+
+        dict_data[K.boxes2d_names] = self.category_names
 
         return dict_data

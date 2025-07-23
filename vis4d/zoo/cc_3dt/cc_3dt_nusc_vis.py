@@ -36,7 +36,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir)
+    callbacks = get_default_callbacks_cfg()
 
     # Visualizer
     callbacks.append(
@@ -50,7 +50,8 @@ def get_config() -> ExperimentConfig:
                 cameras=NuScenes.CAMERAS,
                 vis_freq=1,
             ),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
+            save_prefix="boxes3d",
             test_connector=class_config(
                 MultiSensorCallbackConnector,
                 key_mapping=CONN_NUSC_BBOX_3D_VIS,
@@ -62,7 +63,8 @@ def get_config() -> ExperimentConfig:
         class_config(
             VisualizerCallback,
             visualizer=class_config(BEVBBox3DVisualizer, width=2, vis_freq=1),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
+            save_prefix="bev",
             test_connector=class_config(
                 MultiSensorCallbackConnector,
                 key_mapping=CONN_NUSC_BEV_BBOX_3D_VIS,

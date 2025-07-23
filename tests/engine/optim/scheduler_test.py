@@ -5,8 +5,8 @@ import unittest
 
 import torch
 import torch.nn.functional as F
-from torch import optim
 from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.sgd import SGD
 from torch.testing import assert_close
 
 from vis4d.engine.optim.scheduler import ConstantLR, PolyLR, QuadraticLRWarmup
@@ -68,7 +68,7 @@ class TestScheduler(unittest.TestCase):
         model = ToyModel()
         self.lr = 0.05
         self.l2_mult = 10
-        self.optimizer = optim.SGD(
+        self.optimizer = SGD(
             [
                 {"params": model.conv1.parameters()},
                 {

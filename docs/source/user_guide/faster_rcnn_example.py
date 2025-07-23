@@ -6,7 +6,7 @@ import tempfile
 
 import lightning.pytorch as pl
 import numpy as np
-from torch.optim import SGD
+from torch.optim.sgd import SGD
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 
 from vis4d.config import class_config
@@ -137,7 +137,7 @@ def get_config() -> ExperimentConfig:
     ##                     CALLBACKS                    ##
     ######################################################
     # Logger and Checkpoint
-    callbacks = get_default_callbacks_cfg(config.output_dir, refresh_rate=1)
+    callbacks = get_default_callbacks_cfg(refresh_rate=1)
 
     # Evaluator
     callbacks.append(

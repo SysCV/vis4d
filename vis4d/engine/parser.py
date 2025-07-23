@@ -110,7 +110,7 @@ def DEFINE_config_file(  # pylint: disable=invalid-name
     help_string: str = "path to config file [.py |.yaml].",
     lock_config: bool = False,
     method_name: str = "get_config",
-) -> flags.FlagHolder:
+) -> flags.FlagHolder:  # type: ignore
     """Registers a new flag for a config file.
 
     Args:

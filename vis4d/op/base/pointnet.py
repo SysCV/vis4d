@@ -101,7 +101,7 @@ class LinearTransform(nn.Module):
         self.activation_ = getattr(nn, activation_cls)()
 
         # Create norms
-        norm_fn: Callable[[int], nn.Module] = (
+        norm_fn: Callable[[int], nn.Module] | None = (
             getattr(nn, norm_cls) if norm_cls is not None else None
         )
 
@@ -249,7 +249,7 @@ class PointNetEncoder(nn.Module):
         activation = getattr(nn, activation_cls)()
 
         # Create norms
-        norm_fn: Callable[[int], nn.Module] = (
+        norm_fn: Callable[[int], nn.Module] | None = (
             getattr(nn, norm_cls) if norm_cls is not None else None
         )
 
