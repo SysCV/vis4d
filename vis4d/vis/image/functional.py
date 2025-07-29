@@ -44,9 +44,6 @@ def imshow(
     image = preprocess_image(image, image_mode)
     image_viewer.show_images([image])
 
-    if file_path is not None:
-        image_viewer.save_images([image], [file_path])
-
 
 def draw_masks(
     image: ArrayLike,
@@ -93,7 +90,7 @@ def draw_bboxes(
     image_mode: str = "RGB",
     box_width: int = 1,
     canvas: CanvasBackend = PillowCanvasBackend(),
-) -> NDArrayUI8:
+) -> CanvasBackend:
     """Draws the predicted bounding boxes into the given image.
 
     Args:
@@ -131,7 +128,7 @@ def draw_bboxes(
     for corners, label, color in zip(*box_data):
         canvas.draw_box(corners, color, box_width)
         canvas.draw_text((corners[0], corners[1]), label)
-    return canvas.as_numpy_image()
+    return canvas
 
 
 def imshow_bboxes(
@@ -167,7 +164,7 @@ def imshow_bboxes(
         file_path (str): The path to save the image to. Defaults to None.
     """
     image = preprocess_image(image, mode=image_mode)
-    img = draw_bboxes(
+    canvas = draw_bboxes(
         image,
         boxes,
         scores,
@@ -178,7 +175,10 @@ def imshow_bboxes(
         image_mode,
         box_width,
     )
-    imshow(img, image_mode, image_viewer, file_path)
+    imshow(canvas.as_numpy_image(), image_mode, image_viewer)
+
+    if file_path is not None:
+        canvas.save_to_disk(file_path)
 
 
 def draw_bbox3d(
@@ -195,11 +195,11 @@ def draw_bbox3d(
     canvas: CanvasBackend = PillowCanvasBackend(),
     width: int = 4,
     camera_near_clip: float = 0.15,
-) -> NDArrayUI8:
+) -> CanvasBackend:
     """Draw 3D box onto image."""
     image = preprocess_image(image, image_mode)
     image_hw = (image.shape[0], image.shape[1])
-    boxes3d_data = preprocess_boxes3d(
+    _, corners, labels, colors, _ = preprocess_boxes3d(
         image_hw,
         boxes3d,
         intrinsics,
@@ -212,13 +212,15 @@ def draw_bbox3d(
     )
     canvas.create_canvas(image)
 
-    for _, corners, label, color, _ in zip(*boxes3d_data):
-        canvas.draw_box_3d(corners, color, intrinsics, width, camera_near_clip)
+    for corner, label, color in zip(corners, labels, colors):
+        canvas.draw_box_3d(corner, color, intrinsics, width, camera_near_clip)
 
-        selected_corner = project_point(corners[0], intrinsics)
-        canvas.draw_text((selected_corner[0], selected_corner[1]), label)
+        selected_corner = project_point(corner[0], intrinsics)
+        canvas.draw_text(
+            (selected_corner[0], selected_corner[1]), label, color=color
+        )
 
-    return canvas.as_numpy_image()
+    return canvas
 
 
 def imshow_bboxes3d(
@@ -237,7 +239,7 @@ def imshow_bboxes3d(
 ) -> None:
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode=image_mode)
-    img = draw_bbox3d(
+    canvas = draw_bbox3d(
         image,
         boxes3d,
         intrinsics,
@@ -249,7 +251,10 @@ def imshow_bboxes3d(
         n_colors=n_colors,
         image_mode=image_mode,
     )
-    imshow(img, image_mode, image_viewer, file_path)
+    imshow(canvas.as_numpy_image(), image_mode, image_viewer)
+
+    if file_path is not None:
+        canvas.save_to_disk(file_path)
 
 
 def imshow_masks(
@@ -283,7 +288,6 @@ def imshow_masks(
         draw_masks(image, masks, class_ids, n_colors, image_mode, canvas),
         image_mode,
         image_viewer,
-        file_path,
     )
 
 
@@ -352,7 +356,6 @@ def imshow_track_matches(
     ref_track_ids: list[ArrayLikeInt],
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
-    file_path: str | None = None,
 ) -> None:
     """Visualize paired bounding boxes successively for batched frame pairs.
 
@@ -369,7 +372,6 @@ def imshow_track_matches(
         image_mode (str, optional): Color mode if the image. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
-        file_path (str): The path to save the image to. Defaults to None.
     """
     key_imgs_np = tuple(
         array_to_numpy(img, n_dims=3, dtype=np.float32) for img in key_imgs
@@ -410,22 +412,23 @@ def imshow_track_matches(
                     key_box[key_i],
                     image_mode=image_mode,
                     image_viewer=image_viewer,
-                    file_path=file_path,
                 )
                 imshow_bboxes(
                     ref_image,
                     ref_box[ref_i],
                     image_mode=image_mode,
                     image_viewer=image_viewer,
-                    file_path=file_path,
                 )
             else:
                 # stack imgs horizontal
-                k_img = draw_bboxes(
+                k_canvas = draw_bboxes(
                     key_image, key_box[batch_i], image_mode=image_mode
                 )
-                r_img = draw_bboxes(
+                r_canvas = draw_bboxes(
                     ref_image, ref_box[batch_i], image_mode=image_mode
                 )
-                stacked_img = np.vstack([k_img, r_img])
-                imshow(stacked_img, image_mode, image_viewer, file_path)
+                k_canvas = k_canvas.as_numpy_image()
+                r_canvas = r_canvas.as_numpy_image()
+                stacked_img = np.vstack([k_canvas, r_canvas])
+
+                imshow(stacked_img, image_mode, image_viewer)

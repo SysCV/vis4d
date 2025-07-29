@@ -2,7 +2,7 @@
     <!-- pypi-strip -->
     <picture>
     <!-- /pypi-strip -->
-    <img alt="vis4d" src="https://dl.cv.ethz.ch/vis4d/vis4d_logo.svg" width="400">
+    <img alt="vis4d" src="docs/source/_static/vis4d_logo.svg" width="400">
     <!-- pypi-strip -->
     </picture>
     <!-- /pypi-strip -->
