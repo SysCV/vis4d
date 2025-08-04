@@ -68,6 +68,7 @@ class CC3DTrackAssociation:
         nms_class_iou_thr: float = 0.7,
         nms_conf_thr: float = 0.5,
         with_cats: bool = True,
+        with_velocities: bool = False,
         bbox_affinity_weight: float = 0.5,
     ) -> None:
         """Creates an instance of the class.
@@ -83,10 +84,12 @@ class CC3DTrackAssociation:
                 another detection.
             nms_class_iou_thr (float): Maximum IoU of a high score detection
                 with another of a different class.
+            nms_conf_thr (float): Confidence threshold for NMS.
             with_cats (bool): If to consider category information for
                 tracking (i.e. all detections within a track must have
                 consistent category labels).
-            nms_conf_thr (float): Confidence threshold for NMS.
+            with_velocities (bool): If to use predicted velocities for
+                matching.
             bbox_affinity_weight (float): Weight of bbox affinity in the
                 overall affinity score.
         """
@@ -98,6 +101,7 @@ class CC3DTrackAssociation:
         self.nms_class_iou_thr = nms_class_iou_thr
         self.nms_conf_thr = nms_conf_thr
         self.with_cats = with_cats
+        self.with_velocities = with_velocities
         self.bbox_affinity_weight = bbox_affinity_weight
         self.feat_affinity_weight = 1 - bbox_affinity_weight
 
@@ -110,7 +114,8 @@ class CC3DTrackAssociation:
         scores_3d: Tensor,
         class_ids: Tensor,
         embeddings: Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+        velocities: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         """Remove overlapping objects across classes via nms.
 
         Args:
@@ -121,6 +126,7 @@ class CC3DTrackAssociation:
             scores_3d (Tensor): [N,] Tensor of 3D confidence scores.
             class_ids (Tensor): [N,] Tensor of class ids.
             embeddings (Tensor): [N, C] tensor of appearance embeddings.
+            velocities (Tensor | None): [N, 3] Tensor of velocities.
 
         Returns:
             tuple[Tensor]: filtered detections, scores, class_ids,
@@ -142,6 +148,10 @@ class CC3DTrackAssociation:
             detections_3d[inds],
             scores_3d[inds],
         )
+
+        if velocities is not None:
+            velocities = velocities[inds]
+
         valids = embeddings.new_ones((len(detections),), dtype=torch.bool)
 
         ious = bbox_iou(detections, detections)
@@ -158,12 +168,17 @@ class CC3DTrackAssociation:
 
             if (ious[i, :i] > thr).any():
                 valids[i] = False
+
         detections = detections[valids]
         scores = scores[valids]
         detections_3d = detections_3d[valids]
         scores_3d = scores_3d[valids]
         class_ids = class_ids[valids]
         embeddings = embeddings[valids]
+
+        if velocities is not None:
+            velocities = velocities[valids]
+
         return (
             detections,
             scores,
@@ -171,12 +186,14 @@ class CC3DTrackAssociation:
             scores_3d,
             class_ids,
             embeddings,
+            velocities,
             inds[valids],
         )
 
-    @staticmethod
     def depth_ordering(
+        self,
         obsv_boxes_3d: Tensor,
+        obsv_velocities: Tensor | None,
         memory_boxes_3d_predict: Tensor,
         memory_boxes_3d: Tensor,
         memory_velocities: Tensor,
@@ -197,11 +214,11 @@ class CC3DTrackAssociation:
 
         # Moving distance should be aligned
         motion_weight_list = []
-        obsv_velocities = (
+        moving_dist = (
             obsv_boxes_3d[:, :3, None]
             - memory_boxes_3d[:, :3, None].transpose(2, 0)
         ).transpose(1, 2)
-        for v in obsv_velocities:
+        for v in moving_dist:
             motion_weight_list.append(
                 F.pairwise_distance(  # pylint: disable=not-callable
                     v, memory_velocities[:, :3]
@@ -210,22 +227,41 @@ class CC3DTrackAssociation:
         motion_weight = torch.cat(motion_weight_list, dim=0)
         motion_weight = torch.exp(-torch.div(motion_weight, 5.0))
 
-        # Moving direction should be aligned
-        # Set to 0.5 when two vector not within +-90 degree
-        cos_sim_list = []
-        obsv_direct = (
-            obsv_boxes_3d[:, :2, None]
-            - memory_boxes_3d[:, :2, None].transpose(2, 0)
-        ).transpose(1, 2)
-        for d in obsv_direct:
-            cos_sim_list.append(
-                F.cosine_similarity(  # pylint: disable=not-callable
-                    d, memory_velocities[:, :2]
-                ).unsqueeze(0)
+        # Velocity scores
+        if self.with_velocities:
+            assert (
+                obsv_velocities is not None
+            ), "Please provide velocities if with_velocities=True!"
+
+            velsim_weight_list = []
+            obsvvv_velocities = obsv_velocities.unsqueeze(1).expand_as(
+                moving_dist
             )
-        cos_sim = torch.cat(cos_sim_list, dim=0)
-        cos_sim = torch.add(cos_sim, 1.0)
-        cos_sim = torch.div(cos_sim, 2.0)
+            for v in obsvvv_velocities:
+                velsim_weight_list.append(
+                    F.pairwise_distance(
+                        v, memory_velocities[:, -3:]
+                    ).unsqueeze(0)
+                )
+            velsim_weight = torch.cat(velsim_weight_list, dim=0)
+            cos_sim = torch.exp(-velsim_weight / 5.0)
+        else:
+            # Moving direction should be aligned
+            # Set to 0.5 when two vector not within +-90 degree
+            cos_sim_list = []
+            obsv_direct = (
+                obsv_boxes_3d[:, :2, None]
+                - memory_boxes_3d[:, :2, None].transpose(2, 0)
+            ).transpose(1, 2)
+            for d in obsv_direct:
+                cos_sim_list.append(
+                    F.cosine_similarity(  # pylint: disable=not-callable
+                        d, memory_velocities[:, :2]
+                    ).unsqueeze(0)
+                )
+            cos_sim = torch.cat(cos_sim_list, dim=0)
+            cos_sim = torch.add(cos_sim, 1.0)
+            cos_sim = torch.div(cos_sim, 2.0)
 
         scores_depth = (
             cos_sim * centroid_weight + (1.0 - cos_sim) * motion_weight
@@ -242,6 +278,7 @@ class CC3DTrackAssociation:
         detection_scores_3d: Tensor,
         detection_class_ids: Tensor,
         detection_embeddings: Tensor,
+        obs_velocities: Tensor | None = None,
         memory_boxes_3d: Tensor | None = None,
         memory_track_ids: Tensor | None = None,
         memory_class_ids: Tensor | None = None,
@@ -260,6 +297,7 @@ class CC3DTrackAssociation:
             detection_scores_3d (Tensor): [N,] confidence scores in 3D.
             detection_class_ids (Tensor): [N,] class indices.
             detection_embeddings (Tensor): [N, C] appearance embeddings.
+            obs_velocities (Tensor | None): [N, 3] velocities of detections.
             memory_boxes_3d (Tensor): [M, 7] boxes in memory.
             memory_track_ids (Tensor): [M,] track ids in memory.
             memory_class_ids (Tensor): [M,] class indices in memory.
@@ -280,6 +318,7 @@ class CC3DTrackAssociation:
             detection_scores_3d,
             detection_class_ids,
             detection_embeddings,
+            obs_velocities,
             permute_inds,
         ) = self._filter_detections(
             detections,
@@ -289,6 +328,7 @@ class CC3DTrackAssociation:
             detection_scores_3d,
             detection_class_ids,
             detection_embeddings,
+            obs_velocities,
         )
 
         if with_depth_confidence:
@@ -324,6 +364,7 @@ class CC3DTrackAssociation:
             # Depth Ordering
             scores_depth = self.depth_ordering(
                 detections_3d,
+                obs_velocities,
                 memory_boxes_3d_predict,
                 memory_boxes_3d,
                 memory_velocities,

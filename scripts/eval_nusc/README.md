@@ -14,5 +14,17 @@ pip install -r nusc.txt
 - $VERSION is `mini` or `trainval` to select mini or validation split.
 
 ```bash
-bash eval_nusc.sh $WORK_DIR $VERSION
+# Detection
+python eval.py \
+--input $FOLDER_OF_PREDICTION \
+--version $VERSION \
+--dataroot $NUSC_DATA_ROOT \
+--mode detection
+
+# Tracking
+python eval.py \
+--input $FOLDER_OF_PREDICTION \
+--version $VERSION \
+--dataroot $NUSC_DATA_ROOT \
+--mode tracking
 ```

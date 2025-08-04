@@ -1,4 +1,5 @@
 """nuScenes evaluation pipeline for Vis4D."""
+
 import argparse
 import os
 import json
@@ -11,35 +12,6 @@ from nuscenes.eval.tracking.evaluate import TrackingEval as track_eval
 from nuscenes.eval.tracking.utils import print_final_metrics
 from nuscenes.eval.tracking.data_classes import TrackingConfig, TrackingMetrics
 from nuscenes.eval.common.config import config_factory as track_configs
-
-
-def parse_arguments() -> argparse.Namespace:
-    """Parse arguments."""
-    parser = argparse.ArgumentParser(description="Vis4D for nuScenes eval.")
-    parser.add_argument(
-        "--input",
-        "-i",
-        help=("Path to save nuScenes format dection / tracking results."),
-    )
-    parser.add_argument(
-        "--version",
-        "-v",
-        choices=["v1.0-trainval", "v1.0-test", "v1.0-mini"],
-        help="NuScenes dataset version to convert.",
-    )
-    parser.add_argument(
-        "--dataroot",
-        "-d",
-        help="NuScenes dataset root.",
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        default="tracking",
-        choices=["tracking", "detection"],
-        help="Conversion mode: detection or tracking.",
-    )
-    return parser.parse_args()
 
 
 def eval_detection(
@@ -114,7 +86,33 @@ def print_metric_summary(metric_summary_path: str) -> None:
 
 if __name__ == "__main__":
     """Main."""
-    args = parse_arguments()
+    parser = argparse.ArgumentParser(description="NuScenes eval for Vis4D.")
+    parser.add_argument(
+        "--input",
+        "-i",
+        help=(
+            "Folder path to the nuScenes format detection / tracking results."
+        ),
+    )
+    parser.add_argument(
+        "--version",
+        "-v",
+        choices=["v1.0-trainval", "v1.0-test", "v1.0-mini"],
+        help="NuScenes dataset version to convert.",
+    )
+    parser.add_argument(
+        "--dataroot",
+        "-d",
+        help="NuScenes dataset root.",
+    )
+    parser.add_argument(
+        "-m",
+        "--mode",
+        default="tracking",
+        choices=["tracking", "detection"],
+        help="Conversion mode: detection or tracking.",
+    )
+    args = parser.parse_args()
 
     if args.mode == "detection":
         metric = "detect_3d"

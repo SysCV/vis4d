@@ -60,6 +60,7 @@ class CC3DTrackGraph:
         num_frames: int = 5,
         fps: int = 2,
         update_3d_score: bool = True,
+        use_velocities: bool = False,
         add_backdrops: bool = True,
     ) -> None:
         """Creates an instance of the class."""
@@ -88,6 +89,7 @@ class CC3DTrackGraph:
         self.fps = fps
         self.update_3d_score = update_3d_score
         self.add_backdrops = add_backdrops
+        self.use_velocities = use_velocities
 
     def reset(self) -> None:
         """Empty the memory."""
@@ -289,6 +291,7 @@ class CC3DTrackGraph:
             memory_boxes_3d_predict = None
             memory_velocities = None
 
+        obs_velocities = boxes_3d[:, 9:]
         obs_boxes_3d = torch.cat(
             [boxes_3d[:, :6], boxes_3d[:, 8].unsqueeze(1)], dim=1
         )
@@ -301,6 +304,7 @@ class CC3DTrackGraph:
             scores_3d,
             class_ids,
             embeddings,
+            obs_velocities,
             memory_boxes_3d,
             memory_track_ids,
             memory_class_ids,
@@ -511,6 +515,12 @@ class CC3DTrackGraph:
             * self.tracklets[track_id]["acc_frame"]
             + velocity
         ) / (self.tracklets[track_id]["acc_frame"] + 1)
+
+        # Use predicted velocity if available
+        if self.use_velocities:
+            self.tracklets[track_id]["velocity"][4:] = self.tracklets[
+                track_id
+            ]["box_3d"][9:12]
 
         self.tracklets[track_id]["last_frame"] = frame_id
         self.tracklets[track_id]["acc_frame"] += 1

@@ -1,5 +1,5 @@
 # pylint: disable=duplicate-code
-"""CC-3DT with BEV detector on nuScenes."""
+"""CC-3DT++ on nuScenes."""
 from __future__ import annotations
 
 from vis4d.config import class_config
@@ -71,7 +71,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     config.pure_detection = ""
 
-    data_root = "vis4d/data/nuscenes"
+    data_root = "data/nuscenes"
     version = "v1.0-trainval"
     test_split = "val"
 
@@ -85,7 +85,7 @@ def get_config() -> ExperimentConfig:
         version=version,
         split=test_split,
         keys_to_load=[K.images, K.original_images],
-        # data_backend=class_config(HDF5Backend),
+        data_backend=class_config(HDF5Backend),
         pure_detection=config.pure_detection,
         cache_as_binary=True,
         cached_file_path=f"{data_root}/val.pkl",
@@ -107,9 +107,16 @@ def get_config() -> ExperimentConfig:
     track_graph = class_config(
         CC3DTrackGraph,
         track=class_config(
-            CC3DTrackAssociation, init_score_thr=0.2, obj_score_thr=0.1
+            CC3DTrackAssociation,
+            init_score_thr=0.2,
+            obj_score_thr=0.1,
+            match_score_thr=0.3,
+            nms_class_iou_thr=0.3,
+            bbox_affinity_weight=0.75,
+            with_velocities=True,
         ),
         update_3d_score=False,
+        use_velocities=True,
         add_backdrops=False,
     )
 
