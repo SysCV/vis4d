@@ -10,19 +10,16 @@ pip install -r nusc.txt
 ```
 
 ### Run
-- $WORK_DIR is your output folder which contains the prediction json file.
-- $VERSION is `mini` or `trainval` to select mini or validation split.
-
 ```bash
 # Detection
-python eval.py \
+python run.py \
 --input $FOLDER_OF_PREDICTION \
 --version $VERSION \
 --dataroot $NUSC_DATA_ROOT \
 --mode detection
 
 # Tracking
-python eval.py \
+python run.py \
 --input $FOLDER_OF_PREDICTION \
 --version $VERSION \
 --dataroot $NUSC_DATA_ROOT \

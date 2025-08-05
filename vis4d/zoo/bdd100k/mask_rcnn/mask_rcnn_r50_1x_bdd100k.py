@@ -133,7 +133,7 @@ def get_config() -> ExperimentConfig:
         class_config(
             VisualizerCallback,
             visualizer=class_config(SegMaskVisualizer, vis_freq=25),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_INS_MASK_2D_VIS
             ),

@@ -3,17 +3,11 @@
 from __future__ import annotations
 
 from vis4d.config import class_config
-from vis4d.zoo.base import get_default_callbacks_cfg
 from vis4d.config.typing import DataConfig, ExperimentConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.nuscenes_detection import NuScenesDetection
 from vis4d.data.io.hdf5 import HDF5Backend
-from vis4d.engine.connectors import MultiSensorDataConnector, data_key
-from vis4d.model.track3d.cc_3dt import CC3DT
-from vis4d.op.base import ResNet
-from vis4d.op.track3d.cc_3dt import CC3DTrackAssociation
-from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
 from vis4d.engine.callbacks import EvaluatorCallback
 from vis4d.engine.connectors import (
     CallbackConnector,
@@ -24,7 +18,11 @@ from vis4d.eval.nuscenes import (
     NuScenesDet3DEvaluator,
     NuScenesTrack3DEvaluator,
 )
-
+from vis4d.model.track3d.cc_3dt import CC3DT
+from vis4d.op.base import ResNet
+from vis4d.op.track3d.cc_3dt import CC3DTrackAssociation
+from vis4d.state.track3d.cc_3dt import CC3DTrackGraph
+from vis4d.zoo.base import get_default_callbacks_cfg
 from vis4d.zoo.cc_3dt.cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc import (
     get_config as get_kf3d_cfg,
 )

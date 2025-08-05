@@ -115,7 +115,9 @@ class CC3DTrackAssociation:
         class_ids: Tensor,
         embeddings: Tensor,
         velocities: Tensor | None = None,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[
+        Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor | None, Tensor
+    ]:
         """Remove overlapping objects across classes via nms.
 
         Args:
@@ -239,7 +241,7 @@ class CC3DTrackAssociation:
             )
             for v in obsvvv_velocities:
                 velsim_weight_list.append(
-                    F.pairwise_distance(
+                    F.pairwise_distance(  # pylint: disable=not-callable
                         v, memory_velocities[:, -3:]
                     ).unsqueeze(0)
                 )

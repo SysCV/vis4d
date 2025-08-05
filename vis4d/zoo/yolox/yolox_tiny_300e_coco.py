@@ -116,7 +116,7 @@ def get_config() -> ExperimentConfig:
             visualizer=class_config(
                 BoundingBoxVisualizer, vis_freq=100, image_mode="BGR"
             ),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 CallbackConnector, key_mapping=CONN_BBOX_2D_VIS
             ),

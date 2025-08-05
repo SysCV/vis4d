@@ -136,11 +136,10 @@ dependencies = {file = ["requirements/install.txt"]}
 include = ["vis4d*"]
 
 [project.urls]
-"Documentation" = "https://docs.vis.xyz/4d"
+"Documentation" = "https://vis4d.readthedocs.io"
 "Source" = "https://github.com/syscv/vis4d"
-"Tracker" = "https://github.com/syscv/"
+"Tracker" = "https://github.com/syscv/vis4d/issues"
 
 [project.scripts]
 vis4d = "vis4d.engine.run:entrypoint"
-vis4d-pl = "vis4d.pl.run:entrypoint"
 vis4d-zoo = "vis4d.zoo.run:entrypoint"

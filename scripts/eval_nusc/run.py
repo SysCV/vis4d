@@ -97,13 +97,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--version",
         "-v",
-        choices=["v1.0-trainval", "v1.0-test", "v1.0-mini"],
+        choices=["trainval", "mini"],
         help="NuScenes dataset version to convert.",
     )
     parser.add_argument(
         "--dataroot",
         "-d",
         help="NuScenes dataset root.",
+        default="./data/nuscenes",
     )
     parser.add_argument(
         "-m",
@@ -120,7 +121,7 @@ if __name__ == "__main__":
         metric = "track_3d"
 
     evaluate(
-        args.version,
+        f"v1.0-{args.version}",
         args.dataroot,
         args.mode,
         args.input,

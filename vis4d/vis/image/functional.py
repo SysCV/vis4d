@@ -30,7 +30,6 @@ def imshow(
     image: ArrayLike,
     image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
-    file_path: str | None = None,
 ) -> None:
     """Shows a single image.
 
@@ -39,7 +38,6 @@ def imshow(
         image_mode (str, optional): Image Mode. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
-        file_path (str): The path to save the image to. Defaults to None.
     """
     image = preprocess_image(image, image_mode)
     image_viewer.show_images([image])
@@ -264,8 +262,6 @@ def imshow_masks(
     n_colors: int = 50,
     image_mode: str = "RGB",
     canvas: CanvasBackend = PillowCanvasBackend(),
-    image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
-    file_path: str | None = None,
 ) -> None:
     """Shows semantic masks overlayed over the given image.
 
@@ -280,14 +276,10 @@ def imshow_masks(
         image_mode (str, optional): Image Mode.. Defaults to "RGB".
         canvas (CanvasBackend, optional): Canvas backend to use.
             Defaults to PillowCanvasBackend().
-        image_viewer (ImageViewerBackend, optional): The Image viewer backend
-            to use. Defaults to MatplotlibImageViewer().
-        file_path (str): The path to save the image to. Defaults to None.
     """
     imshow(
         draw_masks(image, masks, class_ids, n_colors, image_mode, canvas),
         image_mode,
-        image_viewer,
     )
 
 
@@ -427,8 +419,8 @@ def imshow_track_matches(
                 r_canvas = draw_bboxes(
                     ref_image, ref_box[batch_i], image_mode=image_mode
                 )
-                k_canvas = k_canvas.as_numpy_image()
-                r_canvas = r_canvas.as_numpy_image()
-                stacked_img = np.vstack([k_canvas, r_canvas])
+                k_np_img = k_canvas.as_numpy_image()
+                r_np_img = r_canvas.as_numpy_image()
+                stacked_img = np.vstack([k_np_img, r_np_img])
 
                 imshow(stacked_img, image_mode, image_viewer)

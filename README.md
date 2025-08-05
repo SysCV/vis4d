@@ -12,7 +12,7 @@
 
 ## Quickstart
 
-You can checkout our [documentation](https://docs.vis.xyz/4d/index.html).
+You can checkout our [documentation](https://vis4d.readthedocs.io).
 
 You can use the [template](https://github.com/SysCV/vis4d-template) here to start your own project with Vis4D.
 
@@ -24,7 +24,7 @@ Installation is as easy as
 python3 -m pip install vis4d
 ```
 
-[For more detailed information, check out our installation guide](docs/source/user_guide/install.rst)
+[For more detailed information, check out our installation guide](https://vis4d.readthedocs.io/en/latest/user_guide/install.html)
 
 ## Basic CLI usage
 
@@ -33,9 +33,6 @@ python3 -m pip install vis4d
 ```bash
 # vis4d.engine
 vis4d fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
-
-# vis4d.pl
-vis4d-pl fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 - To test a model
@@ -43,9 +40,6 @@ vis4d-pl fit --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```bash
 # vis4d.engine
 vis4d test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
-
-# vis4d.pl
-vis4d-pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 ```
 
 ## DDP
@@ -55,21 +49,13 @@ vis4d-pl test --config vis4d/zoo/faster_rcnn/faster_rcnn_coco.py --gpus 1
 - Local machine / SLURM interactivate job (`job-name=bash`)
 
 ```bash
-# vis4d.engine
-./scripts/dist_train.sh <config-file> <num-gpus>
-
-# vis4d.pl
-vis4d-pl fit --config <config-file> --gpus <num-gpus>
+vis4d fit --config <config-file> --gpus <num-gpus>
 ```
 
 - SLURM
 
 ```bash
-# vis4d.engine
-srun vis4d fit --config <config-file> --gpus <num-gpus> --slurm True
-
-# vis4d.pl
-srun vis4d-pl fit --config <config-file> --gpus <num-gpus>
+srun vis4d fit --config <config-file> --gpus <num-gpus>
 ```
 
 ### Testing
@@ -77,21 +63,13 @@ srun vis4d-pl fit --config <config-file> --gpus <num-gpus>
 - Local machine / SLURM interactivate job (`job-name=bash`)
 
 ```bash
-# vis4d.engine
-./scripts/dist_test.sh <config-file> <num-gpus>
-
-# vis4d.pl
-vis4d-pl test --config <config-file> --gpus <num-gpus>
+vis4d test --config <config-file> --gpus <num-gpus>
 ```
 
 - SLURM
 
 ```bash
-# vis4d.engine
-srun vis4d test --config <config-file> --gpus <num-gpus> --slurm True
-
-# vis4d.pl
-srun vis4d-pl test --config <config-file> --gpus <num-gpus>
+srun vis4d test --config <config-file> --gpus <num-gpus>
 ```
 
 ## Acknowledgement

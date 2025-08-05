@@ -34,42 +34,45 @@ We provide the converted [BEVFormer detection results](https://dl.cv.ethz.ch/vis
 ### Train the Tracking Model
 ```bash
 # R50
-python -m vis4d.pl fit --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.py --gpus 8
+vis4d fit --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.py --gpus 8
 
 # R101
-python -m vis4d.pl fit --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc.py --gpus 8
+vis4d fit --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc.py --gpus 8
 ```
 
 ### Train VeloLSTM motion model
 Generate the pure detection results on training set first.
 ```bash
-python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_pure_det_nusc.py --ckpt ${checkpoint_path} --gpus ${num_gpus}
+vis4d test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_pure_det_nusc.py --ckpt ${checkpoint_path} --gpus ${num_gpus}
 ```
 
 Then train the VeloLSTM motion model by updating the pure detection results path in the [config](./velo_lstm_frcnn_r101_fpn_100e_nusc.py#L74).
 ```bash
-python -m vis4d.pl fit --config vis4d/zoo/cc_3dt/velo_lstm_frcnn_r101_fpn_100e_nusc.py --gpus 4
+vis4d fit --config vis4d/zoo/cc_3dt/velo_lstm_frcnn_r101_fpn_100e_nusc.py --gpus 4
 ```
 
 ### Inference
 Run with KF3D motion model.
 ```bash
 # R50
-python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.py --ckpt ${tracking_model_checkpoint_path} --gpus ${num_gpus}
+vis4d test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r50_fpn_kf3d_12e_nusc.py --ckpt ${tracking_model_checkpoint_path} --gpus ${num_gpus}
 
 # R101
-python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc.py --ckpt ${tracking_model_checkpoint_path} --gpus ${num_gpus}
+vis4d test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_kf3d_24e_nusc.py --ckpt ${tracking_model_checkpoint_path} --gpus ${num_gpus}
 ```
 
 Run with VeloLSTM motion model.
 ```bash
-python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc.py --ckpt ${tracking_model_checkpoint_path} --config.velo_lstm_ckpt ${velo_lstm_cehckpoint_path} --gpus ${num_gpus}
+vis4d test --config vis4d/zoo/cc_3dt/cc_3dt_frcnn_r101_fpn_velo_lstm_24e_nusc.py --ckpt ${tracking_model_checkpoint_path} --config.velo_lstm_ckpt ${velo_lstm_cehckpoint_path} --gpus ${num_gpus}
 ```
 
 Run with VeloLSTM motion model with BEVFormer detection results.
 ```bash
-python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_bevformer_base_velo_lstm_nusc.py --ckpt ${tracking_model_checkpoint_path} --config.velo_lstm_ckpt ${velo_lstm_cehckpoint_path} --config.pure_detection ${bevformer_pure_detection_path} --gpus ${num_gpus}
+vis4d test --config vis4d/zoo/cc_3dt/cc_3dt_bevformer_base_velo_lstm_nusc.py --ckpt ${tracking_model_checkpoint_path} --config.velo_lstm_ckpt ${velo_lstm_cehckpoint_path} --config.pure_detection ${bevformer_pure_detection_path} --gpus ${num_gpus}
 ```
+
+## CR-3DT
+We also update the [config](./cc_3dt_pp_kf3d.py) for running CC-3DT++ used in [CR-3DT](https://github.com/ETH-PBL/cc-3dt-pp/tree/main). Feel free to try!
 
 ## Citation
 ```
@@ -78,5 +81,12 @@ python -m vis4d.pl test --config vis4d/zoo/cc_3dt/cc_3dt_bevformer_base_velo_lst
   author={Fischer, Tobias and Yang, Yung-Hsu and Kumar, Suryansh and Sun, Min and Yu, Fisher},
   booktitle={6th Annual Conference on Robot Learning},
   year={2022}
+}
+
+@article{baumann2024cr3dt,
+  title={CR3DT: Camera-RADAR Fusion for 3D Detection and Tracking},
+  author={Baumann, Nicolas and Baumgartner, Michael and Ghignone, Edoardo and K{\"u}hne, Jonas and Fischer, Tobias and Yang, Yung-Hsu and Pollefeys, Marc and Magno, Michele},
+  journal={arXiv preprint arXiv:2403.15313},
+  year={2024}
 }
 ```
