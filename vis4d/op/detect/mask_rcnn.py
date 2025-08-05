@@ -13,7 +13,7 @@ from vis4d.op.box.box2d import apply_mask
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.mask.util import paste_masks_in_image, remove_overlap
 
-from ..typing import Proposals, Targets
+from .typing import Proposals, Targets
 
 
 class MaskRCNNHeadOut(NamedTuple):

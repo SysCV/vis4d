@@ -163,12 +163,12 @@ class MultiheadAttention(nn.Module):
             value (Tensor): The value tensor with same shape as `key`.
                 Same in `nn.MultiheadAttention.forward`. Defaults to None.
                 If None, the `key` will be used.
-            identity (Tensor): This tensor, with the same shape as x,
+            identity (Tensor): This tensor, with the same shape as query,
                 will be used for the identity link.
-                If None, `x` will be used. Defaults to None.
+                If None, `query` will be used. Defaults to None.
             query_pos (Tensor): The positional encoding for query, with
-                the same shape as `x`. If not None, it will
-                be added to `x` before forward function. Defaults to None.
+                the same shape as `query`. If not None, it will
+                be added to `query` before forward function. Defaults to None.
             key_pos (Tensor): The positional encoding for `key`, with the
                 same shape as `key`. Defaults to None. If not None, it will
                 be added to `key` before forward function. If None, and

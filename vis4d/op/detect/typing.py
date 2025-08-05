@@ -1,4 +1,4 @@
-"""Vis4D op typing."""
+"""Detect op typing."""
 
 from __future__ import annotations
 

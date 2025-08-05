@@ -12,7 +12,7 @@ from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign, MultiScaleRoIPooler
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
-from vis4d.op.layer import add_conv_branch
+from vis4d.op.layer.conv2d import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 
 from .assignment import TrackIDCounter, greedy_assign

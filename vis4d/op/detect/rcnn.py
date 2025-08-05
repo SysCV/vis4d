@@ -15,7 +15,7 @@ from vis4d.op.box.box2d import bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.detect.common import DetOut
-from vis4d.op.layer import add_conv_branch
+from vis4d.op.layer.conv2d import add_conv_branch
 from vis4d.op.layer.weight_init import kaiming_init, normal_init, xavier_init
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss

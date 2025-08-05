@@ -6,7 +6,9 @@ import torch
 from timm.models import named_apply
 from torch import nn
 
-from ..layer import PatchEmbed, TransformerBlock
+from vis4d.op.layer.patch_embed import PatchEmbed
+from vis4d.op.layer.transformer import TransformerBlock
+
 from .base import BaseModel
 
 
