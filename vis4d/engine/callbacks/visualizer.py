@@ -7,8 +7,8 @@ from typing import Any
 
 import lightning.pytorch as pl
 
-from vis4d.common import ArgsType
 from vis4d.common.distributed import broadcast, synchronize
+from vis4d.common.typing import ArgsType
 from vis4d.vis.base import Visualizer
 
 from .base import Callback

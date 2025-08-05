@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 from torch import Tensor, nn
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType
 from vis4d.model.motion.velo_lstm import VeloLSTM
 from vis4d.op.geometry.rotation import acute_angle, normalize_angle
 

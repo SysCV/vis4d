@@ -17,7 +17,7 @@ from torch import Tensor, nn
 from torch.distributed import broadcast_object_list
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
-from vis4d.common import ArgsType, DictStrAny, GenericFunc
+from vis4d.common.typing import ArgsType, DictStrAny, GenericFunc
 
 
 # no coverage for these functions, since we don't unittest distributed setting

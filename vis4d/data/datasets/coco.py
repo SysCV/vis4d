@@ -11,7 +11,7 @@ import numpy as np
 import pycocotools.mask as maskUtils
 from pycocotools.coco import COCO as COCOAPI
 
-from vis4d.common import ArgsType, DictStrAny
+from vis4d.common.typing import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 

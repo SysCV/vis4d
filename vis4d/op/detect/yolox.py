@@ -14,13 +14,13 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import batched_nms
 
-from vis4d.common import TorchLossFunc
 from vis4d.common.distributed import reduce_mean
+from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.anchor import MlvlPointGenerator
 from vis4d.op.box.encoder import YOLOXBBoxDecoder
 from vis4d.op.box.matchers import SimOTAMatcher
 from vis4d.op.box.samplers import PseudoSampler
-from vis4d.op.layer import Conv2d
+from vis4d.op.layer.conv2d import Conv2d
 from vis4d.op.layer.weight_init import bias_init_with_prob
 from vis4d.op.loss import IoULoss
 from vis4d.op.loss.reducer import SumWeightedLoss

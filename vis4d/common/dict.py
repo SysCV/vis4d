@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vis4d.common import DictStrAny
+from vis4d.common.typing import DictStrAny
 
 
 def flatten_dict(dictionary: DictStrAny, seperator: str) -> list[str]:

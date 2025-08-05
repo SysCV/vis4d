@@ -17,9 +17,9 @@ from vis4d.op.box.samplers import (
     match_and_sample_proposals,
 )
 
-from ..typing import Proposals, Targets
 from .rcnn import RCNNHead, RCNNOut
 from .rpn import RPN2RoI, RPNHead, RPNOut
+from .typing import Proposals, Targets
 
 
 class FRCNNOut(NamedTuple):

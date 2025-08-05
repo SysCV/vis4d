@@ -11,9 +11,10 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common import NDArrayI64
+from vis4d.common.typing import NDArrayI64
+from vis4d.op.layer.conv2d import Conv2d
+from vis4d.op.layer.deform_conv import DeformConv
 
-from ..layer import Conv2d, DeformConv
 from .base import FeaturePyramidProcessing
 
 

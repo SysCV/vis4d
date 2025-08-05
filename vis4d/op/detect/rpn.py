@@ -16,11 +16,11 @@ from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import DeltaXYWHBBoxDecoder, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler, Sampler
+from vis4d.op.layer.conv2d import Conv2d
 from vis4d.op.loss.common import l1_loss
 
-from ..layer import Conv2d
-from ..typing import Proposals
 from .dense_anchor import DenseAnchorHeadLoss, DenseAnchorHeadLosses
+from .typing import Proposals
 
 
 class RPNOut(NamedTuple):

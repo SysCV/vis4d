@@ -11,10 +11,14 @@ from collections import defaultdict
 import numpy as np
 from PIL import Image
 
-from vis4d.common import MetricLogs
 from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.common.typing import ArrayLike, GenericFunc, NDArrayNumber
+from vis4d.common.typing import (
+    ArrayLike,
+    GenericFunc,
+    MetricLogs,
+    NDArrayNumber,
+)
 from vis4d.data.datasets.shift import shift_det_map
 from vis4d.data.io import DataBackend, ZipBackend
 from vis4d.eval.base import Evaluator

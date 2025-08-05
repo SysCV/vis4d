@@ -12,7 +12,8 @@ import torch
 from torch import nn
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from vis4d.op.layer import Conv2d, CSPLayer
+from vis4d.op.layer.conv2d import Conv2d
+from vis4d.op.layer.csp_layer import CSPLayer
 
 
 class Focus(nn.Module):

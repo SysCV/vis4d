@@ -15,7 +15,6 @@ import torchvision
 from torch import nn
 from torch.hub import load_state_dict_from_url as load_url
 
-from vis4d.common import TorchCheckpoint
 from vis4d.common.distributed import (
     get_rank,
     get_world_size,
@@ -23,6 +22,7 @@ from vis4d.common.distributed import (
     synchronize,
 )
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
+from vis4d.common.typing import TorchCheckpoint
 
 CheckpointLoadFunc = Callable[
     [str, Union[str, torch.device, None]], TorchCheckpoint

@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from vis4d.common import TorchLossFunc
+from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.anchor import AnchorGenerator, anchor_inside_image
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import Matcher

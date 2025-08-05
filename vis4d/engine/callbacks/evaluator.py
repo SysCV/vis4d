@@ -7,7 +7,6 @@ from typing import Any
 
 import lightning.pytorch as pl
 
-from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import (
     all_gather_object_cpu,
     broadcast,
@@ -15,6 +14,7 @@ from vis4d.common.distributed import (
     synchronize,
 )
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.typing import ArgsType, MetricLogs
 from vis4d.data.typing import DictData
 from vis4d.eval.base import Evaluator
 

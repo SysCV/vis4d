@@ -8,7 +8,7 @@ import math
 import torch
 from torchvision.ops import roi_align, roi_pool
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType
 
 from .base import RoIPooler
 from .utils import assign_boxes_to_levels, boxes_to_tensor
