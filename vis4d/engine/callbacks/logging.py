@@ -7,10 +7,10 @@ from typing import Any
 
 import lightning.pytorch as pl
 
-from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
+from vis4d.common.typing import ArgsType, MetricLogs
 
 from .base import Callback
 

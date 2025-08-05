@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType
 
 from ..matchers.base import MatchResult
 from .base import Sampler, SamplingResult

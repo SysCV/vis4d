@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from absl import app  # pylint: disable=no-name-in-module
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType
 from vis4d.zoo import AVAILABLE_MODELS
 
 

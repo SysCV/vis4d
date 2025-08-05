@@ -13,7 +13,6 @@ from torch import nn
 from torch.nn.modules.batchnorm import _NormBase
 from torch.utils.data import DataLoader
 
-from vis4d.common import ArgsType, DictStrAny
 from vis4d.common.distributed import (
     all_reduce_dict,
     broadcast,
@@ -22,6 +21,7 @@ from vis4d.common.distributed import (
     synchronize,
 )
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
+from vis4d.common.typing import ArgsType, DictStrAny
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
 from vis4d.op.detect.yolox import YOLOXHeadLoss

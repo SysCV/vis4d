@@ -11,9 +11,9 @@ from lightning.pytorch.loggers import Logger, TensorBoardLogger
 from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
 
-from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.typing import ArgsType
 
 
 class PLTrainer(Trainer):

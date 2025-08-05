@@ -9,8 +9,8 @@ import torch
 from absl import app  # pylint: disable=no-name-in-module
 from torch.utils.collect_env import get_pretty_env_info
 
-from vis4d.common import ArgsType
 from vis4d.common.logging import dump_config, rank_zero_info, setup_logger
+from vis4d.common.typing import ArgsType
 from vis4d.common.util import set_tf32
 from vis4d.config import instantiate_classes
 from vis4d.config.typing import ExperimentConfig

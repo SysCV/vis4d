@@ -12,7 +12,7 @@ from typing import TypedDict
 
 from torch.utils.data import Dataset as TorchDataset
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData

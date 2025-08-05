@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
-from vis4d.common import ArgsType
+from vis4d.common.typing import ArgsType
 
 from ..box2d import non_intersection, random_choice
 from ..matchers.base import MatchResult

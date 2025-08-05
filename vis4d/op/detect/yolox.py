@@ -14,8 +14,8 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import batched_nms
 
-from vis4d.common import TorchLossFunc
 from vis4d.common.distributed import reduce_mean
+from vis4d.common.typing import TorchLossFunc
 from vis4d.op.box.anchor import MlvlPointGenerator
 from vis4d.op.box.encoder import YOLOXBBoxDecoder
 from vis4d.op.box.matchers import SimOTAMatcher

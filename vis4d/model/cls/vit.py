@@ -6,8 +6,8 @@ import timm.models.vision_transformer as _vision_transformer
 import torch
 from torch import nn
 
-from vis4d.common import ArgsType
 from vis4d.common.ckpt import load_model_checkpoint
+from vis4d.common.typing import ArgsType
 from vis4d.op.base.vit import VisionTransformer, ViT_PRESET
 
 from .common import ClsOut

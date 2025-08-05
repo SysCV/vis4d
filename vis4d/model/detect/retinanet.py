@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from torch import Tensor, nn
 
-from vis4d.common import LossesType
 from vis4d.common.ckpt import load_model_checkpoint
+from vis4d.common.typing import LossesType
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.anchor import AnchorGenerator
 from vis4d.op.box.box2d import scale_and_clip_boxes
