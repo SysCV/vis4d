@@ -186,7 +186,7 @@ def preprocess_boxes3d(
     list[list[tuple[float, float, float]]],
     list[str],
     list[tuple[int, int, int]],
-    list[int],
+    list[int | None],
 ]:
     """Preprocesses bounding boxes.
 
@@ -233,7 +233,7 @@ def preprocess_boxes3d(
     corners_proc: list[list[tuple[float, float, float]]] = []
     colors_proc: list[tuple[int, int, int]] = []
     labels_proc: list[str] = []
-    track_ids_proc: list[int] = []
+    track_ids_proc: list[int | None] = []
 
     if len(mask) == 1:
         if not mask[0]:
@@ -281,8 +281,7 @@ def preprocess_boxes3d(
             category = None
 
         labels_proc.append(_get_box_label(category, score, track_id))
-        if track_id is not None:
-            track_ids_proc.append(track_id)
+        track_ids_proc.append(track_id)
     return centers_proc, corners_proc, labels_proc, colors_proc, track_ids_proc
 
 

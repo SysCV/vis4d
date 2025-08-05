@@ -104,7 +104,7 @@ def main(argv: ArgsType) -> None:
 
         if not vis and isinstance(callback, VisualizerCallback):
             rank_zero_info(
-                f"{callback.visualizer} is not used."
+                f"{callback.visualizer} is not used. "
                 "Please set --vis=True to use it."
             )
             continue

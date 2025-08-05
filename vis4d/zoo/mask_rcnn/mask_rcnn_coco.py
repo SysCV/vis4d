@@ -155,7 +155,7 @@ def get_config() -> ExperimentConfig:
         class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer, vis_freq=100),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 CallbackConnector,
                 key_mapping=remap_pred_keys(CONN_BBOX_2D_VIS, "boxes"),

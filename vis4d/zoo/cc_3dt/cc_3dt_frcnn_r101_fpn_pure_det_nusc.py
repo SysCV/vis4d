@@ -74,7 +74,7 @@ def get_config() -> ExperimentConfig:
                 save_only=True,
             ),
             save_predictions=True,
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 MultiSensorCallbackConnector,
                 key_mapping=CONN_NUSC_DET3D_EVAL,

@@ -50,7 +50,7 @@ def get_config() -> ExperimentConfig:
                 vis_freq=1,
                 plot_trajectory=False,
             ),
-            save_prefix=config.output_dir,
+            output_dir=config.output_dir,
             test_connector=class_config(
                 MultiSensorCallbackConnector,
                 key_mapping=CONN_NUSC_BBOX_3D_VIS,
