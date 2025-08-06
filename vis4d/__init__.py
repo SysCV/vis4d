@@ -7,7 +7,7 @@ for further research and development of 4D Vision algorithms.
 
 import logging
 
-__version__ = "0.1.4"
+__version__ = "1.0.0"
 
 _root_logger = logging.getLogger()
 _logger = logging.getLogger(__name__)

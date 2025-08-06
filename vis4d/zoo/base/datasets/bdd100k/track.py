@@ -122,8 +122,11 @@ def get_train_dataloader(
     )
 
     return get_train_dataloader_cfg(
-        preprocess_cfg=train_preprocess_cfg,
-        dataset_cfg=train_dataset_cfg,
+        datasets_cfg=class_config(
+            DataPipe,
+            datasets=train_dataset_cfg,
+            preprocess_fn=train_preprocess_cfg,
+        ),
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         batchprocess_cfg=train_batchprocess_cfg,

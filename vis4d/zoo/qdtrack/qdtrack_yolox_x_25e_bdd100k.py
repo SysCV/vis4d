@@ -2,7 +2,6 @@
 """QDTrack with YOLOX-x on BDD100K."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
@@ -160,9 +159,5 @@ def get_config() -> ExperimentConfig:
     pl_trainer.wandb = True
     pl_trainer.precision = "16-mixed"
     config.pl_trainer = pl_trainer
-
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

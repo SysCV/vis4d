@@ -2,7 +2,6 @@
 """Mask RCNN BDD100K training example."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 from torch.optim.sgd import SGD
 
@@ -165,9 +164,5 @@ def get_config() -> ExperimentConfig:
     pl_trainer.max_epochs = params.num_epochs
     pl_trainer.check_val_every_n_epoch = config.check_val_every_n_epoch
     config.pl_trainer = pl_trainer
-
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()
