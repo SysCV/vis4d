@@ -9,6 +9,7 @@ from ml_collections import ConfigDict
 from vis4d.config import class_config
 from vis4d.config.typing import DataConfig
 from vis4d.data.const import CommonKeys as K
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.imagenet import ImageNet
 from vis4d.data.transforms.autoaugment import RandAug
 from vis4d.data.transforms.base import RandomApply, compose
@@ -28,7 +29,10 @@ from vis4d.data.transforms.random_erasing import RandomErasing
 from vis4d.data.transforms.resize import GenResizeParameters, ResizeImages
 from vis4d.data.transforms.to_tensor import ToTensor
 from vis4d.engine.connectors import data_key, pred_key
-from vis4d.zoo.base import get_train_dataloader_cfg
+from vis4d.zoo.base import (
+    get_inference_dataloaders_cfg,
+    get_train_dataloader_cfg,
+)
 
 CONN_IMAGENET_CLS_EVAL = {
     "prediction": pred_key("probs"),
@@ -94,8 +98,11 @@ def get_train_dataloader(
     )
 
     return get_train_dataloader_cfg(
-        preprocess_cfg=train_preprocess_cfg,
-        dataset_cfg=train_dataset_cfg,
+        datasets_cfg=class_config(
+            DataPipe,
+            datasets=train_dataset_cfg,
+            preprocess_fn=train_preprocess_cfg,
+        ),
         batchprocess_cfg=train_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
@@ -158,13 +165,15 @@ def get_test_dataloader(
         ],
     )
 
-    return get_train_dataloader_cfg(
-        preprocess_cfg=test_preprocess_cfg,
-        dataset_cfg=test_dataset_cfg,
+    return get_inference_dataloaders_cfg(
+        datasets_cfg=class_config(
+            DataPipe,
+            datasets=test_dataset_cfg,
+            preprocess_fn=test_preprocess_cfg,
+        ),
         batchprocess_cfg=test_batchprocess_cfg,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
-        shuffle=False,
     )
 
 

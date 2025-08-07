@@ -6,14 +6,13 @@ devtools
 h5py
 jsonargparse[signatures]
 lightning
-ml_collections==1.1.0 # Config interface. Need exact version since we overwrite internal functions
-numpy>=1.21.0,<2.0.0
+ml_collections==1.1.0
+numpy>=1.21.0
 opencv-python
 pandas
 pillow
 plyfile
 pycocotools
-pydantic<2.0.0
 setuptools
 tensorboard
 termcolor
@@ -26,8 +25,3 @@ utm
 wheel
 scipy
 scipy-stubs
-
-# packages for datasets
-bdd100k
-scalabel
-nuscenes-devkit

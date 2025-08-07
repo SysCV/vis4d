@@ -2,7 +2,6 @@
 """Faster RCNN BDD100K training example."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 from torch.optim.sgd import SGD
 
@@ -120,7 +119,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Logger and Checkpoint
+    # Logger
     callbacks = get_default_callbacks_cfg()
 
     # Visualizer
@@ -160,9 +159,5 @@ def get_config() -> ExperimentConfig:
     pl_trainer = get_default_pl_trainer_cfg(config)
     pl_trainer.max_epochs = params.num_epochs
     config.pl_trainer = pl_trainer
-
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()
