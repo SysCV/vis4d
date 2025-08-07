@@ -18,6 +18,8 @@ for further research and development of 4D Vision algorithms.
     user_guide/config
     user_guide/cli
     user_guide/api
+    user_guide/visualization
+    user_guide/3D_visualization
 
 .. toctree::
     :hidden:
@@ -31,14 +33,6 @@ for further research and development of 4D Vision algorithms.
     dev_guide/callback
     dev_guide/trainer
     dev_guide/zoo
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Visualization
-
-    visualization/visualization
-    visualization/3D_visualization
 
 .. toctree::
     :hidden:
