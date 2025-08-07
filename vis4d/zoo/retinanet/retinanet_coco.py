@@ -160,7 +160,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Logger and Checkpoint
+    # Logger
     callbacks = get_default_callbacks_cfg()
 
     # Visualizer

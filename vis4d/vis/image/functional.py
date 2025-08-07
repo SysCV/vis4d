@@ -125,7 +125,7 @@ def draw_bboxes(
 
     for corners, label, color in zip(*box_data):
         canvas.draw_box(corners, color, box_width)
-        canvas.draw_text((corners[0], corners[1]), label)
+        canvas.draw_text((corners[0], corners[1]), label, color=color)
     return canvas
 
 

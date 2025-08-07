@@ -5,7 +5,7 @@ from absl import flags
 from .parser import DEFINE_config_file
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
-_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs per node")
 _NODES = flags.DEFINE_integer("nodes", default=1, help="Number of nodes")
 _WANDB = flags.DEFINE_bool(
     "wandb", default=False, help="If set, use Weights & Biases for logging."

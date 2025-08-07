@@ -125,7 +125,7 @@ def get_config() -> FieldConfigDict:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Logger and Checkpoint
+    # Logger
     callbacks = get_default_callbacks_cfg()
 
     # Visualizer

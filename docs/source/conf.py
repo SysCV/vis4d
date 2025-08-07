@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(PATH_ROOT))
 # -- Project information -----------------------------------------------------
 
 project = "Vis4D"
-copyright = "2022, ETH Zurich"
+copyright = "2024, ETH Zurich"
 author = "Vis4D Team"
 
 
@@ -56,7 +56,7 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-source_suffix = [".rst", ".ipynb"]
+source_suffix = [".rst", ".ipynb", ".md"]
 
 # The master toctree document.
 master_doc = "index"
@@ -70,17 +70,7 @@ pygments_dark_style = "monokai"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "furo"
-
-# TODO revise logo
-html_theme_options = {
-    "light_logo": "vis4d_logo.svg",
-    "dark_logo": "vis4d_logo.svg",
-    "sidebar_hide_name": True,
-    "navigation_with_keys": True,
-}
-
-# html_favicon = '_static/img/logo_favicon.png'
+html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -133,5 +123,10 @@ napoleon_attr_annotations = True
 
 # -- MYSTNB -----------------------------------------------------------------
 
-suppress_warnings = ["mystnb.unknown_mime_type", "myst.header"]
+suppress_warnings = [
+    "mystnb.unknown_mime_type",
+    "myst.header",
+    "ref.python",
+    "docutils",
+]
 nb_execution_mode = "off"

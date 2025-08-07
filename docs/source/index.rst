@@ -11,47 +11,45 @@ for further research and development of 4D Vision algorithms.
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: User Guide
+    :caption: Tutorials
 
     user_guide/install
     user_guide/getting_started
-    user_guide/visualization
-    user_guide/3D_visualization
+    user_guide/config
+    user_guide/cli
+    user_guide/api
 
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Extensions
+    :caption: Developer Guide
 
-    extensions
+    dev_guide/data
+    dev_guide/model
+    dev_guide/connector
+    dev_guide/optimizer
+    dev_guide/callback
+    dev_guide/trainer
+    dev_guide/zoo
 
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Model Zoo
+    :caption: Visualization
 
-    zoo
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Developter Guide
-
-    dev_guide/cli
-    dev_guide/config
-    dev_guide/data_connectors
-    dev_guide/contribute
-
-.. toctree::
-    :hidden:
-    :caption: Reference
-
-    API<api/vis4d>
+    visualization/visualization
+    visualization/3D_visualization
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: FAQ
 
-    faq/data
-    faq/trouble
+    faq
+    contribute
+
+.. toctree::
+    :hidden:
+    :caption: Reference
+
+    API<api/vis4d>
