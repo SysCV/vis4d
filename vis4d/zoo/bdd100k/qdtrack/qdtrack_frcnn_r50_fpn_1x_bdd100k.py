@@ -2,7 +2,6 @@
 """QDTrack with Faster R-CNN on BDD100K."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from torch.optim.lr_scheduler import LinearLR, MultiStepLR
 from torch.optim.sgd import SGD
 
@@ -109,7 +108,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Logger and Checkpoint
+    # Logger
     callbacks = get_default_callbacks_cfg()
 
     # Evaluator
@@ -137,9 +136,5 @@ def get_config() -> ExperimentConfig:
     config.pl_trainer = pl_trainer
 
     pl_trainer.gradient_clip_val = 35
-
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

@@ -10,7 +10,7 @@ from torch.optim.sgd import SGD
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets import COCO
+from vis4d.data.datasets.coco import COCO
 from vis4d.model.seg.fcn_resnet import REV_KEYS, FCNResNet
 from vis4d.op.loss import MultiLevelSegLoss
 

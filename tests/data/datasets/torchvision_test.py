@@ -8,7 +8,7 @@ import unittest
 from torchvision.datasets.mnist import MNIST
 
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets import TorchvisionClassificationDataset
+from vis4d.data.datasets.torchvision import TorchvisionClassificationDataset
 
 
 class TorchvisionClassifcationTest(unittest.TestCase):

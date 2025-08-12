@@ -4,7 +4,7 @@ import os
 
 from tests.util import get_test_data
 from vis4d.data.data_pipe import DataPipe, MultiSampleDataPipe
-from vis4d.data.datasets import BDD100K
+from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.transforms.mosaic import GenMosaicParameters, MosaicImages
 
 

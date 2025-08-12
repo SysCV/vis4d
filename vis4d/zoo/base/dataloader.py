@@ -21,9 +21,7 @@ from .callable import get_callable_cfg
 
 
 def get_train_dataloader_cfg(
-    dataset_cfg: ConfigDict,
-    preprocess_cfg: ConfigDict | None = None,
-    data_pipe: type = DataPipe,
+    datasets_cfg: ConfigDict | list[ConfigDict],
     samples_per_gpu: int | FieldReference = 1,
     workers_per_gpu: int | FieldReference = 1,
     batchprocess_cfg: ConfigDict | None = None,
@@ -37,16 +35,13 @@ def get_train_dataloader_cfg(
     """Creates dataloader configuration given dataset and preprocessing.
 
     Args:
-        dataset_cfg (ConfigDict): The configuration that contains the dataset.
-        preprocess_cfg (ConfigDict): The configuration that contains the
-            preprocessing operations. Defaults to None. If None, no
-            preprocessing will be applied.
+        datasets_cfg (ConfigDict | list[ConfigDict]): The configuration
+            contains the single dataset or datasets. If it is a list,
+            it will be wrapped into a DataPipe.
         samples_per_gpu (int | FieldReference, optional): How many samples each
             GPU will process. Defaults to 1.
         workers_per_gpu (int | FieldReference, optional): How many workers to
             spawn per GPU. Defaults to 1.
-        data_pipe (DataPipe, optional): The data pipe class to use. Defaults to
-            DataPipe.
         batchprocess_cfg (ConfigDict, optional): The config that contains the
             batch processing operations. Defaults to None. If None, ToTensor
             will be used.
@@ -69,12 +64,10 @@ def get_train_dataloader_cfg(
     if batchprocess_cfg is None:
         batchprocess_cfg = class_config(ToTensor)
 
-    if preprocess_cfg is None:
-        dataset = class_config(data_pipe, datasets=dataset_cfg)
+    if isinstance(datasets_cfg, list):
+        dataset = class_config(DataPipe, datasets=datasets_cfg)
     else:
-        dataset = class_config(
-            data_pipe, datasets=dataset_cfg, preprocess_fn=preprocess_cfg
-        )
+        dataset = datasets_cfg
 
     return class_config(
         build_train_dataloader,

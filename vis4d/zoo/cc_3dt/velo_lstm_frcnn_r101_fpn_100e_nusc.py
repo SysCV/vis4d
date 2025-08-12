@@ -2,7 +2,6 @@
 """CC-3DT VeloLSTM on nuScenes."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from torch.optim.adam import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 
@@ -12,6 +11,7 @@ from vis4d.config.typing import (
     ExperimentConfig,
     ExperimentParameters,
 )
+from vis4d.data.data_pipe import DataPipe
 from vis4d.data.datasets.nuscenes_trajectory import NuScenesTrajectory
 from vis4d.engine.connectors import (
     DataConnector,
@@ -75,7 +75,7 @@ def get_config() -> ExperimentConfig:
     )
 
     data.train_dataloader = get_train_dataloader_cfg(
-        dataset_cfg=train_dataset_cfg,
+        datasets_cfg=class_config(DataPipe, datasets=train_dataset_cfg),
         samples_per_gpu=params.samples_per_gpu,
         workers_per_gpu=params.workers_per_gpu,
         collate_keys=["pred_traj", "gt_traj"],
@@ -132,7 +132,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Logger and Checkpoint
+    # Logger
     callbacks = get_default_callbacks_cfg()
 
     config.callbacks = callbacks
@@ -146,9 +146,5 @@ def get_config() -> ExperimentConfig:
     pl_trainer.gradient_clip_val = 3
     pl_trainer.check_val_every_n_epoch = 101  # Disable validation
     config.pl_trainer = pl_trainer
-
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

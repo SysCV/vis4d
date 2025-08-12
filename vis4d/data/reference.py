@@ -14,7 +14,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from .const import CommonKeys as K
-from .datasets import VideoDataset
+from .datasets.base import VideoDataset
 from .typing import DictData
 
 SortingFunc = Callable[[DictData, list[DictData]], List[DictData]]

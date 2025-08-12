@@ -1,7 +1,25 @@
 """Model weight initialization."""
 
+from typing import Literal
+
 import numpy as np
 from torch import nn
+
+NonlinearityType = Literal[
+    "linear",
+    "conv1d",
+    "conv2d",
+    "conv3d",
+    "conv_transpose1d",
+    "conv_transpose2d",
+    "conv_transpose3d",
+    "sigmoid",
+    "tanh",
+    "relu",
+    "leaky_relu",
+    "selu",
+]
+FanMode = Literal["fan_in", "fan_out"]
 
 
 def constant_init(module: nn.Module, val: float, bias: float = 0.0) -> None:
@@ -32,8 +50,8 @@ def xavier_init(
 def kaiming_init(
     module: nn.Module,
     negative_slope: float = 0.0,
-    mode: str = "fan_out",
-    nonlinearity: str = "relu",
+    mode: FanMode = "fan_out",
+    nonlinearity: NonlinearityType = "relu",
     bias: float = 0.0,
     distribution: str = "normal",
 ) -> None:
@@ -44,12 +62,12 @@ def kaiming_init(
         negative_slope (float, optional): The negative slope of the rectifier
             used after this layer (only used with ``'leaky_relu'``). Defaults
             to 0.0.
-        mode (str, optional): Either ``'fan_in'`` (default) or ``'fan_out'``.
-            Choosing ``'fan_in'`` preserves the magnitude of the variance of
-            the weights in the forward pass. Choosing ``'fan_out'`` preserves
+        mode (FanMode, optional): Either `"fan_in"` (default) or `"fan_out"``.
+            Choosing `"fan_in"` preserves the magnitude of the variance of
+            the weights in the forward pass. Choosing `"fan_out"` preserves
             magnitudes in the backwards pass. Defaults to "fan_out".
-        nonlinearity (str, optional): The non-linear function (`nn.functional`
-            name). Defaults to "relu".
+        nonlinearity (NonlinearityType, optional): The non-linear function
+            (`nn.functional` name). Defaults to "relu".
         bias (float, optional): The bias to use. Defaults to 0.0.
         distribution (str, optional): Either ``'uniform'`` or ``'normal'``.
             Defaults to "normal".

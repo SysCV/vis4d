@@ -99,7 +99,7 @@ class MaskRCNNHead(nn.Module):
                 module.bias, torch.Tensor
             )
             nn.init.kaiming_normal_(
-                module.weight, mode=mode, nonlinearity="relu"
+                module.weight, mode=mode, nonlinearity="relu"  # type: ignore
             )
             nn.init.constant_(module.bias, 0)
 

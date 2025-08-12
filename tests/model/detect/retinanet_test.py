@@ -8,7 +8,7 @@ from torch.optim.sgd import SGD
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets import COCO
+from vis4d.data.datasets.coco import COCO
 from vis4d.model.detect.retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
 from vis4d.op.detect.common import DetOut
 from vis4d.op.detect.retinanet import get_default_box_codec

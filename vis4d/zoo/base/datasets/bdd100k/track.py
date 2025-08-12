@@ -8,7 +8,7 @@ from vis4d.config import class_config
 from vis4d.config.typing import DataConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.datasets import BDD100K, bdd100k_track_map
+from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map
 from vis4d.data.reference import MultiViewDataset, UniformViewSampler
 from vis4d.data.transforms import RandomApply, compose
 from vis4d.data.transforms.flip import FlipBoxes2D, FlipImages
@@ -122,8 +122,11 @@ def get_train_dataloader(
     )
 
     return get_train_dataloader_cfg(
-        preprocess_cfg=train_preprocess_cfg,
-        dataset_cfg=train_dataset_cfg,
+        datasets_cfg=class_config(
+            DataPipe,
+            datasets=train_dataset_cfg,
+            preprocess_fn=train_preprocess_cfg,
+        ),
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
         batchprocess_cfg=train_batchprocess_cfg,

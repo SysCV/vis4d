@@ -406,14 +406,14 @@ class QDSimilarityHead(nn.Module):
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
         for m in self.convs:
-            nn.init.kaiming_uniform_(m.weight, a=1)
+            nn.init.kaiming_uniform_(m.weight, a=1)  # type: ignore
             if m.bias is not None:
-                nn.init.constant_(m.bias, 0)  # pragma: no cover
+                nn.init.constant_(m.bias, 0)  # type: ignore
 
         for m in self.fcs:
-            if isinstance(m[0], nn.Linear):
-                nn.init.xavier_uniform_(m[0].weight)
-                nn.init.constant_(m[0].bias, 0)
+            if isinstance(m[0], nn.Linear):  # type: ignore
+                nn.init.xavier_uniform_(m[0].weight)  # type: ignore
+                nn.init.constant_(m[0].bias, 0)  # type: ignore
 
         nn.init.normal_(self.fc_embed.weight, 0, 0.01)
         nn.init.constant_(self.fc_embed.bias, 0)
