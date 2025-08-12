@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets import COCO
+from vis4d.data.datasets.coco import COCO
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.pad import PadImages

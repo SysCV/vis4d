@@ -9,7 +9,7 @@ import torch
 from tests.engine.trainer_test import get_test_dataloader
 from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets import COCO
+from vis4d.data.datasets.coco import COCO
 from vis4d.eval.coco import COCODetectEvaluator
 
 

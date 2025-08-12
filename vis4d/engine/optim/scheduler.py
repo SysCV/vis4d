@@ -85,7 +85,7 @@ class LRSchedulerWrapper(LRScheduler):
             lr.extend(lr_scheduler["scheduler"].get_lr())
         return lr
 
-    def state_dict(self) -> dict[int, DictStrAny]:
+    def state_dict(self) -> dict[int, DictStrAny]:  # type: ignore
         """Get state dict."""
         state_dict = {}
         for scheduler_idx, lr_scheduler in self.lr_schedulers.items():

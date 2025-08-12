@@ -10,7 +10,7 @@ from vis4d.config import class_config
 from vis4d.config.typing import DataConfig
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.datasets import BDD100K
+from vis4d.data.datasets.bdd100k import BDD100K
 from vis4d.data.io import DataBackend
 from vis4d.data.transforms.base import RandomApply, compose
 from vis4d.data.transforms.flip import (

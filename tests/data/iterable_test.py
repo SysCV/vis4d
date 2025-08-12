@@ -8,7 +8,7 @@ from torch import Tensor
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as K
 from vis4d.data.data_pipe import DataPipe
-from vis4d.data.datasets import S3DIS
+from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.iterable import SubdividingIterableDataset
 from vis4d.data.loader import (
     build_inference_dataloaders,
