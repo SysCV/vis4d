@@ -64,7 +64,6 @@ disallow_any_generics = true
 
 plugins = ["numpy.typing.mypy_plugin"]
 
-
 [[tool.mypy.overrides]]
     module = [
         "plyfile.*",
@@ -99,7 +98,6 @@ plugins = ["numpy.typing.mypy_plugin"]
         "fvcore.*",
     ]
     ignore_missing_imports = true
-
 
 [[tool.mypy.overrides]]
     module = [
