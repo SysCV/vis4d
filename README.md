@@ -2,7 +2,7 @@
     <!-- pypi-strip -->
     <picture>
     <!-- /pypi-strip -->
-    <img alt="vis4d" src="docs/source/_static/vis4d_logo.svg" width="400">
+    <img alt="vis4d" src="https://dl.cv.ethz.ch/vis4d/vis4d_logo.svg" width="400">
     <!-- pypi-strip -->
     </picture>
     <!-- /pypi-strip -->
@@ -85,7 +85,7 @@ Vis4D was originally written by [Tobias Fischer](https://tobiasfshr.github.io/) 
 - [Tobias Fischer](https://tobiasfshr.github.io/)*
  
 **Core Contributors**
-- [Thomas E. Huang](https://www.thomasehuang.com/)
+- [Thomas E. Huang](https://www.thomasehuang.com/)*
 - [Tao Sun](https://www.suniique.com/)
 - [René Zurbrügg](https://renezurbruegg.github.io/)
  
@@ -110,9 +110,9 @@ Vis4D was originally written by [Tobias Fischer](https://tobiasfshr.github.io/) 
 If you find Vis4D is useful for your research, please consider citing the following BibTeX entry.
 
 ```bibtex
-@misc{vis4d_2024,
-  author = {{Yung-Hsu Yang and Tobias Fischer and Thomas E. Huang} and René Zurbrügg and Tao Sun and Fisher Yu},
-  title = {Vis4D},
+@misc{vis4d2024,
+  author = {Yang, Yung-Hsu and Fischer, Tobias and Huang, Thomas E. and Zurbr{\"u}gg, Ren{\'e} and Sun, Tao and Yu, Fisher},
+  title = {Vis4{D}},
   howpublished = {\url{https://github.com/SysCV/vis4d}},
   year = {2024}
 }

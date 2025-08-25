@@ -24,9 +24,11 @@ from vis4d.engine.flag import (
     _CKPT,
     _CONFIG,
     _GPUS,
+    _NODES,
     _RESUME,
     _SHOW_CONFIG,
     _VIS,
+    _WANDB,
 )
 from vis4d.engine.parser import pprints_config
 from vis4d.engine.trainer import PLTrainer
@@ -44,6 +46,7 @@ def main(argv: ArgsType) -> None:
     assert mode in {"fit", "test"}, f"Invalid mode: {mode}"
     config: ExperimentConfig = _CONFIG.value
     num_gpus = _GPUS.value
+    num_nodes = _NODES.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -71,6 +74,12 @@ def main(argv: ArgsType) -> None:
     else:
         config.pl_trainer.accelerator = "cpu"
         config.pl_trainer.devices = 1
+
+    if num_nodes > 1:
+        config.pl_trainer.num_nodes = num_nodes
+
+    # Wandb
+    config.pl_trainer.wandb = _WANDB.value
 
     trainer_args = instantiate_classes(config.pl_trainer).to_dict()
 

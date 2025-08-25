@@ -8,7 +8,7 @@ from torch.optim.sgd import SGD
 from tests.util import get_test_data, get_test_file
 from vis4d.common.ckpt import load_model_checkpoint
 from vis4d.data.const import CommonKeys as K
-from vis4d.data.datasets import COCO
+from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import LossConnector
 from vis4d.engine.loss_module import LossModule
 from vis4d.model.detect.mask_rcnn import (

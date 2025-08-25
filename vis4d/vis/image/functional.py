@@ -125,7 +125,9 @@ def draw_bboxes(
 
     for corners, label, color in zip(*box_data):
         canvas.draw_box(corners, color, box_width)
-        canvas.draw_text((corners[0], corners[1]), label)
+
+        if len(label) > 0:
+            canvas.draw_text((corners[0], corners[1]), label, color=color)
     return canvas
 
 
@@ -214,9 +216,11 @@ def draw_bbox3d(
         canvas.draw_box_3d(corner, color, intrinsics, width, camera_near_clip)
 
         selected_corner = project_point(corner[0], intrinsics)
-        canvas.draw_text(
-            (selected_corner[0], selected_corner[1]), label, color=color
-        )
+
+        if len(label) > 0:
+            canvas.draw_text(
+                (selected_corner[0], selected_corner[1]), label, color=color
+            )
 
     return canvas
 

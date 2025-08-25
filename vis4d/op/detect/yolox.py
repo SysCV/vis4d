@@ -172,8 +172,8 @@ class YOLOXHead(nn.Module):
         for conv_cls, conv_obj in zip(
             self.multi_level_conv_cls, self.multi_level_conv_obj
         ):
-            conv_cls.bias.data.fill_(bias_init)
-            conv_obj.bias.data.fill_(bias_init)
+            conv_cls.bias.data.fill_(bias_init)  # type: ignore
+            conv_obj.bias.data.fill_(bias_init)  # type: ignore
 
     def forward(self, features: list[torch.Tensor]) -> YOLOXOut:
         """Forward pass of YOLOX head.

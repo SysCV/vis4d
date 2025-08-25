@@ -21,7 +21,7 @@ from vis4d.common.distributed import get_rank, get_world_size
 
 from .const import CommonKeys as K
 from .data_pipe import DataPipe
-from .datasets import VideoDataset
+from .datasets.base import VideoDataset
 from .samplers import AspectRatioBatchSampler, VideoInferenceSampler
 from .transforms import compose
 from .transforms.to_tensor import ToTensor

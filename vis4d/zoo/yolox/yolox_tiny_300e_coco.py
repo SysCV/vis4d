@@ -2,7 +2,6 @@
 """YOLOX COCO."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from vis4d.config import class_config
@@ -99,7 +98,7 @@ def get_config() -> ExperimentConfig:
     ######################################################
     ##                     CALLBACKS                    ##
     ######################################################
-    # Logger and Checkpoint
+    # Logger
     callbacks = get_default_callbacks_cfg(
         refresh_rate=config.log_every_n_steps
     )
@@ -159,9 +158,5 @@ def get_config() -> ExperimentConfig:
     )
     pl_trainer.wandb = True
     config.pl_trainer = pl_trainer
-
-    # PL Callbacks
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()

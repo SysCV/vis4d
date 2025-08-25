@@ -1,3 +1,5 @@
+"""Convert Vis4D model weights for release."""
+
 from __future__ import annotations
 
 import argparse

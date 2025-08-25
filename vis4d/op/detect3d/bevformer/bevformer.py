@@ -177,7 +177,7 @@ class BEVFormerHead(nn.Module):
         """Initialize weights."""
         bias_init = bias_init_with_prob(0.01)
         for m in self.cls_branches:
-            nn.init.constant_(m[-1].bias, bias_init)
+            nn.init.constant_(m[-1].bias, bias_init)  # type: ignore
 
     def forward(
         self,

@@ -2,7 +2,6 @@
 """VIT ImageNet-1k training example."""
 from __future__ import annotations
 
-import lightning.pytorch as pl
 from torch import nn
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR
@@ -178,8 +177,5 @@ def get_config() -> ExperimentConfig:
     pl_trainer.accumulate_grad_batches = params.accumulate_grad_batches
 
     config.pl_trainer = pl_trainer
-
-    pl_callbacks: list[pl.callbacks.Callback] = []
-    config.pl_callbacks = pl_callbacks
 
     return config.value_mode()
