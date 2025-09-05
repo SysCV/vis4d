@@ -35,5 +35,5 @@ More information about torch and pytorch-lightning installation
 Some functionalities in the library require CUDA operations. You can install them by running:
 
 ```bash
-python3 -m pip install -r requirements/torch-lib.txt
+python3 -m pip install -r requirements/torch-lib.txt --no-build-isolation --no-cache-dir
 ```
